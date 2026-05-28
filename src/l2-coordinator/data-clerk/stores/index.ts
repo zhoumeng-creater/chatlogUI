@@ -4,3 +4,4 @@ export { useSearchStore } from "./useSearchStore";
 export { useStatsStore } from "./useStatsStore";
 export { useAiStore } from "./useAiStore";
 export { useGraphStore } from "./useGraphStore";
+export { useSettingsStore } from "./useSettingsStore";
