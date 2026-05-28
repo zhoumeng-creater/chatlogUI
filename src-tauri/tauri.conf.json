@@ -61,7 +61,7 @@
     },
     "updater": {
       "endpoints": [
-        "https://github.com/CHANGEME_OWNER/CHANGEME_REPO/releases/latest/download/update.json"
+        "https://github.com/zhoumeng-creater/chatlogUI/releases/latest/download/update.json"
       ],
       "pubkey": ""
     }
