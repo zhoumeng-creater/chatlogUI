@@ -39,3 +39,9 @@ export const GRAPH_CAMERA_MIN_DISTANCE = 3;
 export const GRAPH_CAMERA_MAX_DISTANCE = 20;
 
 export const GRAPH_NODE_MIN_RADIUS = 0.5;
+
+// ========== Sprint 5a: Settings 常量 ==========
+
+export const SETTINGS_STORAGE_KEY = "chatlog_alpha_settings";
+export const SETTINGS_SIDEBAR_WIDTH = 180;
+export const SETTINGS_CONTENT_MAX_WIDTH = 600;

@@ -1,0 +1,220 @@
+<h2>3D 知识图谱 — 视觉风格与交互设计</h2>
+<p class="subtitle">基于 GraphNode（entity 节点）+ GraphEdge（关系连线）+ GraphTimeline（时间轴）</p>
+
+<div class="section">
+  <h3>节点设计：发光球体，按 entity kind 着色</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">节点视觉规范</div>
+      <div class="mockup-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #FF6B6B, #C0392B);box-shadow:0 0 16px rgba(255,107,107,0.4)"></div>
+            <div><strong>Person</strong><br/><span style="font-size:11px;opacity:0.6">人</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #74B9FF, #0066CC);box-shadow:0 0 16px rgba(116,185,255,0.4)"></div>
+            <div><strong>Organization</strong><br/><span style="font-size:11px;opacity:0.6">组织/公司</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #FFEAA7, #D4A017);box-shadow:0 0 16px rgba(255,234,167,0.4)"></div>
+            <div><strong>Project</strong><br/><span style="font-size:11px;opacity:0.6">项目</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #A29BFE, #4834D4);box-shadow:0 0 16px rgba(162,155,254,0.4)"></div>
+            <div><strong>Topic</strong><br/><span style="font-size:11px;opacity:0.6">话题/关键词</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #55EFC4, #007A5E);box-shadow:0 0 16px rgba(85,239,196,0.4)"></div>
+            <div><strong>Event</strong><br/><span style="font-size:11px;opacity:0.6">事件</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #7A7A7A, #444);box-shadow:0 0 16px rgba(122,122,122,0.4)"></div>
+            <div><strong>Unknown</strong><br/><span style="font-size:11px;opacity:0.6">未知</span></div>
+          </div>
+        </div>
+        <div style="padding:12px;border-top:1px solid rgba(255,255,255,0.1);color:#999;font-size:11px">
+          节点大小 = 4 + log₂(value) × 3 px（提及次数越多越大）
+        </div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">节点悬停 Tooltip</div>
+      <div class="mockup-body" style="padding:16px">
+        <div style="background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:12px;backdrop-filter:blur(20px);box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <div style="width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #FF6B6B, #C0392B);box-shadow:0 0 16px rgba(255,107,107,0.4)"></div>
+            <div>
+              <div style="font-weight:600;font-size:14px">张三</div>
+              <div style="font-size:11px;color:#888">Person · 提及 247 次</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;font-size:12px;color:#aaa">
+            最近活跃: 2026-05-20
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px">
+            <button class="mock-button" style="font-size:11px;padding:4px 10px;background:#007AFF;color:#fff;border:none;border-radius:6px">查看聊天</button>
+            <button class="mock-button" style="font-size:11px;padding:4px 10px;background:transparent;border:1px solid #555;color:#aaa;border-radius:6px">聚焦节点</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>连线设计：粒子流光线，表示关系</h3>
+  <div class="mockup">
+    <div class="mockup-header">Edge 视觉规范</div>
+    <div class="mockup-body">
+      <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+            <div style="width:80px;height:3px;background:#4A9EFF;border-radius:2px;box-shadow:0 0 8px rgba(74,158,255,0.4)"></div>
+            <span style="font-size:13px"><strong>active</strong> — 实线蓝色，粒子流动速度快</span>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+            <div style="width:80px;height:3px;background:#888;border-radius:2px;box-shadow:0 0 6px rgba(136,136,136,0.3)"></div>
+            <span style="font-size:13px"><strong>ended</strong> — 虚线灰色，粒子静态</span>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+            <div style="width:80px;height:3px;background:#FF6B6B;border-radius:2px;box-shadow:0 0 8px rgba(255,107,107,0.4)"></div>
+            <span style="font-size:13px"><strong>conflict</strong> — 红色虚线，脉冲警示</span>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;font-size:12px;color:#999">
+          连线粗细 = 1 + confidence × 3 px<br/>
+          Label 文字沿连线中间悬浮显示<br/>
+          evidence_count 越多 → 粒子密度越高
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>图谱布局与相机</h3>
+  <div class="options">
+    <div class="option" data-choice="force" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>3D 力导向布局 ★推荐</h3>
+        <p>节点自然分散，高关联度节点聚拢；OrbitControls 拖拽旋转/缩放/平移；自动缓慢旋转（可选关闭）</p>
+      </div>
+    </div>
+    <div class="option" data-choice="radial" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>径向/层级布局</h3>
+        <p>中心人物/话题放射状展开，适合展示"谁和谁讨论了什么"的层级结构</p>
+      </div>
+    </div>
+  </div>
+  <p class="subtitle" style="margin-top:12px">支持一键切换两种布局，力导向为默认</p>
+</div>
+
+<div class="section">
+  <h3>跨模块联动行为</h3>
+  <div class="mockup">
+    <div class="mockup-header">点击节点 → 触发联动</div>
+    <div class="mockup-body">
+      <div style="padding:16px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+            <td style="padding:8px;font-weight:600;width:30%">单击节点</td>
+            <td style="padding:8px;color:#ccc">Tooltip 弹出 → 显示节点详情 → 可选"查看聊天"/"聚焦"</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+            <td style="padding:8px;font-weight:600">双击节点</td>
+            <td style="padding:8px;color:#ccc">侧边栏高亮匹配的联系人 → 跳转对应聊天 → 图谱聚焦该节点</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+            <td style="padding:8px;font-weight:600">点击连线</td>
+            <td style="padding:8px;color:#ccc">显示关系详情（predicate, confidence, evidence_count）</td>
+          </tr>
+          <tr>
+            <td style="padding:8px;font-weight:600">搜索联动</td>
+            <td style="padding:8px;color:#ccc">全局搜索关键词 → 图谱中匹配的节点高亮闪烁 → 其他节点半透明</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>图谱控制栏</h3>
+  <div class="mockup">
+    <div class="mockup-header">浮动工具栏（图谱底部）</div>
+    <div class="mockup-body">
+      <div style="display:flex;gap:8px;padding:12px;flex-wrap:wrap;align-items:center">
+        <input class="mock-input" placeholder="在图谱中搜索..." style="width:160px">
+        <select style="padding:6px 10px;border-radius:6px;border:1px solid #555;background:#1a1a2e;color:#ccc;font-size:12px">
+          <option>全部类型</option><option>Person</option><option>Organization</option><option>Topic</option><option>Event</option>
+        </select>
+        <select style="padding:6px 10px;border-radius:6px;border:1px solid #555;background:#1a1a2e;color:#ccc;font-size:12px">
+          <option>全部时间</option><option>今天</option><option>7天</option><option>30天</option><option>90天</option>
+        </select>
+        <button class="mock-button" style="font-size:11px;padding:5px 10px">🔄 力导向</button>
+        <button class="mock-button" style="font-size:11px;padding:5px 10px">🔍 适应窗口</button>
+        <button class="mock-button" style="font-size:11px;padding:5px 10px">🔄 刷新数据</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options" data-multiselect>
+  <p class="subtitle">你认为哪些需要在 Sprint 4 中优先实现？（可多选）</p>
+  <div class="option" data-choice="nodes" onclick="toggleSelect(this)">
+    <div class="content">
+      <h3>节点渲染 + 着色 + 大小</h3>
+      <p>Three.js 球体 + 发光材质 + 按 kind 着色 + value 决定大小</p>
+    </div>
+  </div>
+  <div class="option" data-choice="edges" onclick="toggleSelect(this)">
+    <div class="content">
+      <h3>连线渲染 + 状态区分</h3>
+      <p>粒子流线条 + active/ended/conflict 三态 + label 悬浮</p>
+    </div>
+  </div>
+  <div class="option" data-choice="layout" onclick="toggleSelect(this)">
+    <div class="content">
+      <h3>力导向布局 + 相机控制</h3>
+      <p>d3-force-3d 模拟 + OrbitControls + 自动旋转</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tooltip" onclick="toggleSelect(this)">
+    <div class="content">
+      <h3>悬停/点击 Tooltip</h3>
+      <p>毛玻璃浮层卡片 + 节点详情 + 操作按钮</p>
+    </div>
+  </div>
+  <div class="option" data-choice="linking" onclick="toggleSelect(this)">
+    <div class="content">
+      <h3>跨模块联动</h3>
+      <p>双击节点→侧边栏高亮+聊天跳转 + 搜索→图谱高亮</p>
+    </div>
+  </div>
+  <div class="option" data-choice="controls" onclick="toggleSelect(this)">
+    <div class="content">
+      <h3>图谱控制栏</h3>
+      <p>类型筛选 + 时间窗 + 布局切换 + 搜索</p>
+    </div>
+  </div>
+  <div class="option" data-choice="timeline" onclick="toggleSelect(this)">
+    <div class="content">
+      <h3>时间轴叠加</h3>
+      <p>整合 GraphTimeline 数据，底部时间线滑块过滤</p>
+    </div>
+  </div>
+  <div class="option" data-choice="radial" onclick="toggleSelect(this)">
+    <div class="content">
+      <h3>径向/层级布局切换</h3>
+      <p>作为力导向的替代布局方案</p>
+    </div>
+  </div>
+</div>

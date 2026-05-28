@@ -1,0 +1,97 @@
+<h2>Sprint 4 核心架构问题：3D 知识图谱如何集成？</h2>
+<p class="subtitle">Sprint 2-3 已有三栏布局（联系人 + 聊天 + 统计/AI），图谱引入后需要决定空间分配</p>
+
+<div class="section">
+  <h3>方案 A：替换右侧面板（与 AI/统计共享槽位）</h3>
+  <div class="mockup">
+    <div class="mockup-header">DashboardView — Graph 与 Stats/AI 切换</div>
+    <div class="mockup-body">
+      <div style="display:flex;height:300px">
+        <div class="mock-sidebar" style="width:200px">联系人列表</div>
+        <div class="mock-content" style="flex:1">聊天消息区</div>
+        <div style="width:300px;border-left:2px solid #007AFF;display:flex;flex-direction:column">
+          <div style="padding:8px;display:flex;gap:4px;background:rgba(0,122,255,0.1);border-bottom:1px solid #007AFF">
+            <button class="mock-button" style="font-size:11px;padding:4px 8px;background:#007AFF;color:#fff">📊 统计</button>
+            <button class="mock-button" style="font-size:11px;padding:4px 8px">🤖 AI</button>
+            <button class="mock-button" style="font-size:11px;padding:4px 8px">🕸️ 图谱</button>
+          </div>
+          <div class="placeholder" style="flex:1;background:linear-gradient(135deg,#0a0a1a,#1a1a3e);display:flex;align-items:center;justify-content:center;color:#4a9eff">3D 知识图谱<br/>(浮点节点 + 粒子连线)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>无需改动布局结构，扩展已有右侧面板</li><li>与统计/AI 共用同一视觉区域，用户心智模型一致</li><li>实现成本最低，复用 AiPanel 的切换模式</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>300px 侧边栏宽度对 3D 图谱来说空间不足</li><li>无法同时查看图谱和统计数据</li><li>图谱与聊天消息的联动（点击节点→跳转消息）视觉割裂</li></ul></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>方案 B：独立 GraphView 全屏页面</h3>
+  <div class="mockup">
+    <div class="mockup-header">新路由 /graph — 全屏 3D 沉浸体验</div>
+    <div class="mockup-body">
+      <div style="display:flex;height:300px">
+        <div style="flex:1;background:linear-gradient(135deg,#0a0a1a,#1a1a3e);display:flex;align-items:center;justify-content:center;color:#4a9eff;border:1px solid rgba(74,158,255,0.3)">全屏 3D 知识图谱<br/>Three.js 场景<br/>拖拽旋转 · 缩放 · 平移</div>
+      </div>
+    </div>
+  </div>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>全屏空间给 3D 渲染提供充足画布</li><li>沉浸式体验，适合长时间探索图谱</li><li>Tooltip/详情卡片有足够空间展示</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>需要新增路由和页面组件</li><li>图谱→聊天的联动需要跨页面导航</li><li>无法在聊天同时查看图谱关联</li></ul></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>方案 C：浮动图谱弹窗（推荐）</h3>
+  <div class="mockup">
+    <div class="mockup-header">DashboardView 中浮动叠加，可拖拽缩放</div>
+    <div class="mockup-body">
+      <div style="display:flex;height:300px;position:relative">
+        <div class="mock-sidebar" style="width:180px">联系人列表</div>
+        <div class="mock-content" style="flex:1">聊天消息区</div>
+        <div style="width:280px;border-left:1px solid #ccc">统计 / AI 面板</div>
+        <div style="position:absolute;top:10%;left:25%;width:50%;height:70%;background:linear-gradient(135deg,rgba(10,10,26,0.95),rgba(26,26,62,0.95));border-radius:16px;border:1px solid rgba(74,158,255,0.4);box-shadow:0 8px 32px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#4a9eff;backdrop-filter:blur(20px)">
+          <div style="text-align:center">
+            <div style="font-size:48px;margin-bottom:8px">🕸️</div>
+            <div>浮动 3D 知识图谱</div>
+            <div style="font-size:11px;opacity:0.6">可拖拽 · 可缩放 · 可最小化</div>
+          </div>
+        </div>
+        <div style="position:absolute;bottom:10%;right:22%;display:flex;gap:4px">
+          <button class="mock-button" style="padding:4px 8px;font-size:11px">🔍 联动搜索</button>
+          <button class="mock-button" style="padding:4px 8px;font-size:11px">🔗 聚焦当前</button>
+          <button class="mock-button" style="padding:4px 8px;font-size:11px">✕ 关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>浮动层可自由调整大小位置，用户自主决定画布空间</li><li>与聊天/搜索同屏，联动体验最自然（点击图谱节点→高亮联系人→聊天记录滚动到位）</li><li>不动布局，不抢空间，默认最小化不影响现有使用</li><li>与 Apple 风格的设计语言高度契合（浮层+毛玻璃+深度感）</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>实现复杂度中等（浮动层拖拽/缩放管理）</li><li>浮动状态下可能与消息重叠，需要半透明材质处理</li></ul></div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>右侧面板切换</h3>
+      <p>最简单，在现有 Stats/AI 切换栏加一个 Graph 标签</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>独立全屏页面</h3>
+      <p>新路由 /graph，沉浸式 3D 体验</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content" style="border-left: 3px solid #007AFF; padding-left: 12px;">
+      <h3>浮动图谱弹窗 ★推荐</h3>
+      <p>DashboardView 内浮动叠加，可拖拽缩放，最佳联动体验</p>
+    </div>
+  </div>
+</div>
