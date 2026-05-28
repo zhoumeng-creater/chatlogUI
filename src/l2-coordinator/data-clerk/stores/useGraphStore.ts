@@ -10,6 +10,10 @@ interface GraphState {
   autoRotate: boolean;
   visible: boolean;
   minimized: boolean;
+  hoveredNodeId: string | null;
+  selectedNodeId: string | null;
+  pulsedNodeId: string | null;
+  tooltipCoord: { x: number; y: number } | null;
 }
 
 interface GraphActions {
@@ -21,6 +25,9 @@ interface GraphActions {
   toggleAutoRotate: () => void;
   setVisible: (visible: boolean) => void;
   setMinimized: (minimized: boolean) => void;
+  setHoveredNode: (id: string | null, coord?: { x: number; y: number }) => void;
+  setSelectedNode: (id: string | null) => void;
+  setPulsedNode: (id: string | null) => void;
   reset: () => void;
 }
 
@@ -35,6 +42,10 @@ const initialState: GraphState = {
   autoRotate: true,
   visible: false,
   minimized: false,
+  hoveredNodeId: null,
+  selectedNodeId: null,
+  pulsedNodeId: null,
+  tooltipCoord: null,
 };
 
 export const useGraphStore = create<GraphStore>((set) => ({
@@ -57,6 +68,13 @@ export const useGraphStore = create<GraphStore>((set) => ({
   setVisible: (visible: boolean) => set({ visible }),
 
   setMinimized: (minimized: boolean) => set({ minimized }),
+
+  setHoveredNode: (id: string | null, coord?: { x: number; y: number }) =>
+    set({ hoveredNodeId: id, tooltipCoord: id ? (coord ?? null) : null }),
+
+  setSelectedNode: (id: string | null) => set({ selectedNodeId: id }),
+
+  setPulsedNode: (id: string | null) => set({ pulsedNodeId: id }),
 
   reset: () => set(initialState),
 }));

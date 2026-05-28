@@ -53,6 +53,32 @@ export function useGraphCommander() {
     useGraphStore.setState((state) => ({ minimized: !state.minimized }));
   }, []);
 
+  const hoverNode = useCallback((nodeId: string | null, coord?: { x: number; y: number }) => {
+    useGraphStore.getState().setHoveredNode(nodeId, coord);
+  }, []);
+
+  const selectNode = useCallback((nodeId: string | null) => {
+    useGraphStore.getState().setSelectedNode(nodeId);
+  }, []);
+
+  const focusOnChat = useCallback((contactName: string) => {
+    const { data, visible } = useGraphStore.getState();
+    if (!visible || !data) return;
+    const matched = data.nodes.find((n) =>
+      n.name.toLowerCase() === contactName.toLowerCase()
+    );
+    if (matched) {
+      useGraphStore.getState().setPulsedNode(matched.id);
+      setTimeout(() => useGraphStore.getState().setPulsedNode(null), 4000);
+    }
+  }, []);
+
+  const focusOnGraphFromSearch = useCallback(async (keyword: string) => {
+    const { visible } = useGraphStore.getState();
+    if (!visible) return;
+    await searchGraph(keyword);
+  }, [searchGraph]);
+
   return {
     data: store.data,
     loading: store.loading,
@@ -62,12 +88,20 @@ export function useGraphCommander() {
     autoRotate: store.autoRotate,
     visible: store.visible,
     minimized: store.minimized,
+    hoveredNodeId: store.hoveredNodeId,
+    selectedNodeId: store.selectedNodeId,
+    pulsedNodeId: store.pulsedNodeId,
+    tooltipCoord: store.tooltipCoord,
     loadGraph,
     searchGraph,
     refreshGraph,
     openGraph,
     closeGraph,
     toggleMinimize,
+    hoverNode,
+    selectNode,
+    focusOnChat,
+    focusOnGraphFromSearch,
     setKeyword: store.setKeyword,
     setTimeWindow: store.setTimeWindow,
     toggleAutoRotate: store.toggleAutoRotate,
