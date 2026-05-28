@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Default capability for chatlog_alpha","local":true,"windows":["main"],"permissions":["core:default","shell:allow-execute","shell:allow-stdin-write","dialog:default"]}}

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Rust build outputs
+target/
+
+# Sidecar runtime files (PID, logs)
+chatlog/
+
+# Sidecar platform binaries (built separately from Go source)
+src-tauri/binaries/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment secrets
+.env
+.env.*

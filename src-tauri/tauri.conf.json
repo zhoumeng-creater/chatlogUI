@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicehiro/tauri/dev/tauri-config-schema/schema.json",
+  "productName": "chatlog_alpha",
+  "version": "0.1.0",
+  "identifier": "com.chatlog.alpha",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "chatlog_alpha",
+        "width": 1080,
+        "height": 720,
+        "minWidth": 900,
+        "minHeight": 600,
+        "decorations": false,
+        "center": true,
+        "transparent": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/chatlog_alpha"
+    ]
+  },
+  "plugins": {
+    "shell": {
+      "sidecar": true,
+      "scope": [
+        {
+          "name": "binaries/chatlog_alpha",
+          "sidecar": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+use tauri::Manager;
+
+mod commands;
+mod health;
+mod port_killer;
+mod sidecar;
+mod theme;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let window = app.get_webview_window("main").unwrap();
+            window.open_devtools();
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::kill_port,
+            commands::spawn_sidecar,
+            commands::check_health,
+            commands::shutdown_sidecar,
+            commands::get_system_theme,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

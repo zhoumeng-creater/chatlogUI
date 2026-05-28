@@ -1,0 +1,5 @@
+export { spawnSidecar } from "./spawnSidecar";
+export { killPort } from "./killPort";
+export { detectWxPath } from "./detectWxPath";
+export type { WxPathCandidate } from "./detectWxPath";
+export { openDirectoryPicker } from "./openDirectoryPicker";
