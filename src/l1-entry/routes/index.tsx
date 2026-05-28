@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LaunchView } from "@l1/pages/LaunchView";
 import { DashboardView } from "@l1/pages/DashboardView";
+import { SettingsView } from "@l1/pages/SettingsView";
 
 export function AppRoutes() {
   return (
@@ -8,6 +9,7 @@ export function AppRoutes() {
       <Routes>
         <Route path="/" element={<LaunchView />} />
         <Route path="/dashboard" element={<DashboardView />} />
+        <Route path="/settings" element={<SettingsView />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
