@@ -1,6 +1,11 @@
 import { motion } from "framer-motion";
 import { Avatar, Typography } from "@l4/ui";
 import type { HistoryMessage } from "@l2/api-docs/history";
+import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+
+function maskText(text: string): string {
+  return text.replace(/[^\s]/g, "*");
+}
 
 interface MessageBubbleProps {
   message: HistoryMessage;
@@ -35,10 +40,13 @@ function formatTime(timeStr: string): string {
 }
 
 export function MessageBubble({ message, isSelf, showAvatar }: MessageBubbleProps) {
+  const privacyOn = useSettingsStore((s) => s.settings.privacyOn);
   const typeLabel = getTypeLabel(message);
   const hasMediaContent = hasMedia(message);
-  const displayContent = hasMediaContent && typeLabel ? typeLabel : message.content;
-  const senderName = message.isGroup && !isSelf ? message.sender : "";
+  const rawContent = hasMediaContent && typeLabel ? typeLabel : message.content;
+  const displayContent = privacyOn ? maskText(rawContent) : rawContent;
+  const rawSenderName = message.isGroup && !isSelf ? message.sender : "";
+  const senderName = privacyOn ? maskText(rawSenderName) : rawSenderName;
 
   if (!displayContent && !typeLabel) return null;
 
@@ -59,7 +67,9 @@ export function MessageBubble({ message, isSelf, showAvatar }: MessageBubbleProp
       }}
     >
       {showAvatar ? (
-        <Avatar alt={message.sender} size={32} fallback={message.sender.slice(0, 2)} />
+        <div style={{ filter: privacyOn ? "blur(6px)" : "none", transition: "filter 0.2s ease" }}>
+          <Avatar alt={message.sender} size={32} fallback={message.sender.slice(0, 2)} />
+        </div>
       ) : (
         <div style={{ width: 32, flexShrink: 0 }} />
       )}

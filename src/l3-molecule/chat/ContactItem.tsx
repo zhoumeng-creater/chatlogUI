@@ -1,5 +1,10 @@
 import { motion } from "framer-motion";
 import { Avatar, Typography, Badge } from "@l4/ui";
+import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+
+function maskText(text: string): string {
+  return text.replace(/[^\s]/g, "*");
+}
 
 interface ContactItemProps {
   displayName: string;
@@ -20,6 +25,10 @@ export function ContactItem({
   unreadCount = 0,
   onClick,
 }: ContactItemProps) {
+  const privacyOn = useSettingsStore((s) => s.settings.privacyOn);
+  const shownName = privacyOn ? maskText(displayName) : displayName;
+  const shownMessage = privacyOn ? maskText(lastMessage) : lastMessage;
+
   return (
     <motion.div
       whileTap={{ scale: 0.98 }}
@@ -36,11 +45,13 @@ export function ContactItem({
         transition: "background-color 0.15s ease",
       }}
     >
-      <Avatar
-        alt={displayName}
-        size={44}
-        fallback={isGroup ? displayName.slice(0, 1) : displayName.slice(0, 2)}
-      />
+      <div style={{ filter: privacyOn ? "blur(8px)" : "none", transition: "filter 0.2s ease" }}>
+        <Avatar
+          alt={displayName}
+          size={44}
+          fallback={isGroup ? displayName.slice(0, 1) : displayName.slice(0, 2)}
+        />
+      </div>
       <div
         style={{
           flex: 1,
@@ -61,7 +72,7 @@ export function ContactItem({
               maxWidth: 140,
             }}
           >
-            {displayName}
+            {shownName}
           </Typography>
           <Typography variant="caption" color="var(--color-text-tertiary)">
             {lastTime}
@@ -78,7 +89,7 @@ export function ContactItem({
               maxWidth: 160,
             }}
           >
-            {lastMessage || ""}
+            {shownMessage || ""}
           </Typography>
           {unreadCount > 0 && (
             <Badge count={unreadCount} />

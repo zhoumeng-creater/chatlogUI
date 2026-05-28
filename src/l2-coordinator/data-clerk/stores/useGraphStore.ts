@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { VisualizeResult } from "@/l2-coordinator/api-docs/graph";
+import type { EntityKind, VisualizeResult } from "@/l2-coordinator/api-docs/graph";
 
 interface GraphState {
   data: VisualizeResult | null;
@@ -14,6 +14,10 @@ interface GraphState {
   selectedNodeId: string | null;
   pulsedNodeId: string | null;
   tooltipCoord: { x: number; y: number } | null;
+  visibleEntityKinds: EntityKind[];
+  layoutMode: "force" | "radial";
+  timelineVisible: boolean;
+  highlightedTimelineId: string | null;
 }
 
 interface GraphActions {
@@ -28,6 +32,10 @@ interface GraphActions {
   setHoveredNode: (id: string | null, coord?: { x: number; y: number }) => void;
   setSelectedNode: (id: string | null) => void;
   setPulsedNode: (id: string | null) => void;
+  setVisibleEntityKinds: (kinds: EntityKind[]) => void;
+  setLayoutMode: (mode: "force" | "radial") => void;
+  setTimelineVisible: (visible: boolean) => void;
+  setHighlightedTimeline: (id: string | null) => void;
   reset: () => void;
 }
 
@@ -46,6 +54,10 @@ const initialState: GraphState = {
   selectedNodeId: null,
   pulsedNodeId: null,
   tooltipCoord: null,
+  visibleEntityKinds: ["person","organization","project","product","group","topic","keyword","event","unknown"],
+  layoutMode: "force",
+  timelineVisible: false,
+  highlightedTimelineId: null,
 };
 
 export const useGraphStore = create<GraphStore>((set) => ({
@@ -75,6 +87,11 @@ export const useGraphStore = create<GraphStore>((set) => ({
   setSelectedNode: (id: string | null) => set({ selectedNodeId: id }),
 
   setPulsedNode: (id: string | null) => set({ pulsedNodeId: id }),
+
+  setVisibleEntityKinds: (kinds: EntityKind[]) => set({ visibleEntityKinds: kinds }),
+  setLayoutMode: (layoutMode: "force" | "radial") => set({ layoutMode }),
+  setTimelineVisible: (timelineVisible: boolean) => set({ timelineVisible }),
+  setHighlightedTimeline: (highlightedTimelineId: string | null) => set({ highlightedTimelineId }),
 
   reset: () => set(initialState),
 }));

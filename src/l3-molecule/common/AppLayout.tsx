@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Typography } from "@l4/ui";
 import { applyWindowMaterial } from "@l4/system/applyWindowMaterial";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import { useDevConsoleStore } from "@l2/data-clerk/stores/useDevConsoleStore";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -11,6 +12,9 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
+  const privacyOn = useSettingsStore((s) => s.settings.privacyOn);
+  const togglePrivacy = useSettingsStore((s) => s.togglePrivacy);
+  const toggleConsole = useDevConsoleStore((s) => s.toggle);
 
   useEffect(() => {
     const settings = useSettingsStore.getState().settings;
@@ -45,7 +49,35 @@ export function AppLayout({ children }: AppLayoutProps) {
         <Typography variant="label" color="#8E8E93">
           chatlog_alpha
         </Typography>
-        <div style={{ width: 56, display: "flex", justifyContent: "flex-end", WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+        <div style={{ width: 128, display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center", WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+          <button
+            onClick={togglePrivacy}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 16, padding: 0, lineHeight: 1,
+              color: privacyOn ? "#FFD60A" : "#8E8E93",
+            }}
+            aria-label="隐私模式"
+            title={privacyOn ? "关闭隐私模式" : "开启隐私模式"}
+          >
+            {privacyOn ? "\u{1F512}" : "\u{1F513}"}
+          </button>
+          <button
+            onClick={toggleConsole}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 16,
+              padding: 0,
+              lineHeight: 1,
+              color: "#8E8E93",
+            }}
+            aria-label="开发者控制台"
+            title="开发者控制台"
+          >
+            {"\u{1F5A5}"}
+          </button>
           <button
             onClick={() => navigate("/settings")}
             style={{

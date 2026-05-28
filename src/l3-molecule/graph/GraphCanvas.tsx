@@ -3,6 +3,8 @@ import { Canvas } from "@react-three/fiber";
 import { motion, AnimatePresence } from "framer-motion";
 import { GraphEngine } from "./GraphEngine";
 import { GraphTooltip } from "./GraphTooltip";
+import { GraphControlBar } from "./GraphControlBar";
+import { GraphTimeline } from "./GraphTimeline";
 import { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { useGraphStore } from "@l2/data-clerk/stores/useGraphStore";
 import { Typography } from "@l4/ui/Typography";
@@ -155,6 +157,8 @@ export function GraphCanvas() {
               </div>
             </div>
 
+            <GraphControlBar />
+
             <div style={{ flex: 1, position: "relative" }}>
               {loading && (
                 <div
@@ -205,6 +209,8 @@ export function GraphCanvas() {
                 />
               </Canvas>
             </div>
+
+            <GraphTimeline />
 
             <GraphTooltip />
 

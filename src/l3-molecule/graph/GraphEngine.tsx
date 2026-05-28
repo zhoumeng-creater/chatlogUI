@@ -86,6 +86,35 @@ function runForceLayout(
   return nodePositions;
 }
 
+function runRadialLayout(
+  nodes: GraphNode[],
+): Map<string, THREE.Vector3> {
+  const positions = new Map<string, THREE.Vector3>();
+  const sorted = [...nodes].sort((a, b) => b.value - a.value);
+  const total = sorted.length;
+  const rings = Math.ceil(Math.sqrt(total));
+  let idx = 0;
+
+  for (let ring = 0; ring < rings && idx < total; ring++) {
+    const radius = 1.5 + ring * 1.8;
+    const countInRing = ring === 0
+      ? 1
+      : Math.ceil((total - 1) * (ring / rings));
+    const actualCount = Math.min(countInRing, total - idx);
+
+    for (let i = 0; i < actualCount && idx < total; i++) {
+      const angle = (i / actualCount) * Math.PI * 2;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const y = ring * 0.5 - (rings * 0.25);
+      positions.set(sorted[idx].id, new THREE.Vector3(x, y, z));
+      idx++;
+    }
+  }
+
+  return positions;
+}
+
 interface GraphEngineProps {
   onNodeHover: (nodeId: string | null, coord?: { x: number; y: number }) => void;
   onNodeDblClick: (nodeId: string) => void;
@@ -95,13 +124,31 @@ export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
   const data = useGraphStore((s) => s.data);
   const autoRotate = useGraphStore((s) => s.autoRotate);
   const pulsedNodeId = useGraphStore((s) => s.pulsedNodeId);
+  const visibleEntityKinds = useGraphStore((s) => s.visibleEntityKinds);
+  const layoutMode = useGraphStore((s) => s.layoutMode);
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
   const { camera } = useThree();
 
+  const filteredNodes = useMemo(() => {
+    if (!data) return [];
+    return data.nodes.filter((n) => visibleEntityKinds.includes(n.kind));
+  }, [data, visibleEntityKinds]);
+
+  const filteredEdges = useMemo(() => {
+    if (!data) return [];
+    const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
+    return data.edges.filter(
+      (e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target)
+    );
+  }, [data, filteredNodes]);
+
   const nodePositions = useMemo(() => {
-    if (!data) return new Map<string, THREE.Vector3>();
-    return runForceLayout(data.nodes, data.edges);
-  }, [data]);
+    if (!data || filteredNodes.length === 0) return new Map<string, THREE.Vector3>();
+    if (layoutMode === "radial") {
+      return runRadialLayout(filteredNodes);
+    }
+    return runForceLayout(filteredNodes, filteredEdges);
+  }, [data, filteredNodes, filteredEdges, layoutMode]);
 
   useEffect(() => {
     if (!pulsedNodeId || !nodePositions) return;
@@ -150,7 +197,7 @@ export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
       />
 
       <group>
-        {data.edges.map((edge) => {
+        {filteredEdges.map((edge) => {
           const fromPos = nodePositions.get(edge.source);
           const toPos = nodePositions.get(edge.target);
           if (!fromPos || !toPos) return null;
@@ -166,7 +213,7 @@ export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
       </group>
 
       <group>
-        {data.nodes.map((node) => {
+        {filteredNodes.map((node) => {
           const pos = nodePositions.get(node.id);
           if (!pos) return null;
           return (
@@ -181,7 +228,7 @@ export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
         })}
       </group>
 
-      <GraphLabels nodes={data.nodes} positions={nodePositions} />
+      <GraphLabels nodes={filteredNodes} positions={nodePositions} />
     </>
   );
 }

@@ -21,6 +21,8 @@ import { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { GraphCanvas } from "@l3/graph/GraphCanvas";
 import { Typography } from "@l4/ui/Typography";
 import { AppleButton } from "@l4/ui/AppleButton";
+import { DevConsole } from "@l3/common/DevConsole";
+import { useDevConsoleCommander } from "@l2/commander/useDevConsoleCommander";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -32,6 +34,7 @@ export function DashboardView() {
   const { stats, trend, loadAll, loading: statsLoading } = useStatsCommander();
   const { indexStatus } = useAiCommander();
   const graph = useGraphCommander();
+  useDevConsoleCommander();
   const { selectedNodeId, data: graphData, selectNode: graphSelectNode, focusOnChat, focusOnGraphFromSearch } = graph;
   const [rightPanelMode, setRightPanelMode] = useState<"stats" | "ai">("stats");
 
@@ -103,6 +106,7 @@ export function DashboardView() {
             返回启动页
           </AppleButton>
         </div>
+        <DevConsole />
         <StatusBar status={sidecarStatus} indexStatus={indexStatus} />
       </AppLayout>
     );
@@ -183,6 +187,7 @@ export function DashboardView() {
         </div>
       </div>
 
+      <DevConsole />
       <StatusBar status={sidecarStatus} indexStatus={indexStatus} />
       <GraphCanvas />
     </AppLayout>

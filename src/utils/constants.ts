@@ -45,3 +45,14 @@ export const GRAPH_NODE_MIN_RADIUS = 0.5;
 export const SETTINGS_STORAGE_KEY = "chatlog_alpha_settings";
 export const SETTINGS_SIDEBAR_WIDTH = 180;
 export const SETTINGS_CONTENT_MAX_WIDTH = 600;
+
+// ========== Sprint 5b: 高级功能 Part B 常量 ==========
+
+export const DEV_CONSOLE_MAX_LOGS = 5000;
+export const DEV_CONSOLE_MAX_HEIGHT = 200;
+export const DEV_CONSOLE_FONT_SIZE = 12;
+
+export const GRAPH_TIMELINE_HEIGHT = 150;
+export const GRAPH_CONTROL_BAR_HEIGHT = 32;
+
+export const PRIVACY_STORAGE_KEY = "chatlog_alpha_settings";

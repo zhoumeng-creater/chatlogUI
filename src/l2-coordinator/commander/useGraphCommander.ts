@@ -3,7 +3,7 @@ import { useGraphStore } from "@/l2-coordinator/data-clerk/stores/useGraphStore"
 import {
   fetchGraphVisualize,
 } from "@l4/network";
-import type { VisualizeParams } from "@/l2-coordinator/api-docs/graph";
+import type { EntityKind, VisualizeParams } from "@/l2-coordinator/api-docs/graph";
 
 export function useGraphCommander() {
   const store = useGraphStore();
@@ -79,6 +79,32 @@ export function useGraphCommander() {
     await searchGraph(keyword);
   }, [searchGraph]);
 
+  const setVisibleKinds = useCallback((kinds: EntityKind[]) => {
+    useGraphStore.getState().setVisibleEntityKinds(kinds);
+  }, []);
+
+  const setLayoutMode = useCallback((mode: "force" | "radial") => {
+    useGraphStore.getState().setLayoutMode(mode);
+  }, []);
+
+  const setTimelineVisible = useCallback((visible: boolean) => {
+    useGraphStore.getState().setTimelineVisible(visible);
+  }, []);
+
+  const highlightTimelineEntry = useCallback((timelineId: string) => {
+    const { data } = useGraphStore.getState();
+    if (!data) return;
+    const entry = data.timeline.find((_t, i) => `${i}` === timelineId);
+    if (!entry || !entry.source) return;
+    const matchedNode = data.nodes.find((n) =>
+      n.name.toLowerCase() === entry.source!.toLowerCase()
+    );
+    if (matchedNode) {
+      useGraphStore.getState().setPulsedNode(matchedNode.id);
+      setTimeout(() => useGraphStore.getState().setPulsedNode(null), 4000);
+    }
+  }, []);
+
   return {
     data: store.data,
     loading: store.loading,
@@ -92,6 +118,14 @@ export function useGraphCommander() {
     selectedNodeId: store.selectedNodeId,
     pulsedNodeId: store.pulsedNodeId,
     tooltipCoord: store.tooltipCoord,
+    visibleEntityKinds: store.visibleEntityKinds,
+    layoutMode: store.layoutMode,
+    timelineVisible: store.timelineVisible,
+    highlightedTimelineId: store.highlightedTimelineId,
+    setVisibleKinds,
+    setLayoutMode,
+    setTimelineVisible,
+    highlightTimelineEntry,
     loadGraph,
     searchGraph,
     refreshGraph,

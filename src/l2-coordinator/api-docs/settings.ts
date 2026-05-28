@@ -14,6 +14,7 @@ export interface SettingsState {
   windowMaterial: WindowMaterial;
   wxDataPath: string;
   sidecarPort: number;
+  privacyOn: boolean;
 }
 
 export const SETTINGS_DEFAULTS: SettingsState = {
@@ -27,4 +28,5 @@ export const SETTINGS_DEFAULTS: SettingsState = {
   windowMaterial: "none",
   wxDataPath: "",
   sidecarPort: 5030,
+  privacyOn: false,
 };

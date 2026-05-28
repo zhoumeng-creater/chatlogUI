@@ -15,6 +15,7 @@ interface SettingsStoreActions {
   loadFromStorage: () => void;
   saveToStorage: () => void;
   reset: () => void;
+  togglePrivacy: () => void;
 }
 
 type SettingsStore = SettingsStoreData & SettingsStoreActions;
@@ -57,4 +58,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   reset: () => set({ settings: { ...SETTINGS_DEFAULTS }, activeCategory: "ai", loaded: true }),
+
+  togglePrivacy: () => {
+    set((state) => {
+      const newSettings = { ...state.settings, privacyOn: !state.settings.privacyOn };
+      try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(newSettings));
+      } catch {
+        // storage full or unavailable
+      }
+      return { settings: newSettings };
+    });
+  },
 }));

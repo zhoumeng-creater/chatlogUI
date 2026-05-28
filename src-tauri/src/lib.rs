@@ -23,6 +23,7 @@ pub fn run() {
             commands::check_health,
             commands::shutdown_sidecar,
             commands::get_system_theme,
+            commands::export_logs,
             material::apply_window_material,
         ])
         .run(tauri::generate_context!())
