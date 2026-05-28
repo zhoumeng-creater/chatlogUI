@@ -5,6 +5,7 @@ mod health;
 mod port_killer;
 mod sidecar;
 mod theme;
+mod material;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -22,6 +23,7 @@ pub fn run() {
             commands::check_health,
             commands::shutdown_sidecar,
             commands::get_system_theme,
+            material::apply_window_material,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
