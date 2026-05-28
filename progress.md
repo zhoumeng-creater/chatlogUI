@@ -98,8 +98,8 @@
 - Full DashboardView three-column layout with ContactList, ChatView, Search, Stats panel
 
 ### Sprint 3: AI 聊天分析系统
-- **Status:** planned
-- **Planning complete:** 2026-05-28
+- **Status:** complete
+- **Completed:** 2026-05-28
 - **Plan document:** docs/Sprint3-AI聊天分析详细规划.md
 - **Key decisions made:**
   - Full semantic API suite (QA + search + topics + profiles + index + config)
@@ -109,3 +109,18 @@
   - No third-party Markdown lib (simple regex parser)
   - Independent AiStore separate from AppStore
   - 3 tabs: QA / Semantic Search / Analysis (Topics + Profile)
+
+### Sprint 4: 3D 知识图谱系统
+- **Status:** complete
+- **Completed:** 2026-05-28
+- **Plan document:** docs/superpowers/plans/2026-05-28-sprint4-knowledge-graph.md
+- **Design Spec:** docs/superpowers/specs/2026-05-28-sprint4-knowledge-graph-design.md
+- **Delivered:** Floating R3F canvas, d3-force-3d layout, 6 entity colors, 3 edge states, OrbitControls, draggable/resizable container, minimize/close
+
+### Sprint 5a: 高级功能 Part A
+- **Status:** planned
+- **Design complete:** 2026-05-28
+- **Design Spec:** docs/superpowers/specs/2026-05-28-sprint5a-advanced-features-design.md
+- **Plan document:** docs/superpowers/plans/2026-05-28-sprint5a-advanced-features.md
+- **Scope:** SettingsView (`/settings`) · Graph Tooltip · Graph↔Chat cross-linking · Window materials (Vibrancy/Mica)
+- **Deferred to Sprint 5b:** Privacy mode, Dev console, Graph control bar, Timeline overlay
