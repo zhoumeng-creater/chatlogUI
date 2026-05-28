@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
+import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
+import { useSearchStore } from "@l2/data-clerk/stores/useSearchStore";
 import { AppLayout } from "@l3/common/AppLayout";
 import { StatusBar } from "@l3/common/StatusBar";
 import { ContactList } from "@l3/chat/ContactList";
@@ -26,7 +28,7 @@ export function DashboardView() {
   const sidecarStatus = useAppStore((s) => s.sidecarStatus);
   const errorMessage = useAppStore((s) => s.errorMessage);
 
-  const { loadContacts, selectedContact, selectedChatRoom } = useChatCommander();
+  const { loadContacts, selectedContact, selectedChatRoom, selectAndLoad } = useChatCommander();
   const { stats, trend, loadAll, loading: statsLoading } = useStatsCommander();
   const { indexStatus } = useAiCommander();
   const graph = useGraphCommander();
@@ -48,6 +50,36 @@ export function DashboardView() {
       loadAll(currentChat);
     }
   }, [currentChat, loadAll]);
+
+  useEffect(() => {
+    if (!graph.selectedNodeId || !graph.data) return;
+    const node = graph.data.nodes.find((n) => n.id === graph.selectedNodeId);
+    if (!node) return;
+    const contactName = node.name;
+    const { contacts, chatRooms } = useChatStore.getState();
+    const matchedContact = contacts.find((c) => c.nickName === contactName || c.userName === contactName);
+    const matchedRoom = chatRooms.find((r) => r.nickName === contactName || r.name === contactName);
+    if (matchedRoom) {
+      selectAndLoad(matchedRoom.name, matchedRoom.nickName, true);
+    } else if (matchedContact) {
+      selectAndLoad(matchedContact.userName, matchedContact.nickName, false);
+    }
+    graph.selectNode(null);
+  }, [graph.selectedNodeId, graph.data, graph.selectNode, selectAndLoad]);
+
+  useEffect(() => {
+    const name = selectedContact?.nickName || selectedChatRoom?.nickName;
+    if (name) {
+      graph.focusOnChat(name);
+    }
+  }, [selectedContact?.nickName, selectedChatRoom?.nickName, graph.focusOnChat]);
+
+  const searchQuery = useSearchStore((s) => s.query);
+  useEffect(() => {
+    if (searchQuery) {
+      graph.focusOnGraphFromSearch(searchQuery);
+    }
+  }, [searchQuery, graph.focusOnGraphFromSearch]);
 
   if (appPhase === "error") {
     return (

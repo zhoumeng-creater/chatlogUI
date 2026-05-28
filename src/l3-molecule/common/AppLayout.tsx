@@ -1,11 +1,24 @@
 import type { ReactNode } from "react";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Typography } from "@l4/ui";
+import { applyWindowMaterial } from "@l4/system/applyWindowMaterial";
+import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 
 interface AppLayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const settings = useSettingsStore.getState().settings;
+    if (settings.windowMaterial && settings.windowMaterial !== "none") {
+      applyWindowMaterial(settings.windowMaterial);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col h-full w-full select-none">
       <header
@@ -32,7 +45,23 @@ export function AppLayout({ children }: AppLayoutProps) {
         <Typography variant="label" color="#8E8E93">
           chatlog_alpha
         </Typography>
-        <div style={{ width: 56 }} />
+        <div style={{ width: 56, display: "flex", justifyContent: "flex-end", WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+          <button
+            onClick={() => navigate("/settings")}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 18,
+              padding: 0,
+              lineHeight: 1,
+              color: "#8E8E93",
+            }}
+            aria-label="设置"
+          >
+            ⚙
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-hidden">{children}</main>
