@@ -20,3 +20,22 @@ export const SEMANTIC_SEARCH_DEBOUNCE_MS = 800;
 export const SEMANTIC_SEARCH_DEFAULT_LIMIT = 20;
 
 export const QA_MAX_HISTORY = 100;
+
+// ========== Sprint 4: 3D 知识图谱常量 ==========
+
+export const GRAPH_BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
+export const GRAPH_DEFAULT_LIMIT = 80;
+export const GRAPH_MAX_LIMIT = 300;
+export const GRAPH_FETCH_TIMEOUT_MS = 15000;
+
+export const GRAPH_FORCE_LINK_DISTANCE = 2.5;
+export const GRAPH_FORCE_LINK_STRENGTH = 0.3;
+export const GRAPH_FORCE_CHARGE_MULTIPLIER = 2;
+export const GRAPH_FORCE_COLLIDE_PADDING = 0.5;
+export const GRAPH_LAYOUT_TICKS = 300;
+
+export const GRAPH_AUTO_ROTATE_SPEED = 0.3;
+export const GRAPH_CAMERA_MIN_DISTANCE = 3;
+export const GRAPH_CAMERA_MAX_DISTANCE = 20;
+
+export const GRAPH_NODE_MIN_RADIUS = 0.5;
