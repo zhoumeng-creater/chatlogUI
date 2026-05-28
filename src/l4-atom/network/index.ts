@@ -16,3 +16,4 @@ export { manageIndex } from "./manageIndex";
 export { fetchGraphVisualize } from "./fetchGraphVisualize";
 export { fetchGraphQuery } from "./fetchGraphQuery";
 export { fetchGraphStatus } from "./fetchGraphStatus";
+export { fetchUpdateJson } from "./fetchUpdateJson";
