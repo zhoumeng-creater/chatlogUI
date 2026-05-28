@@ -1,4 +1,5 @@
 use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, State};
@@ -19,6 +20,14 @@ impl SidecarState {
     }
 }
 
+fn default_work_dir() -> PathBuf {
+    std::env::temp_dir().join("chatlog_alpha")
+}
+
+fn default_data_key() -> &'static str {
+    "0000000000000000000000000000000000000000000000000000000000000000"
+}
+
 pub fn spawn_sidecar_with_logs(
     app_handle: AppHandle,
     state: State<'_, Mutex<SidecarState>>,
@@ -29,8 +38,18 @@ pub fn spawn_sidecar_with_logs(
         return Err("Sidecar already running".into());
     }
 
+    let work_dir = default_work_dir();
+    std::fs::create_dir_all(&work_dir)
+        .map_err(|e| format!("Failed to create work directory: {}", e))?;
+
     let mut child = Command::new("binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe")
         .arg("serve")
+        .arg("--http-addr")
+        .arg("0.0.0.0:5030")
+        .arg("--work-dir")
+        .arg(work_dir.to_string_lossy().to_string())
+        .arg("--data-key")
+        .arg(default_data_key())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

@@ -51,13 +51,7 @@
   },
   "plugins": {
     "shell": {
-      "sidecar": true,
-      "scope": [
-        {
-          "name": "binaries/chatlog_alpha",
-          "sidecar": true
-        }
-      ]
+      "open": true
     },
     "updater": {
       "endpoints": [

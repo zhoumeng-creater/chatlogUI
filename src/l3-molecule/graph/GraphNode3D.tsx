@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import type { Mesh } from "three";
 import type { GraphNode } from "@/l2-coordinator/api-docs/graph";
 import { useGraphStore } from "@/l2-coordinator/data-clerk/stores/useGraphStore";
 import { GRAPH_NODE_MIN_RADIUS } from "@/utils/constants";
@@ -33,7 +32,7 @@ interface GraphNode3DProps {
 }
 
 export function GraphNode3D({ node, position = [0, 0, 0], onHover, onDblClick }: GraphNode3DProps) {
-  const meshRef = useRef<Mesh>(null);
+  const meshRef = useRef<any>(null);
   const radius = getNodeRadius(node.value);
   const color = getNodeColor(node.kind);
   const isHovered = useGraphStore((s) => s.hoveredNodeId === node.id);
