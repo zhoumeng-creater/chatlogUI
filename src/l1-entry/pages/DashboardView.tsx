@@ -32,6 +32,7 @@ export function DashboardView() {
   const { stats, trend, loadAll, loading: statsLoading } = useStatsCommander();
   const { indexStatus } = useAiCommander();
   const graph = useGraphCommander();
+  const { selectedNodeId, data: graphData, selectNode: graphSelectNode, focusOnChat, focusOnGraphFromSearch } = graph;
   const [rightPanelMode, setRightPanelMode] = useState<"stats" | "ai">("stats");
 
   useEffect(() => {
@@ -52,8 +53,8 @@ export function DashboardView() {
   }, [currentChat, loadAll]);
 
   useEffect(() => {
-    if (!graph.selectedNodeId || !graph.data) return;
-    const node = graph.data.nodes.find((n) => n.id === graph.selectedNodeId);
+    if (!selectedNodeId || !graphData) return;
+    const node = graphData.nodes.find((n) => n.id === selectedNodeId);
     if (!node) return;
     const contactName = node.name;
     const { contacts, chatRooms } = useChatStore.getState();
@@ -64,22 +65,22 @@ export function DashboardView() {
     } else if (matchedContact) {
       selectAndLoad(matchedContact.userName, matchedContact.nickName, false);
     }
-    graph.selectNode(null);
-  }, [graph.selectedNodeId, graph.data, graph.selectNode, selectAndLoad]);
+    graphSelectNode(null);
+  }, [selectedNodeId, graphData, graphSelectNode, selectAndLoad]);
 
   useEffect(() => {
     const name = selectedContact?.nickName || selectedChatRoom?.nickName;
     if (name) {
-      graph.focusOnChat(name);
+      focusOnChat(name);
     }
-  }, [selectedContact?.nickName, selectedChatRoom?.nickName, graph.focusOnChat]);
+  }, [selectedContact?.nickName, selectedChatRoom?.nickName, focusOnChat]);
 
   const searchQuery = useSearchStore((s) => s.query);
   useEffect(() => {
     if (searchQuery) {
-      graph.focusOnGraphFromSearch(searchQuery);
+      focusOnGraphFromSearch(searchQuery);
     }
-  }, [searchQuery, graph.focusOnGraphFromSearch]);
+  }, [searchQuery, focusOnGraphFromSearch]);
 
   if (appPhase === "error") {
     return (
