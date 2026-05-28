@@ -55,12 +55,15 @@ export function useUpdateCommander() {
       const chunks: Uint8Array[] = [];
       let downloaded = 0;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        downloaded += value.length;
-        useUpdateStore.getState().setProgress(downloaded, total);
+      let done = false;
+      while (!done) {
+        const result = await reader.read();
+        done = result.done;
+        if (!done && result.value) {
+          chunks.push(result.value);
+          downloaded += result.value.length;
+          useUpdateStore.getState().setProgress(downloaded, total);
+        }
       }
 
       const blob = new Blob(chunks);
