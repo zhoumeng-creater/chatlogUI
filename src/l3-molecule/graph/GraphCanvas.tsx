@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { motion, AnimatePresence } from "framer-motion";
 import { GraphEngine } from "./GraphEngine";
+import { GraphTooltip } from "./GraphTooltip";
 import { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { useGraphStore } from "@l2/data-clerk/stores/useGraphStore";
 import { Typography } from "@l4/ui/Typography";
@@ -198,9 +199,14 @@ export function GraphCanvas() {
                 camera={{ position: [0, 0, 8], fov: 50 }}
                 style={{ background: "#0a0a1a" }}
               >
-                <GraphEngine />
+                <GraphEngine
+                  onNodeHover={graph.hoverNode}
+                  onNodeDblClick={graph.selectNode}
+                />
               </Canvas>
             </div>
+
+            <GraphTooltip />
 
             <div
               onMouseDown={handleResizeMouseDown}

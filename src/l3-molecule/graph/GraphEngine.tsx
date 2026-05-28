@@ -1,4 +1,5 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
+import { useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from "d3-force-3d";
@@ -85,15 +86,50 @@ function runForceLayout(
   return nodePositions;
 }
 
-export function GraphEngine() {
+interface GraphEngineProps {
+  onNodeHover: (nodeId: string | null, coord?: { x: number; y: number }) => void;
+  onNodeDblClick: (nodeId: string) => void;
+}
+
+export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
   const data = useGraphStore((s) => s.data);
   const autoRotate = useGraphStore((s) => s.autoRotate);
+  const pulsedNodeId = useGraphStore((s) => s.pulsedNodeId);
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
+  const { camera } = useThree();
 
   const nodePositions = useMemo(() => {
     if (!data) return new Map<string, THREE.Vector3>();
     return runForceLayout(data.nodes, data.edges);
   }, [data]);
+
+  useEffect(() => {
+    if (!pulsedNodeId || !nodePositions) return;
+    const target = nodePositions.get(pulsedNodeId);
+    if (!target) return;
+
+    const startPos = camera.position.clone();
+    const endPos = new THREE.Vector3(
+      target.x,
+      target.y,
+      target.z + 5,
+    );
+    const startTime = Date.now();
+    const duration = 1000;
+
+    let raf: number;
+    function animate() {
+      const elapsed = Date.now() - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      camera.position.lerpVectors(startPos, endPos, eased);
+      if (t < 1) {
+        raf = requestAnimationFrame(animate);
+      }
+    }
+    raf = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf);
+  }, [pulsedNodeId, nodePositions, camera]);
 
   if (!data) return null;
 
@@ -134,7 +170,13 @@ export function GraphEngine() {
           const pos = nodePositions.get(node.id);
           if (!pos) return null;
           return (
-            <GraphNode3D key={node.id} node={node} position={pos.toArray() as [number, number, number]} />
+            <GraphNode3D
+              key={node.id}
+              node={node}
+              position={pos.toArray() as [number, number, number]}
+              onHover={onNodeHover}
+              onDblClick={onNodeDblClick}
+            />
           );
         })}
       </group>
