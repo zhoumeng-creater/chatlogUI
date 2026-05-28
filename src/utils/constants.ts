@@ -56,3 +56,7 @@ export const GRAPH_TIMELINE_HEIGHT = 150;
 export const GRAPH_CONTROL_BAR_HEIGHT = 32;
 
 export const PRIVACY_STORAGE_KEY = "chatlog_alpha_settings";
+
+// ========== Sprint 6: 更新与发布常量 ==========
+
+export const UPDATE_CHECK_DELAY_MS = 5000;

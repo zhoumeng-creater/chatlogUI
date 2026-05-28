@@ -83,10 +83,10 @@ export function useUpdateCommander() {
 
   const installAndRestart = useCallback(async () => {
     try {
-      const { checkUpdate: tauriCheckUpdate } = await import(
+      const { check } = await import(
         "@tauri-apps/plugin-updater"
       );
-      const result = await tauriCheckUpdate();
+      const result = await check();
       if (result?.available) {
         await result.downloadAndInstall();
       }
