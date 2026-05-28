@@ -87,7 +87,19 @@
 - [ ] 开发者控制台 (实时日志 + 导出)
 - [ ] 图谱控制栏 (筛选/布局切换/手动刷新)
 - [ ] 时间轴叠加
-- **Status:** planned (scope defined, pending design)
+- **Status:** planned (Design + Implementation Plan complete, source files exist)
+- **Design Spec:** docs/superpowers/specs/2026-05-28-sprint5b-advanced-features-design.md
+- **规划文档:** docs/superpowers/plans/2026-05-28-sprint5b-advanced-features.md
+
+### Phase 8: Sprint 6 - 交付与发布
+- [ ] CI/CD 流水线 (GitHub Actions: release.yml + build-check.yml)
+- [ ] 安装包制作 (.dmg + .msi)
+- [ ] GitHub Releases 自动发布 + update.json 生成
+- [ ] 应用内更新机制 (tauri-plugin-updater + UpdateNotification)
+- [ ] 关于页 "检查更新" 按钮
+- **Status:** planned (Design + Implementation Plan complete)
+- **Design Spec:** docs/superpowers/specs/2026-05-28-sprint6-release-design.md
+- **规划文档:** docs/superpowers/plans/2026-05-28-sprint6-release.md
 
 ## Key Decisions
 | Decision | Value |
