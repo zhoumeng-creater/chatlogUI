@@ -1,0 +1,72 @@
+name: Build Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-2022
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: aarch64-apple-darwin
+            os: macos-latest
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-pkg-config
+
+      - name: Build Go Sidecar
+        shell: bash
+        run: |
+          if [ ! -d "cmd/chatlog" ]; then
+            echo "cmd/chatlog directory not found, skipping Go sidecar build"
+            mkdir -p src-tauri/binaries
+            touch "src-tauri/binaries/chatlog_alpha-${{ matrix.target }}"
+          else
+            BINARY_NAME="chatlog_alpha-${{ matrix.target }}"
+            if [[ "${{ runner.os }}" == "Windows" ]]; then
+              BINARY_NAME="${BINARY_NAME}.exe"
+            fi
+            go build -o "src-tauri/binaries/${BINARY_NAME}" ./cmd/chatlog
+          fi
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Type Check
+        run: pnpm typecheck
+
+      - name: Lint Check
+        run: pnpm lint
+
+      - name: Tauri Build
+        run: pnpm tauri build --target ${{ matrix.target }}
