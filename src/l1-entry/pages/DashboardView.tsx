@@ -15,6 +15,8 @@ import { AiPanel } from "@l3/semantic/AiPanel";
 import { useAiCommander } from "@l2/commander/useAiCommander";
 import { useChatCommander } from "@l2/commander/useChatCommander";
 import { useStatsCommander } from "@l2/commander/useStatsCommander";
+import { useGraphCommander } from "@l2/commander/useGraphCommander";
+import { GraphCanvas } from "@l3/graph/GraphCanvas";
 import { Typography } from "@l4/ui/Typography";
 import { AppleButton } from "@l4/ui/AppleButton";
 
@@ -27,6 +29,7 @@ export function DashboardView() {
   const { loadContacts, selectedContact, selectedChatRoom } = useChatCommander();
   const { stats, trend, loadAll, loading: statsLoading } = useStatsCommander();
   const { indexStatus } = useAiCommander();
+  const graph = useGraphCommander();
   const [rightPanelMode, setRightPanelMode] = useState<"stats" | "ai">("stats");
 
   useEffect(() => {
@@ -112,9 +115,14 @@ export function DashboardView() {
             <div style={{ padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <Typography variant="label" weight={600}>统计数据</Typography>
-                <AppleButton variant="ghost" size="sm" onClick={() => setRightPanelMode("ai")}>
-                  AI
-                </AppleButton>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <AppleButton variant="ghost" size="sm" onClick={() => setRightPanelMode("ai")}>
+                    AI
+                  </AppleButton>
+                  <AppleButton variant="ghost" size="sm" onClick={graph.openGraph}>
+                    🕸️
+                  </AppleButton>
+                </div>
               </div>
               {currentChat ? (
                 <>
@@ -143,6 +151,7 @@ export function DashboardView() {
       </div>
 
       <StatusBar status={sidecarStatus} indexStatus={indexStatus} />
+      <GraphCanvas />
     </AppLayout>
   );
 }

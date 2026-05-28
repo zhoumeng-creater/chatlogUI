@@ -13,3 +13,6 @@ export { fetchSemanticConfig, setSemanticConfig } from "./fetchSemanticConfig";
 export { testLLMConnection } from "./testLLMConnection";
 export { fetchIndexStatus } from "./fetchIndexStatus";
 export { manageIndex } from "./manageIndex";
+export { fetchGraphVisualize } from "./fetchGraphVisualize";
+export { fetchGraphQuery } from "./fetchGraphQuery";
+export { fetchGraphStatus } from "./fetchGraphStatus";
