@@ -28,7 +28,7 @@ function getPhaseProgress(phase: AppPhase): number {
 
 export function LaunchView() {
   const navigate = useNavigate();
-  const { boot, retry } = useAppCommander();
+  const { boot, retry, chooseWxDataPath } = useAppCommander();
   const appPhase = useAppStore((s) => s.appPhase);
   const sidecarStatus = useAppStore((s) => s.sidecarStatus);
   const errorMessage = useAppStore((s) => s.errorMessage);
@@ -80,7 +80,7 @@ export function LaunchView() {
               未找到微信数据目录
             </Typography>
             <div className="flex gap-3">
-              <AppleButton variant="primary" size="md" onClick={() => navigate("/dashboard")}>
+              <AppleButton variant="primary" size="md" onClick={chooseWxDataPath}>
                 手动选择
               </AppleButton>
               <AppleButton variant="ghost" size="md" onClick={() => navigate("/dashboard")}>

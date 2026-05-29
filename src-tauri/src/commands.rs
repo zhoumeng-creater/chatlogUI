@@ -1,5 +1,5 @@
-use tauri::{AppHandle, State};
 use std::sync::Mutex;
+use tauri::{AppHandle, State};
 
 use crate::port_killer;
 use crate::sidecar::SidecarState;
@@ -13,8 +13,9 @@ pub async fn kill_port(port: u16) -> Result<String, String> {
 pub async fn spawn_sidecar(
     app_handle: AppHandle,
     state: State<'_, Mutex<SidecarState>>,
+    options: crate::sidecar::SpawnSidecarOptions,
 ) -> Result<String, String> {
-    crate::sidecar::spawn_sidecar_with_logs(app_handle, state)
+    crate::sidecar::spawn_sidecar_with_logs(app_handle, state, options)
 }
 
 #[tauri::command]
@@ -23,9 +24,7 @@ pub async fn check_health(port: u16) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub async fn shutdown_sidecar(
-    state: State<'_, Mutex<SidecarState>>,
-) -> Result<String, String> {
+pub async fn shutdown_sidecar(state: State<'_, Mutex<SidecarState>>) -> Result<String, String> {
     crate::sidecar::shutdown_sidecar(state)
 }
 
@@ -35,8 +34,6 @@ pub async fn get_system_theme() -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn export_logs(
-    logs: Vec<crate::sidecar::LogPayload>,
-) -> Result<String, String> {
+pub async fn export_logs(logs: Vec<crate::sidecar::LogPayload>) -> Result<String, String> {
     crate::sidecar::export_logs_command(logs).await
 }

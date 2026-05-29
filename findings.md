@@ -99,3 +99,29 @@
 
 ## Visual/Browser Findings
 - Sprint 2 采用"先写规划，逐步实现"策略，UI 设计在各组件开发时逐一细化
+
+## Current Issues Review Findings (2026-05-29)
+
+- `当前问题.md` 的核心 UI 结论基本成立：样式基座未接入、启动/手动选择流程占位、Dashboard 固定三栏与搜索结果挤压、筛选空实现、联系人重复加载、消息分页缺少并发保护均能在源码中确认。
+- 该文档的不足是审查范围偏 UI，遗漏 Tauri/Rust/CI/安全/发布层问题：sidecar 启动硬编码 Windows `.exe`、端口清理使用 Windows-only `netstat/taskkill`、CI 缺少真实 sidecar 时创建空文件、生产配置仍有 `csp: null`、updater `pubkey`/signature 为空、devtools 无条件打开。
+- 当前验证结果显示 `pnpm lint` 已失败，原因是 `src/l3-molecule/graph/GraphNode3D.tsx:35` 使用 `useRef<any>(null)`；`pnpm build` 可通过但主 chunk 约 1.4 MB，印证图谱/AI 懒加载缺失。
+- 启动流存在比文档更具体的问题：`detectWxPath()` 当前直接返回空数组；`useAppCommander.boot()` 在 `setPhase("db_not_found")` 后仍继续 `pollDbReady()`，可能最终进入超时错误；`openDirectoryPicker()` 只在设置页使用，未接入启动页。
+- `DashboardView` 和 `UpdateNotification` 都调用 `useUpdateCommander()`，`DashboardView` 和 `DevConsole` 都调用 `useDevConsoleCommander()`，会造成重复定时检查或重复日志监听。
+
+## Current Issues Remediation Findings (2026-05-29)
+
+- Tailwind should be treated as the chosen style baseline for this codebase: build output now contains Tailwind v4 generated utilities, so existing utility classes are no longer dead markup.
+- Startup can now stop cleanly at `db_not_found`: data path resolution is a pure function covered by tests, and sidecar spawning is skipped until a persisted or manually selected path exists.
+- The sidecar command receives `--data-dir` and `--data-key` only after frontend/Rust normalization, preventing blank strings from overriding backend defaults.
+- Update checking and sidecar log subscription belong at app lifecycle level, not inside reusable commander hooks; moving them to dedicated lifecycle hooks removes duplicate side effects when multiple components consume the same commander.
+- Remaining higher-risk items are still outside this batch: sidecar binary path is still Windows-specific, port cleanup is Windows-specific, CSP/updater signing are unresolved, and bundle chunking is still needed.
+
+## Current Issues Remediation Batch 2 Findings (2026-05-29)
+
+- The search filter bug was caused by a broken chain: `DashboardView` always passed `activeFilter="all"` and `onFilterChange={() => {}}`, SearchStore had no active filter state, and `useSearchCommander()` never passed `type` to `/api/v1/search`.
+- Search results were layout-coupled to the search header because `SearchResults` had no bounded scroll container. Long result lists could consume vertical space intended for the chat view.
+- Search result rows were click-only `div`s. Replacing them with real buttons fixes keyboard activation and improves screen reader labels without changing the data flow.
+- Search pagination needed to use accumulated loaded message count rather than `offset + count`, because appended results store cumulative `count`; otherwise the second "load more" could skip a page.
+- Keyboard clearing needed to cancel the pending debounced search before clearing SearchStore, otherwise an old delayed request could repopulate results after Escape.
+- React StrictMode exposed a lifecycle leak risk in `useDevConsoleLifecycle()`: `listenSidecarLogs()` resolves asynchronously, so cleanup could run before `unlisten` was assigned. The deferred cleanup helper closes that gap.
+- Tauri `Window::set_effects` accepts `None` to clear effects; the previous `"none"` window material path did nothing, so switching away from Mica/Acrylic could leave the old effect active.

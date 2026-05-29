@@ -1,12 +1,15 @@
 import { useCallback, useRef } from "react";
 import { useAppStore } from "@/l2-coordinator/data-clerk/stores/useAppStore";
+import { useSettingsStore } from "@/l2-coordinator/data-clerk/stores/useSettingsStore";
 import { translateError } from "@/l2-coordinator/diplomat/errorTranslator";
-import { killPort, spawnSidecar, detectWxPath } from "@l4/system";
+import { killPort, spawnSidecar, detectWxPath, openDirectoryPicker } from "@l4/system";
 import { fetchDbStatus, fetchDbReady } from "@l4/network";
 import { HEALTH_CHECK_INTERVAL_MS, HEALTH_CHECK_TIMEOUT_MS, HEALTH_CHECK_SUCCESS_COUNT } from "@/utils/constants";
+import { resolveBootDataPath } from "./appBoot";
 
 const DB_READY_POLL_INTERVAL_MS = 2000;
 const DB_READY_TIMEOUT_MS = 120000;
+let bootInFlight = false;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -67,15 +70,35 @@ export function useAppCommander() {
   }, [setDbStatus, setError]);
 
   const boot = useCallback(async () => {
+    if (bootInFlight) return;
+    bootInFlight = true;
     abortRef.current = false;
 
     try {
+      const settings = useSettingsStore.getState().settings;
+      const candidates = await detectWxPath();
+      const dataPath = resolveBootDataPath({
+        settingsPath: settings.wxDataPath,
+        candidates,
+      });
+
+      if (!dataPath) {
+        setWxDataPath(null);
+        setPhase("db_not_found");
+        return;
+      }
+
+      setWxDataPath(dataPath);
+
       setPhase("killing_port");
       await killPort();
 
       setPhase("spawning_sidecar");
       setSidecarStatus("starting");
-      await spawnSidecar();
+      await spawnSidecar({
+        dataDir: dataPath,
+        dataKey: settings.dataKey,
+      });
 
       setPhase("health_check");
       const healthy = await pollHealthCheck();
@@ -87,13 +110,6 @@ export function useAppCommander() {
       }
 
       setPhase("db_connecting");
-      const candidates = await detectWxPath();
-      if (candidates.length > 0) {
-        setWxDataPath(candidates[0].path);
-      } else {
-        setPhase("db_not_found");
-      }
-
       const dbReady = await pollDbReady();
       if (!dbReady) return;
 
@@ -101,8 +117,22 @@ export function useAppCommander() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(translateError(message));
+    } finally {
+      bootInFlight = false;
     }
   }, [setPhase, setError, setSidecarStatus, setWxDataPath, pollHealthCheck, pollDbReady]);
+
+  const chooseWxDataPath = useCallback(async () => {
+    const selected = await openDirectoryPicker();
+    if (!selected) return;
+
+    const settingsStore = useSettingsStore.getState();
+    settingsStore.updateSettings({ wxDataPath: selected });
+    settingsStore.saveToStorage();
+    setWxDataPath(selected);
+    clearError();
+    await boot();
+  }, [boot, clearError, setWxDataPath]);
 
   const retry = useCallback(() => {
     clearError();
@@ -119,6 +149,7 @@ export function useAppCommander() {
     error: errorMessage,
     boot,
     retry,
+    chooseWxDataPath,
     shutdown,
   };
 }

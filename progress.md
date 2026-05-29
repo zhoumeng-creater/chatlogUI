@@ -124,3 +124,25 @@
 - **Plan document:** docs/superpowers/plans/2026-05-28-sprint5a-advanced-features.md
 - **Scope:** SettingsView (`/settings`) · Graph Tooltip · Graph↔Chat cross-linking · Window materials (Vibrancy/Mica)
 - **Deferred to Sprint 5b:** Privacy mode, Dev console, Graph control bar, Timeline overlay
+
+### Current Issues Review: 2026-05-29
+- Reviewed `当前问题.md` against source code, existing docs, Tauri config, CI workflows, and validation commands.
+- Verification baseline: `pnpm typecheck` PASS; `pnpm lint` FAIL at `src/l3-molecule/graph/GraphNode3D.tsx:35` (`no-explicit-any`); `pnpm build` PASS with large bundle warning; `cargo check` PASS with crate naming warning.
+- Added remediation plan: `docs/superpowers/plans/2026-05-29-current-issues-remediation.md`.
+
+### Current Issues Remediation Batch 1: 2026-05-29
+- **Status:** complete
+- Fixed lint blocker, devtools release leakage, missing CSS tokens, and formally integrated Tailwind via `@tailwindcss/vite`.
+- Hardened startup flow: idempotent `boot()`, no DB polling when data path is missing, manual directory selection now persists and re-enters boot.
+- Sidecar spawn now receives normalized `dataDir`, `dataKey`, and optional `workDir` from frontend into Rust command args.
+- Window controls now call Tauri window APIs with required permissions; settings bootstrap, update checks, and sidecar log listener are centralized to avoid duplicate side effects.
+- Verification: `pnpm peers check`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, and `cargo check` all pass. `pnpm build` still reports the known large chunk warning.
+
+### Current Issues Remediation Batch 2: 2026-05-29
+- **Status:** complete
+- Search filters now persist in SearchStore, pass the active type into sidecar search requests, and re-run the current query when the filter changes.
+- Search results now render in an independent scroll region with focusable result buttons and keyboard-friendly controls; search input supports Enter for immediate search and Escape to clear.
+- Search pagination now uses the accumulated loaded message count for the next offset, preventing skipped result pages after loading more; Escape also cancels pending debounced searches before clearing state.
+- Dev console log subscription cleanup now handles async listener setup under React StrictMode, preventing late unlisten leaks; automatic update checks are guarded against duplicate starts.
+- Window material `none` now clears any previously applied Tauri window effect instead of leaving the previous effect active.
+- Added tests for search request construction, search pagination/session clearing, and deferred subscription cleanup; verification: `pnpm peers check`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`, `cargo check`, and `git diff --check` pass.

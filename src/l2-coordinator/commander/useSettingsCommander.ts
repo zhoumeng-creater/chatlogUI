@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useLayoutEffect } from "react";
 import { useSettingsStore } from "@/l2-coordinator/data-clerk/stores/useSettingsStore";
 import type { SettingsCategory, SettingsState } from "@/l2-coordinator/api-docs/settings";
 
@@ -33,4 +33,14 @@ export function useSettingsCommander() {
     updateAndSave,
     reset,
   };
+}
+
+export function useSettingsBootstrap() {
+  const loaded = useSettingsStore((s) => s.loaded);
+
+  useLayoutEffect(() => {
+    if (!useSettingsStore.getState().loaded) {
+      useSettingsStore.getState().loadFromStorage();
+    }
+  }, [loaded]);
 }

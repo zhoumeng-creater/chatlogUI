@@ -4,6 +4,8 @@ import { fetchUpdateJson } from "@l4/network/fetchUpdateJson";
 import { UPDATE_CHECK_DELAY_MS } from "@/utils/constants";
 import type { UpdateManifest } from "@/l2-coordinator/api-docs/update";
 
+let automaticUpdateCheckStarted = false;
+
 export function useUpdateCommander() {
   const store = useUpdateStore();
 
@@ -102,14 +104,6 @@ export function useUpdateCommander() {
     useUpdateStore.getState().reset();
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      checkUpdate();
-    }, UPDATE_CHECK_DELAY_MS);
-
-    return () => clearTimeout(timer);
-  }, [checkUpdate]);
-
   return {
     status: store.status,
     version: store.version,
@@ -123,6 +117,20 @@ export function useUpdateCommander() {
     installAndRestart,
     dismissUpdate,
   };
+}
+
+export function useUpdateLifecycle() {
+  const { checkUpdate } = useUpdateCommander();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (automaticUpdateCheckStarted) return;
+      automaticUpdateCheckStarted = true;
+      checkUpdate();
+    }, UPDATE_CHECK_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [checkUpdate]);
 }
 
 function getPlatformKey(): string {

@@ -13,11 +13,9 @@ pub async fn apply_window_material(
             "acrylic" => Some(Effect::Acrylic),
             _ => None,
         };
-        if let Some(effect) = effect {
-            let config = EffectsBuilder::new().effect(effect).build();
-            window.set_effects(config)
-                .map_err(|e| format!("设置窗口材质失败: {}", e))?;
-        }
+        let config = effect.map(|effect| EffectsBuilder::new().effect(effect).build());
+        window.set_effects(config)
+            .map_err(|e| format!("设置窗口材质失败: {}", e))?;
     }
 
     #[cfg(target_os = "macos")]

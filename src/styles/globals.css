@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   font-family: "SF Pro Display", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 16px;
@@ -18,6 +20,8 @@
   --color-bubble-other: rgba(255, 255, 255, 0.9);
   --color-border: rgba(0, 0, 0, 0.08);
   --color-surface: #ffffff;
+  --color-bg-primary: #f5f5f7;
+  --color-accent: #007AFF;
   --color-text-quaternary: rgba(0, 0, 0, 0.25);
   --color-text-tertiary: rgba(0, 0, 0, 0.40);
   --color-text-secondary: rgba(0, 0, 0, 0.60);
@@ -58,6 +62,8 @@ body,
     --color-bubble-other: rgba(255, 255, 255, 0.1);
     --color-border: rgba(255, 255, 255, 0.08);
     --color-surface: #1c1c1e;
+    --color-bg-primary: #1d1d1f;
+    --color-accent: #0A84FF;
     --color-text-quaternary: rgba(255, 255, 255, 0.18);
     --color-text-tertiary: rgba(255, 255, 255, 0.35);
     --color-text-secondary: rgba(255, 255, 255, 0.55);

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Typography } from "@l4/ui";
 import { applyWindowMaterial } from "@l4/system/applyWindowMaterial";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
@@ -13,15 +14,15 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const privacyOn = useSettingsStore((s) => s.settings.privacyOn);
+  const windowMaterial = useSettingsStore((s) => s.settings.windowMaterial);
   const togglePrivacy = useSettingsStore((s) => s.togglePrivacy);
   const toggleConsole = useDevConsoleStore((s) => s.toggle);
 
   useEffect(() => {
-    const settings = useSettingsStore.getState().settings;
-    if (settings.windowMaterial && settings.windowMaterial !== "none") {
-      applyWindowMaterial(settings.windowMaterial);
-    }
-  }, []);
+    applyWindowMaterial(windowMaterial);
+  }, [windowMaterial]);
+
+  const appWindow = getCurrentWindow();
 
   return (
     <div className="flex flex-col h-full w-full select-none">
@@ -33,15 +34,17 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="flex items-center gap-1.5">
             <button
               className="w-3 h-3 rounded-full bg-[#FF5F57] hover:brightness-90 transition-all"
-              onClick={() => window.close?.()}
+              onClick={() => appWindow.close()}
               aria-label="关闭"
             />
             <button
               className="w-3 h-3 rounded-full bg-[#FEBC2E] hover:brightness-90 transition-all"
+              onClick={() => appWindow.minimize()}
               aria-label="最小化"
             />
             <button
               className="w-3 h-3 rounded-full bg-[#28C840] hover:brightness-90 transition-all"
+              onClick={() => appWindow.toggleMaximize()}
               aria-label="全屏"
             />
           </div>

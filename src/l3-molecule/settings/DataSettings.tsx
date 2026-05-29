@@ -35,6 +35,27 @@ export function DataSettings() {
               选择目录
             </AppleButton>
           </div>
+          <div style={{ marginTop: 16 }}>
+            <Typography variant="caption" color="var(--color-text-secondary)">
+              数据解密密钥
+            </Typography>
+            <input
+              type="password"
+              value={settings.dataKey}
+              onChange={(e) => updateAndSave({ dataKey: e.target.value })}
+              placeholder="64 位十六进制密钥，留空则由后端配置决定"
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--color-border)",
+                background: "var(--color-bg-primary)",
+                color: "var(--color-text-primary)",
+                fontSize: 14,
+                marginTop: 4,
+              }}
+            />
+          </div>
         </div>
       </GlassPanel>
 

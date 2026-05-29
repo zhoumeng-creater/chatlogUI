@@ -16,6 +16,7 @@ import { TopContactCard } from "@l3/stats/TopContactCard";
 import { AiPanel } from "@l3/semantic/AiPanel";
 import { useAiCommander } from "@l2/commander/useAiCommander";
 import { useChatCommander } from "@l2/commander/useChatCommander";
+import { useSearchCommander } from "@l2/commander/useSearchCommander";
 import { useStatsCommander } from "@l2/commander/useStatsCommander";
 import { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { GraphCanvas } from "@l3/graph/GraphCanvas";
@@ -23,8 +24,6 @@ import { Typography } from "@l4/ui/Typography";
 import { AppleButton } from "@l4/ui/AppleButton";
 import { DevConsole } from "@l3/common/DevConsole";
 import { UpdateNotification } from "@l3/common/UpdateNotification";
-import { useDevConsoleCommander } from "@l2/commander/useDevConsoleCommander";
-import { useUpdateCommander } from "@l2/commander/useUpdateCommander";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -33,11 +32,10 @@ export function DashboardView() {
   const errorMessage = useAppStore((s) => s.errorMessage);
 
   const { loadContacts, selectedContact, selectedChatRoom, selectAndLoad } = useChatCommander();
+  const { activeFilter, changeFilter, results: searchResults } = useSearchCommander();
   const { stats, trend, loadAll, loading: statsLoading } = useStatsCommander();
   const { indexStatus } = useAiCommander();
   const graph = useGraphCommander();
-  useDevConsoleCommander();
-  useUpdateCommander();
   const { selectedNodeId, data: graphData, selectNode: graphSelectNode, focusOnChat, focusOnGraphFromSearch } = graph;
   const [rightPanelMode, setRightPanelMode] = useState<"stats" | "ai">("stats");
 
@@ -131,9 +129,18 @@ export function DashboardView() {
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border)" }}>
+          <div
+            style={{
+              padding: "8px 12px",
+              borderBottom: "1px solid var(--color-border)",
+              display: "flex",
+              flexDirection: "column",
+              maxHeight: searchResults ? 320 : undefined,
+              minHeight: 0,
+            }}
+          >
             <GlobalSearch />
-            <FilterBar activeFilter="all" onFilterChange={() => {}} />
+            <FilterBar activeFilter={activeFilter} onFilterChange={changeFilter} />
             <SearchResults />
           </div>
 

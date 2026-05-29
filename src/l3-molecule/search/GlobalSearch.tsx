@@ -7,9 +7,17 @@ interface GlobalSearchProps {
 }
 
 export function GlobalSearch({ className, style }: GlobalSearchProps) {
-  const { query, results, loading, search } = useSearchCommander();
+  const { query, results, loading, search, executeSearch, clearSearch } = useSearchCommander();
 
   const resultCount = results?.totalCount ?? 0;
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      executeSearch(e.currentTarget.value);
+    }
+    if (e.key === "Escape") {
+      clearSearch();
+    }
+  };
 
   return (
     <div
@@ -22,9 +30,11 @@ export function GlobalSearch({ className, style }: GlobalSearchProps) {
       <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
         <Input
           variant="search"
+          aria-label="搜索聊天记录"
           placeholder="搜索聊天记录"
-          defaultValue={query}
+          value={query}
           onChange={(e) => search((e.target as HTMLInputElement).value)}
+          onKeyDown={handleKeyDown}
         />
         {loading && (
           <div style={{ position: "absolute", right: 10 }}>

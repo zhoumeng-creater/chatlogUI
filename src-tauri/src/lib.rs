@@ -17,6 +17,7 @@ pub fn run() {
         .manage(Mutex::new(sidecar::SidecarState::new()))
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
+            #[cfg(debug_assertions)]
             window.open_devtools();
             Ok(())
         })

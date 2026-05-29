@@ -2,23 +2,10 @@ import { useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listenSidecarLogs } from "@l4/system/listenSidecarLogs";
 import { useDevConsoleStore } from "@/l2-coordinator/data-clerk/stores/useDevConsoleStore";
+import { createDeferredSubscription } from "./deferredSubscription";
 
 export function useDevConsoleCommander() {
   const store = useDevConsoleStore();
-
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-
-    listenSidecarLogs((payload) => {
-      useDevConsoleStore.getState().addLog(payload.level, payload.message);
-    }).then((fn) => {
-      unlisten = fn;
-    });
-
-    return () => {
-      unlisten?.();
-    };
-  }, []);
 
   const exportLogs = useCallback(async (): Promise<string | null> => {
     try {
@@ -40,4 +27,14 @@ export function useDevConsoleCommander() {
     clear: store.clear,
     exportLogs,
   };
+}
+
+export function useDevConsoleLifecycle() {
+  useEffect(() => {
+    return createDeferredSubscription(() =>
+      listenSidecarLogs((payload) => {
+        useDevConsoleStore.getState().addLog(payload.level, payload.message);
+      }),
+    );
+  }, []);
 }

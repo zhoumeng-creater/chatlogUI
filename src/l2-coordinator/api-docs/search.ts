@@ -1,5 +1,7 @@
 import { HistoryMessage } from "./history";
 
+export type SearchFilterType = "all" | "text" | "image" | "video" | "file";
+
 export interface SearchResult {
   totalCount: number;
   count: number;
