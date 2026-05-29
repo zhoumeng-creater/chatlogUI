@@ -3,17 +3,17 @@ use tauri::Manager;
 
 mod commands;
 mod health;
+mod material;
 mod port_killer;
 mod sidecar;
 mod theme;
-mod material;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(configure_updater().build())
         .manage(Mutex::new(sidecar::SidecarState::new()))
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
@@ -32,4 +32,12 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn configure_updater() -> tauri_plugin_updater::Builder {
+    let builder = tauri_plugin_updater::Builder::new();
+    match option_env!("TAURI_UPDATER_PUBKEY").map(str::trim) {
+        Some(pubkey) if !pubkey.is_empty() => builder.pubkey(pubkey),
+        _ => builder,
+    }
 }

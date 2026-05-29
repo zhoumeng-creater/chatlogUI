@@ -1,8 +1,10 @@
-use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, State};
+use tauri_plugin_shell::{
+    process::{CommandChild, CommandEvent},
+    ShellExt,
+};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct LogPayload {
@@ -11,7 +13,7 @@ pub struct LogPayload {
 }
 
 pub struct SidecarState {
-    pub child: Option<Child>,
+    pub child: Option<CommandChild>,
 }
 
 #[derive(Clone, Debug, Default, serde::Deserialize)]
@@ -30,6 +32,10 @@ impl SidecarState {
 
 fn default_work_dir() -> PathBuf {
     std::env::temp_dir().join("chatlog_alpha")
+}
+
+fn sidecar_program() -> &'static str {
+    "binaries/chatlog_alpha"
 }
 
 fn normalize_option(value: Option<String>) -> Option<String> {
@@ -63,79 +69,95 @@ pub fn spawn_sidecar_with_logs(
     std::fs::create_dir_all(&work_dir)
         .map_err(|e| format!("Failed to create work directory: {}", e))?;
 
-    let mut command = Command::new("binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe");
-    command
-        .arg("serve")
-        .arg("--http-addr")
-        .arg("0.0.0.0:5030")
-        .arg("--work-dir")
-        .arg(work_dir.to_string_lossy().to_string());
+    let mut args = vec![
+        "serve".to_string(),
+        "--http-addr".to_string(),
+        "0.0.0.0:5030".to_string(),
+        "--work-dir".to_string(),
+        work_dir.to_string_lossy().to_string(),
+    ];
 
     if let Some(path) = data_dir {
-        command.arg("--data-dir").arg(path);
+        args.push("--data-dir".to_string());
+        args.push(path);
     }
 
     if let Some(key) = data_key {
-        command.arg("--data-key").arg(key);
+        args.push("--data-key".to_string());
+        args.push(key);
     }
 
-    let mut child = command
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+    let (mut rx, child) = app_handle
+        .shell()
+        .sidecar(sidecar_program())
+        .map_err(|e| format!("Failed to prepare sidecar: {}", e))?
+        .args(args)
         .spawn()
         .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
 
-    if let Some(stdout) = child.stdout.take() {
-        let handle = app_handle.clone();
-        std::thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines() {
-                if let Ok(text) = line {
+    let handle = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(bytes) => emit_sidecar_log(&handle, "stdout", bytes),
+                CommandEvent::Stderr(bytes) => emit_sidecar_log(&handle, "stderr", bytes),
+                CommandEvent::Error(message) => {
                     let _ = handle.emit(
                         "sidecar-log",
                         LogPayload {
-                            level: "stdout".into(),
-                            message: text,
+                            level: "error".into(),
+                            message,
                         },
                     );
                 }
-            }
-        });
-    }
-
-    if let Some(stderr) = child.stderr.take() {
-        let handle = app_handle.clone();
-        std::thread::spawn(move || {
-            let reader = BufReader::new(stderr);
-            for line in reader.lines() {
-                if let Ok(text) = line {
+                CommandEvent::Terminated(payload) => {
+                    let code = payload
+                        .code
+                        .map(|value| value.to_string())
+                        .unwrap_or_else(|| "signal".to_string());
                     let _ = handle.emit(
                         "sidecar-log",
                         LogPayload {
-                            level: "stderr".into(),
-                            message: text,
+                            level: "system".into(),
+                            message: format!("sidecar terminated: {}", code),
                         },
                     );
                 }
+                _ => {}
             }
-        });
-    }
+        }
+    });
 
     guard.child = Some(child);
     Ok("Sidecar started".into())
 }
 
+fn emit_sidecar_log(app_handle: &AppHandle, level: &str, bytes: Vec<u8>) {
+    let message = String::from_utf8_lossy(&bytes)
+        .trim_end_matches(['\r', '\n'])
+        .to_string();
+    if message.is_empty() {
+        return;
+    }
+
+    let _ = app_handle.emit(
+        "sidecar-log",
+        LogPayload {
+            level: level.into(),
+            message,
+        },
+    );
+}
+
 pub fn shutdown_sidecar(state: State<'_, Mutex<SidecarState>>) -> Result<String, String> {
     let mut guard = state.lock().map_err(|e| format!("Lock error: {}", e))?;
 
-    if let Some(ref mut child) = guard.child {
+    if let Some(child) = guard.child.take() {
         child
             .kill()
             .map_err(|e| format!("Failed to kill sidecar: {}", e))?;
-        child.wait().map_err(|e| format!("Failed to wait: {}", e))?;
     }
 
-    guard.child = None;
     Ok("Sidecar stopped".into())
 }
 
@@ -150,4 +172,23 @@ pub async fn export_logs_command(logs: Vec<LogPayload>) -> Result<String, String
             .map_err(|e| format!("写入日志失败: {}", e))?;
     }
     Ok(path.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sidecar_program_uses_external_bin_base_name() {
+        assert_eq!(sidecar_program(), "binaries/chatlog_alpha");
+    }
+
+    #[test]
+    fn normalize_option_trims_empty_values() {
+        assert_eq!(normalize_option(Some("  ".to_string())), None);
+        assert_eq!(
+            normalize_option(Some("  C:/WeChat Files/wxid_xxx  ".to_string())),
+            Some("C:/WeChat Files/wxid_xxx".to_string()),
+        );
+    }
 }

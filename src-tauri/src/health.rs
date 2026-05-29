@@ -7,7 +7,9 @@ pub async fn check_health(port: u16) -> Result<bool, String> {
     let timeout = Duration::from_secs(3);
 
     let mut stream = TcpStream::connect_timeout(
-        &addr.parse().map_err(|e| format!("Invalid address: {}", e))?,
+        &addr
+            .parse()
+            .map_err(|e| format!("Invalid address: {}", e))?,
         timeout,
     )
     .map_err(|e| format!("Connection refused: {}", e))?;

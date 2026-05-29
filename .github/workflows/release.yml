@@ -6,6 +6,9 @@ on:
       - "v*.*.*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -24,10 +27,40 @@ jobs:
             os: macos-latest
             archive: dmg
             ext: dmg
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+            archive: appimage
+            ext: AppImage
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate updater signing secrets
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+        run: |
+          if [[ -z "${TAURI_SIGNING_PRIVATE_KEY}" ]]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is required for signed updater artifacts"
+            exit 1
+          fi
+          if [[ -z "${TAURI_UPDATER_PUBKEY}" ]]; then
+            echo "::error::TAURI_UPDATER_PUBKEY is required so the app can verify updates"
+            exit 1
+          fi
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -43,6 +76,13 @@ jobs:
           node-version: "20"
           cache: "pnpm"
 
+      - name: Configure updater public key
+        shell: bash
+        env:
+          TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+        run: |
+          node -e "const fs=require('fs'); const p='src-tauri/tauri.conf.json'; const c=JSON.parse(fs.readFileSync(p,'utf8')); c.plugins.updater.pubkey=process.env.TAURI_UPDATER_PUBKEY; fs.writeFileSync(p, JSON.stringify(c,null,2)+'\n');"
+
       - name: Install MSYS2 (Windows)
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
@@ -50,28 +90,23 @@ jobs:
           update: true
           install: mingw-w64-x86_64-gcc mingw-w64-x86_64-pkg-config
 
-      - name: Build Go Sidecar
+      - name: Prepare Sidecar
         shell: bash
-        run: |
-          if [ ! -d "cmd/chatlog" ]; then
-            echo "cmd/chatlog directory not found, using pre-built sidecar or skipping"
-            mkdir -p src-tauri/binaries
-            touch "src-tauri/binaries/chatlog_alpha-${{ matrix.target }}"
-          else
-            BINARY_NAME="chatlog_alpha-${{ matrix.target }}"
-            if [[ "${{ runner.os }}" == "Windows" ]]; then
-              BINARY_NAME="${BINARY_NAME}.exe"
-            fi
-            go build -o "src-tauri/binaries/${BINARY_NAME}" ./cmd/chatlog
-          fi
+        run: bash .github/scripts/prepare-sidecar.sh "${{ matrix.target }}" release
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Frontend
+        run: pnpm verify
 
       - name: Tauri Build
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "chatlog_alpha v__VERSION__"
@@ -81,45 +116,7 @@ jobs:
             - **macOS (Intel)**: `chatlog_alpha_x64.dmg`
             - **macOS (Apple Silicon)**: `chatlog_alpha_aarch64.dmg`
             - **Windows**: `chatlog_alpha_x64.msi`
+            - **Linux**: `chatlog_alpha_x64.AppImage`
           releaseDraft: false
           prerelease: false
-          args: --target ${{ matrix.target }}
-
-  publish-update-json:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Generate update.json
-        run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
-          REPO="${{ github.repository }}"
-          cat > update.json << EOF
-          {
-            "version": "${VERSION}",
-            "notes": "请查看 GitHub Releases 获取详细更新内容",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "darwin-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${REPO}/releases/download/${{ github.ref_name }}/chatlog_alpha_x64.dmg"
-              },
-              "darwin-aarch64": {
-                "signature": "",
-                "url": "https://github.com/${REPO}/releases/download/${{ github.ref_name }}/chatlog_alpha_aarch64.dmg"
-              },
-              "windows-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${REPO}/releases/download/${{ github.ref_name }}/chatlog_alpha_x64.msi"
-              }
-            }
-          }
-          EOF
-
-      - name: Upload update.json
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: update.json
+          args: --target ${{ matrix.target }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
