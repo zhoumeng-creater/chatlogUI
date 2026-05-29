@@ -4,6 +4,9 @@ node_modules/
 # Build outputs
 dist/
 
+# Local git worktrees
+.worktrees/
+
 # Rust build outputs
 target/
 
