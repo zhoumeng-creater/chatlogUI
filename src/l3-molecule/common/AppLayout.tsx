@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Typography } from "@l4/ui";
 import { applyWindowMaterial } from "@l4/system/applyWindowMaterial";
+import { canUseTauriWindow } from "@l4/system/tauriRuntime";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { useDevConsoleStore } from "@l2/data-clerk/stores/useDevConsoleStore";
 
@@ -22,7 +23,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     applyWindowMaterial(windowMaterial);
   }, [windowMaterial]);
 
-  const appWindow = getCurrentWindow();
+  const appWindow = getTauriWindow();
 
   return (
     <div className="flex flex-col h-full w-full select-none">
@@ -34,17 +35,17 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="flex items-center gap-1.5">
             <button
               className="w-3 h-3 rounded-full bg-[#FF5F57] hover:brightness-90 transition-all"
-              onClick={() => appWindow.close()}
+              onClick={() => appWindow?.close()}
               aria-label="关闭"
             />
             <button
               className="w-3 h-3 rounded-full bg-[#FEBC2E] hover:brightness-90 transition-all"
-              onClick={() => appWindow.minimize()}
+              onClick={() => appWindow?.minimize()}
               aria-label="最小化"
             />
             <button
               className="w-3 h-3 rounded-full bg-[#28C840] hover:brightness-90 transition-all"
-              onClick={() => appWindow.toggleMaximize()}
+              onClick={() => appWindow?.toggleMaximize()}
               aria-label="全屏"
             />
           </div>
@@ -102,4 +103,16 @@ export function AppLayout({ children }: AppLayoutProps) {
       <main className="flex-1 overflow-hidden">{children}</main>
     </div>
   );
+}
+
+function getTauriWindow(): ReturnType<typeof getCurrentWindow> | null {
+  if (!canUseTauriWindow()) {
+    return null;
+  }
+
+  try {
+    return getCurrentWindow();
+  } catch {
+    return null;
+  }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
@@ -13,17 +13,25 @@ import { FilterBar } from "@l3/search/FilterBar";
 import { DashboardOverview } from "@l3/stats/DashboardOverview";
 import { TrendChart } from "@l3/stats/TrendChart";
 import { TopContactCard } from "@l3/stats/TopContactCard";
-import { AiPanel } from "@l3/semantic/AiPanel";
 import { useAiCommander } from "@l2/commander/useAiCommander";
 import { useChatCommander } from "@l2/commander/useChatCommander";
 import { useSearchCommander } from "@l2/commander/useSearchCommander";
 import { useStatsCommander } from "@l2/commander/useStatsCommander";
 import { useGraphCommander } from "@l2/commander/useGraphCommander";
-import { GraphCanvas } from "@l3/graph/GraphCanvas";
 import { Typography } from "@l4/ui/Typography";
 import { AppleButton } from "@l4/ui/AppleButton";
+import { Spinner } from "@l4/ui/Spinner";
 import { DevConsole } from "@l3/common/DevConsole";
 import { UpdateNotification } from "@l3/common/UpdateNotification";
+import { getDashboardLayout } from "./dashboardLayout";
+
+const LazyAiPanel = lazy(() =>
+  import("@l3/semantic/AiPanel").then((module) => ({ default: module.AiPanel })),
+);
+
+const LazyGraphCanvas = lazy(() =>
+  import("@l3/graph/GraphCanvas").then((module) => ({ default: module.GraphCanvas })),
+);
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -38,6 +46,8 @@ export function DashboardView() {
   const graph = useGraphCommander();
   const { selectedNodeId, data: graphData, selectNode: graphSelectNode, focusOnChat, focusOnGraphFromSearch } = graph;
   const [rightPanelMode, setRightPanelMode] = useState<"stats" | "ai">("stats");
+  const viewportWidth = useViewportWidth();
+  const layout = getDashboardLayout(viewportWidth);
 
   useEffect(() => {
     if (appPhase !== "ready") {
@@ -115,14 +125,21 @@ export function DashboardView() {
 
   return (
     <AppLayout>
-      <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: layout.gridTemplateColumns,
+          height: "100%",
+          overflow: "hidden",
+          minWidth: 0,
+        }}
+      >
         <div
           style={{
-            width: 280,
-            minWidth: 280,
+            minWidth: 0,
             borderRight: "1px solid var(--color-border)",
             backgroundColor: "rgba(0,0,0,0.03)",
-            flexShrink: 0,
+            overflow: "hidden",
           }}
         >
           <ContactList />
@@ -131,11 +148,11 @@ export function DashboardView() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <div
             style={{
-              padding: "8px 12px",
+              padding: `${layout.panelPadding}px ${layout.panelPadding + 4}px`,
               borderBottom: "1px solid var(--color-border)",
               display: "flex",
               flexDirection: "column",
-              maxHeight: searchResults ? 320 : undefined,
+              maxHeight: searchResults ? layout.searchMaxHeight : undefined,
               minHeight: 0,
             }}
           >
@@ -151,15 +168,13 @@ export function DashboardView() {
 
         <div
           style={{
-            width: 260,
-            minWidth: 260,
+            minWidth: 0,
             borderLeft: "1px solid var(--color-border)",
             overflowY: "auto",
-            flexShrink: 0,
           }}
         >
           {rightPanelMode === "stats" ? (
-            <div style={{ padding: 12 }}>
+            <div style={{ padding: layout.panelPadding + 2 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <Typography variant="label" weight={600}>统计数据</Typography>
                 <div style={{ display: "flex", gap: 4 }}>
@@ -192,7 +207,9 @@ export function DashboardView() {
               )}
             </div>
           ) : (
-            <AiPanel mode="ai" onModeChange={setRightPanelMode} />
+            <Suspense fallback={<PanelLoading label="加载 AI 面板..." />}>
+              <LazyAiPanel mode="ai" onModeChange={setRightPanelMode} />
+            </Suspense>
           )}
         </div>
       </div>
@@ -200,7 +217,42 @@ export function DashboardView() {
       <UpdateNotification />
       <DevConsole />
       <StatusBar status={sidecarStatus} indexStatus={indexStatus} />
-      <GraphCanvas />
+      {graph.visible && (
+        <Suspense fallback={null}>
+          <LazyGraphCanvas />
+        </Suspense>
+      )}
     </AppLayout>
+  );
+}
+
+function useViewportWidth(): number {
+  const [width, setWidth] = useState(() =>
+    typeof window === "undefined" ? 1080 : window.innerWidth,
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return width;
+}
+
+function PanelLoading({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <Spinner size={20} label={label} color="var(--color-text-tertiary)" />
+    </div>
   );
 }

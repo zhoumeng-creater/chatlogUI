@@ -1,9 +1,11 @@
 import { create } from "zustand";
 
+export type LogLevel = "stdout" | "stderr" | "error" | "system";
+
 export interface LogEntry {
   id: number;
   time: string;
-  level: "stdout" | "stderr";
+  level: LogLevel;
   message: string;
 }
 
@@ -18,7 +20,7 @@ interface DevConsoleState {
 }
 
 interface DevConsoleActions {
-  addLog: (level: "stdout" | "stderr", message: string) => void;
+  addLog: (level: LogLevel, message: string) => void;
   clear: () => void;
   toggle: () => void;
   setVisible: (visible: boolean) => void;
@@ -31,7 +33,7 @@ export const useDevConsoleStore = create<DevConsoleStore>((set) => ({
   visible: false,
   autoScroll: true,
 
-  addLog: (level: "stdout" | "stderr", message: string) =>
+  addLog: (level: LogLevel, message: string) =>
     set((state) => {
       const entry: LogEntry = {
         id: nextId++,

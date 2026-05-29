@@ -86,16 +86,16 @@ export function DevConsole() {
                 <span style={{ color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>{log.time}</span>
                 <span
                   style={{
-                    color: log.level === "stderr" ? "#FF6B6B" : "rgba(255,255,255,0.7)",
+                    color: getLogLevelColor(log.level),
                     flexShrink: 0,
                     width: 50,
                   }}
                 >
-                  {log.level === "stderr" ? "STDERR" : "STDOUT"}
+                  {getLogLevelLabel(log.level)}
                 </span>
                 <span
                   style={{
-                    color: log.level === "stderr" ? "#FF6B6B" : "rgba(255,255,255,0.85)",
+                    color: getLogMessageColor(log.level),
                     wordBreak: "break-all",
                   }}
                 >
@@ -108,4 +108,22 @@ export function DevConsole() {
       )}
     </AnimatePresence>
   );
+}
+
+function getLogLevelLabel(level: string): string {
+  if (level === "stderr") return "STDERR";
+  if (level === "error") return "ERROR";
+  if (level === "system") return "SYS";
+  return "STDOUT";
+}
+
+function getLogLevelColor(level: string): string {
+  if (level === "stderr" || level === "error") return "#FF6B6B";
+  if (level === "system") return "#8E8E93";
+  return "rgba(255,255,255,0.7)";
+}
+
+function getLogMessageColor(level: string): string {
+  if (level === "stderr" || level === "error") return "#FF6B6B";
+  return "rgba(255,255,255,0.85)";
 }
