@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+#[cfg(debug_assertions)]
 use tauri::Manager;
 
 mod commands;
@@ -15,10 +16,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(configure_updater().build())
         .manage(Mutex::new(sidecar::SidecarState::new()))
-        .setup(|app| {
-            let window = app.get_webview_window("main").unwrap();
+        .setup(|_app| {
             #[cfg(debug_assertions)]
-            window.open_devtools();
+            {
+                let window = _app.get_webview_window("main").unwrap();
+                window.open_devtools();
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
