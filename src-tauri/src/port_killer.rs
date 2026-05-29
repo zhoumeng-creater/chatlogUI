@@ -45,16 +45,10 @@ fn find_pid_by_port_windows(port: u16) -> Result<Option<u32>, String> {
 
 #[cfg(windows)]
 fn parse_windows_netstat(output: &str, port: u16) -> Option<u32> {
-    let port_str = format!(":{}", port);
-
     for line in output.lines() {
-        if line.contains(&port_str) && line.contains("LISTENING") {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if let Some(pid_str) = parts.last() {
-                if let Ok(pid) = pid_str.parse::<u32>() {
-                    return Some(pid);
-                }
-            }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 5 && parts[3] == "LISTENING" && address_uses_port(parts[1], port) {
+            return parts[4].parse::<u32>().ok();
         }
     }
 
@@ -102,11 +96,13 @@ fn find_pid_with_ss(port: u16) -> Option<u32> {
 
 #[cfg(unix)]
 fn parse_ss_output(output: &str, port: u16) -> Option<u32> {
-    let port_suffix = format!(":{}", port);
-
     output
         .lines()
-        .find(|line| line.contains(&port_suffix))
+        .find(|line| {
+            line.split_whitespace()
+                .nth(3)
+                .is_some_and(|address| address_uses_port(address, port))
+        })
         .and_then(parse_ss_pid)
 }
 
@@ -120,6 +116,13 @@ fn parse_ss_pid(line: &str) -> Option<u32> {
         .take_while(|value| value.is_ascii_digit())
         .collect::<String>();
     pid.parse::<u32>().ok()
+}
+
+fn address_uses_port(address: &str, port: u16) -> bool {
+    address
+        .rsplit_once(':')
+        .and_then(|(_, value)| value.parse::<u16>().ok())
+        .is_some_and(|value| value == port)
 }
 
 fn kill_process(pid: u32) -> Result<(), String> {
@@ -164,6 +167,7 @@ fn force_kill(pid: u32) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use super::address_uses_port;
     #[cfg(unix)]
     use super::parse_ss_output;
     #[cfg(windows)]
@@ -176,11 +180,33 @@ mod tests {
         assert_eq!(parse_windows_netstat(output, 5030), Some(4242));
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn does_not_match_windows_prefix_ports() {
+        let output = "TCP    0.0.0.0:50300    0.0.0.0:0    LISTENING    4242";
+        assert_eq!(parse_windows_netstat(output, 5030), None);
+    }
+
     #[cfg(unix)]
     #[test]
     fn parses_ss_listener_pid() {
         let output =
             r#"LISTEN 0 4096 127.0.0.1:5030 0.0.0.0:* users:(("chatlog_alpha",pid=4242,fd=7))"#;
         assert_eq!(parse_ss_output(output, 5030), Some(4242));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn does_not_match_ss_prefix_ports() {
+        let output =
+            r#"LISTEN 0 4096 127.0.0.1:50300 0.0.0.0:* users:(("chatlog_alpha",pid=4242,fd=7))"#;
+        assert_eq!(parse_ss_output(output, 5030), None);
+    }
+
+    #[test]
+    fn address_port_matching_is_exact() {
+        assert!(address_uses_port("127.0.0.1:5030", 5030));
+        assert!(address_uses_port("[::]:5030", 5030));
+        assert!(!address_uses_port("127.0.0.1:50300", 5030));
     }
 }

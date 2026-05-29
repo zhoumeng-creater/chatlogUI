@@ -7,6 +7,10 @@ let automaticUpdateCheckStarted = false;
 let availableUpdate: Update | null = null;
 let downloadedUpdate: Update | null = null;
 
+function isUpdaterEnabled(): boolean {
+  return import.meta.env.PROD && import.meta.env.VITE_ENABLE_UPDATER === "true";
+}
+
 async function closeUpdate(update: Update | null): Promise<void> {
   if (!update) return;
   try {
@@ -46,7 +50,7 @@ export function useUpdateCommander() {
   const store = useUpdateStore();
 
   const checkUpdate = useCallback(async (): Promise<boolean> => {
-    if (!import.meta.env.PROD) {
+    if (!isUpdaterEnabled()) {
       useUpdateStore.getState().setStatus("idle");
       return false;
     }
@@ -74,8 +78,8 @@ export function useUpdateCommander() {
   }, []);
 
   const downloadUpdate = useCallback(async () => {
-    if (!import.meta.env.PROD) {
-      useUpdateStore.getState().setError("开发环境不会执行更新下载");
+    if (!isUpdaterEnabled()) {
+      useUpdateStore.getState().setError("当前构建未启用自动更新");
       return;
     }
 
@@ -101,6 +105,11 @@ export function useUpdateCommander() {
   }, []);
 
   const installAndRestart = useCallback(async () => {
+    if (!isUpdaterEnabled()) {
+      useUpdateStore.getState().setError("当前构建未启用自动更新");
+      return;
+    }
+
     try {
       const update = downloadedUpdate ?? (await checkSignedUpdate());
       if (update) {

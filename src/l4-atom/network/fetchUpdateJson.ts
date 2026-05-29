@@ -1,7 +1,7 @@
 import type { UpdateManifest } from "@/l2-coordinator/api-docs/update";
 
 const DEFAULT_UPDATE_URL =
-  "https://github.com/zhoumeng-creater/chatlogUI/releases/latest/download/update.json";
+  "https://github.com/zhoumeng-creater/chatlogUI/releases/latest/download/latest.json";
 
 export async function fetchUpdateJson(): Promise<UpdateManifest> {
   const response = await fetch(DEFAULT_UPDATE_URL, {

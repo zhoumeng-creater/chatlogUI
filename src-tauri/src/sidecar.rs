@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_shell::{
     process::{CommandChild, CommandEvent},
     ShellExt,
@@ -111,6 +111,7 @@ pub fn spawn_sidecar_with_logs(
                     );
                 }
                 CommandEvent::Terminated(payload) => {
+                    clear_sidecar_child(&handle);
                     let code = payload
                         .code
                         .map(|value| value.to_string())
@@ -130,6 +131,13 @@ pub fn spawn_sidecar_with_logs(
 
     guard.child = Some(child);
     Ok("Sidecar started".into())
+}
+
+fn clear_sidecar_child(app_handle: &AppHandle) {
+    let state = app_handle.state::<Mutex<SidecarState>>();
+    if let Ok(mut guard) = state.lock() {
+        guard.child = None;
+    };
 }
 
 fn emit_sidecar_log(app_handle: &AppHandle, level: &str, bytes: Vec<u8>) {
