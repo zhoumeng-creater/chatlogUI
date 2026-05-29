@@ -1,0 +1,77 @@
+:root {
+  --font-sans: "SF Pro Display", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  --surface-app: #f6f7f9;
+  --surface-base: #ffffff;
+  --surface-raised: rgba(255, 255, 255, 0.92);
+  --surface-subtle: #eef1f5;
+  --surface-selected: #e8f1ff;
+  --surface-hover: rgba(0, 0, 0, 0.045);
+
+  --text-primary: #1f2328;
+  --text-secondary: #5b6472;
+  --text-tertiary: #7d8794;
+  --text-muted: #a0a8b3;
+  --text-inverse: #ffffff;
+
+  --border-subtle: rgba(20, 26, 34, 0.08);
+  --border-strong: rgba(20, 26, 34, 0.14);
+  --focus-ring: rgba(10, 132, 255, 0.28);
+
+  --accent: #0a84ff;
+  --accent-strong: #006edb;
+  --accent-soft: rgba(10, 132, 255, 0.12);
+  --success: #2f9e44;
+  --warning: #b7791f;
+  --danger: #d92d20;
+  --neutral: #7d8794;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+
+  --shadow-raised: 0 8px 24px rgba(20, 26, 34, 0.08);
+  --shadow-overlay: 0 18px 48px rgba(20, 26, 34, 0.16);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --titlebar-height: 44px;
+  --statusbar-height: 32px;
+  --sidebar-expanded: 192px;
+  --sidebar-collapsed: 64px;
+  --conversation-list-width: 288px;
+  --conversation-list-width-compact: 248px;
+  --inspector-width: 320px;
+  --inspector-width-compact: 284px;
+
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-app: #17191d;
+    --surface-base: #202329;
+    --surface-raised: rgba(32, 35, 41, 0.94);
+    --surface-subtle: #272b33;
+    --surface-selected: rgba(10, 132, 255, 0.18);
+    --surface-hover: rgba(255, 255, 255, 0.07);
+
+    --text-primary: rgba(255, 255, 255, 0.92);
+    --text-secondary: rgba(255, 255, 255, 0.68);
+    --text-tertiary: rgba(255, 255, 255, 0.5);
+    --text-muted: rgba(255, 255, 255, 0.34);
+
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --focus-ring: rgba(10, 132, 255, 0.36);
+  }
+}

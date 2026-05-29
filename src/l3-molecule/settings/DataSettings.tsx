@@ -41,16 +41,16 @@ export function DataSettings() {
             </Typography>
             <input
               type="password"
-              value={settings.dataKey}
-              onChange={(e) => updateAndSave({ dataKey: e.target.value })}
-              placeholder="64 位十六进制密钥，留空则由后端配置决定"
+              value=""
+              disabled
+              placeholder="请在设置中心配置 data key"
               style={{
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: 8,
                 border: "1px solid var(--color-border)",
                 background: "var(--color-bg-primary)",
-                color: "var(--color-text-primary)",
+                color: "var(--color-text-secondary)",
                 fontSize: 14,
                 marginTop: 4,
               }}

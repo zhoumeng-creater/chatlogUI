@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "./tokens.css";
+@import "./layout.css";
+@import "./motion.css";
 
 :root {
   font-family: "SF Pro Display", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -15,7 +18,7 @@
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 
-  /* Sprint 2: UI token system */
+  /* Legacy aliases retained for existing molecules during P2 migration. */
   --color-bubble-self: #007AFF;
   --color-bubble-other: rgba(255, 255, 255, 0.9);
   --color-border: rgba(0, 0, 0, 0.08);

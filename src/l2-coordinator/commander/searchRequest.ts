@@ -1,4 +1,5 @@
-import type { SearchFilterType, SearchQueryParams, SearchResult } from "@/l2-coordinator/api-docs/search";
+import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
+import type { FetchSearchOptions } from "@l4/network/fetchSearch";
 
 interface CreateSearchRequestInput {
   keyword: string;
@@ -7,8 +8,16 @@ interface CreateSearchRequestInput {
   offset: number;
 }
 
+const FILTER_TO_MSG_TYPE: Record<string, string | undefined> = {
+  all: undefined,
+  text: "1",
+  image: "3",
+  video: "43",
+  file: "49",
+};
+
 export function toSearchMessageType(filter: SearchFilterType): string | undefined {
-  return filter === "all" ? undefined : filter;
+  return FILTER_TO_MSG_TYPE[filter];
 }
 
 export function createSearchRequest({
@@ -16,28 +25,35 @@ export function createSearchRequest({
   filter,
   limit,
   offset,
-}: CreateSearchRequestInput): SearchQueryParams {
-  const params: SearchQueryParams = {
+}: CreateSearchRequestInput): FetchSearchOptions {
+  const params: FetchSearchOptions = {
     keyword: keyword.trim(),
     limit,
     offset,
   };
 
-  const type = toSearchMessageType(filter);
-  if (type) {
-    params.type = type;
+  const msgType = toSearchMessageType(filter);
+  if (msgType) {
+    params.msgType = msgType;
   }
 
   return params;
 }
 
-export function getNextSearchOffset(results: SearchResult): number {
+export interface SearchResults {
+  totalCount: number;
+  count: number;
+  limit: number;
+  offset: number;
+  messages: { id: string; timestamp: number; content: string; sender: string; username: string; chat: string }[];
+}
+
+export function getNextSearchOffset(results: SearchResults): number {
   return results.messages.length;
 }
 
-export function mergeSearchResults(existing: SearchResult, next: SearchResult): SearchResult {
+export function mergeSearchResults(existing: SearchResults, next: SearchResults): SearchResults {
   const messages = [...existing.messages, ...next.messages];
-
   return {
     ...next,
     offset: 0,

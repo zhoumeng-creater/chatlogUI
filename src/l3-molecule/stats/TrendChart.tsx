@@ -1,5 +1,5 @@
 import { GlassPanel, Typography } from "@l4/ui";
-import type { TrendDataPoint } from "@l2/api-docs/stats";
+import type { TrendDataPoint } from "@l2/data-clerk/stores/useStatsStore";
 
 interface TrendChartProps {
   data: TrendDataPoint[];

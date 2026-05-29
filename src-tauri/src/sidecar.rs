@@ -6,16 +6,22 @@ use tauri_plugin_shell::{
     ShellExt,
 };
 
+use crate::sidecar_args;
+
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct LogPayload {
     pub level: String,
     pub message: String,
 }
 
-pub struct SidecarState {
+pub struct SidecarState(pub Mutex<SidecarInner>);
+
+pub struct SidecarInner {
     pub child: Option<CommandChild>,
+    pub managed_pid: Option<u32>,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpawnSidecarOptions {
@@ -26,7 +32,10 @@ pub struct SpawnSidecarOptions {
 
 impl SidecarState {
     pub fn new() -> Self {
-        Self { child: None }
+        Self(Mutex::new(SidecarInner {
+            child: None,
+            managed_pid: None,
+        }))
     }
 }
 
@@ -38,6 +47,7 @@ fn sidecar_program() -> &'static str {
     "binaries/chatlog_alpha"
 }
 
+#[allow(dead_code)]
 fn normalize_option(value: Option<String>) -> Option<String> {
     value.and_then(|v| {
         let trimmed = v.trim().to_string();
@@ -51,41 +61,25 @@ fn normalize_option(value: Option<String>) -> Option<String> {
 
 pub fn spawn_sidecar_with_logs(
     app_handle: AppHandle,
-    state: State<'_, Mutex<SidecarState>>,
-    options: SpawnSidecarOptions,
+    state: State<'_, SidecarState>,
+    plan: sidecar_args::SidecarLaunchPlan,
 ) -> Result<String, String> {
-    let mut guard = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let mut inner = state.0.lock().map_err(|e| format!("Lock error: {}", e))?;
 
-    if guard.child.is_some() {
+    if inner.child.is_some() {
         return Err("Sidecar already running".into());
     }
 
-    let data_dir = normalize_option(options.data_dir);
-    let data_key = normalize_option(options.data_key);
-    let work_dir = normalize_option(options.work_dir)
+    let work_dir = plan
+        .work_dir
+        .clone()
         .map(PathBuf::from)
         .unwrap_or_else(default_work_dir);
 
     std::fs::create_dir_all(&work_dir)
         .map_err(|e| format!("Failed to create work directory: {}", e))?;
 
-    let mut args = vec![
-        "serve".to_string(),
-        "--http-addr".to_string(),
-        "0.0.0.0:5030".to_string(),
-        "--work-dir".to_string(),
-        work_dir.to_string_lossy().to_string(),
-    ];
-
-    if let Some(path) = data_dir {
-        args.push("--data-dir".to_string());
-        args.push(path);
-    }
-
-    if let Some(key) = data_key {
-        args.push("--data-key".to_string());
-        args.push(key);
-    }
+    let args = sidecar_args::build_sidecar_args(&plan);
 
     let (mut rx, child) = app_handle
         .shell()
@@ -129,14 +123,27 @@ pub fn spawn_sidecar_with_logs(
         }
     });
 
-    guard.child = Some(child);
+    inner.child = Some(child);
+
+    if let Some(port) = plan
+        .http_addr
+        .split(':')
+        .last()
+        .and_then(|p| p.parse::<u16>().ok())
+    {
+        std::thread::sleep(std::time::Duration::from_millis(800));
+        let inspection = crate::service_probe::inspect_port(port, None);
+        inner.managed_pid = inspection.process.map(|p| p.pid);
+    }
+
     Ok("Sidecar started".into())
 }
 
 fn clear_sidecar_child(app_handle: &AppHandle) {
-    let state = app_handle.state::<Mutex<SidecarState>>();
-    if let Ok(mut guard) = state.lock() {
-        guard.child = None;
+    let state = app_handle.state::<SidecarState>();
+    if let Ok(mut inner) = state.0.lock() {
+        inner.child = None;
+        inner.managed_pid = None;
     };
 }
 
@@ -157,13 +164,14 @@ fn emit_sidecar_log(app_handle: &AppHandle, level: &str, bytes: Vec<u8>) {
     );
 }
 
-pub fn shutdown_sidecar(state: State<'_, Mutex<SidecarState>>) -> Result<String, String> {
-    let mut guard = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+pub fn shutdown_sidecar(state: State<'_, SidecarState>) -> Result<String, String> {
+    let mut inner = state.0.lock().map_err(|e| format!("Lock error: {}", e))?;
 
-    if let Some(child) = guard.child.take() {
+    if let Some(child) = inner.child.take() {
         child
             .kill()
             .map_err(|e| format!("Failed to kill sidecar: {}", e))?;
+        inner.managed_pid = None;
     }
 
     Ok("Sidecar stopped".into())

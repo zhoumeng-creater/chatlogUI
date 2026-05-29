@@ -1,12 +1,36 @@
 import { create } from "zustand";
-import type { StatsResponse, TrendDataPoint } from "@/l2-coordinator/api-docs/stats";
+
+export interface AdaptedStats {
+  chat: string;
+  username: string;
+  isGroup: boolean;
+  chatType: string;
+  total: number;
+  sentCount: number;
+  receivedCount: number;
+  activeSenders: number;
+  activeDays: number;
+  firstMessageTime: number;
+  lastMessageTime: number;
+  querySince?: number;
+  queryUntil?: number;
+  queryRangeLabel: string;
+  byType: { type: string; count: number }[];
+  topSenders: { sender: string; count: number; display: string }[];
+  byHour: { hour: number; count: number }[];
+}
+
+export interface TrendDataPoint {
+  date: string;
+  count: number;
+}
 
 interface StatsState {
-  stats: StatsResponse | null;
+  stats: AdaptedStats | null;
   trend: TrendDataPoint[];
   loading: boolean;
   error: string | null;
-  setStats: (stats: StatsResponse) => void;
+  setStats: (stats: AdaptedStats) => void;
   setTrend: (trend: TrendDataPoint[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;

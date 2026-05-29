@@ -1,10 +1,11 @@
 import { useRef, useEffect, useCallback } from "react";
 import { Typography, Spinner } from "@l4/ui";
 import { useChatCommander } from "@l2/commander/";
-import type { HistoryMessage } from "@l2/api-docs/history";
+import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
+import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
 import { MessageBubble } from "./MessageBubble";
 
-function shouldShowAvatar(messages: HistoryMessage[], index: number): boolean {
+function shouldShowAvatar(messages: ChatMessage[], index: number): boolean {
   if (index === messages.length - 1) return true;
   const curr = messages[index];
   const next = messages[index + 1];
@@ -21,23 +22,23 @@ function shouldShowAvatar(messages: HistoryMessage[], index: number): boolean {
 
 export function MessageList() {
   const {
-    selectedContact,
-    selectedChatRoom,
+    selectedConversationId,
     messages,
     messagesLoading,
-    messagesTotalCount,
-    messagesOffset,
+    messagesHasMore,
     loadMoreHistory,
   } = useChatCommander();
 
-  const activeChat = selectedContact?.userName || selectedChatRoom?.name || "";
+  const conversations = useChatStore((s) => s.conversations);
+  const currentConv = conversations.find((c) => c.id === selectedConversationId);
+  const activeChat = currentConv?.username || "";
 
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
   const isFirstLoad = useRef(true);
 
-  const allLoaded = messagesOffset >= messagesTotalCount && messagesTotalCount > 0;
+  const allLoaded = !messagesHasMore && messages.length > 0;
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
@@ -68,9 +69,9 @@ export function MessageList() {
     isFirstLoad.current = true;
     prevMessageCountRef.current = 0;
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
-  }, [selectedContact?.userName, selectedChatRoom?.name]);
+  }, [selectedConversationId]);
 
-  if (!selectedContact && !selectedChatRoom) {
+  if (!currentConv) {
     return (
       <div
         style={{
@@ -114,7 +115,7 @@ export function MessageList() {
       {allLoaded && (
         <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}>
           <Typography variant="caption" color="var(--color-text-tertiary)">
-            已加载全部 {messagesTotalCount} 条消息
+            已加载全部 {messages.length} 条消息
           </Typography>
         </div>
       )}
@@ -123,9 +124,9 @@ export function MessageList() {
         const originalIdx = messages.length - 1 - idx;
         return (
           <MessageBubble
-            key={msg.seq || msg.id}
+            key={msg.id}
             message={msg}
-            isSelf={msg.isSelf}
+            isSelf={msg.direction === "self"}
             showAvatar={shouldShowAvatar(messages, originalIdx)}
           />
         );

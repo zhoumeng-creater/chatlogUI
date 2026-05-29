@@ -15,10 +15,10 @@ export function useStatsCommander() {
     }
   }, []);
 
-  const loadTrend = useCallback(async (chat: string) => {
+  const loadTrend = useCallback(async (chat?: string) => {
     try {
-      const result = await fetchDashboardTrend(chat);
-      useStatsStore.getState().setTrend(result.points);
+      const result = await fetchDashboardTrend({ chat, window: "7d", summary: false });
+      useStatsStore.getState().setTrend(result.daily);
     } catch {
       // 趋势数据非关键，静默失败
     }

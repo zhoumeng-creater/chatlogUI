@@ -4,7 +4,7 @@
 将开源项目 chatlog_alpha 封装为 Tauri v2 + Mediator 四层架构的跨平台桌面应用。
 
 ## Current Phase
-**Sprint 4 Complete** → Sprint 5a Planning
+**UI/功能审计与重构规划** → 分析当前 UI 与 chatlog_alpha 功能边界，产出问题清单和修改路线图
 
 ## Phases
 
@@ -109,3 +109,45 @@
 | Health endpoint | /health (not /api/v1/db) |
 | Sidecar binary | Go mock (real chatlog_alpha integration in Sprint 2) |
 | TDD approach | Deferred to Sprint 2 (Sprint 1 is infrastructure scaffold) |
+
+### Phase 9: UI/功能审计与重构规划
+- [x] 检查既有计划与仓库状态
+- [x] 梳理当前 UI 仓库结构、运行方式和错误
+- [x] 对照 chatlog_alpha 原始能力与 CLI/HTTP 接口
+- [x] 审计 UI 信息架构、视觉设计、交互流程、可访问性与响应式问题
+- [x] 审计功能实现缺口、数据流、sidecar/后端集成与错误处理
+- [x] 输出按优先级排序的问题指南与完整修改规划
+- **Status:** complete
+
+### Phase 10: P0 启动基础重构规划
+- [x] 读取 P0 相关源码与原始 chatlog_alpha 配置/API 证据
+- [x] 明确 P0 目标、非目标、状态机、配置模型和安全边界
+- [x] 撰写独立 P0 修复规划文档
+- [x] 校验文档格式并记录最终结果
+- **Status:** complete
+
+### Phase 11: P1 核心聊天工作台重构实施
+- [x] Task 1-2: 合约夹具 + Raw DTO + 适配器 (52 adapter tests)
+- [x] Task 3: 重写网络 fetchers (fetchSessions/fetchContactsApi/fetchChatRoomsApi/fetchConversations + 修正参数名)
+- [x] Task 4: 重建 Chat Store/Commander (Conversation/ChatMessage 模型)
+- [x] Task 5-6: 重写会话侧边栏 + 消息转录面板
+- [x] Task 7: 修复全局搜索和搜索结果
+- [x] Task 8: 修复统计和趋势面板
+- [x] Task 9: 实现 detectWxPath (P0 遗留)
+- [x] Task 10-11: Workbench shell 清理 + 视觉质量
+- [x] Task 12: 验证 (lint 0, typecheck 0, test 92/92, build OK, cargo test 16/16)
+- **Status:** complete
+- **规划文档:** docs/superpowers/plans/2026-05-29-p1-core-chat-workbench-refactor.md
+
+### Phase 12: P2-A UI Foundation And Shell Implementation
+- [x] A1: 捕获 P2-A 前基线，记录 Setup/Workbench/Settings 的桌面与窄屏问题
+- [x] A2: 引入 lucide-react，替换 AppLayout 与 AI Panel 的 emoji/字符图标
+- [x] A3: 建立 CSS token、布局与 motion 基线
+- [x] A4: 建立 Button/IconButton/Tooltip/Surface/StatusIndicator 等 L4 UI primitives，并清理 Typography 负字距
+- [x] A5: 拆分 AppLayout 为标题栏、全局命令区、状态区与语义 StatusBar
+- [x] A6: 引入 WorkbenchFrame 与响应式 workbenchLayout 测试，替代旧固定三栏 Dashboard 布局
+- [x] A7: 完成 Setup Center 第一轮视觉重构
+- [x] A8: 完成 Settings 路由与视觉地基重构，移除 SettingsLayout 对 GlassPanel 的依赖
+- [x] A9: 执行 lint/typecheck/test/build/cargo 与浏览器视觉验证
+- **Status:** complete
+- **规划文档:** docs/superpowers/plans/2026-05-29-p2-apple-like-ui-system-refactor.md

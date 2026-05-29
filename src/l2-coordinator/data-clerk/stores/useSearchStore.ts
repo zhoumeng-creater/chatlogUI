@@ -1,15 +1,33 @@
 import { create } from "zustand";
-import type { SearchFilterType, SearchResult } from "@/l2-coordinator/api-docs/search";
+import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
+
+export interface SearchResults {
+  totalCount: number;
+  count: number;
+  limit: number;
+  offset: number;
+  messages: {
+    id: string;
+    timestamp: number;
+    time?: string;
+    content: string;
+    sender: string;
+    username: string;
+    chat: string;
+    isGroup?: boolean;
+    type?: string;
+  }[];
+}
 
 interface SearchState {
   query: string;
   activeFilter: SearchFilterType;
-  results: SearchResult | null;
+  results: SearchResults | null;
   loading: boolean;
   error: string | null;
   setQuery: (query: string) => void;
   setFilter: (filter: SearchFilterType) => void;
-  setResults: (results: SearchResult | null) => void;
+  setResults: (results: SearchResults | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clear: () => void;

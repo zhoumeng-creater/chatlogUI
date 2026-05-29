@@ -5,3 +5,5 @@ export { useAppCommander } from "./useAppCommander";
 export { useAiCommander } from "./useAiCommander";
 export { useGraphCommander } from "./useGraphCommander";
 export { useSettingsCommander } from "./useSettingsCommander";
+export { useSetupCommander } from "./useSetupCommander";
+export type { SetupCommander } from "./useSetupCommander";

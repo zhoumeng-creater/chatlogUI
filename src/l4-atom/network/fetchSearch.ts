@@ -1,46 +1,35 @@
 import { SIDECAR_PORT } from "@/utils/constants";
-import { SearchResult, SearchQueryParams } from "@l2/api-docs/search";
+import { requestJson } from "./httpClient";
+import type { RawSearchResponse } from "./chatlogRawTypes";
+import { adaptSearchResponse } from "./chatlogAdapters";
 
 const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
-export async function fetchSearch(params: SearchQueryParams): Promise<SearchResult> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+export interface FetchSearchOptions {
+  keyword: string;
+  limit?: number;
+  offset?: number;
+  chats?: string[];
+  time?: string;
+  since?: number;
+  until?: number;
+  msgType?: string;
+}
 
-  try {
-    const searchParams = new URLSearchParams();
-    searchParams.set("keyword", params.keyword);
-    if (params.limit !== undefined) searchParams.set("limit", String(params.limit));
-    if (params.offset !== undefined) searchParams.set("offset", String(params.offset));
-    if (params.chat !== undefined) searchParams.set("chat", params.chat);
-    if (params.timeStart !== undefined) searchParams.set("timeStart", params.timeStart);
-    if (params.timeEnd !== undefined) searchParams.set("timeEnd", params.timeEnd);
-    if (params.type !== undefined) searchParams.set("type", params.type);
+export async function fetchSearch(options: FetchSearchOptions) {
+  const params = new URLSearchParams();
+  params.set("keyword", options.keyword);
+  if (options.limit !== undefined) params.set("limit", String(options.limit));
+  if (options.offset !== undefined) params.set("offset", String(options.offset));
+  if (options.chats && options.chats.length > 0) params.set("chats", options.chats.join(","));
+  if (options.time) params.set("time", options.time);
+  if (options.since !== undefined) params.set("since", String(options.since));
+  if (options.until !== undefined) params.set("until", String(options.until));
+  if (options.msgType) params.set("msg_type", options.msgType);
 
-    const response = await fetch(`${BASE_URL}/api/v1/search?${searchParams.toString()}`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`服务器返回错误 HTTP ${response.status}`);
-    }
-
-    const json = await response.json();
-    if (json.data) {
-      return json.data as SearchResult;
-    }
-    return json as SearchResult;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("请求搜索结果超时");
-    }
-    if (error instanceof Error && error.message.startsWith("服务器返回错误")) {
-      throw error;
-    }
-    throw new Error("无法获取搜索结果");
-  }
+  const raw = await requestJson<RawSearchResponse>(
+    `${BASE_URL}/api/v1/search?${params.toString()}`,
+    { timeoutMs: 20000 }
+  );
+  return adaptSearchResponse(raw);
 }

@@ -1,8 +1,8 @@
 import { GlassPanel, Typography, Avatar } from "@l4/ui";
-import type { StatsCountBySender } from "@l2/api-docs/stats";
+import type { AdaptedStats } from "@l2/data-clerk/stores/useStatsStore";
 
 interface TopContactCardProps {
-  topSenders: StatsCountBySender[];
+  topSenders: AdaptedStats["topSenders"];
 }
 
 export function TopContactCard({ topSenders }: TopContactCardProps) {

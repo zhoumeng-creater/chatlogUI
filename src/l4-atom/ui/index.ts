@@ -1,4 +1,10 @@
 export { AppleButton } from "./AppleButton";
+export { Button } from "./Button";
+export { IconButton } from "./IconButton";
+export { Tooltip } from "./Tooltip";
+export { Surface } from "./Surface";
+export { StatusIndicator } from "./StatusIndicator";
+export type { StatusTone } from "./StatusIndicator";
 export { GlassPanel } from "./GlassPanel";
 export { Typography } from "./Typography";
 export { SkeletonLoader } from "./SkeletonLoader";

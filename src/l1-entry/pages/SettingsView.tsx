@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { AppLayout } from "@l3/common/AppLayout";
 import { StatusBar } from "@l3/common/StatusBar";
 import { SettingsLayout } from "@l3/settings/SettingsLayout";
@@ -10,6 +11,7 @@ import { useSettingsCommander } from "@l2/commander/useSettingsCommander";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
 import { useAiCommander } from "@l2/commander/useAiCommander";
 import { Typography } from "@l4/ui/Typography";
+import { Button } from "@l4/ui/Button";
 
 export function SettingsView() {
   const navigate = useNavigate();
@@ -33,27 +35,24 @@ export function SettingsView() {
   };
 
   return (
-    <AppLayout>
-      <div style={{ display: "flex", alignItems: "center", padding: "8px 16px", gap: 16, borderBottom: "1px solid var(--color-border)" }}>
-        <button
-          onClick={() => navigate("/dashboard", { replace: true })}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--color-accent)",
-            fontSize: 14,
-            padding: 0,
-          }}
+    <AppLayout title="设置">
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", gap: 16, borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-raised)" }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/workbench", { replace: true })}
         >
-          ← 返回仪表盘
-        </button>
+          <ArrowLeft size={15} />
+          返回工作台
+        </Button>
         <Typography variant="label" weight={600}>设置</Typography>
+        </div>
+        <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+          <SettingsLayout>{renderContent()}</SettingsLayout>
+        </div>
+        <StatusBar status={sidecarStatus} indexStatus={indexStatus} />
       </div>
-      <div style={{ flex: 1, overflow: "hidden" }}>
-        <SettingsLayout>{renderContent()}</SettingsLayout>
-      </div>
-      <StatusBar status={sidecarStatus} indexStatus={indexStatus} />
     </AppLayout>
   );
 }

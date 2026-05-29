@@ -12,7 +12,7 @@ export function SearchResults() {
   const hasMore = results.offset + results.count < results.totalCount;
 
   const handleClick = (msg: (typeof messages)[0]) => {
-    selectAndLoad(msg.chat, msg.sender || msg.chat, msg.isGroup || false);
+    selectAndLoad(msg.username, msg.username);
   };
 
   return (
@@ -34,7 +34,7 @@ export function SearchResults() {
 
         return (
           <div
-            key={msg.seq || msg.id || idx}
+            key={msg.id || idx}
             role="listitem"
             style={{
               borderBottom: "1px solid var(--color-border, rgba(0,0,0,0.06))",

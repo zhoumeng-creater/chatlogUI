@@ -3,13 +3,15 @@ import { QAMessage } from './QAMessage';
 import { QAInput } from './QAInput';
 import { useAiCommander } from '@l2/commander/useAiCommander';
 import { useChatCommander } from '@l2/commander/useChatCommander';
+import { useChatStore } from '@l2/data-clerk/stores/useChatStore';
 
 export function QAPanel() {
   const { qaMessages, qaStreaming, askQuestion } = useAiCommander();
-  const { selectedContact, selectedChatRoom } = useChatCommander();
+  const { selectedConversationId } = useChatCommander();
+  const conversations = useChatStore((s) => s.conversations);
+  const currentConv = conversations.find(c => c.id === selectedConversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const currentContact =
-    selectedContact?.remark || selectedContact?.nickName || selectedChatRoom?.nickName || '';
+  const currentContact = currentConv?.displayName || '';
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

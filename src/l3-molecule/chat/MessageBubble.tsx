@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Avatar, Typography } from "@l4/ui";
-import type { HistoryMessage } from "@l2/api-docs/history";
+import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 
 function maskText(text: string): string {
@@ -8,26 +8,26 @@ function maskText(text: string): string {
 }
 
 interface MessageBubbleProps {
-  message: HistoryMessage;
+  message: ChatMessage;
   isSelf: boolean;
   showAvatar: boolean;
 }
 
-function hasMedia(msg: HistoryMessage): boolean {
-  return !!(msg.mediaType || msg.mediaMsg || msg.imageUrl || msg.mediaUrl);
+function hasMedia(msg: ChatMessage): boolean {
+  return !!(msg.mediaType || msg.imageUrl || msg.mediaUrl);
 }
 
-function getTypeLabel(msg: HistoryMessage): string {
+function getTypeLabel(msg: ChatMessage): string {
   if (msg.mediaType) {
     return `[${msg.mediaType}]`;
   }
   const t = msg.type;
-  if (t === 3) return "[图片]";
-  if (t === 4) return "[视频]";
-  if (t === 34) return "[语音]";
-  if (t === 6) return "[文件]";
-  if (t === 49) return "[链接]";
-  if (t === 47) return "[表情]";
+  if (t === "3") return "[图片]";
+  if (t === "4") return "[视频]";
+  if (t === "34") return "[语音]";
+  if (t === "6") return "[文件]";
+  if (t === "49") return "[链接]";
+  if (t === "47") return "[表情]";
   return "";
 }
 

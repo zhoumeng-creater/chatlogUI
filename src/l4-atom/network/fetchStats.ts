@@ -1,84 +1,46 @@
 import { SIDECAR_PORT } from "@/utils/constants";
-import { StatsResponse, StatsQueryParams, TrendResponse } from "@l2/api-docs/stats";
+import { requestJson } from "./httpClient";
+import type { RawStatsResponse, RawDashboardTrendResponse } from "./chatlogRawTypes";
+import { adaptStatsResponse, adaptDashboardTrendResponse } from "./chatlogAdapters";
 
 const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
-export async function fetchStats(params: StatsQueryParams): Promise<StatsResponse> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    const searchParams = new URLSearchParams();
-    searchParams.set("chat", params.chat);
-    if (params.timeStart !== undefined) searchParams.set("timeStart", params.timeStart);
-    if (params.timeEnd !== undefined) searchParams.set("timeEnd", params.timeEnd);
-
-    const response = await fetch(`${BASE_URL}/api/v1/stats?${searchParams.toString()}`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`服务器返回错误 HTTP ${response.status}`);
-    }
-
-    const json = await response.json();
-    if (json.data) {
-      return json.data as StatsResponse;
-    }
-    return json as StatsResponse;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("请求统计数据超时");
-    }
-    if (error instanceof Error && error.message.startsWith("服务器返回错误")) {
-      throw error;
-    }
-    throw new Error("无法获取统计数据");
-  }
+export interface FetchStatsOptions {
+  chat: string;
+  time?: string;
+  since?: number;
+  until?: number;
 }
 
-export async function fetchDashboardTrend(
-  chat: string,
-  timeStart?: string,
-  timeEnd?: string,
-): Promise<TrendResponse> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+export async function fetchStats(options: FetchStatsOptions) {
+  const params = new URLSearchParams();
+  params.set("chat", options.chat);
+  if (options.time) params.set("time", options.time);
+  if (options.since !== undefined) params.set("since", String(options.since));
+  if (options.until !== undefined) params.set("until", String(options.until));
 
-  try {
-    const searchParams = new URLSearchParams();
-    searchParams.set("chat", chat);
-    if (timeStart !== undefined) searchParams.set("timeStart", timeStart);
-    if (timeEnd !== undefined) searchParams.set("timeEnd", timeEnd);
+  const raw = await requestJson<RawStatsResponse>(
+    `${BASE_URL}/api/v1/stats?${params.toString()}`,
+    { timeoutMs: 15000 }
+  );
+  return adaptStatsResponse(raw);
+}
 
-    const response = await fetch(`${BASE_URL}/api/v1/dashboard/trend?${searchParams.toString()}`, {
-      method: "GET",
-      signal: controller.signal,
-    });
+export interface FetchDashboardTrendOptions {
+  chat?: string;
+  window?: string;
+  summary?: boolean;
+}
 
-    clearTimeout(timeoutId);
+export async function fetchDashboardTrend(options: FetchDashboardTrendOptions = {}) {
+  const params = new URLSearchParams();
+  if (options.chat) params.set("chat", options.chat);
+  if (options.window) params.set("window", options.window);
+  params.set("summary", options.summary !== false ? "1" : "0");
 
-    if (!response.ok) {
-      throw new Error(`服务器返回错误 HTTP ${response.status}`);
-    }
-
-    const json = await response.json();
-    if (json.data) {
-      return json.data as TrendResponse;
-    }
-    return json as TrendResponse;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("请求趋势数据超时");
-    }
-    if (error instanceof Error && error.message.startsWith("服务器返回错误")) {
-      throw error;
-    }
-    throw new Error("无法获取趋势数据");
-  }
+  const raw = await requestJson<RawDashboardTrendResponse>(
+    `${BASE_URL}/api/v1/dashboard/trend?${params.toString()}`,
+    { timeoutMs: 15000 }
+  );
+  return adaptDashboardTrendResponse(raw);
 }

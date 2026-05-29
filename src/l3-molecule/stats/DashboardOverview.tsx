@@ -1,5 +1,5 @@
 import { GlassPanel, Typography, SkeletonLoader } from "@l4/ui";
-import type { StatsResponse } from "@l2/api-docs/stats";
+import type { AdaptedStats } from "@l2/data-clerk/stores/useStatsStore";
 
 interface StatCardProps {
   label: string;
@@ -20,7 +20,7 @@ function StatCard({ label, value }: StatCardProps) {
 }
 
 interface DashboardOverviewProps {
-  stats: StatsResponse | null;
+  stats: AdaptedStats | null;
   loading: boolean;
 }
 

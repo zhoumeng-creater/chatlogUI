@@ -1,22 +1,19 @@
 import { Typography } from "@l4/ui";
 import { useChatCommander } from "@l2/commander/";
+import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
 import { MessageList } from "./MessageList";
 
 export function ChatView() {
-  const { selectedContact, selectedChatRoom } = useChatCommander();
+  const { selectedConversationId } = useChatCommander();
+  const conversations = useChatStore((s) => s.conversations);
+  const currentConv = conversations.find((c) => c.id === selectedConversationId);
 
-  const displayName =
-    selectedChatRoom
-      ? selectedChatRoom.remark || selectedChatRoom.nickName || selectedChatRoom.name
-      : selectedContact
-        ? selectedContact.remark || selectedContact.nickName || selectedContact.userName
-        : "";
-
-  const memberCount = selectedChatRoom?.users?.length ?? 0;
+  const displayName = currentConv?.displayName || "";
+  const userCount = currentConv?.chatroom ? (currentConv.chatroom as { userCount?: number }).userCount ?? 0 : 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {(selectedContact || selectedChatRoom) && (
+      {currentConv && (
         <div
           style={{
             display: "flex",
@@ -31,9 +28,9 @@ export function ChatView() {
           <Typography variant="label" color="var(--color-text-primary)" weight={600}>
             {displayName}
           </Typography>
-          {selectedChatRoom && memberCount > 0 && (
+          {currentConv.isGroup && userCount > 0 && (
             <Typography variant="caption" color="var(--color-text-tertiary)" style={{ marginLeft: 8 }}>
-              ({memberCount}人)
+              ({userCount}人)
             </Typography>
           )}
         </div>
