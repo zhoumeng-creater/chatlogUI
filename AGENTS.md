@@ -15,7 +15,7 @@ The core backend is `chatlog_alpha`, a Go sidecar. Preserve backend behavior unl
 - Motion: Framer Motion
 - Graph rendering: Three.js / React Three Fiber
 - Package manager: pnpm
-- Frontend dev server: `http://localhost:1420`
+- Frontend dev server: `http://localhost:5173`
 - Local backend sidecar: `http://127.0.0.1:5030`
 
 ## Commands
@@ -85,14 +85,30 @@ The packaged app runs `chatlog_alpha` as a Tauri sidecar.
 
 Never implement non-trivial work directly on `master` unless explicitly instructed.
 
+Default to the narrowest workflow that matches the user's request. Existing debug
+and review skills are the default for active feature completion and bug fixing;
+Spec Kit is a planning/reference framework for productization-scale work, not the
+default execution path for every task.
+
 Use one of these flows:
 
 - Bug/build failure: use `chatlog-debug` or existing `superpowers/systematic-debugging`.
+- Active feature completion/debug: use `chatlog-debug`, `planning-with-files` when the
+  task spans many steps or conversations, `verification-before-completion`, and
+  `requesting-code-review` or `.opencode/commands/review-risk.md` before merge.
 - UI implementation/polish: use `ui-acceptance` plus existing `frontend-design`.
 - Sidecar/Tauri integration: use `sidecar-integration`.
-- Feature/productization work: use Spec Kit outputs plus `app-productization`.
+- Productization-scale planning or cross-cutting feature decomposition: use Spec Kit
+  outputs plus `app-productization`.
 - Release readiness: use `release-gate`.
 - Multi-step implementation: use git worktree + plan + review before merge.
+
+Do not invoke `speckit-*` skills just because `.specify/` or `specs/` exists. Use
+Speckit only when the user explicitly asks for it, when creating/updating a product
+spec/plan/tasks set, or when a change is large enough that requirements, task
+decomposition, and cross-artifact analysis are needed. For normal bugs, failing
+commands, boot issues, sidecar failures, UI regressions, and focused feature
+polish, prefer the debug/review skills above.
 
 ## Done means
 
@@ -135,7 +151,12 @@ Read these before major work:
 - `specs/000-productization/acceptance-checklist.md`
 
 <!-- SPECKIT START -->
-For the active ready-to-use desktop app feature, read:
+Spec Kit reference material for the ready-to-use desktop app feature.
+
+Read these only for explicit Speckit/productization planning work, or when a
+focused implementation/debug task directly depends on the active productization
+requirements. Do not treat this section as a mandatory read list for ordinary
+bugfixes or narrow UI/code changes.
 
 - `specs/001-ready-desktop-app/spec.md`
 - `specs/001-ready-desktop-app/plan.md`

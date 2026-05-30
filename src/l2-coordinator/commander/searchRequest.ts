@@ -46,6 +46,12 @@ export function createSearchRequest({
   return params;
 }
 
+export type SearchInputStatus = "invalid" | "ready";
+
+export function getSearchInputStatus(keyword: string): SearchInputStatus {
+  return keyword.trim() ? "ready" : "invalid";
+}
+
 export interface SearchResults {
   totalCount: number;
   count: number;

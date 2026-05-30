@@ -105,3 +105,38 @@
 - stats inspector 在窄侧栏里更适合 metric rows；当趋势点超过 14 个或 inspector 宽度低于 300px 时应切换为表格 fallback，保证可读和可访问。
 - ready-workbench 浏览器 mock 暴露一个独立运行时问题：`useAiCommander()` 的 current-chat reset effect 依赖整个 Zustand store 对象，`setSearchResults(null)` 会造成 store 对象变化并触发 maximum update depth。修复方式是只依赖 `currentChat`，并通过 `useAiStore.getState()` 取稳定 actions。
 - 本轮浏览器 smoke 覆盖 `/`、`/workbench`、`/settings` 的 1440/1180/900/768/390 宽度；未观察到 horizontal overflow。mock DB ready 状态下桌面 workbench 渲染 2 条会话、3 条 neutral message、6 个 stats metric rows 和 18 行趋势表格 fallback；390 宽度先显示会话列表，选择后进入详情并保留返回会话列表路径。
+
+## 2026-05-30 P2-B 综合审查发现
+- P2-B 核心 workbench polish 已明显推进，但不能判定为满足所有阶段、项目、UI、产品化和发布要求。
+- 隐私模式仍通过非可视 accessibility surface 泄露会话名：`ConversationRow` 的 `aria-label` 与 `Avatar alt` 使用 raw `displayName`，需要和可视文本使用同一 masking policy。
+- 长历史仍只是分页追加，`MessageList` 渲染所有已加载消息；不满足 10,000-message conversation 的产品化验收，需要虚拟列表或等效 bounded-DOM 策略。
+- 当前 L3 仍广泛读取 L2 store/commander，部分 L3 直接调用 L4 system atom；这符合部分既有实现习惯，但不符合 `开发指南.md`/总体规划最严格的 Mediator 边界。
+- Stats 趋势表格 fallback 没有接入真实 inspector 宽度，`TrendChart` 默认使用 `320`，`StatsInspector` 未传入测量值。
+- Setup Center 的 `选择微信数据目录` 仍是 raw Tailwind button，浏览器矩阵中实际目标高度约 20px，和新设计系统/触控目标要求不一致。
+- 密码输入没有 form 语义，浏览器 smoke 输出 password-field-not-in-form 警告；需要修复设置、手动配置、AI/semantic credential 输入。
+- semantic、graph、DevConsole、UpdateNotification 中仍有 legacy `AppleButton`/motion；这属于 P2-C/P2-D/P2-E 的全局 UI 一致性债务。
+- 搜索已经有 scope 和 active result，但还缺 invalid/cancelled 状态，以及目标消息未加载时的诚实跳转说明。
+- `GraphModule` 仍有 >500 kB build warning；当前为 lazy chunk，非 P2-B 阻塞，但需要 P2-D/P2-E 性能记录。
+- Browser smoke 出现 `favicon.ico` 404，应作为 polish 项清理。
+- `vite.config.ts` 与 Tauri devUrl 硬编码 1420/1421；本机 Windows excluded port range 包含 1420，导致 `pnpm dev` 在 canonical port 上失败，应制定 dev port 策略。
+- 完整记录已写入 `docs/reviews/2026-05-30-p2-b-comprehensive-review.md`；完整修复计划已写入 `docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md`。
+
+## 2026-05-30 P2-B 修复后复核发现
+- 用户表示已根据修复计划处理后，本轮复核发现源码层面的关键阻塞项仍存在；因此不删除综合审查记录和修复计划。
+- `pnpm verify` 通过：Vitest 40 files / 256 tests passed，build 通过，但仍有 `GraphModule-BddO-upw.js` >500 kB warning。
+- 隐私 accessibility 泄露仍存在：`ConversationRow` 的 `aria-label` 和 `Avatar alt` 仍使用 raw conversation displayName。
+- 长历史虚拟化仍未实现：`transcriptRows.ts` 缺失，`MessageList` 仍直接 map 全量 message groups，`package.json` 未引入 `@tanstack/react-virtual`。
+- Stats narrow fallback 仍未接入真实宽度：`StatsInspector` 仍调用 `<TrendChart data={trend} />`。
+- Setup/credential UI 问题仍存在：`ConfigImportPanel` 仍使用 raw `<button>`，密码输入仍未完成 form-scoped remediation。
+- 产品化证据仍缺失：`docs/release/ready-desktop-app.md` 与 `specs/001-ready-desktop-app/architecture-boundary-check.md` 不存在，Spec Kit tasks 仍为 42 unchecked / 0 checked。
+- Dev port 问题仍存在：Vite/Tauri 仍配置 1420/1421。
+
+## 2026-05-30 P2-B Suggested Fix 实施后发现
+- 已按修复计划清理主要 P2-B 阻塞项：privacy accessibility masking、long-history transcript row virtualization、stats inspector actual-width fallback、setup raw button、password form semantics、search invalid/empty状态、dev port 1420/1421 和 release evidence/checklist 缺口。
+- `@tanstack/react-virtual` 已引入并接入 `MessageList`；新增 `transcriptRows.ts` 与 10,000-message row-count 回归测试，避免长历史继续全量 DOM 渲染。
+- `ConversationRow` 的 `aria-label` 与 avatar alt 已与隐私模式对齐；新增测试覆盖 privacy-on aria label masking。
+- `ConfigImportPanel` 已迁移到 L4 `Button` primitive；设置/手动配置/semantic credential 密码输入已补 form scope 与 `autoComplete="off"`。
+- Vite/Tauri canonical dev port 已迁移到 `5173`，HMR websocket 迁移到 `5174`，`AGENTS.md` 同步更新。
+- 新增 `specs/001-ready-desktop-app/release-evidence.md`、`specs/001-ready-desktop-app/architecture-boundary-check.md` 与 `docs/release/ready-desktop-app.md`；Spec Kit tasks 中 T003/T009/T041 已标记完成。
+- 完整验证通过：`pnpm verify` PASS（41 files / 262 tests），`cargo test` PASS（16 tests），`pnpm tauri build` PASS 并生成 MSI/NSIS x64 bundles。
+- 仍保留后续债务：严格 Mediator 边界下 L1/L3 仍有 store/commander/system 直连需要后续 cleanup；semantic/graph/common legacy UI 仍归 P2-C/P2-D/P2-E；GraphModule lazy chunk 仍超过 500 kB；Windows 安装、退出、重开和端口冲突人工 smoke 仍未完成。

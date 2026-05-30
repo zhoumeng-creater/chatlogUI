@@ -67,7 +67,11 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
 
   return (
     <SpringModal onClose={onClose}>
-      <div style={{ width: 480, maxWidth: '90vw' }}>
+      <form
+        style={{ width: 480, maxWidth: '90vw' }}
+        autoComplete="off"
+        onSubmit={(event) => event.preventDefault()}
+      >
         <Typography variant="h3" style={{ marginBottom: 8 }}>
           配置 AI 功能
         </Typography>
@@ -170,6 +174,7 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
                   </Typography>
                   <Input
                     type="password"
+                    autoComplete="off"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="输入 API Key"
@@ -253,7 +258,7 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
             </div>
           </div>
         )}
-      </div>
+      </form>
     </SpringModal>
   );
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { SearchResults } from "./searchRequest";
-import { createSearchRequest, getNextSearchOffset, mergeSearchResults, toSearchMessageType } from "./searchRequest";
+import {
+  createSearchRequest,
+  getNextSearchOffset,
+  getSearchInputStatus,
+  mergeSearchResults,
+  toSearchMessageType,
+} from "./searchRequest";
 
 function createMessage(seq: number): SearchResults["messages"][number] {
   return {
@@ -94,5 +100,10 @@ describe("search request helpers", () => {
       msgType: "1",
       chats: ["wxid_a"],
     });
+  });
+
+  it("classifies blank search input as invalid", () => {
+    expect(getSearchInputStatus("  ")).toBe("invalid");
+    expect(getSearchInputStatus("合同")).toBe("ready");
   });
 });

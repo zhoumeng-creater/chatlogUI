@@ -1,9 +1,10 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button, Spinner, Typography } from "@l4/ui";
 import { useChatCommander } from "@l2/commander/";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
-import { MessageGroup } from "./MessageGroup";
-import { groupMessagesByDate } from "./transcriptDisplay";
+import { MessageBubble } from "./MessageBubble";
+import { buildTranscriptRows, estimateTranscriptRowHeight } from "./transcriptRows";
 
 export function MessageList() {
   const {
@@ -21,7 +22,14 @@ export function MessageList() {
   const currentConv = conversations.find((conversation) => conversation.id === selectedConversationId);
   const activeChat = currentConv?.username || "";
   const containerRef = useRef<HTMLDivElement>(null);
-  const groups = groupMessagesByDate(messages);
+  const rows = useMemo(() => buildTranscriptRows(messages), [messages]);
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: (index) => estimateTranscriptRowHeight(rows[index]),
+    getItemKey: (index) => rows[index]?.id ?? index,
+    overscan: 8,
+  });
 
   if (!currentConv) {
     return (
@@ -86,13 +94,33 @@ export function MessageList() {
         </div>
       )}
 
-      {groups.map((group) => (
-        <MessageGroup
-          key={group.dateLabel}
-          dateLabel={group.dateLabel}
-          messages={group.messages}
-        />
-      ))}
+      {rows.length > 0 && (
+        <div
+          className="message-list__virtual-space"
+          style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const row = rows[virtualRow.index];
+            if (!row) return null;
+
+            return (
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                className="message-list__virtual-row"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                {row.kind === "date" ? (
+                  <div className="message-date-divider">{row.dateLabel}</div>
+                ) : (
+                  <MessageBubble message={row.message} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {!messagesHasMore && messages.length > 0 && (
         <div className="message-date-divider">

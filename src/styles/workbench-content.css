@@ -206,6 +206,18 @@
   padding: var(--space-4);
 }
 
+.message-list__virtual-space {
+  position: relative;
+  width: 100%;
+}
+
+.message-list__virtual-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
 .message-date-divider {
   display: flex;
   justify-content: center;

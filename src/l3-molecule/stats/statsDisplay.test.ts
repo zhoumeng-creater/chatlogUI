@@ -42,6 +42,16 @@ describe("statsDisplay", () => {
     expect(shouldUseTrendTable(dense.slice(0, 7), 320)).toBe(false);
   });
 
+  it("uses table fallback for narrow inspectors even with few points", () => {
+    const sparse: TrendDataPoint[] = Array.from({ length: 4 }, (_, index) => ({
+      date: `2026-05-${index + 1}`,
+      count: index,
+    }));
+
+    expect(shouldUseTrendTable(sparse, 284)).toBe(true);
+    expect(shouldUseTrendTable(sparse, 360)).toBe(false);
+  });
+
   it("summarizes trend range", () => {
     expect(summarizeTrendRange([
       { date: "2026-05-28", count: 1 },

@@ -84,6 +84,14 @@ describe("conversationDisplay", () => {
     }))).toBe("李四");
   });
 
+  it("masks private names in aria labels when privacy is enabled", () => {
+    expect(formatConversationA11yLabel(conversation({
+      displayName: "Alice Private",
+      unread: 2,
+      timeLabel: "10:30",
+    }), true)).toBe("***** *******，10:30，2 条未读");
+  });
+
   it("keeps spaces while masking private text", () => {
     expect(maskDisplayText("A B")).toBe("* *");
   });
