@@ -83,7 +83,7 @@ export function SemanticSearch() {
             {searchResults.results.map((r, i) => (
               <div
                 key={i}
-                onClick={() => selectAndLoad(r.chat, r.sender, false)}
+                onClick={() => selectAndLoad(r.chat, r.chat)}
                 style={{
                   padding: '8px 10px',
                   marginBottom: 6,

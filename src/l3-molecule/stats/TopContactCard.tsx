@@ -1,8 +1,8 @@
-import { GlassPanel, Typography, Avatar } from "@l4/ui";
-import type { StatsCountBySender } from "@l2/api-docs/stats";
+import { Avatar, Surface, Typography } from "@l4/ui";
+import type { AdaptedStats } from "@l2/data-clerk/stores/useStatsStore";
 
 interface TopContactCardProps {
-  topSenders: StatsCountBySender[];
+  topSenders: AdaptedStats["topSenders"];
 }
 
 export function TopContactCard({ topSenders }: TopContactCardProps) {
@@ -13,44 +13,27 @@ export function TopContactCard({ topSenders }: TopContactCardProps) {
     .slice(0, 10);
 
   return (
-    <GlassPanel opacity={0.4} borderRadius={14} style={{ padding: "20px" }}>
-      <Typography variant="label" color="var(--color-text-secondary)" style={{ marginBottom: 12 }}>
+    <Surface variant="base" className="stats-card">
+      <Typography variant="label" weight={700}>
         活跃联系人
       </Typography>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {top10.map((item, idx) => (
-          <div
-            key={item.sender}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "6px 0",
-            }}
-          >
-            <Typography
-              variant="body"
-              color="var(--color-text-quaternary)"
-              weight={600}
-              style={{ width: 24, textAlign: "center" }}
-            >
-              {idx + 1}
+      <div className="stats-sender-list">
+        {top10.map((item, index) => (
+          <div key={item.sender} className="stats-sender-row">
+            <Typography variant="body" color="var(--text-muted)" weight={700} className="stats-sender-rank">
+              {index + 1}
             </Typography>
-            <Avatar alt={item.sender} size={32} fallback={item.sender.slice(0, 2)} />
-            <Typography
-              variant="body"
-              color="var(--color-text-primary)"
-              style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-            >
-              {item.sender}
+            <Avatar alt={item.display || item.sender} size={32} fallback={(item.display || item.sender).slice(0, 2)} />
+            <Typography variant="body" color="var(--text-primary)" className="stats-sender-name">
+              {item.display || item.sender}
             </Typography>
-            <Typography variant="label" color="var(--color-text-secondary)" weight={600}>
+            <Typography variant="label" color="var(--text-secondary)" weight={700}>
               {item.count.toLocaleString()}
             </Typography>
           </div>
         ))}
       </div>
-    </GlassPanel>
+    </Surface>
   );
 }

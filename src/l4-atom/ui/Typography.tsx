@@ -1,12 +1,12 @@
 import type { ReactNode, HTMLAttributes } from "react";
 
 const VARIANTS = {
-  h1: "text-[32px] leading-[1.2] font-bold tracking-[-0.022em]",
-  h2: "text-[24px] leading-[1.25] font-semibold tracking-[-0.019em]",
-  h3: "text-[20px] leading-[1.3] font-semibold tracking-[-0.016em]",
-  body: "text-[15px] leading-[1.5] font-normal tracking-[-0.01em]",
+  h1: "text-[32px] leading-[1.2] font-bold tracking-[0]",
+  h2: "text-[24px] leading-[1.25] font-semibold tracking-[0]",
+  h3: "text-[20px] leading-[1.3] font-semibold tracking-[0]",
+  body: "text-[15px] leading-[1.5] font-normal tracking-[0]",
   caption: "text-[12px] leading-[1.4] font-normal tracking-[0]",
-  label: "text-[13px] leading-[1.4] font-medium tracking-[-0.008em]",
+  label: "text-[13px] leading-[1.4] font-medium tracking-[0]",
 } as const;
 
 const ALIGN = {

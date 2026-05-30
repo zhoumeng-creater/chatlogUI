@@ -1,42 +1,41 @@
 import { SIDECAR_PORT } from "@/utils/constants";
-import { HistoryResponse, HistoryQueryParams } from "@l2/api-docs/history";
+import { requestJson } from "./httpClient";
+import type { RawHistoryResponse } from "./chatlogRawTypes";
+import { adaptHistoryResponse } from "./chatlogAdapters";
 
 const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
-export async function fetchHistory(params: HistoryQueryParams): Promise<HistoryResponse> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+export interface FetchHistoryOptions {
+  chat: string;
+  limit?: number;
+  offset?: number;
+  time?: string;
+  since?: number;
+  until?: number;
+  msgType?: string;
+  subType?: string;
+  hour?: number;
+  isSelf?: boolean;
+  hasMedia?: boolean;
+}
 
-  try {
-    const searchParams = new URLSearchParams();
-    searchParams.set("chat", params.chat);
-    if (params.limit !== undefined) searchParams.set("limit", String(params.limit));
-    if (params.offset !== undefined) searchParams.set("offset", String(params.offset));
+export async function fetchHistory(options: FetchHistoryOptions) {
+  const params = new URLSearchParams();
+  params.set("chat", options.chat);
+  if (options.limit !== undefined) params.set("limit", String(options.limit));
+  if (options.offset !== undefined) params.set("offset", String(options.offset));
+  if (options.time) params.set("time", options.time);
+  if (options.since !== undefined) params.set("since", String(options.since));
+  if (options.until !== undefined) params.set("until", String(options.until));
+  if (options.msgType) params.set("msg_type", options.msgType);
+  if (options.subType) params.set("sub_type", options.subType);
+  if (options.hour !== undefined) params.set("hour", String(options.hour));
+  if (options.isSelf !== undefined) params.set("is_self", options.isSelf ? "1" : "0");
+  if (options.hasMedia !== undefined) params.set("has_media", options.hasMedia ? "1" : "0");
 
-    const response = await fetch(`${BASE_URL}/api/v1/history?${searchParams.toString()}`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`服务器返回错误 HTTP ${response.status}`);
-    }
-
-    const json = await response.json();
-    if (json.data) {
-      return json.data as HistoryResponse;
-    }
-    return json as HistoryResponse;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("请求聊天记录超时");
-    }
-    if (error instanceof Error && error.message.startsWith("服务器返回错误")) {
-      throw error;
-    }
-    throw new Error("无法获取聊天记录");
-  }
+  const raw = await requestJson<RawHistoryResponse>(
+    `${BASE_URL}/api/v1/history?${params.toString()}`,
+    { timeoutMs: 30000 }
+  );
+  return adaptHistoryResponse(raw);
 }

@@ -1,70 +1,56 @@
-import { GlassPanel, Typography } from "@l4/ui";
-import type { TrendDataPoint } from "@l2/api-docs/stats";
+import { Surface, Typography } from "@l4/ui";
+import type { TrendDataPoint } from "@l2/data-clerk/stores/useStatsStore";
+import { ChartFallbackTable } from "./ChartFallbackTable";
+import { shouldUseTrendTable, summarizeTrendRange } from "./statsDisplay";
 
 interface TrendChartProps {
   data: TrendDataPoint[];
+  inspectorWidth?: number;
 }
 
-export function TrendChart({ data }: TrendChartProps) {
-  if (!data || data.length === 0) return null;
+export function TrendChart({ data, inspectorWidth = 320 }: TrendChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <Surface variant="base" style={{ padding: 12 }}>
+        <Typography variant="label" weight={700}>
+          消息趋势
+        </Typography>
+        <Typography variant="body" color="var(--text-secondary)">
+          没有趋势数据。
+        </Typography>
+      </Surface>
+    );
+  }
 
-  const maxCount = Math.max(...data.map((d) => d.count), 1);
-  const firstDate = data[0].date;
-  const lastDate = data[data.length - 1].date;
+  const maxCount = Math.max(...data.map((point) => point.count), 1);
+  const rangeLabel = summarizeTrendRange(data);
+  const useTable = shouldUseTrendTable(data, inspectorWidth);
 
   return (
-    <GlassPanel opacity={0.4} borderRadius={14} style={{ padding: "20px" }}>
-      <Typography variant="label" color="var(--color-text-secondary)" style={{ marginBottom: 16 }}>
+    <Surface variant="base" style={{ padding: 12 }}>
+      <Typography variant="label" weight={700}>
         消息趋势
       </Typography>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          gap: 2,
-          height: 140,
-          padding: "0 4px",
-        }}
-      >
-        {data.map((point, idx) => {
-          const heightPct = Math.max((point.count / maxCount) * 100, 2);
-          return (
-            <div
-              key={point.date || idx}
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                height: "100%",
-              }}
-            >
+      <Typography variant="caption" color="var(--text-secondary)">
+        {rangeLabel}
+      </Typography>
+      {useTable ? (
+        <ChartFallbackTable data={data} />
+      ) : (
+        <div className="trend-chart" role="img" aria-label={`消息趋势，${rangeLabel}`}>
+          {data.map((point) => {
+            const heightPct = Math.max((point.count / maxCount) * 100, 3);
+            return (
               <div
-                style={{
-                  width: "100%",
-                  maxWidth: 36,
-                  height: `${heightPct}%`,
-                  background: "linear-gradient(180deg, #007AFF 0%, rgba(0,122,255,0.3) 100%)",
-                  borderRadius: "4px 4px 0 0",
-                  transition: "height 0.4s ease",
-                  minHeight: 2,
-                }}
+                key={point.date}
+                className="trend-chart__bar"
+                style={{ height: `${heightPct}%` }}
+                title={`${point.date}: ${point.count}`}
               />
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-        <Typography variant="caption" color="var(--color-text-quaternary)">
-          {firstDate}
-        </Typography>
-        <Typography variant="caption" color="var(--color-text-quaternary)">
-          {lastDate}
-        </Typography>
-      </div>
-    </GlassPanel>
+            );
+          })}
+        </div>
+      )}
+    </Surface>
   );
 }

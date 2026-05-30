@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Settings } from 'lucide-react';
 import { Typography } from '@l4/ui/Typography';
 import { AppleButton } from '@l4/ui/AppleButton';
+import { IconButton } from '@l4/ui/IconButton';
 import { ProgressBar } from '@l4/ui/ProgressBar';
 import { Spinner } from '@l4/ui/Spinner';
 import { QAPanel } from './QAPanel';
@@ -10,6 +12,7 @@ import { TopicView } from './TopicView';
 import { ContactProfile } from './ContactProfile';
 import { SetupWizard } from './SetupWizard';
 import { useChatCommander } from '@l2/commander/useChatCommander';
+import { useChatStore } from '@l2/data-clerk/stores/useChatStore';
 import { useAiCommander } from '@l2/commander/useAiCommander';
 
 type PanelMode = 'stats' | 'ai';
@@ -24,8 +27,10 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
   const [activeTab, setActiveTab] = useState<AiTab>('qa');
   const [showWizard, setShowWizard] = useState(false);
   const ai = useAiCommander();
-  const { selectedContact, selectedChatRoom } = useChatCommander();
-  const currentChat = selectedContact?.userName || selectedChatRoom?.name;
+  const { selectedConversationId } = useChatCommander();
+  const conversations = useChatStore((s) => s.conversations);
+  const currentConv = conversations.find(c => c.id === selectedConversationId);
+  const currentChat = currentConv?.username;
 
   useEffect(() => {
     if (mode === 'ai') {
@@ -72,14 +77,12 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
           <div style={{ flex: 1 }} />
         )}
         {mode === 'ai' && ai.phase !== 'not_configured' && (
-          <AppleButton
-            variant="ghost"
-            size="sm"
+          <IconButton
+            label="AI 设置"
+            tooltip="AI 设置"
+            icon={<Settings size={15} />}
             onClick={() => setShowWizard(true)}
-            style={{ padding: '0 6px' }}
-          >
-            ⚙
-          </AppleButton>
+          />
         )}
       </div>
 

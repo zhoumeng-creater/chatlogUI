@@ -1,5 +1,8 @@
 import { useCallback, useRef } from "react";
 import { useSearchStore } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
+import type { SearchScope } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
+import type { SearchResults } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
+import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import { fetchSearch } from "@l4/network";
 import { debounce } from "@/l2-coordinator/diplomat/debounce";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
@@ -7,6 +10,15 @@ import { createSearchRequest, getNextSearchOffset, mergeSearchResults } from "./
 import { clearSearchSession } from "./searchSession";
 
 const SEARCH_PAGE_SIZE = 20;
+
+function getScopedChat(): string | undefined {
+  const { scope } = useSearchStore.getState();
+  if (scope !== "current") return undefined;
+
+  const { conversations, selectedConversationId } = useChatStore.getState();
+  const conversation = conversations.find((item) => item.id === selectedConversationId);
+  return conversation?.username;
+}
 
 export function useSearchCommander() {
   const store = useSearchStore();
@@ -18,8 +30,14 @@ export function useSearchCommander() {
     }
     useSearchStore.getState().setLoading(true);
     try {
-      const result = await fetchSearch(createSearchRequest({ keyword, filter, limit: SEARCH_PAGE_SIZE, offset: 0 }));
-      useSearchStore.getState().setResults(result);
+      const result = await fetchSearch(createSearchRequest({
+        keyword,
+        filter,
+        limit: SEARCH_PAGE_SIZE,
+        offset: 0,
+        scopeChat: getScopedChat(),
+      }));
+      useSearchStore.getState().setResults(result as unknown as SearchResults);
     } catch {
       useSearchStore.getState().setError("搜索失败，请检查网络连接");
     }
@@ -54,6 +72,15 @@ export function useSearchCommander() {
     }
   }, [executeSearchFn]);
 
+  const changeScope = useCallback((scope: SearchScope) => {
+    const { query } = useSearchStore.getState();
+    debouncedSearchRef.current.cancel();
+    useSearchStore.getState().setScope(scope);
+    if (query.trim()) {
+      executeSearchFn(query);
+    }
+  }, [executeSearchFn]);
+
   const clearSearch = useCallback(() => {
     clearSearchSession(debouncedSearchRef.current, useSearchStore.getState().clear);
   }, []);
@@ -71,9 +98,10 @@ export function useSearchCommander() {
         filter: activeFilter,
         limit: SEARCH_PAGE_SIZE,
         offset: nextOffset,
+        scopeChat: getScopedChat(),
       }));
       useSearchStore.setState((state) => ({
-        results: state.results ? mergeSearchResults(state.results, newResult) : newResult,
+        results: state.results ? mergeSearchResults(state.results, newResult as unknown as SearchResults) : (newResult as unknown as SearchResults),
         loading: false,
         error: null,
       }));
@@ -87,6 +115,7 @@ export function useSearchCommander() {
     search,
     executeSearch,
     changeFilter,
+    changeScope,
     clearSearch,
     loadMoreResults,
   };

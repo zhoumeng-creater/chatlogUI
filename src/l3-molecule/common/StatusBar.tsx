@@ -1,6 +1,6 @@
 import type { SidecarStatus, DbStatus } from "@l2/data-clerk/types/app";
 import type { IndexStatusResponse } from "@/l2-coordinator/api-docs/semantic";
-import { Typography, Spinner } from "@l4/ui";
+import { StatusIndicator, Typography, type StatusTone } from "@l4/ui";
 import { SIDECAR_PORT } from "@/utils/constants";
 
 interface StatusBarProps {
@@ -8,6 +8,9 @@ interface StatusBarProps {
   error?: string;
   dbStatus?: DbStatus;
   indexStatus?: IndexStatusResponse | null;
+  httpReady?: boolean;
+  dbReady?: boolean;
+  portStatus?: string;
 }
 
 const STATUS_LABELS: Record<SidecarStatus, string> = {
@@ -17,11 +20,11 @@ const STATUS_LABELS: Record<SidecarStatus, string> = {
   error: "引擎异常",
 };
 
-const STATUS_COLORS: Record<SidecarStatus, string> = {
-  stopped: "#8E8E93",
-  starting: "#FF9500",
-  running: "#34C759",
-  error: "#FF3B30",
+const STATUS_TONES: Record<SidecarStatus, StatusTone> = {
+  stopped: "neutral",
+  starting: "warning",
+  running: "success",
+  error: "danger",
 };
 
 const DB_STATUS_LABELS: Record<DbStatus, string> = {
@@ -32,15 +35,15 @@ const DB_STATUS_LABELS: Record<DbStatus, string> = {
   error: "DB异常",
 };
 
-const DB_STATUS_COLORS: Record<DbStatus, string> = {
-  disconnected: "#8E8E93",
-  connecting: "#FF9500",
-  decrypting: "#FF9500",
-  ready: "#34C759",
-  error: "#FF3B30",
+const DB_STATUS_TONES: Record<DbStatus, StatusTone> = {
+  disconnected: "neutral",
+  connecting: "warning",
+  decrypting: "warning",
+  ready: "success",
+  error: "danger",
 };
 
-export function StatusBar({ status, error, dbStatus, indexStatus }: StatusBarProps) {
+export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbReady, portStatus }: StatusBarProps) {
   const isStarting = status === "starting";
   const isDbBusy = dbStatus === "connecting" || dbStatus === "decrypting";
   const isIndexBuilding = indexStatus?.status === "building";
@@ -49,54 +52,54 @@ export function StatusBar({ status, error, dbStatus, indexStatus }: StatusBarPro
     : 0;
 
   return (
-    <footer className="flex items-center justify-between h-8 px-4 shrink-0 border-t border-black/5">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: STATUS_COLORS[status] }}
-          />
-          <Typography variant="caption" color="#8E8E93">
-            {STATUS_LABELS[status]}
-          </Typography>
-          {isStarting && <Spinner size={12} color={STATUS_COLORS[status]} />}
-        </div>
+    <footer className="app-statusbar">
+      <div className="app-statusbar__cluster">
+        <StatusIndicator
+          label={STATUS_LABELS[status]}
+          tone={STATUS_TONES[status]}
+          busy={isStarting}
+        />
         {dbStatus && (
-          <div className="flex items-center gap-2">
-            <span className="w-[1px] h-3 bg-black/10" />
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: DB_STATUS_COLORS[dbStatus] }}
-            />
-            <Typography variant="caption" color="#8E8E93">
-              {DB_STATUS_LABELS[dbStatus]}
-            </Typography>
-            {isDbBusy && <Spinner size={12} color={DB_STATUS_COLORS[dbStatus]} />}
-          </div>
+          <StatusIndicator
+            label={DB_STATUS_LABELS[dbStatus]}
+            tone={DB_STATUS_TONES[dbStatus]}
+            busy={isDbBusy}
+          />
         )}
         {indexStatus && (indexStatus.status === "ready" || indexStatus.status === "building") && (
-          <div className="flex items-center gap-2">
-            <span className="w-[1px] h-3 bg-black/10" />
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: indexStatus.status === "ready" ? "#34C759" : "#FF9500" }}
-            />
-            <Typography variant="caption" color="#8E8E93">
-              {indexStatus.status === "ready"
-                ? "AI 就绪"
-                : `索引构建中 ${indexProgress}%`}
-            </Typography>
-            {isIndexBuilding && <Spinner size={12} color="#FF9500" />}
-          </div>
+          <StatusIndicator
+            label={indexStatus.status === "ready"
+              ? "AI 就绪"
+              : `索引构建中 ${indexProgress}%`}
+            tone={indexStatus.status === "ready" ? "success" : "warning"}
+            busy={isIndexBuilding}
+          />
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="app-statusbar__cluster">
+        {portStatus && (
+          <Typography variant="caption" color="var(--text-secondary)">
+            {portStatus}
+          </Typography>
+        )}
+        {httpReady !== undefined && (
+          <StatusIndicator
+            label={httpReady ? "HTTP 就绪" : "HTTP 未就绪"}
+            tone={httpReady ? "success" : "neutral"}
+          />
+        )}
+        {dbReady !== undefined && (
+          <StatusIndicator
+            label={dbReady ? "DB 就绪" : "DB 初始化中"}
+            tone={dbReady ? "success" : "warning"}
+          />
+        )}
         {error && (
-          <Typography variant="caption" color="#FF3B30">
+          <Typography variant="caption" color="var(--danger)">
             {error}
           </Typography>
         )}
-        <Typography variant="caption" color="#C7C7CC">
+        <Typography variant="caption" color="var(--text-muted)">
           :{SIDECAR_PORT}
         </Typography>
       </div>

@@ -1,13 +1,15 @@
-use std::sync::Mutex;
 #[cfg(debug_assertions)]
 use tauri::Manager;
 
 mod commands;
+mod config_store;
 mod health;
 mod material;
-mod port_killer;
+mod service_probe;
 mod sidecar;
+mod sidecar_args;
 mod theme;
+mod wechat_detect;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,7 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(configure_updater().build())
-        .manage(Mutex::new(sidecar::SidecarState::new()))
+        .manage(sidecar::SidecarState::new())
         .setup(|_app| {
             #[cfg(debug_assertions)]
             {
@@ -25,13 +27,19 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::kill_port,
             commands::spawn_sidecar,
             commands::check_health,
             commands::shutdown_sidecar,
             commands::get_system_theme,
             commands::export_logs,
             material::apply_window_material,
+            commands::import_data_dir_config,
+            commands::save_managed_server_config,
+            commands::load_managed_server_config_summary,
+            commands::validate_managed_server_config,
+            commands::inspect_port,
+            commands::stop_managed_sidecar,
+            commands::detect_wechat_data_dirs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

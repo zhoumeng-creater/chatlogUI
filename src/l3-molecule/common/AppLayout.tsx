@@ -1,18 +1,19 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Typography } from "@l4/ui";
 import { applyWindowMaterial } from "@l4/system/applyWindowMaterial";
-import { canUseTauriWindow } from "@l4/system/tauriRuntime";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { useDevConsoleStore } from "@l2/data-clerk/stores/useDevConsoleStore";
+import { AppTitleBar } from "./AppTitleBar";
+import { AppStatusCluster } from "./AppStatusCluster";
+import { GlobalCommandCluster } from "./GlobalCommandCluster";
 
 interface AppLayoutProps {
   children: ReactNode;
+  title?: string;
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout({ children, title = "工作台" }: AppLayoutProps) {
   const navigate = useNavigate();
   const privacyOn = useSettingsStore((s) => s.settings.privacyOn);
   const windowMaterial = useSettingsStore((s) => s.settings.windowMaterial);
@@ -23,96 +24,22 @@ export function AppLayout({ children }: AppLayoutProps) {
     applyWindowMaterial(windowMaterial);
   }, [windowMaterial]);
 
-  const appWindow = getTauriWindow();
-
   return (
-    <div className="flex flex-col h-full w-full select-none">
-      <header
-        className="flex items-center justify-between h-10 px-4 shrink-0"
-        style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-      >
-        <div className="flex items-center gap-2" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-          <div className="flex items-center gap-1.5">
-            <button
-              className="w-3 h-3 rounded-full bg-[#FF5F57] hover:brightness-90 transition-all"
-              onClick={() => appWindow?.close()}
-              aria-label="关闭"
-            />
-            <button
-              className="w-3 h-3 rounded-full bg-[#FEBC2E] hover:brightness-90 transition-all"
-              onClick={() => appWindow?.minimize()}
-              aria-label="最小化"
-            />
-            <button
-              className="w-3 h-3 rounded-full bg-[#28C840] hover:brightness-90 transition-all"
-              onClick={() => appWindow?.toggleMaximize()}
-              aria-label="全屏"
-            />
-          </div>
-        </div>
-        <Typography variant="label" color="#8E8E93">
-          chatlog_alpha
-        </Typography>
-        <div style={{ width: 128, display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center", WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-          <button
-            onClick={togglePrivacy}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              fontSize: 16, padding: 0, lineHeight: 1,
-              color: privacyOn ? "#FFD60A" : "#8E8E93",
-            }}
-            aria-label="隐私模式"
-            title={privacyOn ? "关闭隐私模式" : "开启隐私模式"}
-          >
-            {privacyOn ? "\u{1F512}" : "\u{1F513}"}
-          </button>
-          <button
-            onClick={toggleConsole}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 16,
-              padding: 0,
-              lineHeight: 1,
-              color: "#8E8E93",
-            }}
-            aria-label="开发者控制台"
-            title="开发者控制台"
-          >
-            {"\u{1F5A5}"}
-          </button>
-          <button
-            onClick={() => navigate("/settings")}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 18,
-              padding: 0,
-              lineHeight: 1,
-              color: "#8E8E93",
-            }}
-            aria-label="设置"
-          >
-            ⚙
-          </button>
-        </div>
-      </header>
+    <div className="app-shell">
+      <AppTitleBar
+        title={title}
+        status={<AppStatusCluster privacyOn={privacyOn} />}
+        actions={(
+          <GlobalCommandCluster
+            privacyOn={privacyOn}
+            onTogglePrivacy={togglePrivacy}
+            onToggleConsole={toggleConsole}
+            onOpenSettings={() => navigate("/settings")}
+          />
+        )}
+      />
 
-      <main className="flex-1 overflow-hidden">{children}</main>
+      <main className="app-main">{children}</main>
     </div>
   );
-}
-
-function getTauriWindow(): ReturnType<typeof getCurrentWindow> | null {
-  if (!canUseTauriWindow()) {
-    return null;
-  }
-
-  try {
-    return getCurrentWindow();
-  } catch {
-    return null;
-  }
 }

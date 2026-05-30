@@ -6,7 +6,7 @@ describe("resolveBootDataPath", () => {
     const result = resolveBootDataPath({
       settingsPath: "  C:/WeChat Files/wxid_saved  ",
       candidates: [
-        { path: "C:/WeChat Files/wxid_detected", label: "detected", exists: true },
+        { path: "C:/WeChat Files/wxid_detected", label: "detected", exists: true, source: "test", confidence: "high" },
       ],
     });
 
@@ -17,7 +17,7 @@ describe("resolveBootDataPath", () => {
     const result = resolveBootDataPath({
       settingsPath: "",
       candidates: [
-        { path: "C:/WeChat Files/wxid_detected", label: "detected", exists: true },
+        { path: "C:/WeChat Files/wxid_detected", label: "detected", exists: true, source: "test", confidence: "high" },
       ],
     });
 

@@ -1,70 +1,61 @@
 import { SIDECAR_PORT } from "@/utils/constants";
-import { ContactsResponse, ChatRoom } from "@l2/api-docs/contacts";
+import { requestJson } from "./httpClient";
+import type {
+  RawSessionsResponse,
+  RawContactsResponse,
+  RawChatRoomsResponse,
+} from "./chatlogRawTypes";
+import { mergeConversations } from "./chatlogAdapters";
 
 const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
-export async function fetchContacts(): Promise<ContactsResponse> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    const response = await fetch(`${BASE_URL}/api/v1/contacts`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`服务器返回错误 HTTP ${response.status}`);
-    }
-
-    const json = await response.json();
-    if (json.data) {
-      return json.data as ContactsResponse;
-    }
-    return json as ContactsResponse;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("请求通讯录数据超时");
-    }
-    if (error instanceof Error && error.message.startsWith("服务器返回错误")) {
-      throw error;
-    }
-    throw new Error("无法获取通讯录数据");
-  }
+export interface FetchConversationsOptions {
+  limit?: number;
+  offset?: number;
+  query?: string;
+  isFriend?: boolean;
 }
 
-export async function fetchChatRooms(): Promise<ChatRoom[]> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+export async function fetchSessions(options: FetchConversationsOptions = {}): Promise<RawSessionsResponse> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set("limit", String(options.limit));
+  if (options.query) params.set("query", options.query);
 
-  try {
-    const response = await fetch(`${BASE_URL}/api/v1/chatrooms`, {
-      method: "GET",
-      signal: controller.signal,
-    });
+  const qs = params.toString();
+  return requestJson<RawSessionsResponse>(`${BASE_URL}/api/v1/sessions${qs ? "?" + qs : ""}`, { timeoutMs: 15000 });
+}
 
-    clearTimeout(timeoutId);
+export async function fetchContactsApi(options: FetchConversationsOptions = {}): Promise<RawContactsResponse> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set("limit", String(options.limit));
+  if (options.offset !== undefined) params.set("offset", String(options.offset));
+  if (options.query) params.set("query", options.query);
+  if (options.isFriend !== undefined) params.set("is_friend", String(options.isFriend));
 
-    if (!response.ok) {
-      throw new Error(`服务器返回错误 HTTP ${response.status}`);
-    }
+  const qs = params.toString();
+  return requestJson<RawContactsResponse>(`${BASE_URL}/api/v1/contacts${qs ? "?" + qs : ""}`, { timeoutMs: 15000 });
+}
 
-    const json = await response.json();
-    if (json.data) {
-      return json.data as ChatRoom[];
-    }
-    return json as ChatRoom[];
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("请求群聊数据超时");
-    }
-    if (error instanceof Error && error.message.startsWith("服务器返回错误")) {
-      throw error;
-    }
-    throw new Error("无法获取群聊数据");
-  }
+export async function fetchChatRoomsApi(options: FetchConversationsOptions = {}): Promise<RawChatRoomsResponse> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set("limit", String(options.limit));
+  if (options.offset !== undefined) params.set("offset", String(options.offset));
+  if (options.query) params.set("query", options.query);
+
+  const qs = params.toString();
+  return requestJson<RawChatRoomsResponse>(`${BASE_URL}/api/v1/chatrooms${qs ? "?" + qs : ""}`, { timeoutMs: 15000 });
+}
+
+export async function fetchConversations(options: FetchConversationsOptions = {}) {
+  const [sessions, contacts, chatrooms] = await Promise.all([
+    fetchSessions(options),
+    fetchContactsApi(options),
+    fetchChatRoomsApi(options),
+  ]);
+
+  return {
+    conversations: mergeConversations(sessions, contacts, chatrooms),
+    contacts,
+    chatrooms,
+  };
 }

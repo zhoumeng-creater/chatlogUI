@@ -1,54 +1,81 @@
+import type { CSSProperties, KeyboardEvent } from "react";
 import { Input, Spinner, Typography } from "@l4/ui";
 import { useSearchCommander } from "@l2/commander/";
+import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
+import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import { maskDisplayText } from "@l3/chat/conversationDisplay";
+import { SearchScopeMenu } from "./SearchScopeMenu";
 
 interface GlobalSearchProps {
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
 export function GlobalSearch({ className, style }: GlobalSearchProps) {
-  const { query, results, loading, search, executeSearch, clearSearch } = useSearchCommander();
-
+  const {
+    query,
+    results,
+    loading,
+    scope,
+    search,
+    executeSearch,
+    clearSearch,
+    changeScope,
+  } = useSearchCommander();
+  const selectedConversationId = useChatStore((state) => state.selectedConversationId);
+  const conversations = useChatStore((state) => state.conversations);
+  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+  const currentConversation = conversations.find((item) => item.id === selectedConversationId);
   const resultCount = results?.totalCount ?? 0;
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      executeSearch(e.currentTarget.value);
+  const currentConversationName = currentConversation?.displayName ?? "当前会话";
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      executeSearch(event.currentTarget.value);
     }
-    if (e.key === "Escape") {
+    if (event.key === "Escape") {
       clearSearch();
     }
   };
 
   return (
-    <div
-      className={className}
-      style={{
-        ...style,
-        position: "relative",
-      }}
-    >
-      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-        <Input
-          variant="search"
-          aria-label="搜索聊天记录"
-          placeholder="搜索聊天记录"
-          value={query}
-          onChange={(e) => search((e.target as HTMLInputElement).value)}
-          onKeyDown={handleKeyDown}
-        />
-        {loading && (
-          <div style={{ position: "absolute", right: 10 }}>
-            <Spinner size={16} color="var(--color-text-tertiary)" />
-          </div>
-        )}
-      </div>
-
-      {resultCount > 0 && (
-        <div style={{ marginTop: 6, paddingLeft: 6 }}>
-          <Typography variant="caption" color="var(--color-text-tertiary)">
-            找到 {resultCount} 条匹配记录
-          </Typography>
+    <div className={className} style={style}>
+      <div className="search-panel__controls">
+        <div style={{ position: "relative", minWidth: 0 }}>
+          <Input
+            variant="search"
+            aria-label="搜索聊天记录"
+            placeholder="搜索聊天记录"
+            value={query}
+            onChange={(event) => search(event.currentTarget.value)}
+            onKeyDown={handleKeyDown}
+          />
+          {loading && (
+            <div
+              style={{
+                position: "absolute",
+                right: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+            >
+              <Spinner size={16} color="var(--text-tertiary)" />
+            </div>
+          )}
         </div>
+        <SearchScopeMenu
+          scope={scope}
+          currentConversationName={privacyOn
+            ? maskDisplayText(currentConversationName)
+            : currentConversationName}
+          currentConversationAvailable={Boolean(currentConversation)}
+          onChange={changeScope}
+        />
+      </div>
+      {resultCount > 0 && (
+        <Typography variant="caption" color="var(--text-secondary)">
+          找到 {resultCount.toLocaleString()} 条匹配记录
+        </Typography>
       )}
     </div>
   );

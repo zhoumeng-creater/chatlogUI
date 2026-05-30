@@ -1,15 +1,19 @@
 import { invoke } from "@tauri-apps/api/core";
 
 export interface SpawnSidecarOptions {
+  mode: "managed";
+  configDir?: string | null;
   dataDir?: string | null;
-  dataKey?: string | null;
   workDir?: string | null;
+  httpAddr: string;
 }
 
 export interface SpawnSidecarPayload {
+  mode: "managed";
+  configDir: string | null;
   dataDir: string | null;
-  dataKey: string | null;
   workDir: string | null;
+  httpAddr: string;
 }
 
 function normalize(value: string | null | undefined): string | null {
@@ -17,16 +21,22 @@ function normalize(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-export function createSpawnSidecarPayload(options: SpawnSidecarOptions = {}): SpawnSidecarPayload {
+export function createSpawnSidecarPayload(
+  options: SpawnSidecarOptions,
+): SpawnSidecarPayload {
   return {
+    mode: "managed",
+    configDir: normalize(options.configDir),
     dataDir: normalize(options.dataDir),
-    dataKey: normalize(options.dataKey),
     workDir: normalize(options.workDir),
+    httpAddr: normalize(options.httpAddr) ?? "127.0.0.1:5030",
   };
 }
 
-export async function spawnSidecar(options: SpawnSidecarOptions = {}): Promise<void> {
+export async function spawnSidecar(
+  options: SpawnSidecarOptions,
+): Promise<void> {
   await invoke("spawn_sidecar", {
-    options: createSpawnSidecarPayload(options),
+    plan: createSpawnSidecarPayload(options),
   });
 }

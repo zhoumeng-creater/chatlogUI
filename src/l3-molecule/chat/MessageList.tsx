@@ -1,135 +1,104 @@
-import { useRef, useEffect, useCallback } from "react";
-import { Typography, Spinner } from "@l4/ui";
+import { useRef } from "react";
+import { Button, Spinner, Typography } from "@l4/ui";
 import { useChatCommander } from "@l2/commander/";
-import type { HistoryMessage } from "@l2/api-docs/history";
-import { MessageBubble } from "./MessageBubble";
-
-function shouldShowAvatar(messages: HistoryMessage[], index: number): boolean {
-  if (index === messages.length - 1) return true;
-  const curr = messages[index];
-  const next = messages[index + 1];
-  if (curr.sender !== next.sender) return true;
-  try {
-    const currTime = new Date(curr.time).getTime();
-    const nextTime = new Date(next.time).getTime();
-    if (Math.abs(currTime - nextTime) > 5 * 60 * 1000) return true;
-  } catch {
-    // ignore
-  }
-  return false;
-}
+import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
+import { MessageGroup } from "./MessageGroup";
+import { groupMessagesByDate } from "./transcriptDisplay";
 
 export function MessageList() {
   const {
-    selectedContact,
-    selectedChatRoom,
+    selectedConversationId,
     messages,
     messagesLoading,
-    messagesTotalCount,
-    messagesOffset,
+    messagesHasMore,
+    messagesStatus,
+    messagesError,
+    loadHistory,
     loadMoreHistory,
   } = useChatCommander();
 
-  const activeChat = selectedContact?.userName || selectedChatRoom?.name || "";
-
+  const conversations = useChatStore((state) => state.conversations);
+  const currentConv = conversations.find((conversation) => conversation.id === selectedConversationId);
+  const activeChat = currentConv?.username || "";
   const containerRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const prevMessageCountRef = useRef(0);
-  const isFirstLoad = useRef(true);
+  const groups = groupMessagesByDate(messages);
 
-  const allLoaded = messagesOffset >= messagesTotalCount && messagesTotalCount > 0;
-
-  const handleScroll = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    if (el.scrollTop <= 50 && !allLoaded) {
-      if (activeChat) loadMoreHistory(activeChat);
-    }
-  }, [activeChat, allLoaded, loadMoreHistory]);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    el.addEventListener("scroll", handleScroll);
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]);
-
-  useEffect(() => {
-    if (messages.length > prevMessageCountRef.current) {
-      if (isFirstLoad.current) {
-        bottomRef.current?.scrollIntoView({ behavior: "auto" });
-        isFirstLoad.current = false;
-      }
-    }
-    prevMessageCountRef.current = messages.length;
-  }, [messages.length]);
-
-  useEffect(() => {
-    isFirstLoad.current = true;
-    prevMessageCountRef.current = 0;
-    bottomRef.current?.scrollIntoView({ behavior: "auto" });
-  }, [selectedContact?.userName, selectedChatRoom?.name]);
-
-  if (!selectedContact && !selectedChatRoom) {
+  if (!currentConv) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          gap: 8,
-        }}
-      >
-        <Typography variant="h2" color="var(--color-text-primary)" weight={600}>
-          chatlog_alpha
+      <div className="workbench-empty-state">
+        <Typography variant="label" weight={700}>
+          选择会话
         </Typography>
-        <Typography variant="body" color="var(--color-text-tertiary)">
-          选择联系人开始查看聊天记录
+        <Typography variant="body" color="var(--text-secondary)">
+          从左侧会话列表打开聊天记录。
+        </Typography>
+      </div>
+    );
+  }
+
+  if (messagesStatus === "error") {
+    return (
+      <div className="workbench-error-state" role="alert">
+        <Typography variant="label" weight={700}>
+          聊天记录加载失败
+        </Typography>
+        <Typography variant="body" color="var(--text-secondary)">
+          {messagesError ?? "无法读取该会话的历史消息。"}
+        </Typography>
+        <Button variant="secondary" size="sm" onClick={() => void loadHistory(activeChat)}>
+          重试
+        </Button>
+      </div>
+    );
+  }
+
+  if (messagesStatus === "empty") {
+    return (
+      <div className="workbench-empty-state">
+        <Typography variant="label" weight={700}>
+          没有消息
+        </Typography>
+        <Typography variant="body" color="var(--text-secondary)">
+          后端没有返回该会话的聊天记录。
         </Typography>
       </div>
     );
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        flex: 1,
-        overflowY: "auto",
-        overflowX: "hidden",
-        display: "flex",
-        flexDirection: "column-reverse",
-      }}
-    >
-      <div ref={bottomRef} />
+    <div ref={containerRef} className="message-list">
+      {messagesHasMore && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={messagesLoading}
+            onClick={() => activeChat && void loadMoreHistory(activeChat)}
+          >
+            加载更早消息
+          </Button>
+        </div>
+      )}
 
       {messagesLoading && messages.length === 0 && (
         <div style={{ display: "flex", justifyContent: "center", padding: 24 }}>
-          <Spinner size={28} label="加载中..." />
+          <Spinner size={24} label="加载聊天记录..." />
         </div>
       )}
 
-      {allLoaded && (
-        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}>
-          <Typography variant="caption" color="var(--color-text-tertiary)">
-            已加载全部 {messagesTotalCount} 条消息
-          </Typography>
+      {groups.map((group) => (
+        <MessageGroup
+          key={group.dateLabel}
+          dateLabel={group.dateLabel}
+          messages={group.messages}
+        />
+      ))}
+
+      {!messagesHasMore && messages.length > 0 && (
+        <div className="message-date-divider">
+          已加载全部 {messages.length.toLocaleString()} 条消息
         </div>
       )}
-
-      {[...messages].reverse().map((msg, idx) => {
-        const originalIdx = messages.length - 1 - idx;
-        return (
-          <MessageBubble
-            key={msg.seq || msg.id}
-            message={msg}
-            isSelf={msg.isSelf}
-            showAvatar={shouldShowAvatar(messages, originalIdx)}
-          />
-        );
-      })}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useEffect } from "react";
 import { useAiStore } from "@/l2-coordinator/data-clerk/stores/useAiStore";
 import { useChatCommander } from "@/l2-coordinator/commander/useChatCommander";
+import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import { translateError } from "@/l2-coordinator/diplomat/errorTranslator";
 import { parseSSEChunk, createTokenBuffer } from "@/l2-coordinator/diplomat/sseParser";
 import { withOverloadRetry } from "@/l2-coordinator/diplomat/overloadInterceptor";
@@ -27,10 +28,12 @@ type IndexAction = "rebuild" | "pause" | "resume" | "clear";
 
 export function useAiCommander() {
   const store = useAiStore();
-  const { selectedContact, selectedChatRoom } = useChatCommander();
+  const { selectedConversationId } = useChatCommander();
+  const conversations = useChatStore((s) => s.conversations);
   const sseAbortRef = useRef<AbortController | null>(null);
   const indexPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const currentChat = selectedContact?.userName || selectedChatRoom?.name;
+  const currentConv = conversations.find(c => c.id === selectedConversationId);
+  const currentChat = currentConv?.username;
 
   const startIndexPolling = useCallback(() => {
     if (indexPollRef.current) clearInterval(indexPollRef.current);
@@ -244,14 +247,17 @@ export function useAiCommander() {
     }
   }, [currentChat, store]);
 
+  const previousChatRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (currentChat) {
-      store.setSearchResults(null);
-      store.setSearchQuery("");
-      store.setTopics(null);
-      store.setProfile(null);
-    }
-  }, [currentChat, store]);
+    if (!currentChat || previousChatRef.current === currentChat) return;
+    previousChatRef.current = currentChat;
+
+    const aiStore = useAiStore.getState();
+    aiStore.setSearchResults(null);
+    aiStore.setSearchQuery("");
+    aiStore.setTopics(null);
+    aiStore.setProfile(null);
+  }, [currentChat]);
 
   return {
     phase: store.phase,
