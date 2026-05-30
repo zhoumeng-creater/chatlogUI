@@ -6,7 +6,7 @@ import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
 import { AppLayout } from "@l3/common/AppLayout";
 import { StatusBar } from "@l3/common/StatusBar";
 import { StatusIndicator, Surface, Typography } from "@l4/ui";
-import { DashboardView } from "./DashboardView";
+import { WorkbenchView } from "./WorkbenchView";
 
 export function WorkbenchShellView() {
   const { loadExistingProfile, checkReadiness } = useSetupCommander();
@@ -20,7 +20,7 @@ export function WorkbenchShellView() {
   }, [loadExistingProfile, checkReadiness]);
 
   if (dbReady) {
-    return <DashboardView />;
+    return <WorkbenchView />;
   }
 
   const statusText = httpReady ? "服务运行中，数据库未就绪" : "服务未启动";

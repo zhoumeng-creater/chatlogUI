@@ -151,3 +151,37 @@
 - [x] A9: 执行 lint/typecheck/test/build/cargo 与浏览器视觉验证
 - **Status:** complete
 - **规划文档:** docs/superpowers/plans/2026-05-29-p2-apple-like-ui-system-refactor.md
+
+### Phase 13: P2-B Core Workbench Polish Planning
+- [x] 读取并对齐 P2-A 完成状态、P2 总规划、P1 handoff、审计规划和历史 Sprint 文档
+- [x] 核对当前 `DashboardView`、WorkbenchFrame、chat/search/stats 源码与测试结构
+- [x] 明确 P2-B 范围：conversation list、transcript、search panel、stats inspector
+- [x] 撰写独立 P2-B 实施计划文档
+- [x] 完成计划文档占位词和范围自查
+- [x] 二次对照 Code Review Remediation 后的当前源码，修订 P2-B 起点和执行步骤
+- [x] 补充 `WorkbenchView`、`useWorkbenchCommander`、`StatsInspector`、`ContactList` 兼容 wrapper 和 `ContactItem` 删除等计划细节
+- **Status:** complete
+- **规划文档:** docs/superpowers/plans/2026-05-29-p2-b-core-workbench-polish.md
+
+### Phase 14: Code Review Remediation
+- [x] 加载本轮必需技能并恢复 planning-with-files 上下文
+- [x] 读取 `Code review.md`、当前计划/发现/进度文件、开发文档目录和文档标题索引
+- [x] 对照 P2-A/P2-B/P2-D 与四层架构要求核验 6 个 urgent item
+- [x] 建立/更新实施计划，覆盖 WorkbenchView、L1 编排下沉、Graph 模块化、single 模式返回路径、设计系统补齐、导航 active 状态
+- [x] 按 TDD 添加回归测试并确认失败
+- [x] 实施代码修复并保持四层架构边界
+- [x] 运行 lint/typecheck/test/build 与必要浏览器验证
+- **Status:** complete
+- **Review Source:** Code review.md
+- **规划文档:** docs/superpowers/plans/2026-05-29-code-review-remediation.md
+
+### Phase 15: P2-B Core Workbench Polish Implementation
+- [x] B0: 基线验证、文档优先级和当前源码约束确认
+- [x] B1-B2: 会话列表 helper、ConversationList/Row/Toolbar、ContactList wrapper、删除 ContactItem
+- [x] B3-B4: transcript helper、TranscriptHeader、MessageMeta/Group、诚实渲染 unknown direction
+- [x] B5: 搜索范围、搜索结果状态、active result 和当前会话 scope
+- [x] B6: stats helper、metric rows、趋势表格 fallback
+- [x] B7: WorkbenchView composition 和 single-pane flow 复核
+- [x] B8: lint/typecheck/test/build 和浏览器 smoke
+- **Status:** complete
+- **规划文档:** docs/superpowers/plans/2026-05-29-p2-b-core-workbench-polish.md

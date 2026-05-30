@@ -6,6 +6,7 @@ interface CreateSearchRequestInput {
   filter: SearchFilterType;
   limit: number;
   offset: number;
+  scopeChat?: string;
 }
 
 const FILTER_TO_MSG_TYPE: Record<string, string | undefined> = {
@@ -25,6 +26,7 @@ export function createSearchRequest({
   filter,
   limit,
   offset,
+  scopeChat,
 }: CreateSearchRequestInput): FetchSearchOptions {
   const params: FetchSearchOptions = {
     keyword: keyword.trim(),
@@ -35,6 +37,10 @@ export function createSearchRequest({
   const msgType = toSearchMessageType(filter);
   if (msgType) {
     params.msgType = msgType;
+  }
+
+  if (scopeChat) {
+    params.chats = [scopeChat];
   }
 
   return params;

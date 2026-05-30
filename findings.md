@@ -72,3 +72,36 @@
 - P2 计划明确第一轮只执行 P2-A：视觉基线、图标能力、tokens、基础控件、App shell、WorkbenchFrame、Setup Center 第一轮、Settings 地基与验证。
 - 已补读历史开发文档：`开发指南.md`、总体开发规划、Sprint 1/2/3 规划、Sprint 4/5a/5b/6 specs 与 plans、P0/P1/P2 独立计划。早期文档要求的假 macOS 交通灯、端口猎杀、大量 glassmorphism 与当前 P0/P2 修复方向冲突；以较新的 P0/P1/P2 审计和计划为准。
 - P0/P1 已形成当前 P2 地基：安全端口策略、Setup Center、外部服务连接、完整配置保存、`requestJson(format=json)`、raw DTO adapter、conversation-first 数据模型、WorkbenchShell gate、`detectWxPath` Tauri 接入。
+
+## 2026-05-29 P2-B 规划发现
+- `task_plan.md` 已将 P2-A 标记为完成；P2-B 现在不需要重做 shell/foundation，应继承 P2-A 的 WorkbenchFrame、新 tokens、基础控件和 Settings/Setup 第一轮视觉地基。
+- P2 总规划中 P2-B 的边界是 Core Workbench Polish：会话列表、聊天 transcript、搜索区、统计 inspector。AI/Graph 隔离仍归 P2-D，Settings/Diagnostics 归 P2-C。
+- P1 handoff 提醒 P2 还需要 full responsive workbench refinement、AI/Graph 后续规划、bundle splitting 等，但 P2-B 只处理核心聊天工作台内容区，不能把 P3/P4 功能提前混入。
+- `开发指南.md` 与旧总体规划中的四层 Mediator、聊天/搜索/统计 MVP 目标仍有效；但假 macOS 交通灯、前置端口猎杀和大面积 glassmorphism 已被后续 P0/P2 审计修正，P2-B 应以最新审计和 P2-A 结果为准。
+- Sprint 2 的原始聊天/搜索/统计规划要求虚拟滚动、分页、搜索结果跳转和统计图表；P1 已修正真实 API 合约，P2-B 应把这些功能从“可用”推进到“稳定、可读、可键盘操作、响应式不挤压”。
+- Sprint 3/4/5/6 文档中的 AI、图谱浮层、设置、隐私、开发者控制台、更新发布均是相邻阶段依赖；P2-B 仅保留现有入口，不扩展这些模块。
+- 当前源码状态：`DashboardView.tsx` 已接入 `WorkbenchFrame`，但仍内联 `StatsInspector`，toolbar 内混放 `GlobalSearch`、`FilterBar`、`SearchResults`；`ContactList` 仍使用 per-row `framer-motion`；`MessageBubble` 对 unknown direction 仍会经 `isSelf=false` 渲染为对方气泡；`DashboardOverview`、`TrendChart`、`TopContactCard` 仍引用 `GlassPanel`。
+
+## 2026-05-29 Code Review 修复发现
+- `Code review.md` 提出 6 个 urgent issue：L1 仍承担业务编排、缺少 `WorkbenchView` 根组件、Graph 仍为浮层且仍有 emoji、single 模式无法返回会话列表、设计系统未统一进 Setup/Settings/Stats/Semantic、Workbench 全局导航 active 状态不稳定。
+- 同一文件提出 3 个 improvement：触控目标过小、UI 回归测试缺口、GraphCanvas chunk 仍超过 Vite 500 kB warning。
+- 本轮文档优先级：最新 `Code review.md`、P2-A/P2-B/P2 总规划和 `findings.md` 的 P2 结论优先于早期 Sprint 3/4/5 中 “AI/Graph 作为 Dashboard 右栏/浮层” 的旧集成方式；`开发指南.md` 的四层 Mediator 边界仍是硬约束。
+- 已确认当前工作树存在既有计划文件修改和未跟踪 `Code review.md` / P2-B 计划文档；这些内容属于当前上下文，不应回滚。
+- 修复后源码扫描确认：`DashboardView` 仅为 `WorkbenchView` 兼容 wrapper；`WorkbenchShellView` 在 `dbReady` 时渲染 `WorkbenchView`；Graph 不再通过 `graph.visible && <LazyGraphCanvas />` 从 L1 fixed overlay 渲染；Settings/Stats/Semantic 可见模块不再引用 `GlassPanel`。
+- `pnpm build` 后 Graph 仍超过 500 kB，但 chunk 名称已变为 `GraphModule-*.js`，说明大依赖集中在按需 Graph 模块，不再并入普通 workbench 主 chunk。
+
+## 2026-05-30 P2-B 计划二次复核发现
+- 当前源码已经包含 Code Review Remediation 的结果：`DashboardView` 只作为 `WorkbenchView` wrapper，`WorkbenchShellView` 在 DB ready 时渲染 `WorkbenchView`，ready-workbench 编排已下沉到 `useWorkbenchCommander`。
+- 因此 P2-B 计划中原本关于“抽出 inline StatsInspector、清理 stats GlassPanel、修正 WorkbenchFrame drawer scrim、补 single 模式返回会话列表”的部分已经不再是待实施起点，必须改为基线验证。
+- P2-B 剩余核心风险集中在 chat/search/stats 内容层：`ContactList`/`ContactItem` 仍有 per-row motion 和旧命名；`MessageList` 仍有 `column-reverse`、scroll listener 和 unknown direction 误导；`SearchResults` 仍无 scope、active result、error/empty states；stats 还缺 helper 测试和更明确的 metric-row/table fallback 结构。
+- `WorkbenchView` 目前向 `ContactList` 传入 `onConversationOpened` 以维持 single-pane list/detail 状态。P2-B 的 `ContactList` compatibility wrapper 必须继续透传该 prop，否则移动宽度下选择会话后状态不会切到 detail。
+- `ContactItem.tsx` 在 `ConversationRow` 落地后应删除，避免旧 motion row 继续留在 workbench 会话列表路径中。
+- P2-B 修订后的执行入口应改为 `WorkbenchView`，不是 `DashboardView`；`DashboardView` 只需要验证保持 wrapper。
+
+## 2026-05-30 P2-B 实施发现
+- 会话列表已可改为 `ConversationList`/`ConversationRow`，并保留 `ContactList` 兼容 wrapper；`onConversationOpened` 透传是 single-pane 移动宽度切到 detail 的关键路径。
+- transcript 的旧 `isSelf=false` 默认会把 unknown direction 误渲为对方气泡；P2-B 通过 `getTranscriptTone()` 将 unknown 明确映射为 neutral，避免伪造方向。
+- 搜索 scope 应在 L2 `createSearchRequest()` 转换为后端 `chats` 参数，UI 只暴露 all/current conversation；搜索结果 active state 可以先保持结果高亮，精确消息锚点仍需后续消息索引能力。
+- stats inspector 在窄侧栏里更适合 metric rows；当趋势点超过 14 个或 inspector 宽度低于 300px 时应切换为表格 fallback，保证可读和可访问。
+- ready-workbench 浏览器 mock 暴露一个独立运行时问题：`useAiCommander()` 的 current-chat reset effect 依赖整个 Zustand store 对象，`setSearchResults(null)` 会造成 store 对象变化并触发 maximum update depth。修复方式是只依赖 `currentChat`，并通过 `useAiStore.getState()` 取稳定 actions。
+- 本轮浏览器 smoke 覆盖 `/`、`/workbench`、`/settings` 的 1440/1180/900/768/390 宽度；未观察到 horizontal overflow。mock DB ready 状态下桌面 workbench 渲染 2 条会话、3 条 neutral message、6 个 stats metric rows 和 18 行趋势表格 fallback；390 宽度先显示会话列表，选择后进入详情并保留返回会话列表路径。

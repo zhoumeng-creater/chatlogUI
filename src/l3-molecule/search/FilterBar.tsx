@@ -1,4 +1,4 @@
-import { AppleButton } from "@l4/ui";
+import { Button } from "@l4/ui";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 
 const FILTERS: { key: SearchFilterType; label: string }[] = [
@@ -19,19 +19,19 @@ export function FilterBar({ activeFilter, onFilterChange }: FilterBarProps) {
     <div
       role="toolbar"
       aria-label="搜索结果类型"
-      style={{ display: "flex", gap: 8, padding: "8px 0", flexWrap: "wrap" }}
+      className="search-filter-bar"
     >
       {FILTERS.map((f) => (
-        <AppleButton
+        <Button
           key={f.key}
           type="button"
           aria-pressed={activeFilter === f.key}
-          variant={activeFilter === f.key ? "primary" : "ghost"}
+          variant={activeFilter === f.key ? "secondary" : "ghost"}
           size="sm"
           onClick={() => onFilterChange(f.key)}
         >
           {f.label}
-        </AppleButton>
+        </Button>
       ))}
     </div>
   );

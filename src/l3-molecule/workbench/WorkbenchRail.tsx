@@ -1,44 +1,50 @@
 import type { ReactNode } from "react";
-import { BarChart3, Bot, MessageSquare, Network } from "lucide-react";
+import { BarChart3, Bot, MessageSquare, Network, Settings } from "lucide-react";
+import type { WorkbenchModule } from "@l2/commander";
+import { buildWorkbenchRailItems } from "@l2/commander/workbenchViewModel";
 
 interface WorkbenchRailProps {
   showLabels: boolean;
-  activePanel: "stats" | "ai";
-  onSelectPanel: (panel: "stats" | "ai") => void;
-  onOpenGraph: () => void;
+  activeModule: WorkbenchModule;
+  onSelectModule: (module: WorkbenchModule) => void;
 }
 
 export function WorkbenchRail({
   showLabels,
-  activePanel,
-  onSelectPanel,
-  onOpenGraph,
+  activeModule,
+  onSelectModule,
 }: WorkbenchRailProps) {
+  const items = buildWorkbenchRailItems(activeModule);
+
   return (
     <>
-      <RailItem icon={<MessageSquare size={17} />} label="会话" showLabel={showLabels} active />
-      <RailItem
-        icon={<BarChart3 size={17} />}
-        label="统计"
-        showLabel={showLabels}
-        active={activePanel === "stats"}
-        onClick={() => onSelectPanel("stats")}
-      />
-      <RailItem
-        icon={<Bot size={17} />}
-        label="AI"
-        showLabel={showLabels}
-        active={activePanel === "ai"}
-        onClick={() => onSelectPanel("ai")}
-      />
-      <RailItem
-        icon={<Network size={17} />}
-        label="图谱"
-        showLabel={showLabels}
-        onClick={onOpenGraph}
-      />
+      {items.map((item) => (
+        <RailItem
+          key={item.module}
+          icon={getModuleIcon(item.module)}
+          label={item.label}
+          showLabel={showLabels}
+          active={item.active}
+          onClick={() => onSelectModule(item.module)}
+        />
+      ))}
     </>
   );
+}
+
+function getModuleIcon(module: WorkbenchModule): ReactNode {
+  switch (module) {
+    case "stats":
+      return <BarChart3 size={17} />;
+    case "ai":
+      return <Bot size={17} />;
+    case "graph":
+      return <Network size={17} />;
+    case "settings":
+      return <Settings size={17} />;
+    case "chat":
+      return <MessageSquare size={17} />;
+  }
 }
 
 interface RailItemProps {
@@ -59,6 +65,7 @@ function RailItem({ icon, label, showLabel, active = false, onClick }: RailItemP
       ].filter(Boolean).join(" ")}
       title={label}
       aria-label={label}
+      aria-current={active ? "page" : undefined}
       onClick={onClick}
     >
       {icon}

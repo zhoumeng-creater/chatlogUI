@@ -62,8 +62,16 @@ export function WorkbenchFrame({
       </div>
 
       {layout.inspectorMode === "drawer" && inspectorOpen && (
-        <div className="workbench-frame__drawer-backdrop" role="presentation">
-          <aside className="workbench-frame__drawer" aria-label={inspectorTitle}>
+        <div
+          className="workbench-frame__drawer-backdrop"
+          role="presentation"
+          onClick={onCloseInspector}
+        >
+          <aside
+            className="workbench-frame__drawer"
+            aria-label={inspectorTitle}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="workbench-frame__drawer-header">
               <Typography variant="label" weight={600}>
                 {inspectorTitle}

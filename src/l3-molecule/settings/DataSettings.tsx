@@ -1,7 +1,5 @@
 import { useSettingsCommander } from "@l2/commander/useSettingsCommander";
-import { Typography } from "@l4/ui/Typography";
-import { AppleButton } from "@l4/ui/AppleButton";
-import { GlassPanel } from "@l4/ui/GlassPanel";
+import { Button, Field, Input, Surface, Typography } from "@l4/ui";
 import { openDirectoryPicker } from "@l4/system/openDirectoryPicker";
 
 export function DataSettings() {
@@ -19,56 +17,41 @@ export function DataSettings() {
   };
 
   return (
-    <div>
-      <Typography variant="h2" style={{ marginBottom: 24 }}>数据</Typography>
+    <div className="settings-stack">
+      <Typography variant="h2">数据</Typography>
 
-      <GlassPanel>
-        <div style={{ padding: 16, marginBottom: 16 }}>
-          <Typography variant="label" weight={600} style={{ marginBottom: 12 }}>
-            微信数据路径
-          </Typography>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Typography variant="caption" color="var(--color-text-secondary)" style={{ flex: 1 }}>
-              {settings.wxDataPath || "未设置"}
-            </Typography>
-            <AppleButton variant="secondary" size="sm" onClick={handlePickPath}>
-              选择目录
-            </AppleButton>
-          </div>
-          <div style={{ marginTop: 16 }}>
-            <Typography variant="caption" color="var(--color-text-secondary)">
-              数据解密密钥
-            </Typography>
-            <input
-              type="password"
-              value=""
-              disabled
-              placeholder="请在设置中心配置 data key"
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: "1px solid var(--color-border)",
-                background: "var(--color-bg-primary)",
-                color: "var(--color-text-secondary)",
-                fontSize: 14,
-                marginTop: 4,
-              }}
+      <Surface variant="base" className="settings-section">
+        <Field id="settings-wx-path" label="微信数据路径">
+          <div className="settings-inline">
+            <Input
+              id="settings-wx-path"
+              value={settings.wxDataPath || "未设置"}
+              readOnly
             />
+            <Button variant="secondary" size="md" onClick={handlePickPath}>
+              选择目录
+            </Button>
           </div>
-        </div>
-      </GlassPanel>
+        </Field>
+        <Field id="settings-data-key" label="数据解密密钥" hint="Data Key 只在设置中心配置，不保存在 UI 设置里。">
+          <Input
+            id="settings-data-key"
+            type="password"
+            value=""
+            disabled
+            placeholder="请在设置中心配置 data key"
+          />
+        </Field>
+      </Surface>
 
-      <GlassPanel>
-        <div style={{ padding: 16 }}>
-          <Typography variant="label" weight={600} style={{ marginBottom: 12 }}>
-            缓存管理
-          </Typography>
-          <Typography variant="caption" color="var(--color-text-secondary)">
-            聊天记录和 AI 索引缓存在本地存储
-          </Typography>
-        </div>
-      </GlassPanel>
+      <Surface variant="subtle" className="settings-section">
+        <Typography variant="label" weight={700}>
+          缓存管理
+        </Typography>
+        <Typography variant="body" color="var(--text-secondary)">
+          聊天记录和 AI 索引缓存保存在本地存储。后续诊断阶段会把缓存清理、导出和索引状态合并到统一设置中心。
+        </Typography>
+      </Surface>
     </div>
   );
 }

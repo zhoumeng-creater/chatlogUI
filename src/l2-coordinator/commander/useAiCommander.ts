@@ -247,14 +247,17 @@ export function useAiCommander() {
     }
   }, [currentChat, store]);
 
+  const previousChatRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (currentChat) {
-      store.setSearchResults(null);
-      store.setSearchQuery("");
-      store.setTopics(null);
-      store.setProfile(null);
-    }
-  }, [currentChat, store]);
+    if (!currentChat || previousChatRef.current === currentChat) return;
+    previousChatRef.current = currentChat;
+
+    const aiStore = useAiStore.getState();
+    aiStore.setSearchResults(null);
+    aiStore.setSearchQuery("");
+    aiStore.setTopics(null);
+    aiStore.setProfile(null);
+  }, [currentChat]);
 
   return {
     phase: store.phase,

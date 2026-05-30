@@ -79,4 +79,20 @@ describe("search request helpers", () => {
       messages: [createMessage(1), createMessage(2)],
     });
   });
+
+  it("passes current conversation scope as backend chats", () => {
+    expect(createSearchRequest({
+      keyword: "合同",
+      filter: "text",
+      limit: 20,
+      offset: 0,
+      scopeChat: "wxid_a",
+    })).toEqual({
+      keyword: "合同",
+      limit: 20,
+      offset: 0,
+      msgType: "1",
+      chats: ["wxid_a"],
+    });
+  });
 });

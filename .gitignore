@@ -4,8 +4,16 @@ node_modules/
 # Build outputs
 dist/
 
+# Test and coverage outputs
+playwright-report/
+test-results/
+coverage/
+
 # Local git worktrees
 .worktrees/
+
+# Local browser automation captures
+.playwright-cli/
 
 # Rust build outputs
 target/
@@ -19,6 +27,10 @@ src-tauri/binaries/
 # Logs
 *.log
 
+# Python cache files
+__pycache__/
+*.pyc
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -26,3 +38,10 @@ Thumbs.db
 # Environment secrets
 .env
 .env.*
+
+# Spec Kit local cache
+.specify/tmp/
+.specify/cache/
+
+# Local extracted workflow kit source package
+chatlogUI-agent-workflow-kit/

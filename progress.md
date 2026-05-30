@@ -183,3 +183,89 @@
 - A9 浏览器 smoke：使用现有 `127.0.0.1:1420` dev server 检查 `/`、`/workbench`、`/settings`，覆盖 1440、1180、900、768、390 宽度；未再观察到基线中的 390px Setup Center 横向裁切，App shell 假 macOS 交通灯已移除，主 shell 命令图标已由 lucide 图标替代。
 - A9 代码约束检查：`git diff -- src package.json pnpm-lock.yaml | rg "^\\+.*GlassPanel"` 无新增 `GlassPanel` 引用；主 shell 和 `AiPanel` emoji/字符命令搜索无命中。
 - A9 验证结果：`pnpm lint` PASS；`pnpm typecheck` PASS；`pnpm test` PASS（100 tests / 14 files）；`pnpm build` PASS（保留既有 `GraphCanvas` >500 kB chunk warning）；`cargo test` PASS（16 tests，保留既有 crate name snake_case warning）。
+
+## 2026-05-29 P2-B Planning Session
+
+- 已加载并采用相关流程技能：using-superpowers、planning-with-files、brainstorming、writing-plans。
+- 已运行 planning-with-files session catchup；未输出需要同步的历史上下文。
+- 已检查 git 状态：除既有 `.agents/skills/ui-ux-pro-max/scripts/__pycache__/` 未跟踪目录外，当前未发现新的已修改源码文件。
+- 已读取 `task_plan.md`、`findings.md`、`progress.md`、`docs/ui-functional-audit-and-redesign-plan.md`、P1 handoff 和 P2 总规划的 P2-B/P2 验证章节。
+- 当前判断：P2-A 已完成，P2-B 可在 `WorkbenchFrame`、`Button/IconButton/Surface/StatusIndicator`、tokens/layout/motion 基线上继续；P2-B 范围限定为 conversation list、transcript、search pane、stats inspector，不扩大到 P2-C 设置诊断或 P2-D AI/Graph。
+- 已补读/核对历史开发文档：`开发指南.md`、`docs/总体开发规划.md`、Sprint 2 聊天/搜索/统计章节、Sprint 3 AI 规划、Sprint 4/5a/5b/6 specs 和 plans。结论：P2-B 继承 Mediator 分层和核心聊天工作台目标，但不回退到旧 glass/fake macOS/Graph 浮层优先方向。
+- 已检查当前源码：`DashboardView.tsx` 已接入 `WorkbenchFrame`，但仍内联 stats inspector；chat/search/stats 组件仍存在旧命名、旧状态表达、row animation、unknown direction 气泡误导和 stats `GlassPanel` 引用。
+- 已创建 P2-B 独立实施计划：`docs/superpowers/plans/2026-05-29-p2-b-core-workbench-polish.md`。
+- 已更新 `task_plan.md`，新增 Phase 13 P2-B Core Workbench Polish Planning 并标记 complete。
+- 文档自查：占位词扫描通过；计划将 P2-B 拆成 baseline、conversation helpers/list、transcript helpers/rendering、search workflow、stats inspector、Dashboard composition、verification/browser smoke。
+
+## 2026-05-29 Code Review Remediation Session
+
+- 已加载并采用相关流程技能：using-superpowers、receiving-code-review、planning-with-files、writing-plans、test-driven-development、verification-before-completion；已检查 systematic-debugging、executing-plans、requesting-code-review、code-simplifier、frontend-code-review、dispatching-parallel-agents、using-git-worktrees、frontend-design、ui-ux-pro-max 的适用性。
+- 已运行 planning-with-files session catchup；无需要同步的输出。
+- 已读取 `Code review.md`、`task_plan.md`、`findings.md`、`progress.md`、`package.json`、`pnpm-workspace.yaml`，并生成全部 Markdown 开发文档标题索引。
+- 当前修复范围以 `Code review.md` 的 6 个 urgent issue 为主，3 个 suggestions 作为低风险可并入项或验证记录；Graph chunk warning 若需要较大拆包，优先记录为后续 P2-D/P2-E 事项，除非本轮 Graph 模块化可自然降低。
+- 基线验证：`pnpm typecheck` PASS；`pnpm test` PASS（100 tests / 14 files）。
+- 已新增实施计划：`docs/superpowers/plans/2026-05-29-code-review-remediation.md`。
+- TDD RED：`pnpm test src/l2-coordinator/commander/workbenchViewModel.test.ts` 失败于缺少 `./workbenchViewModel`；`pnpm test src/l4-atom/ui/formControl.test.ts` 失败于缺少 `./formControl`。
+- TDD GREEN：新增 workbench view-model helpers 与 form-control helpers 后，上述两个测试分别 PASS（5 tests / 1 file；3 tests / 1 file）。
+- 架构修复：新增 `useWorkbenchCommander` 下沉 ready workbench 编排；新增 `WorkbenchView`；`DashboardView` 改为兼容 wrapper；`WorkbenchShellView` 在 DB ready 时渲染 `WorkbenchView`。
+- UI/导航修复：WorkbenchRail 改为 `activeModule` 单一 active 状态并包含图谱/设置；single 模式新增返回会话列表路径；Graph 改为 `GraphModule` inspector/drawer 模块，`GraphCanvas` 改为嵌入式画布并移除 fixed 浮层、拖拽缩放和 emoji。
+- 设计系统修复：新增 `Field`、`Select`、`SegmentedControl` 与 tokenized `Input`；Setup 手动配置、Settings、Stats、Semantic analysis surfaces 迁移到 `Surface` 和 token 控件；移动宽度提升按钮、图标按钮、分段控件、输入控件触控目标。
+- 约束扫描：`rg -n "GlassPanel|🕸️|graph\\.visible|LazyGraphCanvas|activePanel|onSelectPanel" src\l1-entry src\l3-molecule\settings src\l3-molecule\stats src\l3-molecule\semantic src\l3-molecule\graph src\l3-molecule\workbench -S` 无命中；全 `src` 仅保留 legacy `GlassPanel.tsx` 和导出。
+- 最终自动验证：`pnpm lint` PASS；`pnpm typecheck` PASS；`pnpm test` PASS（108 tests / 16 files）；`pnpm build` PASS。
+- 构建备注：Graph 大依赖仍触发 Vite >500 kB warning，但 chunk 为按需 `GraphModule-Dp-8n-UF.js`（约 1,034.78 kB，gzip 292.67 kB），主 `index` chunk 约 376.89 kB。
+- 浏览器 smoke：复用 `http://127.0.0.1:1420/`，检查 `/`、`/workbench`、`/settings` 的 1440x900 与 390x844；Setup 手动配置无横向裁切，Workbench 未就绪状态可读且入口可达，Settings 移动宽度不再出现旧重黑边框/GlassPanel 视觉。
+
+## 2026-05-30 P2-B Plan Revision Session
+
+- 已恢复 planning-with-files 上下文，并复读 `task_plan.md`、`findings.md`、`progress.md`、P2 总规划、P2-B 计划、Code Review Remediation 计划和当前 chat/search/stats/workbench 源码。
+- 已按前端代码审查与 UI/UX 检查重新校准 P2-B 起点：当前源码已经有 `WorkbenchView`、`useWorkbenchCommander`、`workbenchViewModel`、`StatsInspector`、Graph module 和 tokenized stats surfaces。
+- 已修订 P2-B 计划，避免继续要求修改旧 `DashboardView` inline stats；后续 composition 变更改为落在 `WorkbenchView`，`DashboardView` 只做 wrapper 验证。
+- 已补充关键执行细节：`ContactList` wrapper 必须继续透传 `onConversationOpened`；`ConversationRow` 落地后删除 `ContactItem.tsx`；transcript 任务必须移除 `column-reverse`、scroll listener、`bottomRef` 和 `isSelf`；search commander 必须返回 `changeScope`；stats 任务以现有 `StatsInspector` 为基线做 helper-tested polish。
+- 已更新 `task_plan.md` 和 `findings.md`，记录 P2-B 计划二次复核结论。
+
+## 2026-05-30 P2-B Implementation Session
+
+- 已加载并采用相关流程技能：using-superpowers、planning-with-files、executing-plans、test-driven-development、frontend-design、ui-ux-pro-max、verification-before-completion；systematic-debugging 和 receiving-code-review 作为遇到失败/反馈时的约束。
+- 已运行 planning-with-files session catchup；未输出需要同步的历史上下文。
+- 已检查 git 状态：当前分支为 `codex/p2-a-ui-foundation`，工作树包含既有 P2-A、Code Review Remediation 和 P2-B 计划相关未提交/未跟踪文件；本轮继续基于当前上下文工作，不回滚既有改动。
+- 已读取 `task_plan.md`、`findings.md`、`progress.md`、P2-B 计划、P2 总规划、Code Review Remediation 计划，并生成全部 `docs/**/*.md` 标题索引；历史 Sprint/发布/图谱/设置文档作为架构和范围参考，最新版 P0/P1/P2/P2-B 文档优先。
+- UI/UX 查询结论：P2-B 工作台继续采用专业、信息密集、flat/token-driven 的桌面工具方向；重点检查无横向滚动、可键盘聚焦、搜索空状态、图表表格 fallback、无 emoji structural icons 和稳定交互状态。
+- B0 基线：`pnpm typecheck` PASS；`pnpm test` PASS（108 tests / 16 files）。
+- B0 约束扫描：待修复命中集中在 `ContactList`/`ContactItem` 的 per-row motion、`MessageList` 的 `column-reverse`/scroll listener、`SearchResults` 的 `selectAndLoad(msg.username, msg.username)` 和 `FilterBar` 的 `AppleButton`；AI/Graph/common 模块的 legacy `AppleButton`/motion 不属于 P2-B 范围。
+- B1 RED：`pnpm test src/l3-molecule/chat/conversationDisplay.test.ts` 失败于缺少 `./conversationDisplay`。
+- B1 GREEN：新增 `conversationDisplay.ts` 后同一测试 PASS（6 tests / 1 file）。
+- B2 已新增 `ConversationListToolbar`、`ConversationRow`、`ConversationList` 和 `workbench-content.css`，`ContactList` 改为兼容 wrapper 并删除旧 `ContactItem.tsx`。
+- B2 验证：`pnpm typecheck` PASS；`rg -n "AnimatePresence|initial=|motion\.div|ContactItem" src/l3-molecule/chat/ContactList.tsx src/l3-molecule/chat/ConversationList.tsx src/l3-molecule/chat/ConversationRow.tsx` 无命中；`Test-Path src/l3-molecule/chat/ContactItem.tsx` 输出 `False`。
+- B3 RED：`pnpm test src/l3-molecule/chat/transcriptDisplay.test.ts` 失败于缺少 `./transcriptDisplay`。
+- B3 GREEN：新增 `transcriptDisplay.ts` 后同一测试 PASS（5 tests / 1 file）。
+- B4 已新增 `TranscriptHeader`、`MessageMeta`、`MessageGroup`，重写 `MessageBubble` 和 `MessageList`，`ChatView` 改为 transcript container；unknown direction 通过 `getTranscriptTone()` 渲染为 neutral。
+- B4 验证：`pnpm typecheck` PASS；`rg -n "isSelf|row-reverse|column-reverse|shouldShowAvatar|handleScroll|bottomRef|prevMessageCountRef|isFirstLoad" src/l3-molecule/chat` 无命中。
+- B5 RED：`pnpm test src/l2-coordinator/commander/searchRequest.test.ts` 新增 current scope 测试后失败，收到的请求缺少 `chats: ["wxid_a"]`。
+- B5 GREEN：`searchRequest` 支持 `scopeChat` 后同一测试 PASS（8 tests / 1 file）。
+- B5 已扩展 `useSearchStore` 的 `scope`/`activeResultId`，`useSearchCommander` 根据 selected conversation 传递 backend `chats` 参数，并新增 `SearchScopeMenu`、`SearchResultsPane`；搜索结果点击现在用 `message.username || message.chat` 并记录 active result。
+- B5 UI 修复：`FilterBar` 从 `AppleButton` 迁移到 `Button` primitive；`GlobalSearch` 集成搜索范围，隐私模式会掩码当前会话标签；`SearchResultsPane` 会掩码 sender/snippet。
+- B5 验证：`pnpm typecheck` PASS；`rg -n "selectAndLoad\(msg\.username|AppleButton" src/l3-molecule/search src/l2-coordinator/commander/searchRequest.ts src/l2-coordinator/commander/useSearchCommander.ts` 无命中。
+- B6 RED：`pnpm test src/l3-molecule/stats/statsDisplay.test.ts` 失败于缺少 `./statsDisplay`。
+- B6 GREEN：新增 `statsDisplay.ts` 后同一测试 PASS（3 tests / 1 file）。
+- B6 已新增 `MetricRow`、`ChartFallbackTable`，`DashboardOverview` 改为 metric rows，`TrendChart` 使用 `shouldUseTrendTable()` 提供密集/窄 inspector 表格 fallback，`TopContactCard` 继续使用 `Surface`。
+- B6 验证：`pnpm typecheck` PASS；`rg -n "GlassPanel" src/l3-molecule/stats src/l1-entry/pages/DashboardView.tsx` 无命中；`DashboardView.tsx` 仍只渲染 `<WorkbenchView />`。
+- B7 已将 `WorkbenchView` toolbar 中的 `GlobalSearch`、`FilterBar`、`SearchResults` 包入 `.search-panel`，避免搜索区域直接挤压 transcript。
+- B7 验证：`pnpm typecheck` PASS；`pnpm test src/l3-molecule/workbench/workbenchLayout.test.ts src/l2-coordinator/commander/searchRequest.test.ts src/l3-molecule/chat/conversationDisplay.test.ts src/l3-molecule/chat/transcriptDisplay.test.ts src/l3-molecule/stats/statsDisplay.test.ts` PASS（27 tests / 5 files）；`WorkbenchView` 仍保留 `conversationListAsMain`、`openConversationList` 和 `返回会话列表`；`WorkbenchFrame` 保留 drawer backdrop close 与 drawer body `stopPropagation()`。
+
+## 2026-05-30 P2-B Implementation Verification
+
+- `pnpm lint` -- PASS
+- `pnpm typecheck` -- PASS
+- `pnpm test` -- PASS（123 tests / 19 files）
+- `pnpm build` -- PASS；保留既有 Vite warning：`GraphModule-CMwJO09I.js` 约 1,034.78 kB（gzip 292.67 kB），大于 500 kB。
+- P2-B scope check：`git diff -- src/l1-entry/pages src/l3-molecule/chat src/l3-molecule/search src/l3-molecule/stats src/styles | rg "^\+.*GlassPanel"` 无新增命中；chat conversation row 文件无 `AnimatePresence`/`motion.div`/`ContactItem`；message files 无 `column-reverse`/`handleScroll`/`isSelf`。
+- Browser smoke：复用 `http://127.0.0.1:1420/`，检查 `/`、`/workbench`、`/settings` 的 1440/1180/900/768/390 宽度，`horizontalOverflow=false` 且 overflowing controls 为 0。
+- Browser ready-workbench mock：在浏览器中 mock sessions/history/search/stats/trend API 并设置 `dbReady=true`；桌面宽度选择会话后渲染 2 条会话、3 条 neutral message、6 个 stats metric rows、18 行趋势表格 fallback；搜索 Enter 返回 1 条结果，点击后 active result 为 1，Escape 清空 query 和结果。
+- Browser single-pane mock：390 宽度 ready 状态下初始显示 2 条 conversation rows、0 条 message rows；点击会话后显示 1 条 message row、0 条 conversation rows，并出现 `返回会话列表`，无横向溢出。
+- Debug follow-up：ready mock 首次暴露 `useAiCommander` maximum update depth；根因是 current-chat reset effect 依赖整个 Zustand store 对象。已修为只依赖 `currentChat` 并通过 `useAiStore.getState()` 取 action；修复后重新跑完整自动验证和 ready mock 均通过。
+
+## 2026-05-30 Commit Preparation
+
+- 收尾整理当前工作区：保留源码、规划、Spec Kit、opencode、agent workflow 根目录安装文件和 `.gitignore-additions.txt`；忽略 `.playwright-cli/`、Python `__pycache__/`、`.specify/tmp/`、`.specify/cache/` 和解压后的 `chatlogUI-agent-workflow-kit/` 副本。
+- 已更新 `.gitignore`，避免提交浏览器自动化快照、缓存、coverage/test result 和重复 workflow kit 包目录。
+- 遇到一次 Git 参数兼容错误：`git status --ignored=.matching` 在当前 Git 版本不可用；改用 `git status --short --ignored` 完成检查。

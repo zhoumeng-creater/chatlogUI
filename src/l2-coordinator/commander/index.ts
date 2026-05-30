@@ -7,3 +7,5 @@ export { useGraphCommander } from "./useGraphCommander";
 export { useSettingsCommander } from "./useSettingsCommander";
 export { useSetupCommander } from "./useSetupCommander";
 export type { SetupCommander } from "./useSetupCommander";
+export { useWorkbenchCommander } from "./useWorkbenchCommander";
+export type { WorkbenchModule } from "./workbenchViewModel";

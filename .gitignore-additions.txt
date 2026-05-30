@@ -1,0 +1,6 @@
+.worktrees/
+.specify/tmp/
+.specify/cache/
+playwright-report/
+test-results/
+coverage/
