@@ -185,3 +185,23 @@
 - [x] B8: lint/typecheck/test/build 和浏览器 smoke
 - **Status:** complete
 - **规划文档:** docs/superpowers/plans/2026-05-29-p2-b-core-workbench-polish.md
+
+### Phase 16: P2-B 综合审查与修复计划
+- [x] 对照 P2-B、P2 总规划、开发指南、总体规划和 ready-desktop-app spec 审查当前代码
+- [x] 记录 privacy、long-history、architecture、UI consistency、productization、release-gate 和 dev-port 问题
+- [x] 新建综合审查记录：`docs/reviews/2026-05-30-p2-b-comprehensive-review.md`
+- [x] 新建完整修复计划：`docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md`
+- **Status:** complete
+
+### Phase 17: P2-B Suggested Fix Remediation
+- [x] 添加 targeted regression tests 并确认 privacy/search/transcript RED
+- [x] 修复 privacy aria/avatar accessibility masking
+- [x] 为 transcript 接入 bounded virtual rows
+- [x] 接入 stats inspector measured-width fallback
+- [x] 修复 setup raw button 与 credential form semantics
+- [x] 增加 search explicit status 和 invalid/empty rendering
+- [x] 迁移 canonical dev port 到 5173/5174
+- [x] 补 release evidence、architecture checklist 和 release runbook
+- [x] 运行 pnpm verify、cargo test、pnpm tauri build 与 1440/390 UI smoke
+- **Status:** complete
+- **保留计划:** docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md（仍有后续 architecture/legacy UI/release smoke 债务）

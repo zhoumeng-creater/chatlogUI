@@ -269,3 +269,37 @@
 - 收尾整理当前工作区：保留源码、规划、Spec Kit、opencode、agent workflow 根目录安装文件和 `.gitignore-additions.txt`；忽略 `.playwright-cli/`、Python `__pycache__/`、`.specify/tmp/`、`.specify/cache/` 和解压后的 `chatlogUI-agent-workflow-kit/` 副本。
 - 已更新 `.gitignore`，避免提交浏览器自动化快照、缓存、coverage/test result 和重复 workflow kit 包目录。
 - 遇到一次 Git 参数兼容错误：`git status --ignored=.matching` 在当前 Git 版本不可用；改用 `git status --short --ignored` 完成检查。
+
+## 2026-05-30 P2-B Comprehensive Review Documentation
+
+- 已加载并采用相关技能：using-superpowers、planning-with-files、writing-plans、frontend-code-review、frontend-design、ui-acceptance、app-productization、release-gate、ui-ux-pro-max、verification-before-completion。
+- 技能路径错误记录：第一次读取 `using-superpowers` 时误用 `C:/Users/15995/.agents/...`，该路径不存在；随后改用项目技能根 `E:/OneDrive - Default Directory/chatlogUI/.agents/skills/...` 成功读取。
+- 已运行 planning-with-files session catchup；未输出需要同步的历史上下文。
+- 已重新读取 `task_plan.md`、`findings.md`、`progress.md`，确认当前审查应追加记录而不是覆盖既有 P2/P2-B 规划。
+- 已运行 UI/UX 设计系统查询，结论继续采用信息密集、专业桌面工具方向，重点关注 accessibility、触控目标、响应式、virtualized list、表格 fallback 和无 emoji structural icons。
+- 已检查 `vite.config.ts` 与 `src-tauri/tauri.conf.json`，确认 canonical dev server 当前硬编码为 1420/1421；这解释了本机 Windows excluded port range 下的 dev server EACCES 问题。
+- 已创建 `docs/reviews/2026-05-30-p2-b-comprehensive-review.md`，记录全部发现、证据、影响和要求结果。
+- 已创建 `docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md`，按 privacy、long-history、architecture、stats、setup/form、search、legacy UI、release evidence、dev port 和最终验证拆解修复计划。
+- 已追加 `findings.md` 记录 P2-B 综合审查发现。
+- 文档自查：两个新文档均存在；关键章节 `R1/R2/R3/R12`、`Task 1/Task 2/Task 9`、`Final Verification` 可检索；新审查记录和新修复计划的占位词扫描无命中。
+
+## 2026-05-30 P2-B Remediation Recheck
+
+- 已按用户要求复核“根据修复计划修复后”的当前代码。
+- 当前分支：`001-ready-desktop-app`。
+- 工作树检查显示源码文件没有未提交修改；当前可见改动仍集中在 `AGENTS.md`、`findings.md`、`progress.md`、`task_plan.md` 和新增审查/计划文档。
+- 针对上轮 R1-R12 扫描：R1 privacy accessibility、R2 long-history virtualization、R3 architecture boundary、R4 release evidence、R5 stats inspector width、R6 raw setup button、R7 password form semantics、R8 legacy UI controls、R10 graph chunk warning、R12 dev port 1420/1421 仍有命中。
+- `pnpm verify` PASS：Vitest 40 files / 256 tests passed；build PASS；仍保留 `GraphModule-BddO-upw.js` >500 kB warning。
+- 结论：不能删除 `docs/reviews/2026-05-30-p2-b-comprehensive-review.md` 或 `docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md`；计划仍然有效。
+
+## 2026-05-30 P2-B Suggested Fix Implementation
+
+- 已按 remediation suggested fixes 增加回归测试：privacy aria label、transcript row virtualization、stats narrow fallback、search invalid status。
+- RED 验证：新增测试最初失败于 `transcriptRows.ts` 缺失、`getSearchInputStatus()` 缺失和 privacy aria label 仍输出 raw displayName。
+- GREEN 修复：`ConversationRow`/`conversationDisplay` 补隐私可访问文本；`MessageList` 接入 `@tanstack/react-virtual` 与 `transcriptRows`；`SearchStore`/`useSearchCommander` 增加显式 `SearchStatus`；`StatsInspector` 通过 `ResizeObserver` 向 `TrendChart` 传真实宽度。
+- UI 修复：`ConfigImportPanel` 使用 `Button` primitive；设置、手动配置和 semantic wizard 密码字段补 form scope；`index.html` 补内联 favicon，消除默认 favicon 404 smoke 噪声。
+- Productization 修复：新增 release evidence、architecture boundary checklist 和 release runbook；`tasks.md` 勾选 T003、T009、T041，其他人工 smoke/release tasks 保持未勾选。
+- Dev port 修复：Vite/Tauri devUrl 从 1420/1421 迁移到 5173/5174，`AGENTS.md` 同步更新。
+- 验证：目标测试 PASS（49 tests / 10 files）；`pnpm verify` PASS（41 files / 262 tests）；`cargo test` PASS（16 tests）；`pnpm tauri build` PASS，产物为 `chatlog_alpha_0.1.0_x64_zh-CN.msi` 与 `chatlog_alpha_0.1.0_x64-setup.exe`。
+- UI smoke：`http://127.0.0.1:5173/`、`/workbench`、`/settings` 在 1440px 与 390px 截图检查通过，未观察到明显文本重叠或横向裁切。
+- 结论：本轮 suggested fixes 已清理主要 P2-B 阻塞项，但综合审查和修复计划仍需保留，因为 strict architecture cleanup、legacy semantic/graph UI、一键安装人工 smoke 和 Graph chunk 拆分仍未完成。

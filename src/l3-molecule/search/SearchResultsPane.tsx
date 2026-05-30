@@ -1,11 +1,12 @@
 import { Button, Typography } from "@l4/ui";
-import type { SearchResults } from "@l2/data-clerk/stores/useSearchStore";
+import type { SearchResults, SearchStatus } from "@l2/data-clerk/stores/useSearchStore";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { maskDisplayText } from "@l3/chat/conversationDisplay";
 
 interface SearchResultsPaneProps {
   query: string;
   results: SearchResults | null;
+  status: SearchStatus;
   loading: boolean;
   error: string | null;
   activeResultId: string | null;
@@ -27,6 +28,7 @@ function formatSearchTime(message: SearchResults["messages"][number]): string {
 export function SearchResultsPane({
   query,
   results,
+  status,
   loading,
   error,
   activeResultId,
@@ -36,6 +38,32 @@ export function SearchResultsPane({
   onClear,
 }: SearchResultsPaneProps) {
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+
+  if (status === "invalid" && query.length > 0) {
+    return (
+      <div className="workbench-empty-state">
+        <Typography variant="label" weight={700}>
+          请输入搜索关键词
+        </Typography>
+        <Typography variant="body" color="var(--text-secondary)">
+          搜索不会向后端提交空白查询。
+        </Typography>
+      </div>
+    );
+  }
+
+  if (status === "cancelled") {
+    return (
+      <div className="workbench-empty-state">
+        <Typography variant="label" weight={700}>
+          搜索已取消
+        </Typography>
+        <Typography variant="body" color="var(--text-secondary)">
+          输入关键词后可以重新搜索聊天记录。
+        </Typography>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -60,7 +88,7 @@ export function SearchResultsPane({
 
   if (!results) return null;
 
-  if (results.messages.length === 0 && query.trim()) {
+  if (status === "empty" || (results.messages.length === 0 && query.trim())) {
     return (
       <div className="workbench-empty-state">
         <Typography variant="label" weight={700}>

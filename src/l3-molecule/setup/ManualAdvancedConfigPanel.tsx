@@ -34,7 +34,14 @@ export function ManualAdvancedConfigPanel() {
 
   return (
     <Surface variant="base" className="settings-section">
-      <div className="settings-stack">
+      <form
+        className="settings-stack"
+        autoComplete="off"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSave();
+        }}
+      >
         <div>
           <Typography variant="h2">高级手动配置</Typography>
           <Typography variant="body" color="var(--text-secondary)">
@@ -99,11 +106,12 @@ export function ManualAdvancedConfigPanel() {
               <Input
                 id="manual-data-key"
                 type={showKey ? "text" : "password"}
+                autoComplete="off"
                 value={form.dataKey ?? ""}
                 onChange={(event) => update("dataKey", event.currentTarget.value)}
                 placeholder="64位十六进制密钥"
               />
-              <Button variant="secondary" size="md" onClick={() => setShowKey((value) => !value)}>
+              <Button type="button" variant="secondary" size="md" onClick={() => setShowKey((value) => !value)}>
                 {showKey ? "隐藏" : "显示"}
               </Button>
             </div>
@@ -113,6 +121,7 @@ export function ManualAdvancedConfigPanel() {
             <Input
               id="manual-img-key"
               type="password"
+              autoComplete="off"
               value={form.imgKey ?? ""}
               onChange={(event) => update("imgKey", event.currentTarget.value)}
             />
@@ -141,7 +150,7 @@ export function ManualAdvancedConfigPanel() {
         </div>
 
         <div className="settings-actions">
-          <Button variant="primary" onClick={handleSave} loading={loading}>
+          <Button type="submit" variant="primary" loading={loading}>
             保存并验证配置
           </Button>
         </div>
@@ -151,7 +160,7 @@ export function ManualAdvancedConfigPanel() {
             {error}
           </div>
         )}
-      </div>
+      </form>
     </Surface>
   );
 }

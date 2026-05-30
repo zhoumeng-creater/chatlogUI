@@ -6,7 +6,7 @@ import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import { fetchSearch } from "@l4/network";
 import { debounce } from "@/l2-coordinator/diplomat/debounce";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
-import { createSearchRequest, getNextSearchOffset, mergeSearchResults } from "./searchRequest";
+import { createSearchRequest, getNextSearchOffset, getSearchInputStatus, mergeSearchResults } from "./searchRequest";
 import { clearSearchSession } from "./searchSession";
 
 const SEARCH_PAGE_SIZE = 20;
@@ -24,8 +24,8 @@ export function useSearchCommander() {
   const store = useSearchStore();
 
   const executeSearchFn = useCallback(async (keyword: string, filter = useSearchStore.getState().activeFilter) => {
-    if (!keyword.trim()) {
-      useSearchStore.getState().clear();
+    if (getSearchInputStatus(keyword) === "invalid") {
+      useSearchStore.getState().setInvalid();
       return;
     }
     useSearchStore.getState().setLoading(true);
@@ -60,6 +60,11 @@ export function useSearchCommander() {
 
   const search = useCallback((keyword: string) => {
     useSearchStore.getState().setQuery(keyword);
+    if (getSearchInputStatus(keyword) === "invalid") {
+      debouncedSearchRef.current.cancel();
+      useSearchStore.getState().setInvalid();
+      return;
+    }
     debouncedSearchRef.current(keyword);
   }, []);
 
@@ -104,6 +109,7 @@ export function useSearchCommander() {
         results: state.results ? mergeSearchResults(state.results, newResult as unknown as SearchResults) : (newResult as unknown as SearchResults),
         loading: false,
         error: null,
+        status: "ready",
       }));
     } catch {
       useSearchStore.getState().setError("加载更多结果失败");

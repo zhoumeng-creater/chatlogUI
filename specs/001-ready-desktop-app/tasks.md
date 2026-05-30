@@ -32,7 +32,7 @@
   - Sidecar/privacy/release risk: No sidecar risk; high privacy relevance; low release risk.
   - Codex App worktree/cloud: Worktree yes; cloud yes.
 
-- [ ] T003 [P] Create release evidence template in `specs/001-ready-desktop-app/release-evidence.md`
+- [x] T003 [P] Create release evidence template in `specs/001-ready-desktop-app/release-evidence.md`
   - Files likely to change: `specs/001-ready-desktop-app/release-evidence.md`
   - Acceptance criteria: Template captures Windows x64 install, launch, quit, reopen, sidecar ownership, port conflict, redaction, and caveat evidence without requiring private data.
   - Verification commands: `rg -n "Windows x64|install|launch|quit|reopen|redact|5030" specs/001-ready-desktop-app/release-evidence.md`
@@ -80,7 +80,7 @@
   - Sidecar/privacy/release risk: Medium sidecar relevance; high privacy relevance; medium release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud yes.
 
-- [ ] T009 Add architecture boundary checklist in `specs/001-ready-desktop-app/architecture-boundary-check.md`
+- [x] T009 Add architecture boundary checklist in `specs/001-ready-desktop-app/architecture-boundary-check.md`
   - Files likely to change: `specs/001-ready-desktop-app/architecture-boundary-check.md`
   - Acceptance criteria: Checklist states no L1 business logic, no L1/L3 direct network calls, L2 owns orchestration, and L4 owns raw network/system atoms.
   - Verification commands: `rg -n "L1|L2|L3|L4|network|orchestration" specs/001-ready-desktop-app/architecture-boundary-check.md`
@@ -372,7 +372,7 @@
   - Sidecar/privacy/release risk: Low sidecar risk; high privacy relevance; high release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud partial because generated diagnostics need local verification.
 
-- [ ] T041 Run full frontend verification and record result in `specs/001-ready-desktop-app/release-evidence.md`
+- [x] T041 Run full frontend verification and record result in `specs/001-ready-desktop-app/release-evidence.md`
   - Files likely to change: `specs/001-ready-desktop-app/release-evidence.md`
   - Acceptance criteria: Evidence includes fresh passing output or documented blockers for `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm verify`.
   - Verification commands: `pnpm lint`; `pnpm typecheck`; `pnpm test`; `pnpm build`; `pnpm verify`

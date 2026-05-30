@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Button, Typography } from "@l4/ui";
 import type { AdaptedStats, TrendDataPoint } from "@l2/data-clerk/stores/useStatsStore";
 import { DashboardOverview } from "./DashboardOverview";
@@ -25,8 +26,26 @@ export function StatsInspector({
   onShowAi,
   onOpenGraph,
 }: StatsInspectorProps) {
+  const inspectorRef = useRef<HTMLElement | null>(null);
+  const [inspectorWidth, setInspectorWidth] = useState(320);
+
+  useEffect(() => {
+    const node = inspectorRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return undefined;
+
+    const observer = new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width);
+      if (width > 0) {
+        setInspectorWidth(width);
+      }
+    });
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <aside className="stats-inspector" aria-label="统计 inspector">
+    <aside ref={inspectorRef} className="stats-inspector" aria-label="统计 inspector">
       <div className="stats-inspector__header">
         <Typography variant="label" weight={700}>
           统计数据
@@ -65,7 +84,7 @@ export function StatsInspector({
       ) : (
         <>
           <DashboardOverview stats={stats} loading={loading} />
-          <TrendChart data={trend} />
+          <TrendChart data={trend} inspectorWidth={inspectorWidth} />
           {stats && <TopContactCard topSenders={stats.topSenders} />}
         </>
       )}

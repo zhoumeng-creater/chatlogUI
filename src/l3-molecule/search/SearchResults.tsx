@@ -7,6 +7,7 @@ export function SearchResults() {
   const {
     query,
     results,
+    status,
     loading,
     error,
     executeSearch,
@@ -21,6 +22,7 @@ export function SearchResults() {
     <SearchResultsPane
       query={query}
       results={results}
+      status={status}
       loading={loading}
       error={error}
       activeResultId={activeResultId}
