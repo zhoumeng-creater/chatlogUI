@@ -97,6 +97,18 @@ P2 不做这些事情：
 - 如果 graph 只有可视化 demo，不让它遮挡聊天主流程；给出独立模块入口和可恢复空状态。
 - 如果窄屏无法同时展示三栏，就改成 list/detail/drawer，而不是强行缩小三栏。
 
+## 5.4 2026-05-30 P2-B Remediation Handoff
+
+P2-B comprehensive remediation closed the core workbench privacy, virtualization, architecture-boundary, search-state, setup-form, favicon, and dev-port gaps tracked in the 2026-05-30 review.
+
+Remaining P2 work is intentionally split:
+
+- P2-C: settings, setup diagnostics, credential UX, and redaction consistency.
+- P2-D: AI and graph containment, including the lazy `GraphModule` chunk-size warning.
+- P2-E: repeatable browser visual QA and accessibility evidence.
+
+Do not fold those cross-module cleanups back into P2-B unless a bug directly blocks the core chat/search/stats workbench path.
+
 ## 6. 新设计系统规格
 
 ### 6.1 CSS token 文件

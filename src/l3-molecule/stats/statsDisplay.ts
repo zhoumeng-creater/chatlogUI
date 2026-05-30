@@ -6,6 +6,12 @@ export interface MetricRowData {
   description: string;
 }
 
+type TopSender = AdaptedStats["topSenders"][number];
+
+function maskDisplayText(value: string): string {
+  return value.replace(/[^\s]/g, "*");
+}
+
 export function buildMetricRows(stats: AdaptedStats): MetricRowData[] {
   return [
     {
@@ -48,4 +54,13 @@ export function shouldUseTrendTable(data: TrendDataPoint[], inspectorWidth: numb
 export function summarizeTrendRange(data: TrendDataPoint[]): string {
   if (data.length === 0) return "没有趋势数据";
   return `${data[0].date} 至 ${data[data.length - 1].date}`;
+}
+
+export function formatTopSenderLabel(sender: TopSender, privacyOn = false): string {
+  const label = sender.display || sender.sender;
+  return privacyOn ? maskDisplayText(label) : label;
+}
+
+export function formatTopSenderAvatarAlt(sender: TopSender, privacyOn = false): string {
+  return privacyOn ? "已隐藏活跃联系人头像" : (sender.display || sender.sender);
 }

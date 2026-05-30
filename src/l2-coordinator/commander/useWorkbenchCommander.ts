@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
+import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
-import { useSearchStore } from "@l2/data-clerk/stores/useSearchStore";
+import { useSearchStore, type SearchResults } from "@l2/data-clerk/stores/useSearchStore";
+import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { useAiCommander } from "./useAiCommander";
 import { useChatCommander } from "./useChatCommander";
 import { useGraphCommander } from "./useGraphCommander";
 import { useSearchCommander } from "./useSearchCommander";
 import { useStatsCommander } from "./useStatsCommander";
-import { getWorkbenchLayout } from "@l3/workbench/workbenchLayout";
+import { getWorkbenchLayout } from "./workbenchLayout";
 import {
   getInspectorTitle,
   isInspectorModule,
@@ -38,6 +40,7 @@ export function useWorkbenchCommander() {
   const appPhase = useAppStore((state) => state.appPhase);
   const sidecarStatus = useAppStore((state) => state.sidecarStatus);
   const errorMessage = useAppStore((state) => state.errorMessage);
+  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
 
   const chat = useChatCommander();
   const search = useSearchCommander();
@@ -143,6 +146,63 @@ export function useWorkbenchCommander() {
     setActiveModule("chat");
   }, []);
 
+  const openConversation = useCallback(
+    (conversation: Conversation) => {
+      void selectAndLoad(conversation.id, conversation.username);
+      setSinglePaneView("detail");
+      setActiveModule("chat");
+    },
+    [selectAndLoad],
+  );
+
+  const retryMessages = useCallback(() => {
+    if (currentChat) {
+      void chat.loadHistory(currentChat);
+    }
+  }, [chat, currentChat]);
+
+  const loadMoreMessages = useCallback(() => {
+    if (currentChat) {
+      void chat.loadMoreHistory(currentChat);
+    }
+  }, [chat, currentChat]);
+
+  const openSearchResult = useCallback(
+    (message: SearchResults["messages"][number]) => {
+      const chatKey = message.username || message.chat;
+      if (!chatKey) return;
+
+      useSearchStore.getState().setActiveResultId(message.id);
+
+      const matchedConversation = useChatStore.getState().conversations.find(
+        (conversation) =>
+          conversation.id === chatKey ||
+          conversation.username === chatKey ||
+          conversation.displayName === message.chat,
+      );
+
+      if (!matchedConversation) {
+        useSearchStore.getState().setNavigationNotice("未在当前会话列表中找到该搜索结果对应的会话。");
+        return;
+      }
+
+      void (async () => {
+        await selectAndLoad(matchedConversation.id, matchedConversation.username);
+        const loadedTarget = useChatStore.getState().messages.some(
+          (loadedMessage) => loadedMessage.id === message.id,
+        );
+        if (!loadedTarget) {
+          useSearchStore.getState().setNavigationNotice(
+            "已打开对应会话，但目标消息不在当前加载页。请加载更早消息继续定位。",
+          );
+        }
+      })();
+      setSinglePaneView("detail");
+      setActiveModule("chat");
+    },
+    [selectAndLoad],
+  );
+
   const selectModule = useCallback(
     (module: WorkbenchModule) => {
       setActiveModule(module);
@@ -183,6 +243,7 @@ export function useWorkbenchCommander() {
     stats,
     ai,
     graph,
+    privacyOn,
     layout,
     activeModule,
     inspectorModule,
@@ -194,6 +255,10 @@ export function useWorkbenchCommander() {
     inspectorTitle: getInspectorTitle(inspectorModule),
     openConversationList,
     handleConversationOpened,
+    openConversation,
+    retryMessages,
+    loadMoreMessages,
+    openSearchResult,
     selectModule,
     retryStats,
     closeInspector: () => setInspectorOpen(false),

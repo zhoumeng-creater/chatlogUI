@@ -269,3 +269,51 @@
 - 收尾整理当前工作区：保留源码、规划、Spec Kit、opencode、agent workflow 根目录安装文件和 `.gitignore-additions.txt`；忽略 `.playwright-cli/`、Python `__pycache__/`、`.specify/tmp/`、`.specify/cache/` 和解压后的 `chatlogUI-agent-workflow-kit/` 副本。
 - 已更新 `.gitignore`，避免提交浏览器自动化快照、缓存、coverage/test result 和重复 workflow kit 包目录。
 - 遇到一次 Git 参数兼容错误：`git status --ignored=.matching` 在当前 Git 版本不可用；改用 `git status --short --ignored` 完成检查。
+
+## 2026-05-30 P2-B Comprehensive Review Documentation
+
+- 已加载并采用相关技能：using-superpowers、planning-with-files、writing-plans、frontend-code-review、frontend-design、ui-acceptance、app-productization、release-gate、ui-ux-pro-max、verification-before-completion。
+- 技能路径错误记录：第一次读取 `using-superpowers` 时误用 `C:/Users/15995/.agents/...`，该路径不存在；随后改用项目技能根 `E:/OneDrive - Default Directory/chatlogUI/.agents/skills/...` 成功读取。
+- 已运行 planning-with-files session catchup；未输出需要同步的历史上下文。
+- 已重新读取 `task_plan.md`、`findings.md`、`progress.md`，确认当前审查应追加记录而不是覆盖既有 P2/P2-B 规划。
+- 已运行 UI/UX 设计系统查询，结论继续采用信息密集、专业桌面工具方向，重点关注 accessibility、触控目标、响应式、virtualized list、表格 fallback 和无 emoji structural icons。
+- 已检查 `vite.config.ts` 与 `src-tauri/tauri.conf.json`，确认 canonical dev server 当前硬编码为 1420/1421；这解释了本机 Windows excluded port range 下的 dev server EACCES 问题。
+- 已创建 `docs/reviews/2026-05-30-p2-b-comprehensive-review.md`，记录全部发现、证据、影响和要求结果。
+- 已创建 `docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md`，按 privacy、long-history、architecture、stats、setup/form、search、legacy UI、release evidence、dev port 和最终验证拆解修复计划。
+- 已追加 `findings.md` 记录 P2-B 综合审查发现。
+- 文档自查：两个新文档均存在；关键章节 `R1/R2/R3/R12`、`Task 1/Task 2/Task 9`、`Final Verification` 可检索；新审查记录和新修复计划的占位词扫描无命中。
+
+## 2026-05-30 P2-B Comprehensive Remediation Implementation
+
+- 已加载并采用相关技能：using-superpowers、brainstorming（判定为执行既有计划，无需新增设计审批）、chatlog-debug、systematic-debugging、planning-with-files、executing-plans、test-driven-development、using-git-worktrees、app-productization、ui-acceptance、frontend-design、sidecar-integration、verification-before-completion、requesting-code-review、code-simplifier。
+- 已按 `using-git-worktrees` 创建隔离分支 `codex/p2-b-comprehensive-remediation`，worktree 路径为 `.worktrees/p2-b-comprehensive-remediation`。
+- 已同步 `task_plan.md`、`findings.md`、`progress.md`、`docs/reviews/2026-05-30-p2-b-comprehensive-review.md` 和 `docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md` 到新 worktree，作为本轮修复依据。
+- 已读取并参考：AGENTS、`开发指南.md`、`docs/总体开发规划.md`、`docs/ui-functional-audit-and-redesign-plan.md`、P0/P1/P2/P2-B/Code Review/P2-B 综合修复计划、ready-desktop-app spec/plan/data-model/research/quickstart/contracts/checklists，以及历史 Sprint 1/2/3/4/5/6 文档标题和相关范围。
+- 基线扫描第一次使用正则命令失败：`rg` 报告 unclosed group；随后改用固定字符串分项扫描，确认 R1/R5/R7 命中仍存在。
+- 依赖安装：`pnpm install` PASS（新 worktree 无 `node_modules`，lockfile 未变化）。
+- Task 0 基线：`pnpm typecheck` PASS；`pnpm test` PASS（123 tests / 19 files）。
+- Task 1 RED：`pnpm test src/l3-molecule/chat/conversationDisplay.test.ts` 失败于 privacy a11y label 仍返回 raw `Alice Private`，且缺少 `formatConversationAvatarAlt()`。
+- Task 1 GREEN：`formatConversationA11yLabel(conversation, privacyOn)` 与 `formatConversationAvatarAlt()` 已接入 `ConversationRow`，`pnpm test src/l3-molecule/chat/conversationDisplay.test.ts` PASS（8 tests / 1 file），`pnpm typecheck` PASS。
+- Task 1 follow-up RED/GREEN：扫描 hidden surfaces 时发现 `TopContactCard` 的 sender avatar alt/label 仍可能泄露身份；新增 `statsDisplay` privacy helper 测试先失败于缺少 helper，补齐 `formatTopSenderLabel()`、`formatTopSenderAvatarAlt()` 并接入后 `pnpm test src/l3-molecule/stats/statsDisplay.test.ts` PASS（4 tests / 1 file），`pnpm typecheck` PASS。
+- Task 2 dependency：`pnpm add @tanstack/react-virtual` PASS，新增虚拟化依赖。
+- Task 2 RED：新增 `src/l3-molecule/chat/transcriptRows.test.ts`，`pnpm test src/l3-molecule/chat/transcriptRows.test.ts` 失败于缺少 `./transcriptRows`。
+- Task 2 GREEN：新增 `transcriptRows.ts`，实现 `buildTranscriptRows()` 和 `estimateTranscriptRowHeight()`；`pnpm test src/l3-molecule/chat/transcriptRows.test.ts` PASS（3 tests / 1 file）。
+- Task 2 implementation：`MessageList` 改用 `useVirtualizer()` 渲染可视 transcript rows，保留 `加载更早消息`、初始 loading、error、empty 和 all-loaded 状态。
+- Task 2 verification：`pnpm test src/l3-molecule/chat/transcriptRows.test.ts src/l3-molecule/chat/transcriptDisplay.test.ts` PASS（8 tests / 2 files）；`pnpm typecheck` PASS。
+- Task 3 implementation：`ConversationList`、`ChatView`、`MessageList`、`GlobalSearch`、`SearchResults`、`SearchResultsPane`、`StatsInspector`、`TopContactCard` 改为 props-first；核心 Workbench 路径的 privacy、chat、search、stats 状态统一从 `useWorkbenchCommander` 下发。
+- Task 3 architecture：将纯布局决策 `workbenchLayout` 从 L3 移至 L2 commander，消除 L2 导入 L3 的反向依赖；新增 `specs/001-ready-desktop-app/architecture-boundary-check.md` 记录扫描命令、结果和剩余兼容例外。
+- Task 3 verification：`pnpm typecheck` PASS；`pnpm test src/l3-molecule/chat/conversationDisplay.test.ts src/l3-molecule/chat/transcriptRows.test.ts src/l3-molecule/chat/transcriptDisplay.test.ts src/l2-coordinator/commander/workbenchViewModel.test.ts src/l2-coordinator/commander/searchSession.test.ts src/l2-coordinator/commander/searchRequest.test.ts` PASS（30 tests / 6 files）；`pnpm test src/l2-coordinator/commander/workbenchLayout.test.ts src/l2-coordinator/commander/workbenchViewModel.test.ts` PASS（10 tests / 2 files）。
+- Task 3 scan：`rg -n "from \"@l3|from './?\.\./l3|@l3/" src/l2-coordinator -S` 无命中；核心 L3 扫描只剩 L2 type-only imports 和 `ContactList.tsx` 兼容 adapter 的 store/commander 命中，active Workbench route 不再使用该 adapter。
+- Task 4 implementation：`StatsInspector` 使用 `ResizeObserver` 测量真实 inspector 宽度，并把 `inspectorWidth` 传给 `TrendChart`；新增窄宽度 helper 断言。
+- Task 4 verification：`pnpm test src/l3-molecule/stats/statsDisplay.test.ts` PASS（4 tests / 1 file）；`pnpm typecheck` PASS。
+- Task 5 implementation：`ConfigImportPanel` 与 `ServiceControlPanel` 的 command buttons 改用 `Button` primitive；`DataSettings`、`AIModelSettings`、`ManualAdvancedConfigPanel`、`semantic/SetupWizard` 的 credential/password inputs 加入 form scope、`name` 和 `autoComplete`；新增 `public/favicon.svg` 并在 `index.html` 声明。
+- Task 5 verification：`pnpm typecheck` PASS；扫描确认 password inputs 位于对应 form 文件中，`index.html` 包含 favicon link 且 `public/favicon.svg` 存在。
+- Task 6 implementation：`useSearchStore` 新增 `SearchStatus = idle | invalid | loading | ready | empty | error | cancelled` 和 navigation notice；`useSearchCommander` 对 blank query 进入 invalid 而不请求后端，Escape/clear 进入 cancelled；`SearchResultsPane` 渲染 invalid/cancelled/loading/empty/error/ready；搜索结果点击无法定位会话或目标消息不在当前加载页时显示诚实提示。
+- Task 6 verification：`pnpm test src/l2-coordinator/data-clerk/stores/useSearchStore.test.ts src/l2-coordinator/commander/searchRequest.test.ts src/l2-coordinator/commander/searchSession.test.ts` PASS（13 tests / 3 files）；`pnpm typecheck` PASS。
+- Task 7 implementation：新增 P2-C/P2-D/P2-E follow-up plans，明确 settings/diagnostics、AI/Graph containment、visual QA/accessibility 的剩余债务；P2 总计划追加 P2-B remediation handoff。
+- Task 8 implementation：新增 `specs/001-ready-desktop-app/release-evidence.md` 和 `docs/release/ready-desktop-app.md`，并仅将已创建的 T003/T009 标记为完成，最终 release gate 仍待验证。
+- Task 9 implementation：canonical dev URL 从 `localhost:1420` 改为 `localhost:5173`，HMR websocket 从 `1421` 改为 `5174`；同步 `vite.config.ts`、`src-tauri/tauri.conf.json` CSP、`AGENTS.md` 和相关审计文档。
+- Final verification：首次 `pnpm verify` 因嵌套 worktree 同时加载当前与父目录 `.eslintrc.cjs` 导致 `react-hooks` 插件重复失败；已在当前 `.eslintrc.cjs` 加 `root: true`，重跑后 `pnpm verify` PASS（133 tests / 21 files，build PASS，保留 lazy `GraphModule` 1,034.78 kB warning）。
+- Rust/Tauri verification：首次 `cargo test` 因新 worktree 缺少 gitignored `src-tauri/binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe` 失败；从主工作区复制本地 ignored sidecar binary 后 `cargo test` PASS（16 tests），`pnpm tauri build` PASS 并生成 MSI/NSIS。
+- Browser smoke：启动 `http://127.0.0.1:5173` dev server 后用 Playwright CLI 检查 `/`、`/workbench`、`/settings` 在 1440/1180/900/768/390 宽度下 `overflow=false`、`controlsOverflow=0`；`/` 与 `/settings` password inputs 均 `passwordNotForm=0`；console error 0；favicon.svg 请求 200。
+- Browser component smoke：10,000-message synthetic transcript 在受限容器中只渲染 18 个 virtual rows / 17 个 message rows；`SearchResultsPane` 的 invalid/cancelled/empty/error/ready navigation notice 文案均可见。

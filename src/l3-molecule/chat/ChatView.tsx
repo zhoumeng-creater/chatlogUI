@@ -1,21 +1,52 @@
-import { useChatCommander } from "@l2/commander/";
-import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
+import type { ChatMessage, Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
 import { MessageList } from "./MessageList";
 import { TranscriptHeader } from "./TranscriptHeader";
 
-export function ChatView() {
-  const { selectedConversationId, messagesTotalCount } = useChatCommander();
-  const conversations = useChatStore((state) => state.conversations);
-  const currentConv = conversations.find(
-    (conversation) => conversation.id === selectedConversationId,
-  );
+interface ChatViewProps {
+  conversation: Conversation | null;
+  totalCount: number;
+  messages: ChatMessage[];
+  messagesLoading: boolean;
+  messagesHasMore: boolean;
+  messagesStatus: LoadStatus;
+  messagesError: string | null;
+  privacyOn: boolean;
+  onRetryMessages: () => void;
+  onLoadMoreMessages: () => void;
+}
 
+export function ChatView({
+  conversation,
+  totalCount,
+  messages,
+  messagesLoading,
+  messagesHasMore,
+  messagesStatus,
+  messagesError,
+  privacyOn,
+  onRetryMessages,
+  onLoadMoreMessages,
+}: ChatViewProps) {
   return (
     <div className="transcript">
-      {currentConv && (
-        <TranscriptHeader conversation={currentConv} totalCount={messagesTotalCount} />
+      {conversation && (
+        <TranscriptHeader
+          conversation={conversation}
+          totalCount={totalCount}
+          privacyOn={privacyOn}
+        />
       )}
-      <MessageList />
+      <MessageList
+        conversation={conversation}
+        messages={messages}
+        messagesLoading={messagesLoading}
+        messagesHasMore={messagesHasMore}
+        messagesStatus={messagesStatus}
+        messagesError={messagesError}
+        privacyOn={privacyOn}
+        onRetry={onRetryMessages}
+        onLoadMore={onLoadMoreMessages}
+      />
     </div>
   );
 }

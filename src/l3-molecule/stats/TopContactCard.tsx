@@ -1,11 +1,13 @@
 import { Avatar, Surface, Typography } from "@l4/ui";
 import type { AdaptedStats } from "@l2/data-clerk/stores/useStatsStore";
+import { formatTopSenderAvatarAlt, formatTopSenderLabel } from "./statsDisplay";
 
 interface TopContactCardProps {
   topSenders: AdaptedStats["topSenders"];
+  privacyOn: boolean;
 }
 
-export function TopContactCard({ topSenders }: TopContactCardProps) {
+export function TopContactCard({ topSenders, privacyOn }: TopContactCardProps) {
   if (!topSenders || topSenders.length === 0) return null;
 
   const top10 = [...topSenders]
@@ -19,20 +21,25 @@ export function TopContactCard({ topSenders }: TopContactCardProps) {
       </Typography>
 
       <div className="stats-sender-list">
-        {top10.map((item, index) => (
-          <div key={item.sender} className="stats-sender-row">
-            <Typography variant="body" color="var(--text-muted)" weight={700} className="stats-sender-rank">
-              {index + 1}
-            </Typography>
-            <Avatar alt={item.display || item.sender} size={32} fallback={(item.display || item.sender).slice(0, 2)} />
-            <Typography variant="body" color="var(--text-primary)" className="stats-sender-name">
-              {item.display || item.sender}
-            </Typography>
-            <Typography variant="label" color="var(--text-secondary)" weight={700}>
-              {item.count.toLocaleString()}
-            </Typography>
-          </div>
-        ))}
+        {top10.map((item, index) => {
+          const label = formatTopSenderLabel(item, privacyOn);
+          const avatarAlt = formatTopSenderAvatarAlt(item, privacyOn);
+
+          return (
+            <div key={item.sender} className="stats-sender-row">
+              <Typography variant="body" color="var(--text-muted)" weight={700} className="stats-sender-rank">
+                {index + 1}
+              </Typography>
+              <Avatar alt={avatarAlt} size={32} fallback={label.slice(0, 2)} />
+              <Typography variant="body" color="var(--text-primary)" className="stats-sender-name">
+                {label}
+              </Typography>
+              <Typography variant="label" color="var(--text-secondary)" weight={700}>
+                {item.count.toLocaleString()}
+              </Typography>
+            </div>
+          );
+        })}
       </div>
     </Surface>
   );

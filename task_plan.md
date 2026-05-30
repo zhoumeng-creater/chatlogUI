@@ -185,3 +185,28 @@
 - [x] B8: lint/typecheck/test/build 和浏览器 smoke
 - **Status:** complete
 - **规划文档:** docs/superpowers/plans/2026-05-29-p2-b-core-workbench-polish.md
+
+### Phase 16: P2-B 综合审查与修复计划
+- [x] 对照 P2-B、P2 总规划、开发指南、总体规划和 ready-desktop-app spec 审查当前代码
+- [x] 记录 privacy、long-history、architecture、UI consistency、productization、release-gate 和 dev-port 问题
+- [x] 新建综合审查记录：`docs/reviews/2026-05-30-p2-b-comprehensive-review.md`
+- [x] 新建完整修复计划：`docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md`
+- **Status:** complete
+
+### Phase 17: P2-B Comprehensive Remediation Implementation
+- [x] 建立隔离 worktree：`.worktrees/p2-b-comprehensive-remediation`
+- [x] 同步 P2-B 综合审查记录、完整修复计划和 planning 文件上下文
+- [x] 读取 AGENTS、开发指南、总体规划、P0/P1/P2/P2-B、ready-desktop-app spec/contracts/checklists 和历史 Sprint 文档索引
+- [x] Task 0: 基线验证 (`pnpm typecheck` PASS, `pnpm test` PASS 123/123)
+- [x] Task 1: privacy-safe accessibility surfaces
+- [x] Task 2: virtualized long-history transcript
+- [x] Task 3: core workbench architecture boundary cleanup
+- [x] Task 4: real stats inspector width fallback
+- [x] Task 5: setup and credential UI accessibility polish
+- [x] Task 6: product-complete search states and honest result navigation
+- [x] Task 7: P2-C/P2-D/P2-E legacy UI and performance follow-up
+- [x] Task 8: productization and release evidence
+- [x] Task 9: dev port reliability
+- [x] Final verification: lint/typecheck/test/build, product commands as applicable, browser matrix
+- **Status:** complete
+- **规划文档:** docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md

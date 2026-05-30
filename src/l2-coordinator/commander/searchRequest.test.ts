@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { SearchResults } from "./searchRequest";
-import { createSearchRequest, getNextSearchOffset, mergeSearchResults, toSearchMessageType } from "./searchRequest";
+import {
+  createSearchRequest,
+  getNextSearchOffset,
+  isValidSearchKeyword,
+  mergeSearchResults,
+  toSearchMessageType,
+} from "./searchRequest";
 
 function createMessage(seq: number): SearchResults["messages"][number] {
   return {
@@ -21,6 +27,12 @@ describe("search request helpers", () => {
       limit: 20,
       offset: 0,
     });
+  });
+
+  it("rejects blank search keywords before network request creation", () => {
+    expect(isValidSearchKeyword("")).toBe(false);
+    expect(isValidSearchKeyword("   ")).toBe(false);
+    expect(isValidSearchKeyword(" 合同 ")).toBe(true);
   });
 
   it("maps image filter to msg_type 3", () => {

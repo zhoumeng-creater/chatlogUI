@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
 import {
   filterConversations,
+  formatConversationAvatarAlt,
   formatConversationA11yLabel,
   getConversationBadge,
   getConversationEmptyMessage,
@@ -82,6 +83,23 @@ describe("conversationDisplay", () => {
       unread: 0,
       timeLabel: "",
     }))).toBe("李四");
+  });
+
+  it("masks conversation accessibility labels when privacy is enabled", () => {
+    expect(formatConversationA11yLabel(conversation({
+      displayName: "Alice Private",
+      unread: 2,
+      timeLabel: "10:30",
+    }), true)).toBe("***** *******，10:30，2 条未读");
+  });
+
+  it("uses non-identifying avatar alt text when privacy is enabled", () => {
+    expect(formatConversationAvatarAlt(conversation({
+      displayName: "Alice Private",
+    }), true)).toBe("已隐藏会话头像");
+    expect(formatConversationAvatarAlt(conversation({
+      displayName: "Alice Private",
+    }), false)).toBe("Alice Private");
   });
 
   it("keeps spaces while masking private text", () => {

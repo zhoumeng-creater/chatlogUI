@@ -1,29 +1,44 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button, Spinner, Typography } from "@l4/ui";
-import { useChatCommander } from "@l2/commander/";
-import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
-import { MessageGroup } from "./MessageGroup";
-import { groupMessagesByDate } from "./transcriptDisplay";
+import type { ChatMessage, Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
+import { MessageBubble } from "./MessageBubble";
+import { buildTranscriptRows, estimateTranscriptRowHeight } from "./transcriptRows";
 
-export function MessageList() {
-  const {
-    selectedConversationId,
-    messages,
-    messagesLoading,
-    messagesHasMore,
-    messagesStatus,
-    messagesError,
-    loadHistory,
-    loadMoreHistory,
-  } = useChatCommander();
+interface MessageListProps {
+  conversation: Conversation | null;
+  messages: ChatMessage[];
+  messagesLoading: boolean;
+  messagesHasMore: boolean;
+  messagesStatus: LoadStatus;
+  messagesError: string | null;
+  privacyOn: boolean;
+  onRetry: () => void;
+  onLoadMore: () => void;
+}
 
-  const conversations = useChatStore((state) => state.conversations);
-  const currentConv = conversations.find((conversation) => conversation.id === selectedConversationId);
-  const activeChat = currentConv?.username || "";
+export function MessageList({
+  conversation,
+  messages,
+  messagesLoading,
+  messagesHasMore,
+  messagesStatus,
+  messagesError,
+  privacyOn,
+  onRetry,
+  onLoadMore,
+}: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const groups = groupMessagesByDate(messages);
+  const rows = useMemo(() => buildTranscriptRows(messages), [messages]);
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: (index) => estimateTranscriptRowHeight(rows[index]),
+    getItemKey: (index) => rows[index]?.id ?? index,
+    overscan: 8,
+  });
 
-  if (!currentConv) {
+  if (!conversation) {
     return (
       <div className="workbench-empty-state">
         <Typography variant="label" weight={700}>
@@ -45,7 +60,7 @@ export function MessageList() {
         <Typography variant="body" color="var(--text-secondary)">
           {messagesError ?? "无法读取该会话的历史消息。"}
         </Typography>
-        <Button variant="secondary" size="sm" onClick={() => void loadHistory(activeChat)}>
+        <Button variant="secondary" size="sm" onClick={onRetry}>
           重试
         </Button>
       </div>
@@ -73,7 +88,7 @@ export function MessageList() {
             variant="secondary"
             size="sm"
             loading={messagesLoading}
-            onClick={() => activeChat && void loadMoreHistory(activeChat)}
+            onClick={onLoadMore}
           >
             加载更早消息
           </Button>
@@ -86,13 +101,41 @@ export function MessageList() {
         </div>
       )}
 
-      {groups.map((group) => (
-        <MessageGroup
-          key={group.dateLabel}
-          dateLabel={group.dateLabel}
-          messages={group.messages}
-        />
-      ))}
+      {rows.length > 0 && (
+        <div
+          className="message-list__virtual-spacer"
+          style={{
+            height: virtualizer.getTotalSize(),
+            position: "relative",
+          }}
+        >
+          {virtualizer.getVirtualItems().map((virtualRow) => {
+            const row = rows[virtualRow.index];
+
+            return (
+              <div
+                key={row.id}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
+                className="message-list__virtual-row"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                {row.kind === "date" ? (
+                  <div className="message-date-divider">{row.dateLabel}</div>
+                ) : (
+                  <MessageBubble message={row.message} privacyOn={privacyOn} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {!messagesHasMore && messages.length > 0 && (
         <div className="message-date-divider">

@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, SkeletonLoader, Typography } from "@l4/ui";
-import { useChatCommander } from "@l2/commander/";
-import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
+import type { Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
 import { ConversationListToolbar } from "./ConversationListToolbar";
 import { ConversationRow } from "./ConversationRow";
 import {
@@ -11,18 +10,24 @@ import {
 } from "./conversationDisplay";
 
 interface ConversationListProps {
-  onConversationOpened?: () => void;
+  conversations: Conversation[];
+  conversationsStatus: LoadStatus;
+  conversationsError: string | null;
+  selectedConversationId: string | null;
+  privacyOn: boolean;
+  onOpenConversation: (conversation: Conversation) => void;
+  onRetry: () => void;
 }
 
-export function ConversationList({ onConversationOpened }: ConversationListProps) {
-  const {
-    conversations,
-    conversationsStatus,
-    conversationsError,
-    selectedConversationId,
-    loadConversations,
-    selectAndLoad,
-  } = useChatCommander();
+export function ConversationList({
+  conversations,
+  conversationsStatus,
+  conversationsError,
+  selectedConversationId,
+  privacyOn,
+  onOpenConversation,
+  onRetry,
+}: ConversationListProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ConversationFilter>("recent");
 
@@ -30,11 +35,6 @@ export function ConversationList({ onConversationOpened }: ConversationListProps
     () => filterConversations(conversations, query, filter),
     [conversations, filter, query],
   );
-
-  const openConversation = (conversation: Conversation) => {
-    void selectAndLoad(conversation.id, conversation.username);
-    onConversationOpened?.();
-  };
 
   return (
     <div className="conversation-list" aria-busy={conversationsStatus === "loading"}>
@@ -55,7 +55,7 @@ export function ConversationList({ onConversationOpened }: ConversationListProps
             <Typography variant="body" color="var(--text-secondary)">
               {conversationsError ?? "无法读取最近会话。"}
             </Typography>
-            <Button variant="secondary" size="sm" onClick={() => void loadConversations()}>
+            <Button variant="secondary" size="sm" onClick={onRetry}>
               重试
             </Button>
           </div>
@@ -76,7 +76,8 @@ export function ConversationList({ onConversationOpened }: ConversationListProps
               <ConversationRow
                 conversation={conversation}
                 selected={conversation.id === selectedConversationId}
-                onOpen={openConversation}
+                privacyOn={privacyOn}
+                onOpen={onOpenConversation}
               />
             </div>
           ))

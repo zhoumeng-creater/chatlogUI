@@ -15,42 +15,48 @@ export function AIModelSettings() {
       <Typography variant="h2">AI 模型</Typography>
 
       <Surface variant="base" className="settings-section">
-        <Field id="settings-ai-provider" label="模型提供商">
-          <SegmentedControl
-            label="模型提供商"
-            value={settings.aiProvider}
-            options={PROVIDERS}
-            onChange={(provider) => updateAndSave({ aiProvider: provider })}
-          />
-        </Field>
-
-        <Field id="settings-ai-endpoint" label="API 端点">
-          <Input
-            id="settings-ai-endpoint"
-            value={settings.aiEndpoint}
-            onChange={(event) => updateAndSave({ aiEndpoint: event.currentTarget.value })}
-          />
-        </Field>
-
-        {settings.aiProvider !== "ollama" && (
-          <Field id="settings-ai-api-key" label="API Key">
-            <Input
-              id="settings-ai-api-key"
-              type="password"
-              value={settings.aiApiKey}
-              onChange={(event) => updateAndSave({ aiApiKey: event.currentTarget.value })}
+        <form className="form-grid" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
+          <Field id="settings-ai-provider" label="模型提供商">
+            <SegmentedControl
+              label="模型提供商"
+              value={settings.aiProvider}
+              options={PROVIDERS}
+              onChange={(provider) => updateAndSave({ aiProvider: provider })}
             />
           </Field>
-        )}
 
-        <Field id="settings-ai-model" label="模型名称">
-          <Input
-            id="settings-ai-model"
-            value={settings.aiModel}
-            onChange={(event) => updateAndSave({ aiModel: event.currentTarget.value })}
-            placeholder={settings.aiProvider === "ollama" ? "llama3" : "模型名称"}
-          />
-        </Field>
+          <Field id="settings-ai-endpoint" label="API 端点">
+            <Input
+              id="settings-ai-endpoint"
+              name="aiEndpoint"
+              value={settings.aiEndpoint}
+              onChange={(event) => updateAndSave({ aiEndpoint: event.currentTarget.value })}
+            />
+          </Field>
+
+          {settings.aiProvider !== "ollama" && (
+            <Field id="settings-ai-api-key" label="API Key">
+              <Input
+                id="settings-ai-api-key"
+                name="aiApiKey"
+                type="password"
+                value={settings.aiApiKey}
+                autoComplete="off"
+                onChange={(event) => updateAndSave({ aiApiKey: event.currentTarget.value })}
+              />
+            </Field>
+          )}
+
+          <Field id="settings-ai-model" label="模型名称">
+            <Input
+              id="settings-ai-model"
+              name="aiModel"
+              value={settings.aiModel}
+              onChange={(event) => updateAndSave({ aiModel: event.currentTarget.value })}
+              placeholder={settings.aiProvider === "ollama" ? "llama3" : "模型名称"}
+            />
+          </Field>
+        </form>
       </Surface>
     </div>
   );

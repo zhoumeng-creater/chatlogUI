@@ -1,38 +1,52 @@
-import { useSearchCommander } from "@l2/commander/";
-import { useChatCommander } from "@l2/commander/";
-import { useSearchStore } from "@l2/data-clerk/stores/useSearchStore";
+import type {
+  SearchResults as SearchResultsData,
+  SearchStatus,
+} from "@l2/data-clerk/stores/useSearchStore";
 import { SearchResultsPane } from "./SearchResultsPane";
 
-export function SearchResults() {
-  const {
-    query,
-    results,
-    loading,
-    error,
-    executeSearch,
-    clearSearch,
-    loadMoreResults,
-  } = useSearchCommander();
-  const { selectAndLoad } = useChatCommander();
-  const activeResultId = useSearchStore((state) => state.activeResultId);
-  const setActiveResultId = useSearchStore((state) => state.setActiveResultId);
+interface SearchResultsProps {
+  query: string;
+  status: SearchStatus;
+  results: SearchResultsData | null;
+  loading: boolean;
+  error: string | null;
+  activeResultId: string | null;
+  navigationNotice: string | null;
+  privacyOn: boolean;
+  onOpenResult: (message: SearchResultsData["messages"][number]) => void;
+  onLoadMore: () => void;
+  onRetry: () => void;
+  onClear: () => void;
+}
 
+export function SearchResults({
+  query,
+  status,
+  results,
+  loading,
+  error,
+  activeResultId,
+  navigationNotice,
+  privacyOn,
+  onOpenResult,
+  onLoadMore,
+  onRetry,
+  onClear,
+}: SearchResultsProps) {
   return (
     <SearchResultsPane
       query={query}
+      status={status}
       results={results}
       loading={loading}
       error={error}
       activeResultId={activeResultId}
-      onOpenResult={(message) => {
-        const chat = message.username || message.chat;
-        if (!chat) return;
-        setActiveResultId(message.id);
-        void selectAndLoad(chat, chat);
-      }}
-      onLoadMore={() => void loadMoreResults()}
-      onRetry={() => executeSearch(query)}
-      onClear={clearSearch}
+      navigationNotice={navigationNotice}
+      privacyOn={privacyOn}
+      onOpenResult={onOpenResult}
+      onLoadMore={onLoadMore}
+      onRetry={onRetry}
+      onClear={onClear}
     />
   );
 }

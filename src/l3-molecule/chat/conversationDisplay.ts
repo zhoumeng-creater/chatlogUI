@@ -51,11 +51,24 @@ export function getConversationBadge(conversation: Conversation): ConversationBa
   return { label: "联系人", tone: "neutral" };
 }
 
-export function formatConversationA11yLabel(conversation: Conversation): string {
-  const parts = [conversation.displayName];
+export function formatConversationA11yLabel(
+  conversation: Conversation,
+  privacyOn = false,
+): string {
+  const displayName = privacyOn
+    ? maskDisplayText(conversation.displayName)
+    : conversation.displayName;
+  const parts = [displayName];
   if (conversation.timeLabel) parts.push(conversation.timeLabel);
   if (conversation.unread > 0) parts.push(`${conversation.unread} 条未读`);
   return parts.join("，");
+}
+
+export function formatConversationAvatarAlt(
+  conversation: Conversation,
+  privacyOn = false,
+): string {
+  return privacyOn ? "已隐藏会话头像" : conversation.displayName;
 }
 
 export function getConversationEmptyMessage(

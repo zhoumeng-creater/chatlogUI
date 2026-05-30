@@ -1,7 +1,7 @@
 import { Avatar, StatusIndicator } from "@l4/ui";
 import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import {
+  formatConversationAvatarAlt,
   formatConversationA11yLabel,
   getConversationBadge,
   maskDisplayText,
@@ -10,31 +10,38 @@ import {
 interface ConversationRowProps {
   conversation: Conversation;
   selected: boolean;
+  privacyOn: boolean;
   onOpen: (conversation: Conversation) => void;
 }
 
-export function ConversationRow({ conversation, selected, onOpen }: ConversationRowProps) {
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+export function ConversationRow({
+  conversation,
+  selected,
+  privacyOn,
+  onOpen,
+}: ConversationRowProps) {
   const badge = getConversationBadge(conversation);
   const displayName = privacyOn
     ? maskDisplayText(conversation.displayName)
     : conversation.displayName;
   const summary = privacyOn ? maskDisplayText(conversation.summary) : conversation.summary;
   const fallback = displayName.slice(0, conversation.isGroup ? 1 : 2);
+  const accessibilityLabel = formatConversationA11yLabel(conversation, privacyOn);
+  const avatarAlt = formatConversationAvatarAlt(conversation, privacyOn);
 
   return (
     <button
       type="button"
       className={`conversation-row${selected ? " conversation-row--selected" : ""}`}
       aria-current={selected ? "true" : undefined}
-      aria-label={formatConversationA11yLabel(conversation)}
+      aria-label={accessibilityLabel}
       onClick={() => onOpen(conversation)}
     >
       <div
         className="conversation-row__avatar"
         style={{ filter: privacyOn ? "blur(7px)" : "none" }}
       >
-        <Avatar alt={conversation.displayName} size={36} fallback={fallback} />
+        <Avatar alt={avatarAlt} size={36} fallback={fallback} />
       </div>
       <span className="conversation-row__main">
         <span className="conversation-row__top">

@@ -1,5 +1,6 @@
 import { useSetupCommander } from "@l2/commander";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
+import { Button } from "@l4/ui/Button";
 import { Typography } from "@l4/ui/Typography";
 
 export function ServiceControlPanel() {
@@ -24,52 +25,57 @@ export function ServiceControlPanel() {
       <Typography variant="h2">服务控制</Typography>
 
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
           type="button"
           onClick={inspectServicePort}
           disabled={loading}
-          className="px-3 py-1.5 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50"
+          variant="secondary"
+          size="sm"
         >
           检查端口
-        </button>
+        </Button>
         {mode === "managed" && (
           <>
-            <button
+            <Button
               type="button"
               onClick={startManagedService}
               disabled={loading || httpReady}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              variant="primary"
+              size="sm"
             >
               启动服务
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={stopManagedService}
               disabled={loading || !httpReady}
-              className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50 disabled:opacity-50"
+              variant="danger"
+              size="sm"
             >
               停止服务
-            </button>
+            </Button>
           </>
         )}
         {mode === "external" && (
-          <button
+          <Button
             type="button"
             onClick={() => connectExternalService(profile?.httpAddr ?? "http://127.0.0.1:5030")}
             disabled={loading}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            variant="primary"
+            size="sm"
           >
             连接外部服务
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           type="button"
           onClick={checkReadiness}
           disabled={loading}
-          className="px-3 py-1.5 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50"
+          variant="secondary"
+          size="sm"
         >
           刷新状态
-        </button>
+        </Button>
       </div>
 
       <div className="grid gap-2 text-sm">

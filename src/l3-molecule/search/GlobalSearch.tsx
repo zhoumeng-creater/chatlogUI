@@ -1,40 +1,48 @@
 import type { CSSProperties, KeyboardEvent } from "react";
 import { Input, Spinner, Typography } from "@l4/ui";
-import { useSearchCommander } from "@l2/commander/";
-import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import type { SearchResults, SearchScope } from "@l2/data-clerk/stores/useSearchStore";
 import { maskDisplayText } from "@l3/chat/conversationDisplay";
 import { SearchScopeMenu } from "./SearchScopeMenu";
 
 interface GlobalSearchProps {
   className?: string;
   style?: CSSProperties;
+  query: string;
+  results: SearchResults | null;
+  loading: boolean;
+  scope: SearchScope;
+  privacyOn: boolean;
+  currentConversationName: string;
+  currentConversationAvailable: boolean;
+  onSearch: (keyword: string) => void;
+  onExecuteSearch: (keyword: string) => void;
+  onClearSearch: () => void;
+  onScopeChange: (scope: SearchScope) => void;
 }
 
-export function GlobalSearch({ className, style }: GlobalSearchProps) {
-  const {
-    query,
-    results,
-    loading,
-    scope,
-    search,
-    executeSearch,
-    clearSearch,
-    changeScope,
-  } = useSearchCommander();
-  const selectedConversationId = useChatStore((state) => state.selectedConversationId);
-  const conversations = useChatStore((state) => state.conversations);
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const currentConversation = conversations.find((item) => item.id === selectedConversationId);
+export function GlobalSearch({
+  className,
+  style,
+  query,
+  results,
+  loading,
+  scope,
+  privacyOn,
+  currentConversationName,
+  currentConversationAvailable,
+  onSearch,
+  onExecuteSearch,
+  onClearSearch,
+  onScopeChange,
+}: GlobalSearchProps) {
   const resultCount = results?.totalCount ?? 0;
-  const currentConversationName = currentConversation?.displayName ?? "当前会话";
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
-      executeSearch(event.currentTarget.value);
+      onExecuteSearch(event.currentTarget.value);
     }
     if (event.key === "Escape") {
-      clearSearch();
+      onClearSearch();
     }
   };
 
@@ -47,7 +55,7 @@ export function GlobalSearch({ className, style }: GlobalSearchProps) {
             aria-label="搜索聊天记录"
             placeholder="搜索聊天记录"
             value={query}
-            onChange={(event) => search(event.currentTarget.value)}
+            onChange={(event) => onSearch(event.currentTarget.value)}
             onKeyDown={handleKeyDown}
           />
           {loading && (
@@ -68,8 +76,8 @@ export function GlobalSearch({ className, style }: GlobalSearchProps) {
           currentConversationName={privacyOn
             ? maskDisplayText(currentConversationName)
             : currentConversationName}
-          currentConversationAvailable={Boolean(currentConversation)}
-          onChange={changeScope}
+          currentConversationAvailable={currentConversationAvailable}
+          onChange={onScopeChange}
         />
       </div>
       {resultCount > 0 && (

@@ -1,14 +1,16 @@
 import { Button, Typography } from "@l4/ui";
-import type { SearchResults } from "@l2/data-clerk/stores/useSearchStore";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import type { SearchResults, SearchStatus } from "@l2/data-clerk/stores/useSearchStore";
 import { maskDisplayText } from "@l3/chat/conversationDisplay";
 
 interface SearchResultsPaneProps {
   query: string;
+  status: SearchStatus;
   results: SearchResults | null;
   loading: boolean;
   error: string | null;
   activeResultId: string | null;
+  navigationNotice: string | null;
+  privacyOn: boolean;
   onOpenResult: (message: SearchResults["messages"][number]) => void;
   onLoadMore: () => void;
   onRetry: () => void;
@@ -26,18 +28,44 @@ function formatSearchTime(message: SearchResults["messages"][number]): string {
 
 export function SearchResultsPane({
   query,
+  status,
   results,
   loading,
   error,
   activeResultId,
+  navigationNotice,
+  privacyOn,
   onOpenResult,
   onLoadMore,
   onRetry,
   onClear,
 }: SearchResultsPaneProps) {
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+  if (status === "idle") return null;
 
-  if (error) {
+  if (status === "invalid") {
+    return (
+      <div className="workbench-empty-state" role="status">
+        <Typography variant="label" weight={700}>
+          输入关键词后搜索。
+        </Typography>
+        <Typography variant="body" color="var(--text-secondary)">
+          输入至少一个非空字符后按 Enter，或等待自动搜索。
+        </Typography>
+      </div>
+    );
+  }
+
+  if (status === "cancelled") {
+    return (
+      <div className="workbench-empty-state" role="status">
+        <Typography variant="label" weight={700}>
+          搜索已取消。
+        </Typography>
+      </div>
+    );
+  }
+
+  if (error || status === "error") {
     return (
       <div className="workbench-error-state" role="alert">
         <Typography variant="label" weight={700}>
@@ -58,13 +86,23 @@ export function SearchResultsPane({
     );
   }
 
+  if (loading && !results) {
+    return (
+      <div className="workbench-empty-state" role="status" aria-live="polite">
+        <Typography variant="label" weight={700}>
+          正在搜索...
+        </Typography>
+      </div>
+    );
+  }
+
   if (!results) return null;
 
-  if (results.messages.length === 0 && query.trim()) {
+  if (status === "empty" || (results.messages.length === 0 && query.trim())) {
     return (
       <div className="workbench-empty-state">
         <Typography variant="label" weight={700}>
-          没有搜索结果
+          没有找到匹配消息。
         </Typography>
         <Typography variant="body" color="var(--text-secondary)">
           换一个关键词或放宽搜索范围。
@@ -77,6 +115,13 @@ export function SearchResultsPane({
 
   return (
     <div className="search-result-pane" role="list" aria-label="搜索结果">
+      {navigationNotice && (
+        <div className="workbench-empty-state" role="status" aria-live="polite">
+          <Typography variant="body" color="var(--text-secondary)">
+            {navigationNotice}
+          </Typography>
+        </div>
+      )}
       {results.messages.map((message) => {
         const active = message.id === activeResultId;
         const label = message.sender || message.chat || message.username;

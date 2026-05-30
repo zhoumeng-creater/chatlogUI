@@ -23,7 +23,7 @@
 - `pnpm build` 通过，但 `GraphCanvas` chunk 约 1 MB，存在首屏和懒加载压力。
 - `pnpm test` 通过，当前测试只覆盖少量 helper/状态逻辑，不能证明业务流程可用。
 - `cargo test` 通过，Rust 侧测试没有覆盖真实 sidecar 配置组合。
-- 浏览器打开 `http://localhost:1420` 后停在“未找到微信数据目录”。
+- 浏览器打开本地前端开发服务后停在“未找到微信数据目录”；P2-B 综合修复后 canonical dev URL 为 `http://localhost:5173`。
 - “跳过”按钮会跳转 `/dashboard`，但 `DashboardView` 又因为 `appPhase !== "ready"` 重定向回 `/`，实际不可用。
 - 设置页默认打开 AI 模型设置，而不是数据/服务初始化设置。
 - 本地 sidecar 日志出现过 `start db failed: unsupported platform:  v0`，与配置参数缺失直接相关。

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Button, Typography } from "@l4/ui";
 import type { AdaptedStats, TrendDataPoint } from "@l2/data-clerk/stores/useStatsStore";
 import { DashboardOverview } from "./DashboardOverview";
@@ -10,10 +11,13 @@ interface StatsInspectorProps {
   trend: TrendDataPoint[];
   loading: boolean;
   error: string | null;
+  privacyOn: boolean;
   onRetry: () => void;
   onShowAi: () => void;
   onOpenGraph: () => void;
 }
+
+const DEFAULT_INSPECTOR_WIDTH = 320;
 
 export function StatsInspector({
   currentChat,
@@ -21,12 +25,40 @@ export function StatsInspector({
   trend,
   loading,
   error,
+  privacyOn,
   onRetry,
   onShowAi,
   onOpenGraph,
 }: StatsInspectorProps) {
+  const inspectorRef = useRef<HTMLElement>(null);
+  const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
+
+  useEffect(() => {
+    const element = inspectorRef.current;
+    if (!element) return undefined;
+
+    const updateWidth = (width: number) => {
+      if (!Number.isFinite(width) || width <= 0) return;
+      const rounded = Math.round(width);
+      setInspectorWidth((current) => (current === rounded ? current : rounded));
+    };
+
+    updateWidth(element.getBoundingClientRect().width);
+
+    if (typeof ResizeObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      updateWidth(entries[0]?.contentRect.width ?? element.getBoundingClientRect().width);
+    });
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <aside className="stats-inspector" aria-label="统计 inspector">
+    <aside ref={inspectorRef} className="stats-inspector" aria-label="统计 inspector">
       <div className="stats-inspector__header">
         <Typography variant="label" weight={700}>
           统计数据
@@ -65,8 +97,8 @@ export function StatsInspector({
       ) : (
         <>
           <DashboardOverview stats={stats} loading={loading} />
-          <TrendChart data={trend} />
-          {stats && <TopContactCard topSenders={stats.topSenders} />}
+          <TrendChart data={trend} inspectorWidth={inspectorWidth} />
+          {stats && <TopContactCard topSenders={stats.topSenders} privacyOn={privacyOn} />}
         </>
       )}
     </aside>

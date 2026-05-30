@@ -34,7 +34,14 @@ export function ManualAdvancedConfigPanel() {
 
   return (
     <Surface variant="base" className="settings-section">
-      <div className="settings-stack">
+      <form
+        className="settings-stack"
+        autoComplete="off"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSave();
+        }}
+      >
         <div>
           <Typography variant="h2">高级手动配置</Typography>
           <Typography variant="body" color="var(--text-secondary)">
@@ -46,6 +53,7 @@ export function ManualAdvancedConfigPanel() {
           <Field id="manual-data-dir" label="数据目录 *">
             <Input
               id="manual-data-dir"
+              name="dataDir"
               type="text"
               value={form.dataDir ?? ""}
               onChange={(event) => update("dataDir", event.currentTarget.value)}
@@ -56,6 +64,7 @@ export function ManualAdvancedConfigPanel() {
           <Field id="manual-work-dir" label="工作目录">
             <Input
               id="manual-work-dir"
+              name="workDir"
               type="text"
               value={form.workDir ?? ""}
               onChange={(event) => update("workDir", event.currentTarget.value)}
@@ -77,6 +86,7 @@ export function ManualAdvancedConfigPanel() {
             <Field id="manual-version" label="版本号 *">
               <Input
                 id="manual-version"
+                name="version"
                 type="number"
                 value={form.version ?? 4}
                 onChange={(event) => update("version", Number(event.currentTarget.value))}
@@ -87,6 +97,7 @@ export function ManualAdvancedConfigPanel() {
           <Field id="manual-full-version" label="完整版本号 *">
             <Input
               id="manual-full-version"
+              name="fullVersion"
               type="text"
               value={form.fullVersion ?? ""}
               onChange={(event) => update("fullVersion", event.currentTarget.value)}
@@ -98,8 +109,10 @@ export function ManualAdvancedConfigPanel() {
             <div className="settings-inline">
               <Input
                 id="manual-data-key"
+                name="dataKey"
                 type={showKey ? "text" : "password"}
                 value={form.dataKey ?? ""}
+                autoComplete="off"
                 onChange={(event) => update("dataKey", event.currentTarget.value)}
                 placeholder="64位十六进制密钥"
               />
@@ -112,8 +125,10 @@ export function ManualAdvancedConfigPanel() {
           <Field id="manual-img-key" label="Image Key">
             <Input
               id="manual-img-key"
+              name="imgKey"
               type="password"
               value={form.imgKey ?? ""}
+              autoComplete="off"
               onChange={(event) => update("imgKey", event.currentTarget.value)}
             />
           </Field>
@@ -121,6 +136,7 @@ export function ManualAdvancedConfigPanel() {
           <Field id="manual-http-addr" label="HTTP 地址">
             <Input
               id="manual-http-addr"
+              name="httpAddr"
               type="text"
               value={form.httpAddr ?? "127.0.0.1:5030"}
               onChange={(event) => update("httpAddr", event.currentTarget.value)}
@@ -141,7 +157,7 @@ export function ManualAdvancedConfigPanel() {
         </div>
 
         <div className="settings-actions">
-          <Button variant="primary" onClick={handleSave} loading={loading}>
+          <Button variant="primary" type="submit" loading={loading}>
             保存并验证配置
           </Button>
         </div>
@@ -151,7 +167,7 @@ export function ManualAdvancedConfigPanel() {
             {error}
           </div>
         )}
-      </div>
+      </form>
     </Surface>
   );
 }

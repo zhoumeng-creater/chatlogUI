@@ -1,4 +1,4 @@
-import type { WorkbenchLayout, WorkbenchMode } from "@l3/workbench/workbenchLayout";
+import type { WorkbenchLayout, WorkbenchMode } from "./workbenchLayout";
 
 export type WorkbenchModule = "chat" | "stats" | "ai" | "graph" | "settings";
 export type SinglePaneView = "list" | "detail";

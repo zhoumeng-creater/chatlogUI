@@ -6,7 +6,7 @@ import {
   shouldRenderConversationListAsMain,
   type WorkbenchModule,
 } from "./workbenchViewModel";
-import type { WorkbenchLayout } from "@l3/workbench/workbenchLayout";
+import type { WorkbenchLayout } from "./workbenchLayout";
 
 function layout(mode: WorkbenchLayout["mode"]): WorkbenchLayout {
   return {

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { IconButton, Typography } from "@l4/ui";
-import type { WorkbenchLayout } from "./workbenchLayout";
+import type { WorkbenchLayout } from "@l2/commander/workbenchLayout";
 
 interface WorkbenchFrameProps {
   layout: WorkbenchLayout;

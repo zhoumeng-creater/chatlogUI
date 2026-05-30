@@ -47,6 +47,11 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
     setTesting(false);
   };
 
+  const handleConnectionSubmit = () => {
+    void handleTest();
+    setStep(3);
+  };
+
   const handleSaveAndBuild = async () => {
     setBuildingIndex(true);
     await ai.saveConfig(buildConfig());
@@ -146,7 +151,13 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
         )}
 
         {step === 2 && (
-          <div>
+          <form
+            autoComplete="off"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleConnectionSubmit();
+            }}
+          >
             <Typography variant="body" color="var(--color-text-secondary)" style={{ marginBottom: 16 }}>
               填写连接配置
             </Typography>
@@ -156,6 +167,8 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
                   Ollama 服务地址
                 </Typography>
                 <Input
+                  id="semantic-ollama-url"
+                  name="ollamaBaseUrl"
                   value={ollamaUrl}
                   onChange={(e) => setOllamaUrl(e.target.value)}
                   placeholder="http://localhost:11434"
@@ -169,8 +182,11 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
                     API Key
                   </Typography>
                   <Input
+                    id="semantic-api-key"
+                    name="semanticApiKey"
                     type="password"
                     value={apiKey}
+                    autoComplete="off"
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="输入 API Key"
                   />
@@ -181,6 +197,8 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
                       Base URL (可选)
                     </Typography>
                     <Input
+                      id="semantic-base-url"
+                      name="semanticBaseUrl"
                       value={baseUrl}
                       onChange={(e) => setBaseUrl(e.target.value)}
                       placeholder="https://open.bigmodel.cn/api/paas/v4"
@@ -190,14 +208,14 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
               </>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-              <AppleButton variant="ghost" onClick={() => setStep(1)}>
+              <AppleButton type="button" variant="ghost" onClick={() => setStep(1)}>
                 上一步
               </AppleButton>
               <div style={{ display: 'flex', gap: 8 }}>
-                <AppleButton variant="secondary" onClick={handleTest} disabled={testing}>
+                <AppleButton type="button" variant="secondary" onClick={handleTest} disabled={testing}>
                   {testing ? <Spinner size={14} /> : '测试连接'}
                 </AppleButton>
-                <AppleButton variant="primary" onClick={() => { handleTest(); setStep(3); }} disabled={testing}>
+                <AppleButton type="submit" variant="primary" disabled={testing}>
                   下一步
                 </AppleButton>
               </div>
@@ -218,7 +236,7 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
                 </Typography>
               </div>
             )}
-          </div>
+          </form>
         )}
 
         {step === 3 && (

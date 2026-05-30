@@ -9,7 +9,7 @@
 ## 仓库结构
 - 当前 UI 仓库是 React 18 + Vite 6 + Tauri v2，入口在 `src/main.tsx` / `src/App.tsx`，Tauri 后端在 `src-tauri/src`。
 - 前端使用自定义 L1/L2/L3/L4 分层，组件和 commander/store/network atom 数量较多。
-- `vite.config.ts` 固定开发端口为 1420，Tauri/后端相关端口另在常量和 Rust sidecar 中定义。
+- P2-B 综合修复后，`vite.config.ts`/Tauri devUrl 的前端开发端口改为 5173、HMR 改为 5174；后端 sidecar 仍使用 5030。
 - 项目根下已有 `chatlog/` 目录，外部 `E:\OneDrive - Default Directory\chatlog_alpha` 也存在完整 Go 项目与 `chatlog.exe`。
 
 ## 运行与集成发现
@@ -105,3 +105,23 @@
 - stats inspector 在窄侧栏里更适合 metric rows；当趋势点超过 14 个或 inspector 宽度低于 300px 时应切换为表格 fallback，保证可读和可访问。
 - ready-workbench 浏览器 mock 暴露一个独立运行时问题：`useAiCommander()` 的 current-chat reset effect 依赖整个 Zustand store 对象，`setSearchResults(null)` 会造成 store 对象变化并触发 maximum update depth。修复方式是只依赖 `currentChat`，并通过 `useAiStore.getState()` 取稳定 actions。
 - 本轮浏览器 smoke 覆盖 `/`、`/workbench`、`/settings` 的 1440/1180/900/768/390 宽度；未观察到 horizontal overflow。mock DB ready 状态下桌面 workbench 渲染 2 条会话、3 条 neutral message、6 个 stats metric rows 和 18 行趋势表格 fallback；390 宽度先显示会话列表，选择后进入详情并保留返回会话列表路径。
+
+## 2026-05-30 P2-B 综合审查发现
+- P2-B 核心 workbench polish 已明显推进，但不能判定为满足所有阶段、项目、UI、产品化和发布要求。
+- 隐私模式仍通过非可视 accessibility surface 泄露会话名：`ConversationRow` 的 `aria-label` 与 `Avatar alt` 使用 raw `displayName`，需要和可视文本使用同一 masking policy。
+- 长历史仍只是分页追加，`MessageList` 渲染所有已加载消息；不满足 10,000-message conversation 的产品化验收，需要虚拟列表或等效 bounded-DOM 策略。
+- 当前 L3 仍广泛读取 L2 store/commander，部分 L3 直接调用 L4 system atom；这符合部分既有实现习惯，但不符合 `开发指南.md`/总体规划最严格的 Mediator 边界。
+- Stats 趋势表格 fallback 没有接入真实 inspector 宽度，`TrendChart` 默认使用 `320`，`StatsInspector` 未传入测量值。
+- Setup Center 的 `选择微信数据目录` 仍是 raw Tailwind button，浏览器矩阵中实际目标高度约 20px，和新设计系统/触控目标要求不一致。
+- 密码输入没有 form 语义，浏览器 smoke 输出 password-field-not-in-form 警告；需要修复设置、手动配置、AI/semantic credential 输入。
+- semantic、graph、DevConsole、UpdateNotification 中仍有 legacy `AppleButton`/motion；这属于 P2-C/P2-D/P2-E 的全局 UI 一致性债务。
+- 搜索已经有 scope 和 active result，但还缺 invalid/cancelled 状态，以及目标消息未加载时的诚实跳转说明。
+- `GraphModule` 仍有 >500 kB build warning；当前为 lazy chunk，非 P2-B 阻塞，但需要 P2-D/P2-E 性能记录。
+- Browser smoke 出现 `favicon.ico` 404，应作为 polish 项清理。
+- `vite.config.ts` 与 Tauri devUrl 硬编码 1420/1421；本机 Windows excluded port range 包含 1420，导致 `pnpm dev` 在 canonical port 上失败，应制定 dev port 策略。
+- 完整记录已写入 `docs/reviews/2026-05-30-p2-b-comprehensive-review.md`；完整修复计划已写入 `docs/superpowers/plans/2026-05-30-p2-b-comprehensive-remediation.md`。
+
+## 2026-05-30 P2-B 综合修复实施发现
+- 新 worktree 基线与审查记录一致：`ConversationRow` 的 `aria-label` 和 `Avatar alt` 仍使用 raw displayName；`StatsInspector` 仍未传入真实 inspector 宽度；设置、手动配置和 semantic credential 输入仍存在未包裹表单的 password input。
+- `pnpm typecheck` 与 `pnpm test` 在修复前均通过，说明后续失败测试应能明确指向新增行为而非既有基线破损。
+- 当前实现已包含 P2-B 前一轮成果：会话列表、transcript、search scope、stats helper、WorkbenchView wrapper 等基础可作为修复地基；本轮不应回退到旧 Dashboard/GlassPanel/ContactItem 路径。

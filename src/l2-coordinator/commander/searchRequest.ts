@@ -21,6 +21,10 @@ export function toSearchMessageType(filter: SearchFilterType): string | undefine
   return FILTER_TO_MSG_TYPE[filter];
 }
 
+export function isValidSearchKeyword(keyword: string): boolean {
+  return keyword.trim().length > 0;
+}
+
 export function createSearchRequest({
   keyword,
   filter,

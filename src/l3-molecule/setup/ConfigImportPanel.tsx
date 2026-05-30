@@ -2,6 +2,7 @@ import { useState } from "react";
 import { openDirectoryPicker } from "@l4/system";
 import { useSetupCommander } from "@l2/commander";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
+import { Button } from "@l4/ui/Button";
 import { Typography } from "@l4/ui/Typography";
 
 export function ConfigImportPanel() {
@@ -24,14 +25,9 @@ export function ConfigImportPanel() {
       <p className="text-sm text-gray-500">
         选择包含 chatlog.json 的微信数据目录，应用将自动读取配置信息。
       </p>
-      <button
-        type="button"
-        onClick={handlePickDir}
-        disabled={loading}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-      >
+      <Button type="button" variant="primary" size="md" loading={loading} onClick={handlePickDir}>
         {loading ? "正在读取..." : "选择微信数据目录"}
-      </button>
+      </Button>
       {picked && (
         <p className="text-xs text-gray-400">已选择: {picked}</p>
       )}

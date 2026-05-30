@@ -6,7 +6,12 @@ import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import { fetchSearch } from "@l4/network";
 import { debounce } from "@/l2-coordinator/diplomat/debounce";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
-import { createSearchRequest, getNextSearchOffset, mergeSearchResults } from "./searchRequest";
+import {
+  createSearchRequest,
+  getNextSearchOffset,
+  isValidSearchKeyword,
+  mergeSearchResults,
+} from "./searchRequest";
 import { clearSearchSession } from "./searchSession";
 
 const SEARCH_PAGE_SIZE = 20;
@@ -24,8 +29,8 @@ export function useSearchCommander() {
   const store = useSearchStore();
 
   const executeSearchFn = useCallback(async (keyword: string, filter = useSearchStore.getState().activeFilter) => {
-    if (!keyword.trim()) {
-      useSearchStore.getState().clear();
+    if (!isValidSearchKeyword(keyword)) {
+      useSearchStore.getState().setInvalidQuery(keyword);
       return;
     }
     useSearchStore.getState().setLoading(true);
@@ -52,6 +57,10 @@ export function useSearchCommander() {
   const executeSearch = useCallback(
     (keyword: string) => {
       debouncedSearchRef.current.cancel();
+      if (!isValidSearchKeyword(keyword)) {
+        useSearchStore.getState().setInvalidQuery(keyword);
+        return;
+      }
       useSearchStore.getState().setQuery(keyword);
       executeSearchFn(keyword);
     },
@@ -60,6 +69,11 @@ export function useSearchCommander() {
 
   const search = useCallback((keyword: string) => {
     useSearchStore.getState().setQuery(keyword);
+    if (!isValidSearchKeyword(keyword)) {
+      debouncedSearchRef.current.cancel();
+      useSearchStore.getState().setInvalidQuery(keyword);
+      return;
+    }
     debouncedSearchRef.current(keyword);
   }, []);
 
@@ -67,22 +81,26 @@ export function useSearchCommander() {
     const { query } = useSearchStore.getState();
     debouncedSearchRef.current.cancel();
     useSearchStore.getState().setFilter(filter);
-    if (query.trim()) {
-      executeSearchFn(query, filter);
+    if (!isValidSearchKeyword(query)) {
+      useSearchStore.getState().setInvalidQuery(query);
+      return;
     }
+    executeSearchFn(query, filter);
   }, [executeSearchFn]);
 
   const changeScope = useCallback((scope: SearchScope) => {
     const { query } = useSearchStore.getState();
     debouncedSearchRef.current.cancel();
     useSearchStore.getState().setScope(scope);
-    if (query.trim()) {
-      executeSearchFn(query);
+    if (!isValidSearchKeyword(query)) {
+      useSearchStore.getState().setInvalidQuery(query);
+      return;
     }
+    executeSearchFn(query);
   }, [executeSearchFn]);
 
   const clearSearch = useCallback(() => {
-    clearSearchSession(debouncedSearchRef.current, useSearchStore.getState().clear);
+    clearSearchSession(debouncedSearchRef.current, useSearchStore.getState().setCancelled);
   }, []);
 
   const loadMoreResults = useCallback(async () => {
@@ -102,6 +120,7 @@ export function useSearchCommander() {
       }));
       useSearchStore.setState((state) => ({
         results: state.results ? mergeSearchResults(state.results, newResult as unknown as SearchResults) : (newResult as unknown as SearchResults),
+        status: "ready",
         loading: false,
         error: null,
       }));

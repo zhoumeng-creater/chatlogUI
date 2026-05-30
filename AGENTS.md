@@ -15,7 +15,7 @@ The core backend is `chatlog_alpha`, a Go sidecar. Preserve backend behavior unl
 - Motion: Framer Motion
 - Graph rendering: Three.js / React Three Fiber
 - Package manager: pnpm
-- Frontend dev server: `http://localhost:1420`
+- Frontend dev server: `http://localhost:5173`
 - Local backend sidecar: `http://127.0.0.1:5030`
 
 ## Commands

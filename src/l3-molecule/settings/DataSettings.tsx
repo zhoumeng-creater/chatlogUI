@@ -21,27 +21,32 @@ export function DataSettings() {
       <Typography variant="h2">数据</Typography>
 
       <Surface variant="base" className="settings-section">
-        <Field id="settings-wx-path" label="微信数据路径">
-          <div className="settings-inline">
+        <form className="form-grid" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
+          <Field id="settings-wx-path" label="微信数据路径">
+            <div className="settings-inline">
+              <Input
+                id="settings-wx-path"
+                name="wxDataPath"
+                value={settings.wxDataPath || "未设置"}
+                readOnly
+              />
+              <Button variant="secondary" size="md" onClick={handlePickPath}>
+                选择目录
+              </Button>
+            </div>
+          </Field>
+          <Field id="settings-data-key" label="数据解密密钥" hint="Data Key 只在设置中心配置，不保存在 UI 设置里。">
             <Input
-              id="settings-wx-path"
-              value={settings.wxDataPath || "未设置"}
-              readOnly
+              id="settings-data-key"
+              name="dataKey"
+              type="password"
+              value=""
+              disabled
+              autoComplete="off"
+              placeholder="请在设置中心配置 data key"
             />
-            <Button variant="secondary" size="md" onClick={handlePickPath}>
-              选择目录
-            </Button>
-          </div>
-        </Field>
-        <Field id="settings-data-key" label="数据解密密钥" hint="Data Key 只在设置中心配置，不保存在 UI 设置里。">
-          <Input
-            id="settings-data-key"
-            type="password"
-            value=""
-            disabled
-            placeholder="请在设置中心配置 data key"
-          />
-        </Field>
+          </Field>
+        </form>
       </Surface>
 
       <Surface variant="subtle" className="settings-section">
