@@ -28,8 +28,17 @@ import {
   deriveSemanticModuleView,
   deriveSemanticQaView,
 } from "./semanticViewModel";
+import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 type IndexAction = "rebuild" | "pause" | "resume" | "clear";
+
+function createSemanticDiagnostics(correlationId: string) {
+  return createDiagnosticHttpOptions({
+    endpointFamily: "semantic",
+    correlationId,
+    recoveryHint: "retry",
+  });
+}
 
 export function useAiCommander() {
   const store = useAiStore();
@@ -46,7 +55,7 @@ export function useAiCommander() {
 
     indexPollRef.current = setInterval(async () => {
       try {
-        const status = await fetchIndexStatus();
+        const status = await fetchIndexStatus(createSemanticDiagnostics("semantic-index-poll"));
         store.setIndexStatus(status);
 
         if (status.status === "ready") {
@@ -69,14 +78,14 @@ export function useAiCommander() {
   const initialize = useCallback(async () => {
     store.setPhase("checking_config");
     try {
-      const config = await fetchSemanticConfig();
+      const config = await fetchSemanticConfig(createSemanticDiagnostics("semantic-config-load"));
       if (!config) {
         store.setPhase("not_configured");
         return;
       }
       store.setConfig(config);
       store.setPhase("index_checking");
-      const status = await fetchIndexStatus();
+      const status = await fetchIndexStatus(createSemanticDiagnostics("semantic-index-check"));
       store.setIndexStatus(status);
       if (status.status === "ready") {
         store.setPhase("index_ready");
@@ -98,7 +107,7 @@ export function useAiCommander() {
 
   const saveConfig = useCallback(async (config: SemanticConfig) => {
     try {
-      await setSemanticConfig(config);
+      await setSemanticConfig(config, createSemanticDiagnostics("semantic-config-save"));
       store.setConfig(config);
       store.setPhase("index_not_built");
     } catch (error) {
@@ -108,7 +117,7 @@ export function useAiCommander() {
 
   const testConnection = useCallback(async (provider: string, cfg: Record<string, string>) => {
     try {
-      return await testLLMConnection(provider, cfg);
+      return await testLLMConnection(provider, cfg, createSemanticDiagnostics("semantic-provider-test"));
     } catch (error) {
       return { ok: false, success: false, message: String(error) };
     }
@@ -116,7 +125,7 @@ export function useAiCommander() {
 
   const doIndexAction = useCallback(async (action: IndexAction) => {
     try {
-      await manageIndex(action);
+      await manageIndex(action, createSemanticDiagnostics(`semantic-index-${action}`));
       if (action === "rebuild") {
         store.setPhase("index_building");
         startIndexPolling();
@@ -232,7 +241,8 @@ export function useAiCommander() {
           store.setError(message);
         }
       },
-      abortController.signal
+      abortController.signal,
+      createSemanticDiagnostics("semantic-qa-stream"),
     );
   }, [currentChat, store]);
 
@@ -251,7 +261,9 @@ export function useAiCommander() {
         chat: scope === "all" ? undefined : (currentChat || undefined),
         scope,
       };
-      const results = await withOverloadRetry(() => fetchSemanticSearch(params));
+      const results = await withOverloadRetry(() =>
+        fetchSemanticSearch(params, createSemanticDiagnostics("semantic-search")),
+      );
       store.setSearchResults(results);
     } catch (error) {
       store.setSearchError(translateError(String(error)));
@@ -275,14 +287,18 @@ export function useAiCommander() {
     store.setProfileLoading(true);
 
     try {
-      const topics = await withOverloadRetry(() => fetchSemanticTopics(currentChat));
+      const topics = await withOverloadRetry(() =>
+        fetchSemanticTopics(currentChat, createSemanticDiagnostics("semantic-topics")),
+      );
       store.setTopics(topics);
     } catch (error) {
       store.setTopicsError(translateError(String(error)));
     }
 
     try {
-      const profile = await withOverloadRetry(() => fetchSemanticProfiles(currentChat));
+      const profile = await withOverloadRetry(() =>
+        fetchSemanticProfiles(currentChat, createSemanticDiagnostics("semantic-profiles")),
+      );
       store.setProfile(profile);
     } catch (error) {
       store.setProfileError(translateError(String(error)));

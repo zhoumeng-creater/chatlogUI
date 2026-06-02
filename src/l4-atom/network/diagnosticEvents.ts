@@ -15,6 +15,13 @@ export type DiagnosticEventLevel = "debug" | "info" | "warn" | "error";
 
 export type DiagnosticEventPrivacy = "safe" | "redacted" | "blocked";
 
+export type DiagnosticRecoveryHint =
+  | "none"
+  | "retry"
+  | "check-service"
+  | "open-settings"
+  | "privacy-blocked";
+
 export interface DiagnosticEvent {
   id: string;
   timestamp: string;
@@ -23,6 +30,8 @@ export interface DiagnosticEvent {
   privacy: DiagnosticEventPrivacy;
   category: string;
   summary: string;
+  correlationId?: string;
+  recoveryHint?: DiagnosticRecoveryHint;
   attributes?: DiagnosticEventAttributes;
 }
 
@@ -35,6 +44,8 @@ export interface CreateDiagnosticEventInput {
   category: string;
   summary: string;
   privacy?: DiagnosticEventPrivacy;
+  correlationId?: string;
+  recoveryHint?: DiagnosticRecoveryHint | string;
   attributes?: Record<string, unknown>;
 }
 
@@ -44,6 +55,8 @@ export interface CreateHttpDiagnosticEventInput {
   status?: number | null;
   durationMs?: number;
   endpointFamily?: string;
+  correlationId?: string;
+  recoveryHint?: DiagnosticRecoveryHint | string;
   errorKind?: "http-status" | "timeout" | "abort" | "network";
   retryable?: boolean;
 }
@@ -67,6 +80,8 @@ const SAFE_ATTRIBUTE_KEYS = new Set([
   "target",
   "redactionOk",
   "releaseGate",
+  "correlationId",
+  "recoveryHint",
 ]);
 
 let nextEventId = 0;
@@ -77,6 +92,8 @@ export function createDiagnosticEvent(
 ): DiagnosticEvent {
   const timestamp = options.now?.() ?? new Date().toISOString();
   const id = options.nextId?.() ?? `diagnostic-${nextEventId++}`;
+  const correlationId = sanitizeCorrelationId(input.correlationId);
+  const recoveryHint = normalizeRecoveryHint(input.recoveryHint);
 
   if (input.privacy === "blocked") {
     return {
@@ -87,6 +104,8 @@ export function createDiagnosticEvent(
       privacy: "blocked",
       category: input.category,
       summary: "[blocked diagnostic event]",
+      correlationId,
+      recoveryHint,
       attributes: sanitizeDiagnosticAttributes(input.attributes),
     };
   }
@@ -109,6 +128,8 @@ export function createDiagnosticEvent(
     privacy,
     category: input.category,
     summary: unsafeAfterMask ? "[blocked diagnostic event]" : maskedSummary,
+    correlationId,
+    recoveryHint,
     attributes,
   };
 }
@@ -120,6 +141,8 @@ export function createHttpDiagnosticEvent(
   const method = (input.method ?? "GET").toUpperCase();
   const endpointFamily = input.endpointFamily ?? deriveEndpointFamily(input.url);
   const status = input.status ?? null;
+  const correlationId = sanitizeCorrelationId(input.correlationId);
+  const recoveryHint = normalizeRecoveryHint(input.recoveryHint);
 
   if (input.errorKind === "abort") {
     return createDiagnosticEvent(
@@ -128,6 +151,8 @@ export function createHttpDiagnosticEvent(
         level: "warn",
         category: "http.abort",
         summary: `${method} ${endpointFamily} was cancelled`,
+        correlationId,
+        recoveryHint,
         attributes: {
           endpointFamily,
           method,
@@ -148,6 +173,8 @@ export function createHttpDiagnosticEvent(
         level: "warn",
         category: "http.timeout",
         summary: `${method} ${endpointFamily} timed out`,
+        correlationId,
+        recoveryHint: recoveryHint === "none" ? "retry" : recoveryHint,
         attributes: {
           endpointFamily,
           method,
@@ -168,6 +195,8 @@ export function createHttpDiagnosticEvent(
         level: "error",
         category: "http.network",
         summary: `${method} ${endpointFamily} failed with a network error`,
+        correlationId,
+        recoveryHint: recoveryHint === "none" ? "retry" : recoveryHint,
         attributes: {
           endpointFamily,
           method,
@@ -188,6 +217,8 @@ export function createHttpDiagnosticEvent(
         level: "warn",
         category: "http.error",
         summary: `${method} ${endpointFamily} failed with HTTP ${status}`,
+        correlationId,
+        recoveryHint: recoveryHint === "none" ? "retry" : recoveryHint,
         attributes: {
           endpointFamily,
           method,
@@ -207,6 +238,8 @@ export function createHttpDiagnosticEvent(
       level: "info",
       category: "http.request",
       summary: `${method} ${endpointFamily} completed with HTTP ${status ?? "unknown"}`,
+      correlationId,
+      recoveryHint,
       attributes: {
         endpointFamily,
         method,
@@ -227,6 +260,17 @@ export function sanitizeDiagnosticAttributes(
     (safeAttributes, [key, value]) => {
       if (!SAFE_ATTRIBUTE_KEYS.has(key)) return safeAttributes;
       if (!isDiagnosticAttributeValue(value)) return safeAttributes;
+
+      if (key === "correlationId") {
+        const correlationId = sanitizeCorrelationId(String(value));
+        if (correlationId) safeAttributes[key] = correlationId;
+        return safeAttributes;
+      }
+
+      if (key === "recoveryHint") {
+        safeAttributes[key] = normalizeRecoveryHint(String(value));
+        return safeAttributes;
+      }
 
       if (typeof value === "string") {
         const masked = maskDiagnosticText(value, { privacyMode: true });
@@ -288,4 +332,25 @@ function deriveEndpointFamily(rawUrl: string | undefined): string {
   } catch {
     return "unknown";
   }
+}
+
+function sanitizeCorrelationId(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (containsSensitiveDiagnosticText(trimmed)) return undefined;
+  if (!/^[A-Za-z0-9._:-]{1,80}$/.test(trimmed)) return undefined;
+  return trimmed;
+}
+
+function normalizeRecoveryHint(value: DiagnosticRecoveryHint | string | undefined): DiagnosticRecoveryHint {
+  if (
+    value === "retry" ||
+    value === "check-service" ||
+    value === "open-settings" ||
+    value === "privacy-blocked"
+  ) {
+    return value;
+  }
+  return "none";
 }

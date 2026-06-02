@@ -4,7 +4,11 @@ import {
   GRAPH_MAX_LIMIT,
   GRAPH_FETCH_TIMEOUT_MS,
 } from "@/utils/constants";
-import { requestJson } from "./httpClient";
+import {
+  requestJson,
+  withRequestDiagnostics,
+  type RequestDiagnosticsOptions,
+} from "./httpClient";
 import { adaptGraphQuery, type GraphQueryView } from "./graphAdapters";
 
 interface GraphQueryParams {
@@ -20,6 +24,7 @@ interface GraphQueryParams {
 export async function fetchGraphQuery(
   params: GraphQueryParams | string = {},
   legacyLimit?: number,
+  requestOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphQueryView> {
   const options: GraphQueryParams =
     typeof params === "string" ? { keyword: params, limit: legacyLimit } : params;
@@ -33,6 +38,9 @@ export async function fetchGraphQuery(
   if (options.start) url.searchParams.set("start", options.start);
   if (options.end) url.searchParams.set("end", options.end);
 
-  const data = await requestJson(url.toString(), { timeoutMs: GRAPH_FETCH_TIMEOUT_MS });
+  const data = await requestJson(url.toString(), {
+    timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
+    ...withRequestDiagnostics(requestOptions, { endpointFamily: "graph-query" }),
+  });
   return adaptGraphQuery(data);
 }

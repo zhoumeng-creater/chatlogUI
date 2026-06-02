@@ -1,6 +1,7 @@
 import {
   createHttpDiagnosticEvent,
   type DiagnosticEvent,
+  type DiagnosticRecoveryHint,
 } from "./diagnosticEvents";
 
 export class ChatlogHttpError extends Error {
@@ -25,8 +26,28 @@ export interface RequestJsonOptions extends RequestInit {
   diagnostics?: {
     endpointFamily?: string;
     method?: string;
+    correlationId?: string;
+    recoveryHint?: DiagnosticRecoveryHint;
   };
   onDiagnosticEvent?: (event: DiagnosticEvent) => void;
+}
+
+export type RequestDiagnosticsOptions = Pick<
+  RequestJsonOptions,
+  "diagnostics" | "onDiagnosticEvent"
+>;
+
+export function withRequestDiagnostics(
+  options: RequestDiagnosticsOptions | undefined,
+  diagnostics: RequestJsonOptions["diagnostics"],
+): RequestDiagnosticsOptions {
+  return {
+    diagnostics: {
+      ...options?.diagnostics,
+      ...diagnostics,
+    },
+    onDiagnosticEvent: options?.onDiagnosticEvent,
+  };
 }
 
 export function withJsonFormat(rawUrl: string): string {
@@ -76,6 +97,8 @@ export async function requestJson<T = unknown>(
         url: finalUrl,
         method,
         endpointFamily: diagnostics?.endpointFamily,
+        correlationId: diagnostics?.correlationId,
+        recoveryHint: diagnostics?.recoveryHint,
         durationMs: Math.max(0, Math.round(nowMs() - startedAt)),
         ...event,
       }),

@@ -30,6 +30,8 @@ const events: DiagnosticEvent[] = [
     privacy: "safe",
     category: "http.error",
     summary: "GET db failed with HTTP 503",
+    correlationId: "db-refresh",
+    recoveryHint: "check-service",
     attributes: {
       endpointFamily: "db",
       status: 503,
@@ -42,17 +44,25 @@ const events: DiagnosticEvent[] = [
     source: "ui",
     level: "error",
     privacy: "blocked",
-    category: "diagnostic.export",
-    summary: "[blocked diagnostic event]",
-  },
-];
+      category: "diagnostic.export",
+      summary: "[blocked diagnostic event]",
+      recoveryHint: "privacy-blocked",
+    },
+  ];
 
 describe("diagnosticEventViewModel", () => {
   it("combines sidecar logs and diagnostic events with counts", () => {
     const view = buildDiagnosticEventViewModel({
       logs,
       events,
-      filters: { source: "all", level: "all", privacy: "all" },
+      filters: {
+        source: "all",
+        level: "all",
+        privacy: "all",
+        endpointFamily: "all",
+        failedOnly: false,
+        timeRange: "all",
+      },
     });
 
     expect(view.rows).toHaveLength(4);
@@ -64,17 +74,35 @@ describe("diagnosticEventViewModel", () => {
       redactedOrBlocked: 1,
     });
     expect(view.emptyMessage).toBe("暂无诊断事件或 Sidecar 日志。");
+    expect(view.endpointOptions.map((option) => option.value)).toContain("db");
+    expect(view.rows.find((row) => row.id === "http-1")?.detailRows).toEqual(
+      expect.arrayContaining([
+        { label: "Endpoint", value: "db" },
+        { label: "Status", value: "503" },
+        { label: "Recovery", value: "检查服务状态" },
+        { label: "Correlation", value: "db-refresh" },
+      ]),
+    );
   });
 
-  it("filters rows by source, level, and privacy", () => {
+  it("filters rows by source, level, privacy, endpoint, failure state, and time range", () => {
     const view = buildDiagnosticEventViewModel({
       logs,
       events,
-      filters: { source: "http", level: "warn", privacy: "safe" },
+      filters: {
+        source: "http",
+        level: "warn",
+        privacy: "safe",
+        endpointFamily: "db",
+        failedOnly: true,
+        timeRange: "last15m",
+      },
+      now: new Date("2026-06-01T00:10:00.000Z"),
     });
 
     expect(view.rows.map((row) => row.id)).toEqual(["http-1"]);
     expect(view.activeEmptyMessage).toBe("当前筛选条件下没有诊断事件。");
+    expect(view.hasActiveFilters).toBe(true);
   });
 
   it("summarizes events for diagnostics export without private payloads", () => {
@@ -85,6 +113,9 @@ describe("diagnosticEventViewModel", () => {
       warningsOrErrors: 2,
       redactedOrBlocked: 1,
       sources: "http, ui",
+      levels: "error: 1, warn: 1",
+      privacyStates: "blocked: 1, safe: 1",
+      endpointFamilies: "db: 1, ui: 1",
       latestSummary: "[blocked diagnostic event]",
     });
   });

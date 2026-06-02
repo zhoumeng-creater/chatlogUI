@@ -1,5 +1,9 @@
 import { AI_BASE_URL } from '@/utils/constants';
-import { requestJson } from "./httpClient";
+import {
+  requestJson,
+  withRequestDiagnostics,
+  type RequestDiagnosticsOptions,
+} from "./httpClient";
 import { adaptConnectionTestResult } from "./semanticAdapters";
 
 export interface ConnectionTestResultView {
@@ -11,7 +15,8 @@ export interface ConnectionTestResultView {
 
 export async function testLLMConnection(
   provider: string,
-  config: Record<string, string>
+  config: Record<string, string>,
+  requestOptions?: RequestDiagnosticsOptions,
 ): Promise<ConnectionTestResultView> {
   const startTime = Date.now();
 
@@ -19,6 +24,10 @@ export async function testLLMConnection(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider, ...config }),
+    ...withRequestDiagnostics(requestOptions, {
+      endpointFamily: "semantic-test",
+      method: "POST",
+    }),
   });
   const latencyMs = Date.now() - startTime;
   const result = adaptConnectionTestResult(data);

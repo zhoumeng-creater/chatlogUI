@@ -1,5 +1,9 @@
 import { GRAPH_BASE_URL, GRAPH_FETCH_TIMEOUT_MS } from "@/utils/constants";
-import { requestJson } from "./httpClient";
+import {
+  requestJson,
+  withRequestDiagnostics,
+  type RequestDiagnosticsOptions,
+} from "./httpClient";
 import { adaptGraphTimeline, type GraphTimelineView } from "./graphAdapters";
 
 interface GraphTimelineParams {
@@ -12,6 +16,7 @@ interface GraphTimelineParams {
 
 export async function fetchGraphTimeline(
   params: GraphTimelineParams = {},
+  requestOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphTimelineView> {
   const url = new URL(`${GRAPH_BASE_URL}/api/v1/graph/timeline`);
   if (params.keyword) url.searchParams.set("keyword", params.keyword);
@@ -20,6 +25,9 @@ export async function fetchGraphTimeline(
   if (params.end) url.searchParams.set("end", params.end);
   if (params.limit !== undefined) url.searchParams.set("limit", String(params.limit));
 
-  const data = await requestJson(url.toString(), { timeoutMs: GRAPH_FETCH_TIMEOUT_MS });
+  const data = await requestJson(url.toString(), {
+    timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
+    ...withRequestDiagnostics(requestOptions, { endpointFamily: "graph-timeline" }),
+  });
   return adaptGraphTimeline(data);
 }

@@ -1,4 +1,9 @@
-import { requestJson, ChatlogHttpError } from "./httpClient";
+import {
+  requestJson,
+  ChatlogHttpError,
+  withRequestDiagnostics,
+  type RequestDiagnosticsOptions,
+} from "./httpClient";
 
 export interface HealthResponse {
   status?: string;
@@ -20,16 +25,26 @@ export function normalizeServiceBaseUrl(value: string): string {
   return `http://${trimmed}`;
 }
 
-export async function fetchHealth(baseUrl: string): Promise<boolean> {
+export async function fetchHealth(
+  baseUrl: string,
+  requestOptions?: RequestDiagnosticsOptions,
+): Promise<boolean> {
   const result = await requestJson<HealthResponse>(`${normalizeServiceBaseUrl(baseUrl)}/health`, {
     timeoutMs: 5000,
+    ...withRequestDiagnostics(requestOptions, { endpointFamily: "health" }),
   });
   return result.status === "ok" || result.ok === true;
 }
 
-export async function fetchDbReadiness(baseUrl: string): Promise<DbReadiness> {
+export async function fetchDbReadiness(
+  baseUrl: string,
+  requestOptions?: RequestDiagnosticsOptions,
+): Promise<DbReadiness> {
   try {
-    await requestJson(`${normalizeServiceBaseUrl(baseUrl)}/api/v1/db`, { timeoutMs: 10000 });
+    await requestJson(`${normalizeServiceBaseUrl(baseUrl)}/api/v1/db`, {
+      timeoutMs: 10000,
+      ...withRequestDiagnostics(requestOptions, { endpointFamily: "db-readiness" }),
+    });
     return { ready: true, status: "ready", message: "数据库就绪" };
   } catch (error) {
     if (error instanceof ChatlogHttpError && error.status === 503) {

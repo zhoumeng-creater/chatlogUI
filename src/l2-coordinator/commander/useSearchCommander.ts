@@ -8,6 +8,7 @@ import { debounce } from "@/l2-coordinator/diplomat/debounce";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 import { createSearchRequest, getNextSearchOffset, getSearchInputStatus, mergeSearchResults } from "./searchRequest";
 import { clearSearchSession } from "./searchSession";
+import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 const SEARCH_PAGE_SIZE = 20;
 
@@ -30,13 +31,20 @@ export function useSearchCommander() {
     }
     useSearchStore.getState().setLoading(true);
     try {
-      const result = await fetchSearch(createSearchRequest({
-        keyword,
-        filter,
-        limit: SEARCH_PAGE_SIZE,
-        offset: 0,
-        scopeChat: getScopedChat(),
-      }));
+      const result = await fetchSearch(
+        createSearchRequest({
+          keyword,
+          filter,
+          limit: SEARCH_PAGE_SIZE,
+          offset: 0,
+          scopeChat: getScopedChat(),
+        }),
+        createDiagnosticHttpOptions({
+          endpointFamily: "search",
+          correlationId: "search-execute",
+          recoveryHint: "retry",
+        }),
+      );
       useSearchStore.getState().setResults(result as unknown as SearchResults);
     } catch {
       useSearchStore.getState().setError("搜索失败，请检查网络连接");
@@ -98,13 +106,20 @@ export function useSearchCommander() {
     useSearchStore.getState().setLoading(true);
 
     try {
-      const newResult = await fetchSearch(createSearchRequest({
-        keyword: query,
-        filter: activeFilter,
-        limit: SEARCH_PAGE_SIZE,
-        offset: nextOffset,
-        scopeChat: getScopedChat(),
-      }));
+      const newResult = await fetchSearch(
+        createSearchRequest({
+          keyword: query,
+          filter: activeFilter,
+          limit: SEARCH_PAGE_SIZE,
+          offset: nextOffset,
+          scopeChat: getScopedChat(),
+        }),
+        createDiagnosticHttpOptions({
+          endpointFamily: "search",
+          correlationId: "search-pagination",
+          recoveryHint: "retry",
+        }),
+      );
       useSearchStore.setState((state) => ({
         results: state.results ? mergeSearchResults(state.results, newResult as unknown as SearchResults) : (newResult as unknown as SearchResults),
         loading: false,

@@ -21,6 +21,8 @@ describe("diagnosticEvents", () => {
         status: 200,
         durationMs: 24,
         endpointFamily: "db",
+        correlationId: "db-refresh-1",
+        recoveryHint: "retry",
       },
       testOptions,
     );
@@ -32,6 +34,8 @@ describe("diagnosticEvents", () => {
       level: "info",
       privacy: "safe",
       category: "http.request",
+      correlationId: "db-refresh-1",
+      recoveryHint: "retry",
       summary: "GET db completed with HTTP 200",
       attributes: {
         endpointFamily: "db",
@@ -129,5 +133,22 @@ describe("diagnosticEvents", () => {
       status: 503,
       retryable: true,
     });
+  });
+
+  it("normalizes unsafe recovery metadata instead of persisting private values", () => {
+    const event = createDiagnosticEvent(
+      {
+        source: "ui",
+        level: "warn",
+        category: "diagnostic.metadata",
+        summary: "metadata test",
+        correlationId: "unsafe private id with spaces",
+        recoveryHint: "open-raw-secret" as never,
+      },
+      testOptions,
+    );
+
+    expect(event.correlationId).toBeUndefined();
+    expect(event.recoveryHint).toBe("none");
   });
 });
