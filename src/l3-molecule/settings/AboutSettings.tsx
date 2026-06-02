@@ -1,20 +1,12 @@
-import { useCallback, useState } from "react";
-import { useUpdateCommander } from "@l2/commander/useUpdateCommander";
 import { Button, Surface, Typography } from "@l4/ui";
+import packageJson from "../../../package.json";
 
-export function AboutSettings() {
-  const { checkUpdate } = useUpdateCommander();
-  const [checkingText, setCheckingText] = useState("");
+interface AboutSettingsProps {
+  updateStatusText: string;
+  onCheckUpdate: () => Promise<void>;
+}
 
-  const handleCheckUpdate = useCallback(async () => {
-    setCheckingText("正在检查更新...");
-    const hasUpdate = await checkUpdate();
-    if (!hasUpdate) {
-      setCheckingText("已是最新版本");
-      setTimeout(() => setCheckingText(""), 3000);
-    }
-  }, [checkUpdate]);
-
+export function AboutSettings({ updateStatusText, onCheckUpdate }: AboutSettingsProps) {
   return (
     <div className="settings-stack">
       <Typography variant="h2">关于</Typography>
@@ -22,7 +14,7 @@ export function AboutSettings() {
       <Surface variant="base" className="settings-section settings-section--center">
         <Typography variant="h3">chatlog_alpha</Typography>
         <Typography variant="caption" color="var(--text-secondary)">
-          版本 1.0.0
+          应用版本 {packageJson.version}
         </Typography>
       </Surface>
 
@@ -31,7 +23,10 @@ export function AboutSettings() {
           技术栈
         </Typography>
         <Typography variant="body" color="var(--text-secondary)">
-          Tauri v2 · React 18 · TypeScript 5 · Three.js · Go (chatlog_alpha)
+          Tauri API {packageJson.dependencies["@tauri-apps/api"]} · React {packageJson.dependencies.react} · TypeScript {packageJson.devDependencies.typescript} · Go sidecar
+        </Typography>
+        <Typography variant="caption" color="var(--text-secondary)">
+          Sidecar 版本需在运行时由本地 chatlog_alpha 提供；当前设置页不伪造版本号。
         </Typography>
       </Surface>
 
@@ -49,12 +44,12 @@ export function AboutSettings() {
           更新
         </Typography>
         <div className="settings-inline">
-          <Button variant="secondary" size="md" onClick={handleCheckUpdate}>
+          <Button variant="secondary" size="md" onClick={onCheckUpdate}>
             检查更新
           </Button>
-          {checkingText && (
+          {updateStatusText && (
             <Typography variant="caption" color="var(--text-secondary)">
-              {checkingText}
+              {updateStatusText}
             </Typography>
           )}
         </div>

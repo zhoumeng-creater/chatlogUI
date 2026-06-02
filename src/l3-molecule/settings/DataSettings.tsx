@@ -1,21 +1,20 @@
-import { useSettingsCommander } from "@l2/commander/useSettingsCommander";
-import { Button, Field, Input, Surface, Typography } from "@l4/ui";
-import { openDirectoryPicker } from "@l4/system/openDirectoryPicker";
+import type { SettingsState } from "@/l2-coordinator/api-docs/settings";
+import type { SettingsSaveStatus } from "@l2/data-clerk/stores/useSettingsStore";
+import { Button, Field, Input, StatusIndicator, Surface, Typography } from "@l4/ui";
 
-export function DataSettings() {
-  const { settings, updateAndSave } = useSettingsCommander();
+interface DataSettingsProps {
+  settings: SettingsState;
+  saveStatus: SettingsSaveStatus;
+  saveMessage: string | null;
+  onChooseDataDirectory: () => Promise<void>;
+}
 
-  const handlePickPath = async () => {
-    try {
-      const path = await openDirectoryPicker();
-      if (path) {
-        updateAndSave({ wxDataPath: path });
-      }
-    } catch {
-      // user cancelled
-    }
-  };
-
+export function DataSettings({
+  settings,
+  saveStatus,
+  saveMessage,
+  onChooseDataDirectory,
+}: DataSettingsProps) {
   return (
     <div className="settings-stack">
       <Typography variant="h2">数据</Typography>
@@ -29,7 +28,7 @@ export function DataSettings() {
                 value={settings.wxDataPath || "未设置"}
                 readOnly
               />
-              <Button variant="secondary" size="md" onClick={handlePickPath}>
+              <Button variant="secondary" size="md" onClick={onChooseDataDirectory}>
                 选择目录
               </Button>
             </div>
@@ -45,6 +44,13 @@ export function DataSettings() {
             />
           </Field>
         </form>
+        {saveMessage && (
+          <StatusIndicator
+            label={saveMessage}
+            tone={saveStatus === "error" ? "danger" : saveStatus === "saving" ? "info" : "success"}
+            busy={saveStatus === "saving"}
+          />
+        )}
       </Surface>
 
       <Surface variant="subtle" className="settings-section">

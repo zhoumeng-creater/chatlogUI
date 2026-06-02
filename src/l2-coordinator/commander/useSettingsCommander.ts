@@ -1,34 +1,55 @@
 import { useCallback, useEffect, useLayoutEffect } from "react";
 import { useSettingsStore } from "@/l2-coordinator/data-clerk/stores/useSettingsStore";
 import type { SettingsCategory, SettingsState } from "@/l2-coordinator/api-docs/settings";
+import { sanitizeSettingsForStorage, validateSettingsPatch } from "./settingsValidation";
 
 export function useSettingsCommander() {
-  const store = useSettingsStore();
+  const settings = useSettingsStore((s) => s.settings);
+  const activeCategory = useSettingsStore((s) => s.activeCategory);
+  const loaded = useSettingsStore((s) => s.loaded);
+  const saveStatus = useSettingsStore((s) => s.saveStatus);
+  const saveMessage = useSettingsStore((s) => s.saveMessage);
+  const loadFromStorage = useSettingsStore((s) => s.loadFromStorage);
+  const setStoreActiveCategory = useSettingsStore((s) => s.setActiveCategory);
+  const updateSettings = useSettingsStore((s) => s.updateSettings);
+  const saveToStorage = useSettingsStore((s) => s.saveToStorage);
+  const setSaveFeedback = useSettingsStore((s) => s.setSaveFeedback);
+  const resetStore = useSettingsStore((s) => s.reset);
 
   useEffect(() => {
-    if (!store.loaded) {
-      store.loadFromStorage();
+    if (!loaded) {
+      loadFromStorage();
     }
-  }, [store.loaded, store]);
+  }, [loaded, loadFromStorage]);
 
   const setActiveCategory = useCallback((category: SettingsCategory) => {
-    store.setActiveCategory(category);
-  }, [store]);
+    setStoreActiveCategory(category);
+  }, [setStoreActiveCategory]);
 
   const updateAndSave = useCallback((partial: Partial<SettingsState>) => {
-    store.updateSettings(partial);
-    store.saveToStorage();
-  }, [store]);
+    const validation = validateSettingsPatch(partial);
+    if (!validation.valid) {
+      setSaveFeedback("error", validation.errors.join(" "));
+      return;
+    }
+
+    setSaveFeedback("saving", "正在保存设置...");
+    updateSettings(sanitizeSettingsForStorage(partial as Record<string, unknown>));
+    saveToStorage();
+    setSaveFeedback("saved", "设置已保存");
+  }, [saveToStorage, setSaveFeedback, updateSettings]);
 
   const reset = useCallback(() => {
-    store.reset();
-    store.saveToStorage();
-  }, [store]);
+    resetStore();
+    saveToStorage();
+  }, [resetStore, saveToStorage]);
 
   return {
-    settings: store.settings,
-    activeCategory: store.activeCategory,
-    loaded: store.loaded,
+    settings,
+    activeCategory,
+    loaded,
+    saveStatus,
+    saveMessage,
     setActiveCategory,
     updateAndSave,
     reset,

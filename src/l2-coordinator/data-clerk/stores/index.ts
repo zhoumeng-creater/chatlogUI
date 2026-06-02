@@ -6,3 +6,4 @@ export { useAiStore } from "./useAiStore";
 export { useGraphStore } from "./useGraphStore";
 export { useSettingsStore } from "./useSettingsStore";
 export { useSetupStore } from "./useSetupStore";
+export { useDiagnosticEventStore } from "./useDiagnosticEventStore";

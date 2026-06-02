@@ -1,8 +1,21 @@
 import { create } from "zustand";
 import type { EntityKind, VisualizeResult } from "@/l2-coordinator/api-docs/graph";
+import type {
+  GraphActionResult,
+  GraphLoadStatus,
+  GraphStatusView,
+  GraphTimelineView,
+  GraphVisualizeView,
+} from "@/l4-atom/network/graphAdapters";
 
 interface GraphState {
   data: VisualizeResult | null;
+  loadStatus: GraphLoadStatus;
+  statusSummary: GraphStatusView | null;
+  visualize: GraphVisualizeView | null;
+  timeline: GraphTimelineView | null;
+  actionStatus: GraphActionResult | null;
+  visualizationRequested: boolean;
   loading: boolean;
   error: string | null;
   keyword: string;
@@ -22,6 +35,12 @@ interface GraphState {
 
 interface GraphActions {
   setData: (data: VisualizeResult) => void;
+  setLoadStatus: (status: GraphLoadStatus) => void;
+  setStatusSummary: (status: GraphStatusView | null) => void;
+  setVisualize: (visualize: GraphVisualizeView | null) => void;
+  setTimeline: (timeline: GraphTimelineView | null) => void;
+  setActionStatus: (status: GraphActionResult | null) => void;
+  setVisualizationRequested: (requested: boolean) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setKeyword: (keyword: string) => void;
@@ -43,6 +62,12 @@ type GraphStore = GraphState & GraphActions;
 
 const initialState: GraphState = {
   data: null,
+  loadStatus: "idle",
+  statusSummary: null,
+  visualize: null,
+  timeline: null,
+  actionStatus: null,
+  visualizationRequested: false,
   loading: false,
   error: null,
   keyword: "",
@@ -63,12 +88,37 @@ const initialState: GraphState = {
 export const useGraphStore = create<GraphStore>((set) => ({
   ...initialState,
 
-  setData: (data: VisualizeResult) => set({ data, loading: false, error: null }),
+  setData: (data: VisualizeResult) => set({ data, loading: false, error: null, loadStatus: "loaded" }),
 
-  setLoading: (loading: boolean) => set({ loading }),
+  setLoadStatus: (loadStatus: GraphLoadStatus) => set({ loadStatus }),
+
+  setStatusSummary: (statusSummary: GraphStatusView | null) => set({ statusSummary }),
+
+  setVisualize: (visualize: GraphVisualizeView | null) =>
+    set({
+      visualize,
+      loadStatus: visualize?.state ?? "idle",
+      data:
+        visualize?.state === "loaded"
+          ? {
+              nodes: visualize.nodes as VisualizeResult["nodes"],
+              edges: visualize.edges as VisualizeResult["edges"],
+              timeline: visualize.timelineRows as VisualizeResult["timeline"],
+              generated_at: visualize.generatedAt,
+            }
+          : null,
+    }),
+
+  setTimeline: (timeline: GraphTimelineView | null) => set({ timeline }),
+
+  setActionStatus: (actionStatus: GraphActionResult | null) => set({ actionStatus }),
+
+  setVisualizationRequested: (visualizationRequested: boolean) => set({ visualizationRequested }),
+
+  setLoading: (loading: boolean) => set({ loading, loadStatus: loading ? "loading" : "idle" }),
 
   setError: (error: string | null) =>
-    set({ error, loading: false }),
+    set({ error, loading: false, loadStatus: error ? "error" : "idle" }),
 
   setKeyword: (keyword: string) => set({ keyword }),
 

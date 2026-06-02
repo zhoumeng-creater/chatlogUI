@@ -18,6 +18,7 @@ import {
   stopManagedSidecar,
   toPortState,
 } from "@l4/system/sidecarManager";
+import { openDirectoryPicker } from "@l4/system/openDirectoryPicker";
 import { fetchHealth, fetchDbReadiness } from "@l4/network/readiness";
 import { deriveSetupStep } from "./setupMachine";
 
@@ -39,6 +40,7 @@ export interface SetupCommander {
   loadExistingProfile: () => Promise<void>;
   chooseMode: (mode: SetupMode) => void;
   importDataDirectory: (path: string) => Promise<void>;
+  chooseAndImportDataDirectory: () => Promise<string | null>;
   saveManualConfig: (draft: ServerConfigDraft) => Promise<void>;
   inspectServicePort: () => Promise<void>;
   startManagedService: () => Promise<void>;
@@ -132,6 +134,13 @@ export function useSetupCommander(): SetupCommander {
     },
     [setError, setLoading, setProfile, syncStep],
   );
+
+  const chooseAndImportDataDirectory = useCallback(async () => {
+    const dir = await openDirectoryPicker();
+    if (!dir) return null;
+    await importDataDirectory(dir);
+    return dir;
+  }, [importDataDirectory]);
 
   const saveManualConfig = useCallback(
     async (draft: ServerConfigDraft) => {
@@ -299,6 +308,7 @@ export function useSetupCommander(): SetupCommander {
     loadExistingProfile,
     chooseMode,
     importDataDirectory,
+    chooseAndImportDataDirectory,
     saveManualConfig,
     inspectServicePort,
     startManagedService,

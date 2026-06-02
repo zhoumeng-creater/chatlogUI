@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import * as THREE from "three";
-import type { GraphEdge } from "@/l2-coordinator/api-docs/graph";
+import type { GraphEdgeView } from "./graphTypes";
 
 const EDGE_COLORS: Record<string, string> = {
   active: "#4A9EFF",
@@ -9,7 +9,7 @@ const EDGE_COLORS: Record<string, string> = {
 };
 
 interface GraphEdge3DProps {
-  edge: GraphEdge;
+  edge: GraphEdgeView;
   fromPos: THREE.Vector3;
   toPos: THREE.Vector3;
 }

@@ -39,13 +39,13 @@ describe("getWorkbenchLayout", () => {
     );
   });
 
-  it("uses a single focused column on phone widths", () => {
+  it("uses a single focused column with recoverable inspector drawer on phone widths", () => {
     const layout = getWorkbenchLayout(390);
 
     expect(layout.mode).toBe("single");
     expect(layout.sidebarLabels).toBe(false);
     expect(layout.showConversationList).toBe(false);
-    expect(layout.inspectorMode).toBe("hidden");
+    expect(layout.inspectorMode).toBe("drawer");
     expect(layout.gridTemplateColumns).toBe("minmax(0, 1fr)");
   });
 

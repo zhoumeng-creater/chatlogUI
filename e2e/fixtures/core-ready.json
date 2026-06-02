@@ -1,0 +1,84 @@
+{
+  "synthetic": true,
+  "fixturePurpose": "Core ready-state endpoint shapes for workbench and release-quality tests.",
+  "privacyNotes": "All names, IDs, message text, and timestamps are synthetic. No real chat data is included.",
+  "generatedAt": "2026-06-01T00:00:00.000Z",
+  "routes": {
+    "/health": {
+      "status": "ok"
+    },
+    "/api/v1/db": {
+      "ready": true,
+      "status": "ready",
+      "message_count": 42,
+      "session_count": 3
+    },
+    "/api/v1/sessions": {
+      "items": [
+        {
+          "username": "session_synthetic_001",
+          "display_name": "Synthetic Session Alpha",
+          "last_message": "Synthetic message for UI state only",
+          "last_time": "2026-01-01T08:00:00Z",
+          "unread_count": 0
+        }
+      ],
+      "total": 1
+    },
+    "/api/v1/contacts": {
+      "items": [
+        {
+          "username": "contact_synthetic_001",
+          "display_name": "Synthetic Contact Alpha",
+          "remark": "Synthetic Remark"
+        }
+      ],
+      "total": 1
+    },
+    "/api/v1/chatrooms": {
+      "items": [
+        {
+          "username": "chatroom_synthetic_001",
+          "display_name": "Synthetic Chatroom",
+          "member_count": 4
+        }
+      ],
+      "total": 1
+    },
+    "/api/v1/history": {
+      "items": [
+        {
+          "id": "message_synthetic_001",
+          "chat": "session_synthetic_001",
+          "sender": "contact_synthetic_001",
+          "content": "Synthetic message for UI state only",
+          "type": "text",
+          "timestamp": "2026-01-01T08:00:00Z"
+        }
+      ],
+      "total_count": 1
+    },
+    "/api/v1/search": {
+      "items": [
+        {
+          "id": "search_synthetic_001",
+          "chat": "session_synthetic_001",
+          "snippet": "Synthetic search result for UI state only",
+          "timestamp": "2026-01-01T08:00:00Z"
+        }
+      ],
+      "total": 1
+    },
+    "/api/v1/stats": {
+      "message_count": 42,
+      "active_senders": 3,
+      "query_range_label": "Synthetic fixed range",
+      "by_type": [
+        {
+          "type": "text",
+          "count": 42
+        }
+      ]
+    }
+  }
+}

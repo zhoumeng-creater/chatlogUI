@@ -1,15 +1,24 @@
 import { AI_BASE_URL, SSE_TIMEOUT_MS } from '@/utils/constants';
-import type { QARequest, SSEChunk } from '@/l2-coordinator/api-docs/semantic';
+import type { SemanticQARequestInput } from "./semanticAdapters";
+import {
+  createSemanticSSEParser,
+  type SemanticStreamEvent,
+} from "./semanticStreamParser";
+import { buildSemanticQARequestPayload } from "./semanticAdapters";
 
-type ChunkCallback = (chunk: SSEChunk) => void;
+type ChunkCallback = (chunk: SemanticStreamEvent) => void;
 type ErrorCallback = (error: Error) => void;
 
+export interface StreamQAHandle {
+  cancel: () => void;
+}
+
 export function streamQA(
-  params: QARequest,
+  params: SemanticQARequestInput,
   onChunk: ChunkCallback,
   onError: ErrorCallback,
   signal?: AbortSignal
-): void {
+): StreamQAHandle {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), SSE_TIMEOUT_MS);
 
@@ -20,10 +29,10 @@ export function streamQA(
   fetch(`${AI_BASE_URL}/api/v1/semantic/qa/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
+    body: JSON.stringify(buildSemanticQARequestPayload(params)),
     signal: combinedSignal,
   })
-    .then((response) => {
+    .then(async (response) => {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
@@ -34,47 +43,37 @@ export function streamQA(
       if (!reader) throw new Error('无法读取响应流');
 
       const decoder = new TextDecoder();
-      let buffer = '';
+      const parser = createSemanticSSEParser();
 
-      function processStream() {
-        reader!.read().then(({ done, value }) => {
+      try {
+        let reading = true;
+        while (reading) {
+          const { done, value } = await reader.read();
           if (done) {
-            onChunk({ type: 'done' });
-            return;
+            for (const event of parser.flush()) onChunk(event);
+            reading = false;
+            continue;
           }
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data: SSEChunk = JSON.parse(line.slice(6));
-                onChunk(data);
-              } catch {
-                // skip non-JSON lines
-              }
-            }
-          }
-
-          processStream();
-        }).catch((err) => {
-          if (err.name !== 'AbortError') {
-            onError(err instanceof Error ? err : new Error(String(err)));
-          }
-        });
+          const text = decoder.decode(value, { stream: true });
+          for (const event of parser.push(text)) onChunk(event);
+        }
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          onError(err instanceof Error ? err : new Error(String(err)));
+        }
       }
-
-      processStream();
     })
     .catch((err) => {
       clearTimeout(timeoutId);
-      if (err.name !== 'AbortError') {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
         onError(err instanceof Error ? err : new Error(String(err)));
       }
     });
+
+  return {
+    cancel: () => controller.abort(),
+  };
 }
 
 function combineSignals(...signals: AbortSignal[]): AbortSignal {

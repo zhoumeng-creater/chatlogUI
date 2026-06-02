@@ -11,6 +11,7 @@ interface StatsInspectorProps {
   trend: TrendDataPoint[];
   loading: boolean;
   error: string | null;
+  privacyOn: boolean;
   onRetry: () => void;
   onShowAi: () => void;
   onOpenGraph: () => void;
@@ -22,6 +23,7 @@ export function StatsInspector({
   trend,
   loading,
   error,
+  privacyOn,
   onRetry,
   onShowAi,
   onOpenGraph,
@@ -85,7 +87,7 @@ export function StatsInspector({
         <>
           <DashboardOverview stats={stats} loading={loading} />
           <TrendChart data={trend} inspectorWidth={inspectorWidth} />
-          {stats && <TopContactCard topSenders={stats.topSenders} />}
+          {stats && <TopContactCard topSenders={stats.topSenders} privacyOn={privacyOn} />}
         </>
       )}
     </aside>

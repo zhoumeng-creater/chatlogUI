@@ -3,18 +3,69 @@ import { GraphEngine } from "./GraphEngine";
 import { GraphTooltip } from "./GraphTooltip";
 import { GraphControlBar } from "./GraphControlBar";
 import { GraphTimeline } from "./GraphTimeline";
-import { useGraphCommander } from "@l2/commander/useGraphCommander";
-import { useGraphStore } from "@l2/data-clerk/stores/useGraphStore";
 import { Typography } from "@l4/ui/Typography";
 import { Button } from "@l4/ui/Button";
 import { Spinner } from "@l4/ui/Spinner";
+import type {
+  EntityKind,
+  GraphDataView,
+  GraphLayoutMode,
+} from "./graphTypes";
 
-export function GraphCanvas() {
-  const graph = useGraphCommander();
-  const visible = useGraphStore((state) => state.visible);
-  const loading = useGraphStore((state) => state.loading);
-  const error = useGraphStore((state) => state.error);
-  const data = useGraphStore((state) => state.data);
+export interface GraphCanvasProps {
+  visible: boolean;
+  loading: boolean;
+  error: string | null;
+  data: GraphDataView | null;
+  autoRotate: boolean;
+  visibleEntityKinds: EntityKind[];
+  timeWindow: string;
+  layoutMode: GraphLayoutMode;
+  timelineVisible: boolean;
+  highlightedTimelineId: string | null;
+  hoveredNodeId: string | null;
+  selectedNodeId: string | null;
+  pulsedNodeId: string | null;
+  tooltipCoord: { x: number; y: number } | null;
+  privacyOn: boolean;
+  onRefresh: () => void;
+  onNodeHover: (nodeId: string | null, coord?: { x: number; y: number }) => void;
+  onNodeDblClick: (nodeId: string) => void;
+  onVisibleKindsChange: (kinds: EntityKind[]) => void;
+  onTimeWindowChange: (window: string) => void;
+  onLayoutModeChange: (mode: GraphLayoutMode) => void;
+  onToggleAutoRotate: () => void;
+  onTimelineVisibleChange: (visible: boolean) => void;
+  onHighlightTimelineEntry: (id: string) => void;
+}
+
+export function GraphCanvas({
+  visible,
+  loading,
+  error,
+  data,
+  autoRotate,
+  visibleEntityKinds,
+  timeWindow,
+  layoutMode,
+  timelineVisible,
+  highlightedTimelineId,
+  hoveredNodeId,
+  selectedNodeId,
+  pulsedNodeId,
+  tooltipCoord,
+  privacyOn,
+  onRefresh,
+  onNodeHover,
+  onNodeDblClick,
+  onVisibleKindsChange,
+  onTimeWindowChange,
+  onLayoutModeChange,
+  onToggleAutoRotate,
+  onTimelineVisibleChange,
+  onHighlightTimelineEntry,
+}: GraphCanvasProps) {
+  const shouldRenderCanvas = !loading && !error && data && data.nodes.length > 0;
 
   if (!visible) {
     return (
@@ -28,7 +79,19 @@ export function GraphCanvas() {
 
   return (
     <div className="graph-canvas" aria-label="知识图谱可视化">
-      <GraphControlBar />
+      <GraphControlBar
+        visibleEntityKinds={visibleEntityKinds}
+        timeWindow={timeWindow}
+        layoutMode={layoutMode}
+        autoRotate={autoRotate}
+        timelineVisible={timelineVisible}
+        onVisibleKindsChange={onVisibleKindsChange}
+        onTimeWindowChange={onTimeWindowChange}
+        onRefresh={onRefresh}
+        onLayoutModeChange={onLayoutModeChange}
+        onToggleAutoRotate={onToggleAutoRotate}
+        onTimelineVisibleChange={onTimelineVisibleChange}
+      />
 
       <div className="graph-canvas__stage">
         {loading && (
@@ -42,7 +105,7 @@ export function GraphCanvas() {
             <Typography variant="body" color="var(--danger)">
               {error}
             </Typography>
-            <Button variant="secondary" size="sm" onClick={graph.refreshGraph}>
+            <Button variant="secondary" size="sm" onClick={onRefresh}>
               重试
             </Button>
           </div>
@@ -56,16 +119,38 @@ export function GraphCanvas() {
           </div>
         )}
 
-        <Canvas camera={{ position: [0, 0, 8], fov: 50 }} style={{ background: "#0a0a1a" }}>
-          <GraphEngine
-            onNodeHover={graph.hoverNode}
-            onNodeDblClick={graph.selectNode}
-          />
-        </Canvas>
+        {shouldRenderCanvas && (
+          <Canvas camera={{ position: [0, 0, 8], fov: 50 }} style={{ background: "#0a0a1a" }}>
+            <GraphEngine
+              data={data}
+              autoRotate={autoRotate}
+              visibleEntityKinds={visibleEntityKinds}
+              layoutMode={layoutMode}
+              hoveredNodeId={hoveredNodeId}
+              selectedNodeId={selectedNodeId}
+              pulsedNodeId={pulsedNodeId}
+              privacyOn={privacyOn}
+              onNodeHover={onNodeHover}
+              onNodeDblClick={onNodeDblClick}
+            />
+          </Canvas>
+        )}
       </div>
 
-      <GraphTimeline />
-      <GraphTooltip />
+      <GraphTimeline
+        data={data}
+        timelineVisible={timelineVisible}
+        highlightedTimelineId={highlightedTimelineId}
+        privacyOn={privacyOn}
+        onTimelineVisibleChange={onTimelineVisibleChange}
+        onHighlightTimelineEntry={onHighlightTimelineEntry}
+      />
+      <GraphTooltip
+        data={data}
+        hoveredNodeId={hoveredNodeId}
+        tooltipCoord={tooltipCoord}
+        privacyOn={privacyOn}
+      />
     </div>
   );
 }

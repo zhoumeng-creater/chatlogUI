@@ -1,6 +1,6 @@
 import { Spinner } from "./Spinner";
 
-export type StatusTone = "neutral" | "success" | "warning" | "danger" | "accent";
+export type StatusTone = "neutral" | "info" | "success" | "warning" | "danger" | "ai";
 
 interface StatusIndicatorProps {
   label: string;

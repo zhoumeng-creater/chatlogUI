@@ -6,8 +6,14 @@ import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } 
 import { GraphNode3D } from "./GraphNode3D";
 import { GraphEdge3D } from "./GraphEdge3D";
 import { GraphLabels } from "./GraphLabels";
-import { useGraphStore } from "@/l2-coordinator/data-clerk/stores/useGraphStore";
-import type { GraphNode, GraphEdge } from "@/l2-coordinator/api-docs/graph";
+import { createDeterministicSeedVector } from "./graphLayout";
+import type {
+  EntityKind,
+  GraphDataView,
+  GraphEdgeView,
+  GraphLayoutMode,
+  GraphNodeView,
+} from "./graphTypes";
 import {
   GRAPH_CAMERA_MIN_DISTANCE,
   GRAPH_CAMERA_MAX_DISTANCE,
@@ -30,17 +36,14 @@ interface SimLink {
 }
 
 function runForceLayout(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
+  nodes: GraphNodeView[],
+  edges: GraphEdgeView[],
 ): Map<string, THREE.Vector3> {
   const nodePositions = new Map<string, THREE.Vector3>();
 
-  const simNodes: SimNode[] = nodes.map((n) => {
-    const v = new THREE.Vector3(
-      (Math.random() - 0.5) * 5,
-      (Math.random() - 0.5) * 5,
-      (Math.random() - 0.5) * 5,
-    ) as SimNode;
+  const orderedNodes = [...nodes].sort((a, b) => a.id.localeCompare(b.id));
+  const simNodes: SimNode[] = orderedNodes.map((n, index) => {
+    const v = createDeterministicSeedVector(n.id, index) as SimNode;
     v.id = n.id;
     v.value = n.value;
     return v;
@@ -87,7 +90,7 @@ function runForceLayout(
 }
 
 function runRadialLayout(
-  nodes: GraphNode[],
+  nodes: GraphNodeView[],
 ): Map<string, THREE.Vector3> {
   const positions = new Map<string, THREE.Vector3>();
   const sorted = [...nodes].sort((a, b) => b.value - a.value);
@@ -116,22 +119,41 @@ function runRadialLayout(
 }
 
 interface GraphEngineProps {
+  data: GraphDataView | null;
+  autoRotate: boolean;
+  visibleEntityKinds: EntityKind[];
+  layoutMode: GraphLayoutMode;
+  hoveredNodeId: string | null;
+  selectedNodeId: string | null;
+  pulsedNodeId: string | null;
+  privacyOn: boolean;
   onNodeHover: (nodeId: string | null, coord?: { x: number; y: number }) => void;
   onNodeDblClick: (nodeId: string) => void;
 }
 
-export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
-  const data = useGraphStore((s) => s.data);
-  const autoRotate = useGraphStore((s) => s.autoRotate);
-  const pulsedNodeId = useGraphStore((s) => s.pulsedNodeId);
-  const visibleEntityKinds = useGraphStore((s) => s.visibleEntityKinds);
-  const layoutMode = useGraphStore((s) => s.layoutMode);
+export function GraphEngine({
+  data,
+  autoRotate,
+  visibleEntityKinds,
+  layoutMode,
+  hoveredNodeId,
+  selectedNodeId,
+  pulsedNodeId,
+  privacyOn,
+  onNodeHover,
+  onNodeDblClick,
+}: GraphEngineProps) {
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
   const { camera } = useThree();
+  const prefersReducedMotion = useMemo(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
 
   const filteredNodes = useMemo(() => {
     if (!data) return [];
-    return data.nodes.filter((n) => visibleEntityKinds.includes(n.kind));
+    const visibleKindSet = new Set<string>(visibleEntityKinds);
+    return data.nodes.filter((n) => visibleKindSet.has(n.kind));
   }, [data, visibleEntityKinds]);
 
   const filteredEdges = useMemo(() => {
@@ -161,6 +183,12 @@ export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
       target.y,
       target.z + 5,
     );
+
+    if (prefersReducedMotion) {
+      camera.position.copy(endPos);
+      return;
+    }
+
     const startTime = Date.now();
     const duration = 1000;
 
@@ -176,7 +204,7 @@ export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
     }
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [pulsedNodeId, nodePositions, camera]);
+  }, [pulsedNodeId, nodePositions, camera, prefersReducedMotion]);
 
   if (!data) return null;
 
@@ -192,7 +220,7 @@ export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
         dampingFactor={0.08}
         minDistance={GRAPH_CAMERA_MIN_DISTANCE}
         maxDistance={GRAPH_CAMERA_MAX_DISTANCE}
-        autoRotate={autoRotate}
+        autoRotate={autoRotate && !prefersReducedMotion}
         autoRotateSpeed={GRAPH_AUTO_ROTATE_SPEED}
       />
 
@@ -221,6 +249,9 @@ export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
               key={node.id}
               node={node}
               position={pos.toArray() as [number, number, number]}
+              isHovered={hoveredNodeId === node.id}
+              isSelected={selectedNodeId === node.id}
+              isPulsed={pulsedNodeId === node.id}
               onHover={onNodeHover}
               onDblClick={onNodeDblClick}
             />
@@ -228,7 +259,7 @@ export function GraphEngine({ onNodeHover, onNodeDblClick }: GraphEngineProps) {
         })}
       </group>
 
-      <GraphLabels nodes={filteredNodes} positions={nodePositions} />
+      <GraphLabels nodes={filteredNodes} positions={nodePositions} privacyOn={privacyOn} />
     </>
   );
 }

@@ -6,6 +6,8 @@ export interface MetricRowData {
   description: string;
 }
 
+type TopSender = AdaptedStats["topSenders"][number];
+
 export function buildMetricRows(stats: AdaptedStats): MetricRowData[] {
   return [
     {
@@ -48,4 +50,23 @@ export function shouldUseTrendTable(data: TrendDataPoint[], inspectorWidth: numb
 export function summarizeTrendRange(data: TrendDataPoint[]): string {
   if (data.length === 0) return "没有趋势数据";
   return `${data[0].date} 至 ${data[data.length - 1].date}`;
+}
+
+export function formatTopSenderName(sender: TopSender, privacyOn: boolean): string {
+  if (privacyOn) return "已隐藏联系人";
+  return getTopSenderRawLabel(sender);
+}
+
+export function formatTopSenderAvatarAlt(sender: TopSender, privacyOn: boolean): string {
+  if (privacyOn) return "已隐藏联系人头像";
+  return `${getTopSenderRawLabel(sender)} 头像`;
+}
+
+export function formatTopSenderFallback(sender: TopSender, privacyOn: boolean): string {
+  if (privacyOn) return "隐";
+  return getTopSenderRawLabel(sender).slice(0, 2);
+}
+
+function getTopSenderRawLabel(sender: TopSender): string {
+  return sender.display.trim() || sender.sender.trim() || "未知联系人";
 }

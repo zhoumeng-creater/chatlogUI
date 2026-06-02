@@ -1,7 +1,7 @@
 import type { Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
 
 export type ConversationFilter = "recent" | "private" | "group";
-export type ConversationBadgeTone = "neutral" | "accent" | "success";
+export type ConversationBadgeTone = "neutral" | "info" | "success";
 
 export interface ConversationBadge {
   label: string;
@@ -41,7 +41,7 @@ export function filterConversations(
 
 export function getConversationBadge(conversation: Conversation): ConversationBadge {
   if (conversation.source === "session") {
-    return { label: "最近", tone: "accent" };
+    return { label: "最近", tone: "info" };
   }
 
   if (conversation.isGroup || conversation.source === "chatroom") {

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { SetupProfileSummary } from "@l2/data-clerk/types/setup";
+import type { SetupProfileSummary } from "./systemTypes";
 
 export interface ServerConfigDraft {
   type?: string | null;

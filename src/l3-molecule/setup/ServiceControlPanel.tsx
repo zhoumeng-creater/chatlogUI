@@ -1,6 +1,6 @@
 import { useSetupCommander } from "@l2/commander";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
-import { Typography } from "@l4/ui/Typography";
+import { Button, StatusIndicator, Surface, Typography } from "@l4/ui";
 
 export function ServiceControlPanel() {
   const {
@@ -20,67 +20,67 @@ export function ServiceControlPanel() {
   const profile = useSetupStore((s) => s.profile);
 
   return (
-    <div className="space-y-4">
+    <div className="settings-stack">
       <Typography variant="h2">服务控制</Typography>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
+      <div className="settings-inline">
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={inspectServicePort}
           disabled={loading}
-          className="px-3 py-1.5 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50"
         >
           检查端口
-        </button>
+        </Button>
         {mode === "managed" && (
           <>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
               onClick={startManagedService}
               disabled={loading || httpReady}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               启动服务
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
               onClick={stopManagedService}
               disabled={loading || !httpReady}
-              className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50 disabled:opacity-50"
             >
               停止服务
-            </button>
+            </Button>
           </>
         )}
         {mode === "external" && (
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => connectExternalService(profile?.httpAddr ?? "http://127.0.0.1:5030")}
             disabled={loading}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
             连接外部服务
-          </button>
+          </Button>
         )}
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={checkReadiness}
           disabled={loading}
-          className="px-3 py-1.5 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50"
         >
           刷新状态
-        </button>
+        </Button>
       </div>
 
-      <div className="grid gap-2 text-sm">
+      <Surface variant="subtle" className="settings-section">
         <StatusRow label="端口状态" value={portStateLabel(portState)} />
         <StatusRow label="HTTP 健康" value={httpReady ? "正常" : "未就绪"} />
         <StatusRow label="数据库" value={dbReady ? "就绪" : httpReady ? "初始化中" : "不可用"} />
         <StatusRow label="模式" value={mode === "managed" ? "应用托管" : "外部服务"} />
-      </div>
+      </Surface>
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700" role="alert">
+        <div className="settings-error" role="alert">
           {error}
         </div>
       )}
@@ -90,9 +90,11 @@ export function ServiceControlPanel() {
 
 function StatusRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between py-1 border-b border-gray-100">
-      <span className="text-gray-500">{label}</span>
-      <span className="text-gray-800 font-medium">{value}</span>
+    <div className="settings-inline">
+      <Typography variant="caption" color="var(--text-secondary)">
+        {label}
+      </Typography>
+      <StatusIndicator label={value} tone={value === "正常" || value === "就绪" ? "success" : "neutral"} />
     </div>
   );
 }

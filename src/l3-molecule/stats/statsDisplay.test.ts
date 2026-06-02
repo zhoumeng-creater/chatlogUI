@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { AdaptedStats, TrendDataPoint } from "@l2/data-clerk/stores/useStatsStore";
-import { buildMetricRows, shouldUseTrendTable, summarizeTrendRange } from "./statsDisplay";
+import {
+  buildMetricRows,
+  formatTopSenderAvatarAlt,
+  formatTopSenderFallback,
+  formatTopSenderName,
+  shouldUseTrendTable,
+  summarizeTrendRange,
+} from "./statsDisplay";
 
 const stats: AdaptedStats = {
   chat: "wxid_a",
@@ -58,5 +65,32 @@ describe("statsDisplay", () => {
       { date: "2026-05-29", count: 2 },
     ])).toBe("2026-05-28 至 2026-05-29");
     expect(summarizeTrendRange([])).toBe("没有趋势数据");
+  });
+
+  it("formats top sender display without hiding aggregate counts when privacy is off", () => {
+    const sender = { sender: "wxid_alice", display: "Alice", count: 42 };
+
+    expect(formatTopSenderName(sender, false)).toBe("Alice");
+    expect(formatTopSenderAvatarAlt(sender, false)).toBe("Alice 头像");
+    expect(formatTopSenderFallback(sender, false)).toBe("Al");
+    expect(sender.count).toBe(42);
+  });
+
+  it("masks top sender visible text and avatar accessibility when privacy is on", () => {
+    const sender = { sender: "wxid_alice", display: "Alice", count: 42 };
+
+    expect(formatTopSenderName(sender, true)).toBe("已隐藏联系人");
+    expect(formatTopSenderAvatarAlt(sender, true)).toBe("已隐藏联系人头像");
+    expect(formatTopSenderFallback(sender, true)).toBe("隐");
+    expect(formatTopSenderName(sender, true)).not.toContain("Alice");
+    expect(formatTopSenderAvatarAlt(sender, true)).not.toContain("wxid_alice");
+  });
+
+  it("does not reveal raw sender ids when display names are empty under privacy mode", () => {
+    const sender = { sender: "wxid_private_sender", display: "", count: 7 };
+
+    expect(formatTopSenderName(sender, true)).toBe("已隐藏联系人");
+    expect(formatTopSenderFallback(sender, true)).toBe("隐");
+    expect(formatTopSenderAvatarAlt(sender, true)).not.toContain("wxid_private_sender");
   });
 });

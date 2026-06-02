@@ -127,7 +127,9 @@ fn find_process_on_port(port: u16) -> Option<ProcessInfo> {
         .args(["-p", &pid.to_string(), "-o", "comm="])
         .output()
         .ok()?;
-    let name = String::from_utf8_lossy(&name_output.stdout).trim().to_string();
+    let name = String::from_utf8_lossy(&name_output.stdout)
+        .trim()
+        .to_string();
 
     Some(ProcessInfo {
         pid,

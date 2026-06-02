@@ -1,3 +1,8 @@
+import {
+  createHttpDiagnosticEvent,
+  type DiagnosticEvent,
+} from "./diagnosticEvents";
+
 export class ChatlogHttpError extends Error {
   readonly status: number | null;
   readonly body: string | null;
@@ -17,6 +22,11 @@ export class ChatlogHttpError extends Error {
 
 export interface RequestJsonOptions extends RequestInit {
   timeoutMs?: number;
+  diagnostics?: {
+    endpointFamily?: string;
+    method?: string;
+  };
+  onDiagnosticEvent?: (event: DiagnosticEvent) => void;
 }
 
 export function withJsonFormat(rawUrl: string): string {
@@ -31,21 +41,59 @@ export async function requestJson<T = unknown>(
   url: string,
   options: RequestJsonOptions = {},
 ): Promise<T> {
+  const {
+    timeoutMs = 15000,
+    diagnostics,
+    onDiagnosticEvent,
+    signal: callerSignal,
+    ...fetchOptions
+  } = options;
   const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    options.timeoutMs ?? 15000,
-  );
+  const abortState: { reason: "timeout" | "abort" } = { reason: "timeout" };
+  const abortWithReason = (reason: "timeout" | "abort") => {
+    if (controller.signal.aborted) return;
+    abortState.reason = reason;
+    controller.abort();
+  };
+  const timeoutId = setTimeout(() => abortWithReason("timeout"), timeoutMs);
+  const abortFromCaller = () => abortWithReason("abort");
+  if (callerSignal?.aborted) {
+    abortWithReason("abort");
+  } else {
+    callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
+  }
   const finalUrl = withJsonFormat(url);
+  const startedAt = nowMs();
+  const method = (
+    diagnostics?.method ??
+    fetchOptions.method ??
+    "GET"
+  ).toUpperCase();
+
+  const emitDiagnosticEvent = (event: Parameters<typeof createHttpDiagnosticEvent>[0]) => {
+    onDiagnosticEvent?.(
+      createHttpDiagnosticEvent({
+        url: finalUrl,
+        method,
+        endpointFamily: diagnostics?.endpointFamily,
+        durationMs: Math.max(0, Math.round(nowMs() - startedAt)),
+        ...event,
+      }),
+    );
+  };
 
   try {
     const response = await fetch(finalUrl, {
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
     });
     const body = await response.text();
 
     if (!response.ok) {
+      emitDiagnosticEvent({
+        status: response.status,
+        errorKind: "http-status",
+      });
       throw new ChatlogHttpError(`HTTP ${response.status}`, {
         status: response.status,
         body,
@@ -53,18 +101,33 @@ export async function requestJson<T = unknown>(
       });
     }
 
+    emitDiagnosticEvent({ status: response.status });
     return body ? (JSON.parse(body) as T) : ({} as T);
   } catch (error) {
     if (error instanceof ChatlogHttpError) throw error;
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new ChatlogHttpError("请求超时", {
+      const abortReason = abortState.reason;
+      emitDiagnosticEvent({
+        status: null,
+        errorKind: abortReason,
+      });
+      throw new ChatlogHttpError(abortReason === "abort" ? "请求已取消" : "请求超时", {
         status: null,
         body: null,
         url: finalUrl,
       });
     }
+    emitDiagnosticEvent({
+      status: null,
+      errorKind: "network",
+    });
     throw error;
   } finally {
     clearTimeout(timeoutId);
+    callerSignal?.removeEventListener("abort", abortFromCaller);
   }
+}
+
+function nowMs(): number {
+  return globalThis.performance?.now?.() ?? Date.now();
 }

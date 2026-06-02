@@ -1,67 +1,30 @@
-import { motion } from 'framer-motion';
 import { Typography } from '@l4/ui/Typography';
 import { CodeBlock } from '@l4/ui/CodeBlock';
-import type { QAMessage as QAMessageType } from '@/l2-coordinator/api-docs/semantic';
+import { getSemanticAnswerSegments, getSemanticDisplayText } from './semanticDisplay';
+
+interface QAMessageType {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+  isStreaming?: boolean;
+}
 
 interface QAMessageProps {
   message: QAMessageType;
+  privacyOn: boolean;
 }
 
-function renderMarkdown(content: string): React.ReactNode[] {
-  if (!content) return [];
-  const nodes: React.ReactNode[] = [];
-
-  const parts = content.split(/(```[\s\S]*?```)/g);
-  let k = 0;
-
-  for (const part of parts) {
-    if (part.startsWith('```')) {
-      const codeMatch = part.match(/```(\w+)?\n?([\s\S]*?)```/);
-      if (codeMatch) {
-        nodes.push(
-          <CodeBlock
-            key={k++}
-            code={codeMatch[2].trim()}
-            language={codeMatch[1] || undefined}
-          />
-        );
-      }
-    } else {
-      const lines = part.split('\n');
-      for (const line of lines) {
-        if (!line.trim()) {
-          nodes.push(<div key={k++} style={{ height: 8 }} />);
-          continue;
-        }
-        const formatted = line
-          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\*(.+?)\*/g, '<em>$1</em>')
-          .replace(/`(.+?)`/g, '<code style="background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:13px">$1</code>');
-        nodes.push(
-          <div
-            key={k++}
-            style={{ lineHeight: 1.6, wordBreak: 'break-word' }}
-            dangerouslySetInnerHTML={{ __html: formatted }}
-          />
-        );
-      }
-    }
-  }
-  return nodes;
-}
-
-export function QAMessage({ message }: QAMessageProps) {
+export function QAMessage({ message, privacyOn }: QAMessageProps) {
   const isUser = message.role === 'user';
+  const displayContent = getSemanticDisplayText(message.content, privacyOn);
   const timeStr = new Date(message.timestamp).toLocaleTimeString('zh-CN', {
     hour: '2-digit',
     minute: '2-digit',
   });
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+    <div
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -75,21 +38,49 @@ export function QAMessage({ message }: QAMessageProps) {
           padding: '10px 14px',
           borderRadius: isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
           background: isUser
-            ? 'var(--color-bubble-self, #007AFF)'
+            ? 'var(--color-bubble-self, var(--accent))'
             : 'var(--color-bubble-other, rgba(255,255,255,0.9))',
           color: isUser ? '#fff' : 'var(--color-text-primary)',
           boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         }}
       >
         {isUser ? (
-          <Typography variant="body">{message.content}</Typography>
+          <Typography variant="body">{displayContent}</Typography>
         ) : (
           <div>
-            {renderMarkdown(message.content)}
+            {getSemanticAnswerSegments(displayContent).map((segment, index) => {
+              if (segment.type === "code") {
+                return (
+                  <CodeBlock
+                    key={`${segment.type}-${index}`}
+                    code={segment.text}
+                    language={segment.language}
+                  />
+                );
+              }
+              if (segment.type === "heading") {
+                return (
+                  <Typography key={`${segment.type}-${index}`} variant="label" weight={700}>
+                    {segment.text}
+                  </Typography>
+                );
+              }
+              if (segment.type === "bullet") {
+                return (
+                  <div key={`${segment.type}-${index}`} style={{ display: "flex", gap: 6, lineHeight: 1.6 }}>
+                    <span aria-hidden="true">-</span>
+                    <span>{segment.text}</span>
+                  </div>
+                );
+              }
+              return (
+                <div key={`${segment.type}-${index}`} style={{ lineHeight: 1.6, wordBreak: 'break-word' }}>
+                  {segment.text}
+                </div>
+              );
+            })}
             {message.isStreaming && (
-              <motion.span
-                animate={{ opacity: [1, 0, 1] }}
-                transition={{ repeat: Infinity, duration: 0.8 }}
+              <span
                 style={{
                   display: 'inline-block',
                   width: 2,
@@ -106,6 +97,6 @@ export function QAMessage({ message }: QAMessageProps) {
       <Typography variant="caption" color="var(--color-text-quaternary)" style={{ marginTop: 2, padding: '0 4px' }}>
         {timeStr}
       </Typography>
-    </motion.div>
+    </div>
   );
 }

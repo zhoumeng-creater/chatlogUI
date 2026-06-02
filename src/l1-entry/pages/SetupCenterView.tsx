@@ -1,7 +1,5 @@
-import { useEffect } from "react";
 import { Database, Server, ShieldCheck } from "lucide-react";
-import { useSetupCommander } from "@l2/commander";
-import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
+import { useSetupCenterCommander } from "@l2/commander";
 import { SetupStepper } from "@l3/setup/SetupStepper";
 import { SetupModeChooser } from "@l3/setup/SetupModeChooser";
 import { ConfigImportPanel } from "@l3/setup/ConfigImportPanel";
@@ -12,18 +10,12 @@ import { DiagnosticPanel } from "@l3/setup/DiagnosticPanel";
 import { Button, StatusIndicator, Surface, Typography } from "@l4/ui";
 
 export function SetupCenterView() {
-  const { loadExistingProfile, openWorkbench } = useSetupCommander();
-  const currentStep = useSetupStore((s) => s.currentStep);
-  const dbReady = useSetupStore((s) => s.dbReady);
-
-  useEffect(() => {
-    loadExistingProfile();
-  }, [loadExistingProfile]);
+  const setup = useSetupCenterCommander();
 
   return (
     <div className="setup-shell">
       <aside className="setup-shell__nav">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+        <div className="setup-brand">
           <div className="ui-icon-button ui-icon-button--md ui-icon-button--active" aria-hidden="true">
             <Server size={17} />
           </div>
@@ -37,45 +29,45 @@ export function SetupCenterView() {
 
       <main className="setup-shell__main">
         <div className="setup-shell__content">
-          <div style={{ marginBottom: 24 }}>
+          <div className="setup-hero">
             <Typography variant="h2">连接本地聊天数据服务</Typography>
-            <Typography variant="body" color="var(--text-secondary)" style={{ marginTop: 6 }}>
+            <Typography variant="body" color="var(--text-secondary)" className="setup-hero__copy">
               选择服务模式、确认配置与数据库状态后进入工作台。
             </Typography>
           </div>
 
-          {currentStep === "mode" && (
-            <Surface variant="raised" style={{ padding: 20 }}>
+          {setup.currentStep === "mode" && (
+            <Surface variant="raised" className="setup-card">
               <SetupModeChooser />
             </Surface>
           )}
-          {currentStep === "config" && (
-            <Surface variant="raised" style={{ padding: 20 }}>
+          {setup.currentStep === "config" && (
+            <Surface variant="raised" className="setup-card">
               <ConfigImportPanel />
-              <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--border-subtle)" }}>
+              <div className="setup-section-divider">
                 <ManualAdvancedConfigPanel />
               </div>
             </Surface>
           )}
-          {(currentStep === "service" || currentStep === "database") && (
-            <Surface variant="raised" style={{ padding: 20 }}>
+          {(setup.currentStep === "service" || setup.currentStep === "database") && (
+            <Surface variant="raised" className="setup-card">
               <ServiceControlPanel />
             </Surface>
           )}
-          {currentStep === "ready" && (
-            <Surface variant="raised" style={{ padding: 20 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 18 }}>
+          {setup.currentStep === "ready" && (
+            <Surface variant="raised" className="setup-card">
+              <div className="setup-ready-header">
                 <div className="ui-icon-button ui-icon-button--lg ui-icon-button--active" aria-hidden="true">
                   <ShieldCheck size={19} />
                 </div>
                 <div>
                   <Typography variant="h3">服务已就绪</Typography>
-                  <Typography variant="body" color="var(--text-secondary)" style={{ marginTop: 4 }}>
+                  <Typography variant="body" color="var(--text-secondary)" className="setup-ready-copy">
                     所有检查已通过，可以开始使用了。
                   </Typography>
                 </div>
               </div>
-              <Button type="button" onClick={openWorkbench}>
+              <Button type="button" onClick={setup.openWorkbench}>
                 打开工作台
               </Button>
             </Surface>
@@ -85,29 +77,29 @@ export function SetupCenterView() {
 
       <aside className="setup-shell__aside">
         <div aria-live="polite" className="sr-only">
-          {currentStep === "ready" ? "所有组件就绪，可以进入工作台" : `当前步骤: ${currentStep}`}
+          {setup.view.readyAnnouncement}
         </div>
-        <div style={{ display: "grid", gap: 16 }}>
-          <Surface variant="base" style={{ padding: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div className="setup-aside-stack">
+          <Surface variant="base" className="setup-card--compact">
+            <div className="setup-card-header">
               <Database size={16} color="var(--text-secondary)" />
               <Typography variant="label" weight={700}>状态</Typography>
             </div>
-            <div style={{ display: "grid", gap: 8 }}>
-              <StatusIndicator label={dbReady ? "数据库就绪" : "数据库未就绪"} tone={dbReady ? "success" : "warning"} />
+            <div className="setup-status-stack">
+              <StatusIndicator label={setup.view.dbStatusLabel} tone={setup.view.dbStatusTone} />
               <ReadinessChecklist />
             </div>
           </Surface>
 
-          <Surface variant="base" style={{ padding: 14 }}>
+          <Surface variant="base" className="setup-card--compact">
             <Typography variant="label" weight={700}>诊断信息</Typography>
-            <div style={{ marginTop: 10 }}>
+            <div className="setup-diagnostics-body">
               <DiagnosticPanel />
             </div>
           </Surface>
 
-          <Button type="button" variant={dbReady ? "primary" : "secondary"} onClick={openWorkbench}>
-            {dbReady ? "打开工作台" : "稍后配置，打开空工作台"}
+          <Button type="button" variant={setup.view.workbenchButtonVariant} onClick={setup.openWorkbench}>
+            {setup.view.workbenchButtonLabel}
           </Button>
         </div>
       </aside>

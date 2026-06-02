@@ -3,7 +3,7 @@ import { useAiStore } from "@/l2-coordinator/data-clerk/stores/useAiStore";
 import { useChatCommander } from "@/l2-coordinator/commander/useChatCommander";
 import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import { translateError } from "@/l2-coordinator/diplomat/errorTranslator";
-import { parseSSEChunk, createTokenBuffer } from "@/l2-coordinator/diplomat/sseParser";
+import { createTokenBuffer } from "@/l2-coordinator/diplomat/sseParser";
 import { withOverloadRetry } from "@/l2-coordinator/diplomat/overloadInterceptor";
 import { debounce } from "@/l2-coordinator/diplomat/debounce";
 import {
@@ -23,6 +23,11 @@ import {
   SEMANTIC_SEARCH_DEBOUNCE_MS,
 } from "@/utils/constants";
 import type { SemanticConfig, QARequest, SemanticSearchRequest } from "@/l2-coordinator/api-docs/semantic";
+import {
+  deriveCompactSemanticStatus,
+  deriveSemanticModuleView,
+  deriveSemanticQaView,
+} from "./semanticViewModel";
 
 type IndexAction = "rebuild" | "pause" | "resume" | "clear";
 
@@ -75,9 +80,14 @@ export function useAiCommander() {
       store.setIndexStatus(status);
       if (status.status === "ready") {
         store.setPhase("index_ready");
-      } else if (status.status === "building") {
+      } else if (status.status === "building" || status.status === "running") {
         store.setPhase("index_building");
         startIndexPolling();
+      } else if (status.status === "paused") {
+        store.setPhase("index_not_built");
+      } else if (status.status === "error" || status.state === "error") {
+        store.setPhase("index_error");
+        store.setError(status.lastError || status.error || "语义索引不可用");
       } else {
         store.setPhase("index_not_built");
       }
@@ -100,7 +110,7 @@ export function useAiCommander() {
     try {
       return await testLLMConnection(provider, cfg);
     } catch (error) {
-      return { success: false, message: String(error) };
+      return { ok: false, success: false, message: String(error) };
     }
   }, []);
 
@@ -122,8 +132,29 @@ export function useAiCommander() {
   useEffect(() => {
     return () => {
       if (indexPollRef.current) clearInterval(indexPollRef.current);
-      if (sseAbortRef.current) sseAbortRef.current.abort();
+      if (sseAbortRef.current) {
+        sseAbortRef.current.abort();
+        const aiStore = useAiStore.getState();
+        if (aiStore.qaStreaming) {
+          aiStore.setQAStatus("stopped");
+        }
+      }
     };
+  }, []);
+
+  const stopQAStream = useCallback(() => {
+    sseAbortRef.current?.abort();
+    sseAbortRef.current = null;
+    const aiStore = useAiStore.getState();
+    if (aiStore.qaStreaming) {
+      aiStore.setQAStatus("stopped");
+      aiStore.setQAStreaming(false);
+      useAiStore.setState({
+        qaMessages: aiStore.qaMessages.map((message) =>
+          message.isStreaming ? { ...message, isStreaming: false } : message
+        ),
+      });
+    }
   }, []);
 
   const askQuestion = useCallback((query: string, scope?: "contact" | "all") => {
@@ -150,7 +181,8 @@ export function useAiCommander() {
       isStreaming: true,
     });
 
-    store.setQAStreaming(true);
+    store.setQAError(null);
+    store.setQAStatus("connecting");
 
     const params: QARequest = {
       query,
@@ -162,34 +194,42 @@ export function useAiCommander() {
 
     streamQA(
       params,
-      (chunk) => {
-        const parsed = parseSSEChunk(chunk);
-        if (parsed.type === "token") {
-          tokenBuffer.feed(parsed.content, (text) => {
+      (event) => {
+        if (event.type === "delta") {
+          if (useAiStore.getState().qaStatus === "connecting") {
+            store.setQAStatus("streaming");
+          }
+          tokenBuffer.feed(event.text, (text) => {
             store.appendQAToken(aiMsgId, text);
           });
-        } else if (parsed.type === "done") {
+        } else if (event.type === "done") {
           tokenBuffer.flush((text) => {
             if (text) store.appendQAToken(aiMsgId, text);
           });
-          store.setQAStreaming(false);
           const msgs = useAiStore.getState().qaMessages;
+          const currentAnswer = msgs.find((m) => m.id === aiMsgId)?.content ?? "";
+          const answer = currentAnswer || event.payload.answer;
           const finalMsgs = msgs.map((m) =>
-            m.id === aiMsgId ? { ...m, isStreaming: false } : m
+            m.id === aiMsgId ? { ...m, content: answer, isStreaming: false } : m
           );
-          useAiStore.setState({ qaMessages: finalMsgs, qaStreaming: false });
-        } else if (parsed.type === "error") {
+          useAiStore.setState({ qaMessages: finalMsgs });
+          store.setQAStatus(answer.trim() ? "completed" : "empty");
+        } else if (event.type === "error") {
           tokenBuffer.flush((text) => {
             if (text) store.appendQAToken(aiMsgId, text);
           });
-          store.setQAStreaming(false);
-          store.setError(translateError(parsed.error || "ESEMANTIC_SSE_ERROR"));
+          const message = translateError(event.error || "ESEMANTIC_SSE_ERROR");
+          store.setQAStatus("failed");
+          store.setQAError(message);
+          store.setError(message);
         }
       },
       (error) => {
-        store.setQAStreaming(false);
+        store.setQAStatus("failed");
         if (error.name !== "AbortError") {
-          store.setError(translateError(error.message || "ESEMANTIC_SSE_ERROR"));
+          const message = translateError(error.message || "ESEMANTIC_SSE_ERROR");
+          store.setQAError(message);
+          store.setError(message);
         }
       },
       abortController.signal
@@ -197,11 +237,14 @@ export function useAiCommander() {
   }, [currentChat, store]);
 
   const semanticSearch = useCallback(async (query: string, scope?: "contact" | "all") => {
+    store.setSearchQuery(query);
     if (!query.trim()) {
       store.setSearchResults(null);
+      store.setSearchError(null);
       return;
     }
     store.setSearchLoading(true);
+    store.setSearchError(null);
     try {
       const params: SemanticSearchRequest = {
         query,
@@ -211,7 +254,7 @@ export function useAiCommander() {
       const results = await withOverloadRetry(() => fetchSemanticSearch(params));
       store.setSearchResults(results);
     } catch (error) {
-      store.setError(translateError(String(error)));
+      store.setSearchError(translateError(String(error)));
     }
   }, [currentChat, store]);
 
@@ -235,15 +278,14 @@ export function useAiCommander() {
       const topics = await withOverloadRetry(() => fetchSemanticTopics(currentChat));
       store.setTopics(topics);
     } catch (error) {
-      store.setTopicsLoading(false);
-      store.setError(translateError(String(error)));
+      store.setTopicsError(translateError(String(error)));
     }
 
     try {
       const profile = await withOverloadRetry(() => fetchSemanticProfiles(currentChat));
       store.setProfile(profile);
-    } catch {
-      store.setProfileLoading(false);
+    } catch (error) {
+      store.setProfileError(translateError(String(error)));
     }
   }, [currentChat, store]);
 
@@ -259,26 +301,55 @@ export function useAiCommander() {
     aiStore.setProfile(null);
   }, [currentChat]);
 
+  const latestAssistantAnswer =
+    [...store.qaMessages].reverse().find((message) => message.role === "assistant")?.content ?? "";
+  const moduleView = deriveSemanticModuleView({
+    phase: store.phase,
+    config: store.config,
+    indexStatus: store.indexStatus,
+    qaStatus: store.qaStatus,
+  });
+  const qaView = deriveSemanticQaView({
+    status: store.qaStatus,
+    answer: latestAssistantAnswer,
+    error: store.qaError,
+  });
+  const compactStatus = deriveCompactSemanticStatus({
+    phase: store.phase,
+    config: store.config,
+    indexStatus: store.indexStatus,
+    qaStatus: store.qaStatus,
+  });
+
   return {
     phase: store.phase,
     config: store.config,
     indexStatus: store.indexStatus,
+    moduleView,
+    qaView,
+    compactStatus,
     qaMessages: store.qaMessages,
     qaLoading: store.qaLoading,
     qaStreaming: store.qaStreaming,
+    qaStatus: store.qaStatus,
+    qaError: store.qaError,
     searchQuery: store.searchQuery,
     searchResults: store.searchResults,
     searchLoading: store.searchLoading,
+    searchError: store.searchError,
     topics: store.topics,
     topicsLoading: store.topicsLoading,
+    topicsError: store.topicsError,
     profile: store.profile,
     profileLoading: store.profileLoading,
+    profileError: store.profileError,
     error: store.error,
     initialize,
     saveConfig,
     testConnection,
     doIndexAction,
     askQuestion,
+    stopQAStream,
     debouncedSearch,
     semanticSearch,
     loadAnalysis,

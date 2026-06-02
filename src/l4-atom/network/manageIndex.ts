@@ -1,8 +1,10 @@
 import { AI_BASE_URL } from '@/utils/constants';
+import { requestJson } from "./httpClient";
+import { adaptSemanticIndexActionResult, type SemanticIndexActionResult } from "./semanticAdapters";
 
 type IndexAction = 'rebuild' | 'pause' | 'resume' | 'clear';
 
-export async function manageIndex(action: IndexAction): Promise<void> {
+export async function manageIndex(action: IndexAction): Promise<SemanticIndexActionResult> {
   const endpoints: Record<IndexAction, string> = {
     rebuild: `${AI_BASE_URL}/api/v1/semantic/index/rebuild`,
     pause: `${AI_BASE_URL}/api/v1/semantic/index/pause`,
@@ -10,9 +12,6 @@ export async function manageIndex(action: IndexAction): Promise<void> {
     clear: `${AI_BASE_URL}/api/v1/semantic/index/clear`,
   };
 
-  const response = await fetch(endpoints[action], { method: 'POST' });
-
-  if (!response.ok) {
-    throw new Error(`索引操作 (${action}) 失败: HTTP ${response.status}`);
-  }
+  const data = await requestJson(endpoints[action], { method: 'POST' });
+  return adaptSemanticIndexActionResult(data);
 }

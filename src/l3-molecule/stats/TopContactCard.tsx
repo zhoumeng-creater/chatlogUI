@@ -1,11 +1,17 @@
 import { Avatar, Surface, Typography } from "@l4/ui";
 import type { AdaptedStats } from "@l2/data-clerk/stores/useStatsStore";
+import {
+  formatTopSenderAvatarAlt,
+  formatTopSenderFallback,
+  formatTopSenderName,
+} from "./statsDisplay";
 
 interface TopContactCardProps {
   topSenders: AdaptedStats["topSenders"];
+  privacyOn: boolean;
 }
 
-export function TopContactCard({ topSenders }: TopContactCardProps) {
+export function TopContactCard({ topSenders, privacyOn }: TopContactCardProps) {
   if (!topSenders || topSenders.length === 0) return null;
 
   const top10 = [...topSenders]
@@ -24,9 +30,13 @@ export function TopContactCard({ topSenders }: TopContactCardProps) {
             <Typography variant="body" color="var(--text-muted)" weight={700} className="stats-sender-rank">
               {index + 1}
             </Typography>
-            <Avatar alt={item.display || item.sender} size={32} fallback={(item.display || item.sender).slice(0, 2)} />
+            <Avatar
+              alt={formatTopSenderAvatarAlt(item, privacyOn)}
+              size={32}
+              fallback={formatTopSenderFallback(item, privacyOn)}
+            />
             <Typography variant="body" color="var(--text-primary)" className="stats-sender-name">
-              {item.display || item.sender}
+              {formatTopSenderName(item, privacyOn)}
             </Typography>
             <Typography variant="label" color="var(--text-secondary)" weight={700}>
               {item.count.toLocaleString()}

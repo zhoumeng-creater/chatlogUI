@@ -1,6 +1,6 @@
-import { useGraphCommander } from "@l2/commander/useGraphCommander";
-import { AppleButton } from "@l4/ui/AppleButton";
-import type { EntityKind } from "@/l2-coordinator/api-docs/graph";
+import { RefreshCw, RotateCw } from "lucide-react";
+import { Button } from "@l4/ui/Button";
+import type { EntityKind, GraphLayoutMode } from "./graphTypes";
 
 const KIND_GROUPS: { label: string; kinds: EntityKind[] }[] = [
   { label: "人物", kinds: ["person"] },
@@ -17,147 +17,170 @@ const TIME_OPTIONS: { label: string; value: string }[] = [
   { label: "近90天", value: "90d" },
 ];
 
-export function GraphControlBar() {
-  const graph = useGraphCommander();
-  const { visibleEntityKinds, timeWindow, layoutMode, autoRotate, timelineVisible } = graph;
+const ALL_KINDS: EntityKind[] = [
+  "person",
+  "organization",
+  "project",
+  "product",
+  "customer",
+  "group",
+  "topic",
+  "keyword",
+  "event",
+  "unknown",
+];
 
-  const toggleKind = (kind: EntityKind) => {
-    if (visibleEntityKinds.includes(kind)) {
-      graph.setVisibleKinds(visibleEntityKinds.filter((k) => k !== kind));
-    } else {
-      graph.setVisibleKinds([...visibleEntityKinds, kind]);
-    }
+interface GraphControlBarProps {
+  visibleEntityKinds: EntityKind[];
+  timeWindow: string;
+  layoutMode: GraphLayoutMode;
+  autoRotate: boolean;
+  timelineVisible: boolean;
+  onVisibleKindsChange: (kinds: EntityKind[]) => void;
+  onTimeWindowChange: (window: string) => void;
+  onRefresh: () => void;
+  onLayoutModeChange: (mode: GraphLayoutMode) => void;
+  onToggleAutoRotate: () => void;
+  onTimelineVisibleChange: (visible: boolean) => void;
+}
+
+export function GraphControlBar({
+  visibleEntityKinds,
+  timeWindow,
+  layoutMode,
+  autoRotate,
+  timelineVisible,
+  onVisibleKindsChange,
+  onTimeWindowChange,
+  onRefresh,
+  onLayoutModeChange,
+  onToggleAutoRotate,
+  onTimelineVisibleChange,
+}: GraphControlBarProps) {
+  const selectedKinds = new Set(visibleEntityKinds);
+
+  const toggleGroup = (kinds: EntityKind[]) => {
+    const allActive = kinds.every((kind) => selectedKinds.has(kind));
+    const next = allActive
+      ? visibleEntityKinds.filter((kind) => !kinds.includes(kind))
+      : Array.from(new Set([...visibleEntityKinds, ...kinds]));
+    onVisibleKindsChange(next);
   };
 
   const toggleAllKinds = () => {
-    const allKinds: EntityKind[] = ["person","organization","project","product","customer","group","topic","keyword","event","unknown"];
-    if (visibleEntityKinds.length === allKinds.length) {
-      graph.setVisibleKinds([]);
+    if (ALL_KINDS.every((kind) => selectedKinds.has(kind))) {
+      onVisibleKindsChange([]);
     } else {
-      graph.setVisibleKinds(allKinds);
+      onVisibleKindsChange(ALL_KINDS);
     }
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "2px 8px",
-        borderBottom: "1px solid rgba(74,158,255,0.12)",
-        flexShrink: 0,
-        flexWrap: "wrap",
-        minHeight: 30,
-      }}
-    >
-      <div style={{ display: "flex", gap: 2 }}>
-        <button
+    <div className="graph-control-bar">
+      <div className="graph-control-bar__group">
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={toggleAllKinds}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: 11,
-            color: "rgba(255,255,255,0.5)",
-            padding: "1px 4px",
-          }}
+          className="graph-control-bar__button"
+          aria-pressed={ALL_KINDS.every((kind) => selectedKinds.has(kind))}
         >
-          {visibleEntityKinds.length === 10 ? "全部" : "无"}
-        </button>
+          {ALL_KINDS.every((kind) => selectedKinds.has(kind)) ? "全部" : "无"}
+        </Button>
         {KIND_GROUPS.map((group) => {
-          const allActive = group.kinds.every((k) => visibleEntityKinds.includes(k));
-          const partialActive = group.kinds.some((k) => visibleEntityKinds.includes(k)) && !allActive;
+          const allActive = group.kinds.every((k) => selectedKinds.has(k));
+          const partialActive = group.kinds.some((k) => selectedKinds.has(k)) && !allActive;
           return (
-            <AppleButton
+            <Button
               key={group.label}
               variant={allActive ? "primary" : partialActive ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => group.kinds.forEach(toggleKind)}
-              style={{ padding: "0 6px", minWidth: 36, fontSize: 11 }}
+              onClick={() => toggleGroup(group.kinds)}
+              className="graph-control-bar__button"
+              aria-pressed={allActive || partialActive}
             >
               {group.label}
-            </AppleButton>
+            </Button>
           );
         })}
       </div>
 
-      <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.1)" }} />
+      <div className="graph-control-bar__divider" />
 
-      <div style={{ display: "flex", gap: 2 }}>
+      <div className="graph-control-bar__group">
         {TIME_OPTIONS.map((opt) => (
-          <AppleButton
+          <Button
             key={opt.value}
             variant={timeWindow === opt.value ? "primary" : "ghost"}
             size="sm"
-            onClick={() => {
-              graph.setTimeWindow(opt.value);
-              graph.refreshGraph();
-            }}
-            style={{ padding: "0 6px", minWidth: 40, fontSize: 11 }}
+            onClick={() => onTimeWindowChange(opt.value)}
+            className="graph-control-bar__button"
+            aria-pressed={timeWindow === opt.value}
           >
             {opt.label}
-          </AppleButton>
+          </Button>
         ))}
       </div>
 
-      <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.1)" }} />
+      <div className="graph-control-bar__divider" />
 
-      <div style={{ display: "flex", gap: 2 }}>
-        <AppleButton
+      <div className="graph-control-bar__group">
+        <Button
           variant={layoutMode === "force" ? "primary" : "ghost"}
           size="sm"
-          onClick={() => graph.setLayoutMode("force")}
-          style={{ padding: "0 6px", minWidth: 50, fontSize: 11 }}
+          onClick={() => onLayoutModeChange("force")}
+          className="graph-control-bar__button"
+          aria-pressed={layoutMode === "force"}
         >
           力导向
-        </AppleButton>
-        <AppleButton
+        </Button>
+        <Button
           variant={layoutMode === "radial" ? "primary" : "ghost"}
           size="sm"
-          onClick={() => graph.setLayoutMode("radial")}
-          style={{ padding: "0 6px", minWidth: 36, fontSize: 11 }}
+          onClick={() => onLayoutModeChange("radial")}
+          className="graph-control-bar__button"
+          aria-pressed={layoutMode === "radial"}
         >
           径向
-        </AppleButton>
+        </Button>
       </div>
 
-      <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.1)" }} />
+      <div className="graph-control-bar__divider" />
 
-      <AppleButton
+      <Button
         variant="ghost"
         size="sm"
-        onClick={graph.refreshGraph}
-        style={{ padding: "0 6px", minWidth: 30, fontSize: 11 }}
+        onClick={onRefresh}
+        className="graph-control-bar__icon-button"
+        title="刷新图谱"
+        aria-label="刷新图谱"
       >
-        {"\u{1F504}"}
-      </AppleButton>
+        <RefreshCw size={14} />
+      </Button>
 
-      <button
-        onClick={() => graph.toggleAutoRotate()}
-        style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          fontSize: 12,
-          color: autoRotate ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.3)",
-          padding: "0 4px",
-        }}
+      <Button
+        variant={autoRotate ? "secondary" : "ghost"}
+        size="sm"
+        onClick={onToggleAutoRotate}
+        className="graph-control-bar__icon-button"
         title="自动旋转"
+        aria-label="自动旋转"
+        aria-pressed={autoRotate}
       >
-        {"\u25EF"}
-      </button>
+        <RotateCw size={14} />
+      </Button>
 
-      <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.1)" }} />
+      <div className="graph-control-bar__divider" />
 
-      <AppleButton
+      <Button
         variant={timelineVisible ? "primary" : "ghost"}
         size="sm"
-        onClick={() => graph.setTimelineVisible(!timelineVisible)}
-        style={{ padding: "0 6px", minWidth: 36, fontSize: 11 }}
+        onClick={() => onTimelineVisibleChange(!timelineVisible)}
+        className="graph-control-bar__button"
+        aria-pressed={timelineVisible}
       >
         时间轴
-      </AppleButton>
+      </Button>
     </div>
   );
 }
