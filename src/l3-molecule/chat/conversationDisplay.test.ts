@@ -59,7 +59,7 @@ describe("conversationDisplay", () => {
   it("returns stable badges for source and kind", () => {
     expect(getConversationBadge(conversation({ source: "session", isGroup: false }))).toEqual({
       label: "最近",
-      tone: "accent",
+      tone: "info",
     });
     expect(getConversationBadge(conversation({ source: "contact", isGroup: false }))).toEqual({
       label: "联系人",

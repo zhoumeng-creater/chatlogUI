@@ -1,5 +1,5 @@
-import type { GraphNode } from "@/l2-coordinator/api-docs/graph";
-import { useGraphStore } from "@/l2-coordinator/data-clerk/stores/useGraphStore";
+import { useEffect } from "react";
+import type { GraphNodeView } from "./graphTypes";
 import { GRAPH_NODE_MIN_RADIUS } from "@/utils/constants";
 
 const ENTITY_COLORS: Record<string, string> = {
@@ -24,18 +24,32 @@ function getNodeColor(kind: string): string {
 }
 
 interface GraphNode3DProps {
-  node: GraphNode;
+  node: GraphNodeView;
   position?: [number, number, number];
+  isHovered: boolean;
+  isSelected: boolean;
+  isPulsed: boolean;
   onHover: (nodeId: string | null, coord?: { x: number; y: number }) => void;
   onDblClick: (nodeId: string) => void;
 }
 
-export function GraphNode3D({ node, position = [0, 0, 0], onHover, onDblClick }: GraphNode3DProps) {
+export function GraphNode3D({
+  node,
+  position = [0, 0, 0],
+  isHovered,
+  isSelected,
+  isPulsed,
+  onHover,
+  onDblClick,
+}: GraphNode3DProps) {
   const radius = getNodeRadius(node.value);
   const color = getNodeColor(node.kind);
-  const isHovered = useGraphStore((s) => s.hoveredNodeId === node.id);
-  const isSelected = useGraphStore((s) => s.selectedNodeId === node.id);
-  const isPulsed = useGraphStore((s) => s.pulsedNodeId === node.id);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = "default";
+    };
+  }, []);
 
   const handlePointerEnter = (e: { stopPropagation: () => void }) => {
     e.stopPropagation();

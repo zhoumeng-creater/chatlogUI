@@ -1,15 +1,21 @@
-import { useEffect } from "react";
-import { Surface, Typography, SkeletonLoader } from "@l4/ui";
-import { useAiCommander } from "@l2/commander/useAiCommander";
+import { Button, Surface, Typography, SkeletonLoader } from "@l4/ui";
+import { getSemanticDisplayText } from "./semanticDisplay";
 
-export function TopicView() {
-  const { topics, topicsLoading, loadAnalysis } = useAiCommander();
+interface TopicViewData {
+  topics: Array<{ topic: string; count: number }>;
+}
 
-  useEffect(() => {
-    loadAnalysis();
-  }, [loadAnalysis]);
+interface TopicViewProps {
+  topics: TopicViewData | null;
+  loading: boolean;
+  error?: string | null;
+  privacyOn: boolean;
+  onRetry?: () => void;
+}
 
-  if (topicsLoading) {
+export function TopicView({ topics, loading, error, privacyOn, onRetry }: TopicViewProps) {
+
+  if (loading) {
     return (
       <Surface variant="subtle" className="semantic-section">
         <Typography variant="label" weight={700}>
@@ -21,6 +27,24 @@ export function TopicView() {
             <SkeletonLoader variant="rect" width="40%" height={14} />
           </div>
         ))}
+      </Surface>
+    );
+  }
+
+  if (error) {
+    return (
+      <Surface variant="subtle" className="semantic-section">
+        <Typography variant="label" weight={700}>
+          热门话题
+        </Typography>
+        <Typography variant="body" color="var(--danger)">
+          {error}
+        </Typography>
+        {onRetry && (
+          <Button type="button" variant="secondary" size="sm" onClick={onRetry}>
+            重试
+          </Button>
+        )}
       </Surface>
     );
   }
@@ -48,7 +72,7 @@ export function TopicView() {
       {topics.topics.map((topic, index) => (
         <div key={`${topic.topic}-${index}`} className="semantic-topic-row">
           <div className="semantic-topic-row__label">
-            <Typography variant="caption">{topic.topic}</Typography>
+            <Typography variant="caption">{getSemanticDisplayText(topic.topic, privacyOn)}</Typography>
             <Typography variant="caption" color="var(--text-secondary)">
               {topic.count} 条
             </Typography>

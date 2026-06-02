@@ -1,6 +1,6 @@
-import { useSettingsCommander } from "@l2/commander/useSettingsCommander";
-import { Field, SegmentedControl, Surface, Typography } from "@l4/ui";
-import type { FontSize, ThemeMode, WindowMaterial } from "@/l2-coordinator/api-docs/settings";
+import { Field, SegmentedControl, StatusIndicator, Surface, Typography } from "@l4/ui";
+import type { FontSize, SettingsState, ThemeMode, WindowMaterial } from "@/l2-coordinator/api-docs/settings";
+import type { SettingsSaveStatus } from "@l2/data-clerk/stores/useSettingsStore";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: "system", label: "跟随系统" },
@@ -19,9 +19,14 @@ const MATERIAL_OPTIONS: { value: WindowMaterial; label: string }[] = [
   { value: "none", label: "不透明" },
 ];
 
-export function AppearanceSettings() {
-  const { settings, updateAndSave } = useSettingsCommander();
+interface AppearanceSettingsProps {
+  settings: SettingsState;
+  saveStatus: SettingsSaveStatus;
+  saveMessage: string | null;
+  onChange: (partial: Partial<SettingsState>) => void;
+}
 
+export function AppearanceSettings({ settings, saveStatus, saveMessage, onChange }: AppearanceSettingsProps) {
   return (
     <div className="settings-stack">
       <Typography variant="h2">外观</Typography>
@@ -32,7 +37,7 @@ export function AppearanceSettings() {
             label="主题"
             value={settings.theme}
             options={THEME_OPTIONS}
-            onChange={(theme) => updateAndSave({ theme })}
+            onChange={(theme) => onChange({ theme })}
           />
         </Field>
 
@@ -41,7 +46,7 @@ export function AppearanceSettings() {
             label="字体大小"
             value={settings.fontSize}
             options={FONT_OPTIONS}
-            onChange={(fontSize) => updateAndSave({ fontSize })}
+            onChange={(fontSize) => onChange({ fontSize })}
           />
         </Field>
 
@@ -50,7 +55,7 @@ export function AppearanceSettings() {
             label="窗口材质"
             value={settings.windowMaterial}
             options={MATERIAL_OPTIONS}
-            onChange={(windowMaterial) => updateAndSave({ windowMaterial })}
+            onChange={(windowMaterial) => onChange({ windowMaterial })}
           />
         </Field>
 
@@ -62,9 +67,16 @@ export function AppearanceSettings() {
               { value: "full", label: "标准" },
               { value: "reduced", label: "减少" },
             ]}
-            onChange={(value) => updateAndSave({ reduceAnimations: value === "reduced" })}
+            onChange={(value) => onChange({ reduceAnimations: value === "reduced" })}
           />
         </Field>
+        {saveMessage && (
+          <StatusIndicator
+            label={saveMessage}
+            tone={saveStatus === "error" ? "danger" : saveStatus === "saving" ? "info" : "success"}
+            busy={saveStatus === "saving"}
+          />
+        )}
       </Surface>
     </div>
   );

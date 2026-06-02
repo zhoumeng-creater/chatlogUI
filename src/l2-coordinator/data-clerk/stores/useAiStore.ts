@@ -11,13 +11,18 @@ const initialState: AiState = {
   qaMessages: [],
   qaLoading: false,
   qaStreaming: false,
+  qaStatus: "idle",
+  qaError: null,
   searchQuery: "",
   searchResults: null,
   searchLoading: false,
+  searchError: null,
   topics: null,
   topicsLoading: false,
+  topicsError: null,
   profile: null,
   profileLoading: false,
+  profileError: null,
   error: null,
 };
 
@@ -44,18 +49,27 @@ export const useAiStore = create<AiStore>((set) => ({
 
   setQALoading: (loading: boolean) => set({ qaLoading: loading }),
   setQAStreaming: (streaming: boolean) => set({ qaStreaming: streaming }),
+  setQAStatus: (qaStatus) =>
+    set({
+      qaStatus,
+      qaStreaming: qaStatus === "connecting" || qaStatus === "streaming",
+    }),
+  setQAError: (qaError: string | null) => set({ qaError }),
 
-  clearQAMessages: () => set({ qaMessages: [] }),
+  clearQAMessages: () => set({ qaMessages: [], qaStatus: "idle", qaError: null }),
 
   setSearchQuery: (query: string) => set({ searchQuery: query }),
   setSearchResults: (results: SemanticSearchResponse | null) =>
-    set({ searchResults: results, searchLoading: false }),
+    set({ searchResults: results, searchLoading: false, searchError: null }),
   setSearchLoading: (loading: boolean) => set({ searchLoading: loading }),
+  setSearchError: (searchError: string | null) => set({ searchError, searchLoading: false }),
 
-  setTopics: (topics: TopicsResponse | null) => set({ topics, topicsLoading: false }),
+  setTopics: (topics: TopicsResponse | null) => set({ topics, topicsLoading: false, topicsError: null }),
   setTopicsLoading: (loading: boolean) => set({ topicsLoading: loading }),
-  setProfile: (profile: ContactProfileData | null) => set({ profile, profileLoading: false }),
+  setTopicsError: (topicsError: string | null) => set({ topicsError, topicsLoading: false }),
+  setProfile: (profile: ContactProfileData | null) => set({ profile, profileLoading: false, profileError: null }),
   setProfileLoading: (loading: boolean) => set({ profileLoading: loading }),
+  setProfileError: (profileError: string | null) => set({ profileError, profileLoading: false }),
 
   setError: (error: string | null) => set({ error, phase: error ? "error" : undefined }),
 

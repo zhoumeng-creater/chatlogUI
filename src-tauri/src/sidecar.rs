@@ -14,6 +14,20 @@ pub struct LogPayload {
     pub message: String,
 }
 
+#[derive(Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagnosticLinePayload {
+    pub label: String,
+    pub value: String,
+}
+
+#[derive(Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagnosticExportPayload {
+    pub redaction_ok: bool,
+    pub lines: Vec<DiagnosticLinePayload>,
+}
+
 pub struct SidecarState(pub Mutex<SidecarInner>);
 
 pub struct SidecarInner {
@@ -44,7 +58,7 @@ fn default_work_dir() -> PathBuf {
 }
 
 fn sidecar_program() -> &'static str {
-    "binaries/chatlog_alpha"
+    "chatlog_alpha"
 }
 
 #[allow(dead_code)]
@@ -123,7 +137,9 @@ pub fn spawn_sidecar_with_logs(
         }
     });
 
+    let child_pid = child.pid();
     inner.child = Some(child);
+    inner.managed_pid = Some(child_pid);
 
     if let Some(port) = plan
         .http_addr
@@ -132,11 +148,23 @@ pub fn spawn_sidecar_with_logs(
         .and_then(|p| p.parse::<u16>().ok())
     {
         std::thread::sleep(std::time::Duration::from_millis(800));
-        let inspection = crate::service_probe::inspect_port(port, None);
-        inner.managed_pid = inspection.process.map(|p| p.pid);
+        let inspection = crate::service_probe::inspect_port(port, Some(child_pid));
+        if let Some(pid) = managed_pid_from_post_spawn_inspection(&inspection, child_pid) {
+            inner.managed_pid = Some(pid);
+        }
     }
 
     Ok("Sidecar started".into())
+}
+
+fn managed_pid_from_post_spawn_inspection(
+    inspection: &crate::service_probe::PortInspection,
+    spawned_pid: u32,
+) -> Option<u32> {
+    inspection
+        .process
+        .as_ref()
+        .and_then(|process| (process.pid == spawned_pid).then_some(spawned_pid))
 }
 
 fn clear_sidecar_child(app_handle: &AppHandle) {
@@ -166,15 +194,27 @@ fn emit_sidecar_log(app_handle: &AppHandle, level: &str, bytes: Vec<u8>) {
 
 pub fn shutdown_sidecar(state: State<'_, SidecarState>) -> Result<String, String> {
     let mut inner = state.0.lock().map_err(|e| format!("Lock error: {}", e))?;
+    shutdown_sidecar_inner(&mut inner)?;
+    Ok("Sidecar stopped".into())
+}
 
-    if let Some(child) = inner.child.take() {
+pub fn shutdown_sidecar_for_app_exit(state: &SidecarState) {
+    if let Ok(mut inner) = state.0.lock() {
+        let _ = shutdown_sidecar_inner(&mut inner);
+    }
+}
+
+fn shutdown_sidecar_inner(inner: &mut SidecarInner) -> Result<(), String> {
+    let kill_result = if let Some(child) = inner.child.take() {
         child
             .kill()
-            .map_err(|e| format!("Failed to kill sidecar: {}", e))?;
-        inner.managed_pid = None;
-    }
+            .map_err(|e| format!("Failed to kill sidecar: {}", e))
+    } else {
+        Ok(())
+    };
 
-    Ok("Sidecar stopped".into())
+    inner.managed_pid = None;
+    kill_result
 }
 
 #[tauri::command]
@@ -183,20 +223,122 @@ pub async fn export_logs_command(logs: Vec<LogPayload>) -> Result<String, String
     let path = std::env::temp_dir().join("chatlog_alpha_export.log");
     let mut file = std::fs::File::create(&path).map_err(|e| format!("无法创建日志文件: {}", e))?;
     for entry in &logs {
-        let line = format!("[{}] {}\n", entry.level, entry.message);
+        let safe_entry = redact_log_payload(entry)?;
+        let line = format!("[{}] {}\n", safe_entry.level, safe_entry.message);
         file.write_all(line.as_bytes())
             .map_err(|e| format!("写入日志失败: {}", e))?;
     }
     Ok(path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+pub async fn export_diagnostics_report_command(
+    report: DiagnosticExportPayload,
+) -> Result<String, String> {
+    use std::io::Write;
+    if !report.redaction_ok {
+        return Err("诊断报告仍包含敏感信息，已阻止导出。".into());
+    }
+
+    let path = std::env::temp_dir().join("chatlog_alpha_diagnostics.log");
+    let mut file = std::fs::File::create(&path).map_err(|e| format!("无法创建诊断文件: {}", e))?;
+
+    for entry in &report.lines {
+        let label = redact_text(&entry.label);
+        let value = if should_redact_diagnostic_value(&entry.label) {
+            "[redacted] sensitive diagnostic value".into()
+        } else {
+            redact_text(&entry.value)
+        };
+        if contains_sensitive_marker(&label) || contains_sensitive_marker(&value) {
+            return Err("诊断报告脱敏失败，已阻止导出。".into());
+        }
+        let line = format!("{}: {}\n", label, value);
+        file.write_all(line.as_bytes())
+            .map_err(|e| format!("写入诊断失败: {}", e))?;
+    }
+
+    Ok(path.to_string_lossy().to_string())
+}
+
+fn redact_log_payload(payload: &LogPayload) -> Result<LogPayload, String> {
+    let message = redact_text(&payload.message);
+    if contains_sensitive_marker(&message) {
+        return Err("日志脱敏失败，已阻止导出。".into());
+    }
+
+    Ok(LogPayload {
+        level: payload.level.clone(),
+        message,
+    })
+}
+
+fn redact_text(value: &str) -> String {
+    if contains_sensitive_marker(value) {
+        "[redacted] sensitive diagnostic line".into()
+    } else {
+        value.to_string()
+    }
+}
+
+fn should_redact_diagnostic_value(label: &str) -> bool {
+    let normalized = label.to_lowercase();
+    [
+        "data_key",
+        "data-key",
+        "datakey",
+        "img_key",
+        "img-key",
+        "imgkey",
+        "api_key",
+        "api-key",
+        "apikey",
+        "token",
+        "secret",
+        "credential",
+        "password",
+        "authorization",
+        "private message",
+        "message body",
+        "chat content",
+    ]
+    .iter()
+    .any(|marker| normalized.contains(marker))
+}
+
+fn contains_sensitive_marker(value: &str) -> bool {
+    let normalized = value.to_lowercase();
+    [
+        "data_key",
+        "data-key",
+        "datakey",
+        "img_key",
+        "img-key",
+        "imgkey",
+        "api_key",
+        "api-key",
+        "apikey",
+        "token",
+        "secret",
+        "credential",
+        "password",
+        "bearer ",
+        "wechat files",
+        "wxid_",
+        "c:\\users\\",
+    ]
+    .iter()
+    .any(|marker| normalized.contains(marker))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::service_probe::{PortInspection, PortOwnerKind, ProcessInfo};
 
     #[test]
     fn sidecar_program_uses_external_bin_base_name() {
-        assert_eq!(sidecar_program(), "binaries/chatlog_alpha");
+        assert_eq!(sidecar_program(), "chatlog_alpha");
     }
 
     #[test]
@@ -206,5 +348,111 @@ mod tests {
             normalize_option(Some("  C:/WeChat Files/wxid_xxx  ".to_string())),
             Some("C:/WeChat Files/wxid_xxx".to_string()),
         );
+    }
+
+    #[test]
+    fn diagnostic_log_export_redacts_sensitive_lines() {
+        let payload = LogPayload {
+            level: "stderr".into(),
+            message: "data_key=raw-secret C:\\Users\\Alice\\WeChat Files\\wxid_a".into(),
+        };
+
+        let redacted = redact_log_payload(&payload).expect("redaction should complete");
+
+        assert_eq!(redacted.level, "stderr");
+        assert!(!redacted.message.contains("raw-secret"));
+        assert!(!redacted.message.contains("Alice"));
+        assert!(!redacted.message.contains("wxid_a"));
+        assert!(redacted.message.contains("[redacted]"));
+    }
+
+    #[test]
+    fn diagnostics_report_export_redacts_synthetic_release_audit_values() {
+        let payload = DiagnosticExportPayload {
+            redaction_ok: true,
+            lines: vec![
+                DiagnosticLinePayload {
+                    label: "dataKey".into(),
+                    value: "synthetic-data-key-should-be-redacted".into(),
+                },
+                DiagnosticLinePayload {
+                    label: "apiKey".into(),
+                    value: "sk-synthetic-should-be-redacted".into(),
+                },
+                DiagnosticLinePayload {
+                    label: "token".into(),
+                    value: "synthetic-token-should-be-redacted".into(),
+                },
+                DiagnosticLinePayload {
+                    label: "private message".into(),
+                    value: "synthetic-private-message-should-be-redacted".into(),
+                },
+                DiagnosticLinePayload {
+                    label: "local path".into(),
+                    value: "C:\\Users\\PrivateName\\Documents\\chatlog".into(),
+                },
+            ],
+        };
+
+        let path = tauri::async_runtime::block_on(export_diagnostics_report_command(payload))
+            .expect("diagnostic export should succeed after redaction");
+        let contents = std::fs::read_to_string(&path).expect("diagnostic file should be readable");
+        let _ = std::fs::remove_file(path);
+
+        assert!(!contents.contains("synthetic-data-key"));
+        assert!(!contents.contains("sk-synthetic"));
+        assert!(!contents.contains("synthetic-token"));
+        assert!(!contents.contains("synthetic-private-message"));
+        assert!(!contents.contains("PrivateName"));
+    }
+
+    #[test]
+    fn post_spawn_pid_tracking_only_claims_spawned_child() {
+        let unknown_occupant = PortInspection {
+            port: 5030,
+            owner: PortOwnerKind::UnknownProcess,
+            process: Some(ProcessInfo {
+                pid: 9001,
+                name: "node.exe".into(),
+                command: "node listener.js".into(),
+            }),
+            can_stop_safely: false,
+        };
+
+        assert_eq!(
+            managed_pid_from_post_spawn_inspection(&unknown_occupant, 42),
+            None
+        );
+
+        let spawned_child = PortInspection {
+            port: 5030,
+            owner: PortOwnerKind::ExternalChatlog,
+            process: Some(ProcessInfo {
+                pid: 42,
+                name: "chatlog_alpha.exe".into(),
+                command: "chatlog_alpha serve --http-addr 127.0.0.1:5030".into(),
+            }),
+            can_stop_safely: false,
+        };
+
+        assert_eq!(
+            managed_pid_from_post_spawn_inspection(&spawned_child, 42),
+            Some(42),
+        );
+    }
+
+    #[test]
+    fn app_exit_shutdown_clears_managed_pid_without_child_handle() {
+        let state = SidecarState::new();
+        {
+            let mut inner = state.0.lock().unwrap();
+            inner.managed_pid = Some(5030);
+        }
+
+        shutdown_sidecar_for_app_exit(&state);
+
+        let inner = state.0.lock().unwrap();
+        assert_eq!(inner.managed_pid, None);
+        assert!(inner.child.is_none());
     }
 }

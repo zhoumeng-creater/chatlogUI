@@ -1,21 +1,47 @@
 import { useState } from 'react';
 import { SpringModal } from '@l4/ui/SpringModal';
 import { Typography } from '@l4/ui/Typography';
-import { AppleButton } from '@l4/ui/AppleButton';
+import { Button } from '@l4/ui/Button';
 import { Input } from '@l4/ui/Input';
 import { Spinner } from '@l4/ui/Spinner';
 import { ProgressBar } from '@l4/ui/ProgressBar';
-import { useAiCommander } from '@l2/commander/useAiCommander';
-import type { LLMProvider, SemanticConfig, ConnectionTestResult } from '@/l2-coordinator/api-docs/semantic';
+
+type LLMProvider = "ollama" | "glm" | "deepseek" | string;
+
+interface SemanticConfig {
+  provider?: LLMProvider;
+  ollamaBaseUrl?: string;
+  glmApiKey?: string;
+  glmBaseUrl?: string;
+  deepseekApiKey?: string;
+  enabled?: boolean;
+  [key: string]: unknown;
+}
+
+interface ConnectionTestResult {
+  ok?: boolean;
+  success?: boolean;
+  message: string;
+  latencyMs?: number;
+}
 
 interface SetupWizardProps {
   onClose: () => void;
+  testConnection: (provider: string, cfg: Record<string, string>) => Promise<ConnectionTestResult>;
+  saveConfig: (config: SemanticConfig) => Promise<void>;
+  doIndexAction: (action: "rebuild" | "pause" | "resume" | "clear") => Promise<void>;
+  indexStatus: { total: number; completed: number } | null;
 }
 
 type WizardStep = 1 | 2 | 3;
 
-export function SetupWizard({ onClose }: SetupWizardProps) {
-  const ai = useAiCommander();
+export function SetupWizard({
+  onClose,
+  testConnection,
+  saveConfig,
+  doIndexAction,
+  indexStatus,
+}: SetupWizardProps) {
   const [step, setStep] = useState<WizardStep>(1);
   const [provider, setProvider] = useState<LLMProvider>('ollama');
   const [testing, setTesting] = useState(false);
@@ -28,41 +54,84 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
 
   const buildConfig = (): SemanticConfig => {
     if (provider === 'ollama') {
-      return { provider: 'ollama', ollamaBaseUrl: ollamaUrl };
+      return {
+        provider: 'ollama',
+        ollamaBaseUrl: ollamaUrl,
+        enabled: true,
+        embedding_provider: 'ollama',
+        rerank_provider: 'ollama',
+        chat_provider: 'ollama',
+        embedding_model: 'nomic-embed-text',
+        rerank_model: 'bge-reranker',
+        chat_model: 'llama3',
+        ollama_base_url: ollamaUrl,
+        api_key: '',
+        deepseek_api_key: '',
+      } as SemanticConfig;
     } else if (provider === 'glm') {
-      return { provider: 'glm', glmApiKey: apiKey, glmBaseUrl: baseUrl || undefined };
+      return {
+        provider: 'glm',
+        glmApiKey: apiKey,
+        glmBaseUrl: baseUrl || undefined,
+        enabled: true,
+        embedding_provider: 'ollama',
+        rerank_provider: 'ollama',
+        chat_provider: 'glm',
+        embedding_model: 'nomic-embed-text',
+        rerank_model: 'bge-reranker',
+        chat_model: 'glm-4',
+        base_url: baseUrl || undefined,
+        api_key: apiKey,
+        deepseek_api_key: '',
+      } as SemanticConfig;
     } else {
-      return { provider: 'deepseek', deepseekApiKey: apiKey };
+      return {
+        provider: 'deepseek',
+        deepseekApiKey: apiKey,
+        enabled: true,
+        embedding_provider: 'ollama',
+        rerank_provider: 'ollama',
+        chat_provider: 'deepseek',
+        embedding_model: 'nomic-embed-text',
+        rerank_model: 'bge-reranker',
+        chat_model: 'deepseek-chat',
+        deepseek_api_key: apiKey,
+        api_key: '',
+      } as SemanticConfig;
     }
   };
 
-  const handleTest = async () => {
+  const handleTest = async (): Promise<boolean> => {
     setTesting(true);
     setTestResult(null);
     const cfg = buildConfig();
-    const result = await ai.testConnection(provider, {
-      ...(provider === 'ollama' ? { base_url: cfg.ollamaBaseUrl || '' } : { api_key: apiKey }),
-    });
-    setTestResult(result);
-    setTesting(false);
+    try {
+      const result = await testConnection(provider, {
+        ...(provider === 'ollama' ? { base_url: cfg.ollamaBaseUrl || '' } : { api_key: apiKey }),
+      });
+      setTestResult(result);
+      return Boolean(result.ok ?? result.success);
+    } finally {
+      setTesting(false);
+    }
   };
 
   const handleSaveAndBuild = async () => {
     setBuildingIndex(true);
-    await ai.saveConfig(buildConfig());
-    await ai.doIndexAction('rebuild');
+    await saveConfig(buildConfig());
+    await doIndexAction('rebuild');
     setBuildingIndex(false);
     onClose();
   };
 
   const handleSaveOnly = async () => {
-    await ai.saveConfig(buildConfig());
+    await saveConfig(buildConfig());
     onClose();
   };
 
   const indexProgress =
-    ai.indexStatus && ai.indexStatus.total > 0
-      ? (ai.indexStatus.completed / ai.indexStatus.total) * 100
+    indexStatus && indexStatus.total > 0
+      ? (indexStatus.completed / indexStatus.total) * 100
       : 0;
 
   return (
@@ -75,17 +144,14 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
         <Typography variant="h3" style={{ marginBottom: 8 }}>
           配置 AI 功能
         </Typography>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div className="semantic-step-meter" aria-label={`AI 配置步骤 ${step} / 3`}>
           {([1, 2, 3] as WizardStep[]).map((s) => (
             <div
               key={s}
-              style={{
-                flex: 1,
-                height: 4,
-                borderRadius: 2,
-                background: s <= step ? '#007AFF' : 'var(--color-border)',
-                transition: 'background 0.3s',
-              }}
+              className={[
+                "semantic-step-meter__bar",
+                s <= step ? "semantic-step-meter__bar--active" : "",
+              ].filter(Boolean).join(" ")}
             />
           ))}
         </div>
@@ -115,17 +181,14 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
                 note: '需要填写 API Key',
               },
             ].map((opt) => (
-              <div
+              <Button
                 key={opt.key}
+                variant="ghost"
+                className={[
+                  "semantic-provider-card",
+                  provider === opt.key ? "semantic-provider-card--selected" : "",
+                ].filter(Boolean).join(" ")}
                 onClick={() => setProvider(opt.key)}
-                style={{
-                  padding: '12px 16px',
-                  marginBottom: 8,
-                  borderRadius: 12,
-                  cursor: 'pointer',
-                  border: provider === opt.key ? '2px solid #007AFF' : '1px solid var(--color-border)',
-                  background: provider === opt.key ? 'rgba(0,122,255,0.06)' : 'transparent',
-                }}
               >
                 <Typography variant="body" weight={600}>
                   {opt.name}
@@ -136,15 +199,15 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
                 <Typography variant="caption" color="var(--color-text-quaternary)">
                   {opt.note}
                 </Typography>
-              </div>
+              </Button>
             ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, gap: 8 }}>
-              <AppleButton variant="ghost" onClick={onClose}>
+              <Button variant="ghost" onClick={onClose}>
                 取消
-              </AppleButton>
-              <AppleButton variant="primary" onClick={() => setStep(2)}>
+              </Button>
+              <Button variant="primary" onClick={() => setStep(2)}>
                 下一步
-              </AppleButton>
+              </Button>
             </div>
           </div>
         )}
@@ -195,16 +258,23 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
               </>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-              <AppleButton variant="ghost" onClick={() => setStep(1)}>
+              <Button variant="ghost" onClick={() => setStep(1)}>
                 上一步
-              </AppleButton>
+              </Button>
               <div style={{ display: 'flex', gap: 8 }}>
-                <AppleButton variant="secondary" onClick={handleTest} disabled={testing}>
+                <Button variant="secondary" onClick={handleTest} disabled={testing}>
                   {testing ? <Spinner size={14} /> : '测试连接'}
-                </AppleButton>
-                <AppleButton variant="primary" onClick={() => { handleTest(); setStep(3); }} disabled={testing}>
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={async () => {
+                    const passed = await handleTest();
+                    if (passed) setStep(3);
+                  }}
+                  disabled={testing}
+                >
                   下一步
-                </AppleButton>
+                </Button>
               </div>
             </div>
             {testResult && (
@@ -213,11 +283,11 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
                   marginTop: 12,
                   padding: '8px 12px',
                   borderRadius: 8,
-                  background: testResult.success ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
+                  background: (testResult.ok ?? testResult.success) ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
                 }}
               >
-                <Typography variant="caption" color={testResult.success ? '#34C759' : '#FF3B30'}>
-                  {testResult.success ? '\u2713 ' : '\u2717 '}
+                <Typography variant="caption" color={(testResult.ok ?? testResult.success) ? 'var(--success)' : 'var(--danger)'}>
+                  {(testResult.ok ?? testResult.success) ? '\u2713 ' : '\u2717 '}
                   {testResult.message}
                   {testResult.latencyMs ? ` (${testResult.latencyMs}ms)` : ''}
                 </Typography>
@@ -246,15 +316,15 @@ export function SetupWizard({ onClose }: SetupWizardProps) {
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
-              <AppleButton variant="ghost" onClick={onClose}>
+              <Button variant="ghost" onClick={onClose}>
                 稍后再说
-              </AppleButton>
-              <AppleButton variant="secondary" onClick={handleSaveOnly}>
+              </Button>
+              <Button variant="secondary" onClick={handleSaveOnly}>
                 仅保存配置
-              </AppleButton>
-              <AppleButton variant="primary" onClick={handleSaveAndBuild} disabled={buildingIndex}>
+              </Button>
+              <Button variant="primary" onClick={handleSaveAndBuild} disabled={buildingIndex}>
                 保存并构建索引
-              </AppleButton>
+              </Button>
             </div>
           </div>
         )}

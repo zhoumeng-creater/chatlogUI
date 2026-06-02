@@ -1,21 +1,26 @@
 import type { ReactNode } from "react";
 import { BarChart3, Bot, MessageSquare, Network, Settings } from "lucide-react";
-import type { WorkbenchModule } from "@l2/commander";
-import { buildWorkbenchRailItems } from "@l2/commander/workbenchViewModel";
+
+export type WorkbenchRailModule = "chat" | "stats" | "ai" | "graph" | "settings";
+
+export interface WorkbenchRailItemState {
+  module: WorkbenchRailModule;
+  label: string;
+  active: boolean;
+  badge?: string;
+}
 
 interface WorkbenchRailProps {
   showLabels: boolean;
-  activeModule: WorkbenchModule;
-  onSelectModule: (module: WorkbenchModule) => void;
+  items: WorkbenchRailItemState[];
+  onSelectModule: (module: WorkbenchRailModule) => void;
 }
 
 export function WorkbenchRail({
   showLabels,
-  activeModule,
+  items,
   onSelectModule,
 }: WorkbenchRailProps) {
-  const items = buildWorkbenchRailItems(activeModule);
-
   return (
     <>
       {items.map((item) => (
@@ -23,6 +28,7 @@ export function WorkbenchRail({
           key={item.module}
           icon={getModuleIcon(item.module)}
           label={item.label}
+          badge={item.badge}
           showLabel={showLabels}
           active={item.active}
           onClick={() => onSelectModule(item.module)}
@@ -32,7 +38,7 @@ export function WorkbenchRail({
   );
 }
 
-function getModuleIcon(module: WorkbenchModule): ReactNode {
+function getModuleIcon(module: WorkbenchRailModule): ReactNode {
   switch (module) {
     case "stats":
       return <BarChart3 size={17} />;
@@ -50,12 +56,13 @@ function getModuleIcon(module: WorkbenchModule): ReactNode {
 interface RailItemProps {
   icon: ReactNode;
   label: string;
+  badge?: string;
   showLabel: boolean;
   active?: boolean;
   onClick?: () => void;
 }
 
-function RailItem({ icon, label, showLabel, active = false, onClick }: RailItemProps) {
+function RailItem({ icon, label, badge, showLabel, active = false, onClick }: RailItemProps) {
   return (
     <button
       type="button"
@@ -70,6 +77,7 @@ function RailItem({ icon, label, showLabel, active = false, onClick }: RailItemP
     >
       {icon}
       {showLabel && <span>{label}</span>}
+      {badge && <span className="workbench-rail-item__badge">{badge}</span>}
     </button>
   );
 }

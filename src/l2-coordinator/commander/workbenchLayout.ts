@@ -19,7 +19,7 @@ export function getWorkbenchLayout(viewportWidth: number): WorkbenchLayout {
       mode: "single",
       sidebarLabels: false,
       showConversationList: false,
-      inspectorMode: "hidden",
+      inspectorMode: "drawer",
       gridTemplateColumns: "minmax(0, 1fr)",
     };
   }

@@ -1,0 +1,148 @@
+{
+  "synthetic": true,
+  "fixturePurpose": "Advanced P4 endpoint shape coverage for future contract and browser E2E tests.",
+  "privacyNotes": "Rows are synthetic and contain no real SNS, media, DB, hook, MCP, semantic, or graph content.",
+  "generatedAt": "2026-06-01T00:00:00.000Z",
+  "routes": {
+    "/api/v1/unread": {
+      "items": [
+        {
+          "chat": "session_synthetic_001",
+          "count": 2
+        }
+      ]
+    },
+    "/api/v1/members": {
+      "chat": "chatroom_synthetic_001",
+      "items": [
+        {
+          "username": "member_synthetic_001",
+          "display_name": "Synthetic Member Alpha"
+        }
+      ]
+    },
+    "/api/v1/new_messages": {
+      "items": [
+        {
+          "id": "new_message_synthetic_001",
+          "chat": "session_synthetic_001",
+          "summary": "Synthetic new-message summary"
+        }
+      ]
+    },
+    "/api/v1/favorites": {
+      "items": [
+        {
+          "id": "favorite_synthetic_001",
+          "type": "text",
+          "summary": "Synthetic favorite summary"
+        }
+      ]
+    },
+    "mediaResources": {
+      "items": [
+        {
+          "id": "media_synthetic_001",
+          "family": "image",
+          "content_type": "image/png",
+          "size_bytes": 1024,
+          "resource_note": "Synthetic metadata only. No binary media included."
+        }
+      ]
+    },
+    "/api/v1/sns_notifications": {
+      "items": [
+        {
+          "id": "sns_notification_synthetic_001",
+          "actor": "sns_actor_synthetic_001",
+          "type": "like",
+          "timestamp": "2026-01-02T08:00:00Z"
+        }
+      ]
+    },
+    "/api/v1/sns_feed": {
+      "items": [
+        {
+          "id": "sns_feed_synthetic_001",
+          "author": "sns_actor_synthetic_001",
+          "summary": "Synthetic SNS feed row",
+          "media_count": 1,
+          "timestamp": "2026-01-02T09:00:00Z"
+        }
+      ]
+    },
+    "/api/v1/sns_search": {
+      "items": [
+        {
+          "id": "sns_search_synthetic_001",
+          "summary": "Synthetic SNS search result",
+          "timestamp": "2026-01-02T10:00:00Z"
+        }
+      ]
+    },
+    "/api/v1/db/tables": {
+      "items": [
+        {
+          "name": "SyntheticMessages",
+          "row_count": 42
+        }
+      ]
+    },
+    "/api/v1/db/data": {
+      "table": "SyntheticMessages",
+      "columns": ["id", "kind", "summary"],
+      "rows": [
+        {
+          "id": "db_row_synthetic_001",
+          "kind": "text",
+          "summary": "Synthetic DB row"
+        }
+      ]
+    },
+    "/api/v1/db/query": {
+      "columns": ["id", "summary"],
+      "rows": [
+        {
+          "id": "query_row_synthetic_001",
+          "summary": "Synthetic query row"
+        }
+      ]
+    },
+    "/api/v1/hook/events": {
+      "items": [
+        {
+          "id": "hook_event_synthetic_001",
+          "event_type": "message",
+          "summary": "Synthetic hook event summary",
+          "timestamp": "2026-01-03T08:00:00Z"
+        }
+      ]
+    },
+    "/mcp": {
+      "tools": [
+        {
+          "name": "synthetic.sessions.list",
+          "description": "Synthetic MCP tool listing"
+        }
+      ]
+    },
+    "/api/v1/semantic/index/preview": {
+      "items": [
+        {
+          "id": "semantic_preview_synthetic_001",
+          "status": "ready",
+          "summary": "Synthetic semantic preview row"
+        }
+      ]
+    },
+    "/api/v1/graph/ingest/message": {
+      "accepted": 1,
+      "summary": "Synthetic graph ingest response"
+    },
+    "/api/v1/graph/status": {
+      "ready": true,
+      "node_count": 4,
+      "edge_count": 3
+    }
+  }
+}

@@ -1,4 +1,6 @@
 import { lazy, Suspense } from "react";
+import { useAppShellCommander, useUpdateNotificationCommander } from "@l2/commander";
+import { useDevConsoleCommander } from "@l2/commander/useDevConsoleCommander";
 import { useWorkbenchCommander } from "@l2/commander/useWorkbenchCommander";
 import { AppLayout } from "@l3/common/AppLayout";
 import { StatusBar } from "@l3/common/StatusBar";
@@ -14,7 +16,7 @@ import { Typography } from "@l4/ui/Typography";
 import { Button } from "@l4/ui/Button";
 import { Spinner } from "@l4/ui/Spinner";
 import { DevConsole } from "@l3/common/DevConsole";
-import { UpdateNotification } from "@l3/common/UpdateNotification";
+import { UpdateNotificationView } from "@l3/common/UpdateNotificationView";
 
 const LazyAiPanel = lazy(() =>
   import("@l3/semantic/AiPanel").then((module) => ({ default: module.AiPanel })),
@@ -26,11 +28,14 @@ const LazyGraphModule = lazy(() =>
 
 export function WorkbenchView() {
   const workbench = useWorkbenchCommander();
+  const appShell = useAppShellCommander(workbench.appPhase === "error" ? "应用错误" : "工作台");
+  const updateNotification = useUpdateNotificationCommander();
+  const devConsole = useDevConsoleCommander();
 
   if (workbench.appPhase === "error") {
     return (
-      <AppLayout title="应用错误">
-        <div className="workbench-error-state" style={{ height: "100%" }}>
+      <AppLayout shell={appShell.view} actions={appShell.actions}>
+        <div className="workbench-error-state page-fill">
           <Typography variant="h2" color="var(--danger)">
             应用错误
           </Typography>
@@ -41,7 +46,7 @@ export function WorkbenchView() {
             返回启动页
           </Button>
         </div>
-        <DevConsole />
+        <DevConsole view={devConsole.view} actions={devConsole.actions} />
         <StatusBar
           status={workbench.sidecarStatus}
           indexStatus={workbench.ai.indexStatus}
@@ -56,15 +61,15 @@ export function WorkbenchView() {
   const mainContent = workbench.conversationListAsMain ? conversationList : <ChatView />;
 
   return (
-    <AppLayout title="工作台">
-      <div style={{ display: "flex", height: "100%", minHeight: 0, flexDirection: "column" }}>
-        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <AppLayout shell={appShell.view} actions={appShell.actions}>
+      <div className="page-column">
+        <div className="page-fill">
           <WorkbenchFrame
             layout={workbench.layout}
             rail={(
               <WorkbenchRail
                 showLabels={workbench.layout.sidebarLabels}
-                activeModule={workbench.activeModule}
+                items={workbench.railItems}
                 onSelectModule={workbench.selectModule}
               />
             )}
@@ -73,7 +78,7 @@ export function WorkbenchView() {
               <>
                 <div className="flex items-center justify-between gap-2">
                   <Typography variant="label" weight={600} color="var(--text-secondary)">
-                    {workbench.currentConversation?.displayName ?? "选择会话"}
+                    {workbench.toolbarConversationTitle}
                   </Typography>
                   <div className="flex items-center gap-2">
                     {workbench.layout.mode === "single" && workbench.singlePaneView === "detail" && (
@@ -96,6 +101,13 @@ export function WorkbenchView() {
                           onClick={() => workbench.selectModule("ai")}
                         >
                           AI
+                        </Button>
+                        <Button
+                          variant={workbench.activeModule === "graph" ? "secondary" : "ghost"}
+                          size="sm"
+                          onClick={() => workbench.selectModule("graph")}
+                        >
+                          图谱
                         </Button>
                       </>
                     )}
@@ -121,11 +133,17 @@ export function WorkbenchView() {
             {mainContent}
           </WorkbenchFrame>
         </div>
-        <UpdateNotification />
-        <DevConsole />
+        <UpdateNotificationView
+          view={updateNotification.view}
+          status={updateNotification.status}
+          notes={updateNotification.notes}
+          actions={updateNotification.actions}
+        />
+        <DevConsole view={devConsole.view} actions={devConsole.actions} />
         <StatusBar
           status={workbench.sidecarStatus}
           indexStatus={workbench.ai.indexStatus}
+          semanticStatus={workbench.ai.compactStatus}
         />
       </div>
     </AppLayout>
@@ -163,6 +181,7 @@ function InspectorContent({ workbench }: InspectorContentProps) {
       trend={workbench.stats.trend}
       loading={workbench.stats.loading}
       error={workbench.stats.error}
+      privacyOn={workbench.privacyOn}
       onRetry={workbench.retryStats}
       onShowAi={() => workbench.selectModule("ai")}
       onOpenGraph={() => workbench.selectModule("graph")}
@@ -172,15 +191,7 @@ function InspectorContent({ workbench }: InspectorContentProps) {
 
 function PanelLoading({ label }: { label: string }) {
   return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-      }}
-    >
+    <div className="panel-loading">
       <Spinner size={20} label={label} color="var(--text-muted)" />
     </div>
   );

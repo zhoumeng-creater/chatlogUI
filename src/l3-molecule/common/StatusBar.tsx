@@ -1,5 +1,6 @@
 import type { SidecarStatus, DbStatus } from "@l2/data-clerk/types/app";
 import type { IndexStatusResponse } from "@/l2-coordinator/api-docs/semantic";
+import type { CompactSemanticStatus } from "@/l2-coordinator/commander/semanticViewModel";
 import { StatusIndicator, Typography, type StatusTone } from "@l4/ui";
 import { SIDECAR_PORT } from "@/utils/constants";
 
@@ -11,6 +12,7 @@ interface StatusBarProps {
   httpReady?: boolean;
   dbReady?: boolean;
   portStatus?: string;
+  semanticStatus?: CompactSemanticStatus | null;
 }
 
 const STATUS_LABELS: Record<SidecarStatus, string> = {
@@ -22,7 +24,7 @@ const STATUS_LABELS: Record<SidecarStatus, string> = {
 
 const STATUS_TONES: Record<SidecarStatus, StatusTone> = {
   stopped: "neutral",
-  starting: "warning",
+  starting: "info",
   running: "success",
   error: "danger",
 };
@@ -37,19 +39,16 @@ const DB_STATUS_LABELS: Record<DbStatus, string> = {
 
 const DB_STATUS_TONES: Record<DbStatus, StatusTone> = {
   disconnected: "neutral",
-  connecting: "warning",
-  decrypting: "warning",
+  connecting: "info",
+  decrypting: "info",
   ready: "success",
   error: "danger",
 };
 
-export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbReady, portStatus }: StatusBarProps) {
+export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbReady, portStatus, semanticStatus }: StatusBarProps) {
   const isStarting = status === "starting";
   const isDbBusy = dbStatus === "connecting" || dbStatus === "decrypting";
-  const isIndexBuilding = indexStatus?.status === "building";
-  const indexProgress = indexStatus && indexStatus.total > 0
-    ? Math.round((indexStatus.completed / indexStatus.total) * 100)
-    : 0;
+  const indexIndicator = semanticStatus ?? getIndexIndicator(indexStatus);
 
   return (
     <footer className="app-statusbar">
@@ -66,13 +65,11 @@ export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbR
             busy={isDbBusy}
           />
         )}
-        {indexStatus && (indexStatus.status === "ready" || indexStatus.status === "building") && (
+        {indexIndicator && (
           <StatusIndicator
-            label={indexStatus.status === "ready"
-              ? "AI 就绪"
-              : `索引构建中 ${indexProgress}%`}
-            tone={indexStatus.status === "ready" ? "success" : "warning"}
-            busy={isIndexBuilding}
+            label={indexIndicator.label}
+            tone={indexIndicator.tone}
+            busy={indexIndicator.busy}
           />
         )}
       </div>
@@ -100,9 +97,60 @@ export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbR
           </Typography>
         )}
         <Typography variant="caption" color="var(--text-muted)">
-          :{SIDECAR_PORT}
+          {formatSidecarPortLabel(SIDECAR_PORT)}
         </Typography>
       </div>
     </footer>
   );
+}
+
+export function formatSidecarPortLabel(port: number): string {
+  return `端口 ${port}`;
+}
+
+function getIndexIndicator(indexStatus?: IndexStatusResponse | null): { label: string; tone: StatusTone; busy?: boolean } | null {
+  if (!indexStatus) return null;
+
+  const status = String(indexStatus.status);
+  if (status === "ready") {
+    return { label: "AI 就绪", tone: "ai" };
+  }
+
+  if (status === "building" || status === "running") {
+    const progress = getIndexProgress(indexStatus);
+    return {
+      label: progress !== null ? `索引处理中 ${progress}%` : "索引处理中",
+      tone: "info",
+      busy: true,
+    };
+  }
+
+  if (status === "paused") {
+    return { label: "索引已暂停", tone: "warning" };
+  }
+
+  if (status === "error") {
+    return { label: "索引异常", tone: "danger" };
+  }
+
+  return null;
+}
+
+function getIndexProgress(indexStatus: IndexStatusResponse): number | null {
+  const raw = indexStatus as IndexStatusResponse & {
+    progress_pct?: number;
+    progressPct?: number;
+    processed?: number;
+    pending?: number;
+  };
+
+  if (typeof raw.progress_pct === "number") return Math.round(raw.progress_pct);
+  if (typeof raw.progressPct === "number") return Math.round(raw.progressPct);
+  if (indexStatus.total > 0) return Math.round((indexStatus.completed / indexStatus.total) * 100);
+  if (typeof raw.processed === "number" && typeof raw.pending === "number") {
+    const total = raw.processed + raw.pending;
+    return total > 0 ? Math.round((raw.processed / total) * 100) : null;
+  }
+
+  return null;
 }

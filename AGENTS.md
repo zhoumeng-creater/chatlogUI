@@ -67,7 +67,7 @@ cd src-tauri && cargo test
 The packaged app runs `chatlog_alpha` as a Tauri sidecar.
 
 - Bundle config uses `src-tauri/binaries/chatlog_alpha`.
-- The Rust sidecar launcher starts the program with `serve --http-addr 0.0.0.0:5030`.
+- The Rust sidecar launcher starts the program with `serve --http-addr 127.0.0.1:5030`.
 - Health check endpoint is `/health`.
 - Common APIs include `/api/v1/db`, `/api/v1/sessions`, `/api/v1/history`, `/api/v1/search`, `/api/v1/stats`, `/api/v1/contacts`, `/api/v1/chatrooms`, `/api/v1/semantic/*`, and `/api/v1/graph/*`.
 - SSE APIs, especially semantic QA streaming, must be handled incrementally and cancellably.

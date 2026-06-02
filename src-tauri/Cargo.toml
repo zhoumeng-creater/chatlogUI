@@ -6,7 +6,7 @@ authors = [""]
 edition = "2021"
 
 [lib]
-name = "chatlogUI_lib"
+name = "chatlog_ui_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

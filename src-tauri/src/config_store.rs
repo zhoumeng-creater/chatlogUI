@@ -68,16 +68,32 @@ pub fn validate_server_config(cfg: &ServerConfigDraft) -> Vec<ConfigValidationEr
         errors.push(error("data_dir_required", "data_dir", "请选择微信数据目录"));
     }
     if is_blank(cfg.data_key.as_deref()) {
-        errors.push(error("data_key_required", "data_key", "需要 data key 才能解密数据库"));
+        errors.push(error(
+            "data_key_required",
+            "data_key",
+            "需要 data key 才能解密数据库",
+        ));
     }
     if is_blank(cfg.platform.as_deref()) {
-        errors.push(error("platform_required", "platform", "需要平台信息，例如 windows"));
+        errors.push(error(
+            "platform_required",
+            "platform",
+            "需要平台信息，例如 windows",
+        ));
     }
     if cfg.version.unwrap_or_default() <= 0 {
-        errors.push(error("version_required", "version", "需要微信主版本号，例如 4"));
+        errors.push(error(
+            "version_required",
+            "version",
+            "需要微信主版本号，例如 4",
+        ));
     }
     if is_blank(cfg.full_version.as_deref()) {
-        errors.push(error("full_version_required", "full_version", "需要完整微信版本号，例如 4.1.8.107"));
+        errors.push(error(
+            "full_version_required",
+            "full_version",
+            "需要完整微信版本号，例如 4.1.8.107",
+        ));
     }
 
     errors
@@ -95,7 +111,10 @@ pub fn summarize_config(
     config_dir: String,
     source: String,
 ) -> ConfigSummary {
-    let http_addr = cfg.http_addr.clone().unwrap_or_else(|| "127.0.0.1:5030".into());
+    let http_addr = cfg
+        .http_addr
+        .clone()
+        .unwrap_or_else(|| "127.0.0.1:5030".into());
     let port: u16 = http_addr
         .split(':')
         .last()
@@ -113,7 +132,10 @@ pub fn summarize_config(
         platform: cfg.platform.clone(),
         version: cfg.version,
         full_version: cfg.full_version.clone(),
-        has_data_key: cfg.data_key.as_ref().map_or(false, |k| !k.trim().is_empty()),
+        has_data_key: cfg
+            .data_key
+            .as_ref()
+            .map_or(false, |k| !k.trim().is_empty()),
         has_img_key: cfg.img_key.as_ref().map_or(false, |k| !k.trim().is_empty()),
         last_validated_at: None,
     }
@@ -123,8 +145,7 @@ pub fn get_app_config_dir() -> Result<std::path::PathBuf, String> {
     let dir = dirs::config_dir()
         .ok_or_else(|| "无法确定用户配置目录".to_string())?
         .join("chatlogUI");
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("无法创建配置目录: {}", e))?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("无法创建配置目录: {}", e))?;
     Ok(dir)
 }
 
@@ -138,10 +159,8 @@ pub fn write_managed_server_config_with_source(
 ) -> Result<ConfigSummary, String> {
     let config_dir = get_app_config_dir()?;
     let path = config_dir.join("chatlog-server.json");
-    let json = serde_json::to_string_pretty(cfg)
-        .map_err(|e| format!("无法序列化配置: {}", e))?;
-    std::fs::write(&path, json)
-        .map_err(|e| format!("无法写入配置: {}", e))?;
+    let json = serde_json::to_string_pretty(cfg).map_err(|e| format!("无法序列化配置: {}", e))?;
+    std::fs::write(&path, json).map_err(|e| format!("无法写入配置: {}", e))?;
     let summary = summarize_config(cfg, config_dir.to_string_lossy().to_string(), source.into());
     Ok(summary)
 }
@@ -152,17 +171,22 @@ pub fn load_managed_server_config() -> Result<Option<ServerConfigDraft>, String>
     if !path.exists() {
         return Ok(None);
     }
-    let bytes = std::fs::read(&path)
-        .map_err(|e| format!("无法读取配置: {}", e))?;
-    let cfg: ServerConfigDraft = serde_json::from_slice(&bytes)
-        .map_err(|e| format!("无法解析配置: {}", e))?;
+    let bytes = std::fs::read(&path).map_err(|e| format!("无法读取配置: {}", e))?;
+    let cfg: ServerConfigDraft =
+        serde_json::from_slice(&bytes).map_err(|e| format!("无法解析配置: {}", e))?;
     Ok(Some(cfg))
 }
 
 pub fn load_managed_server_config_summary() -> Result<Option<ConfigSummary>, String> {
     let cfg = load_managed_server_config()?;
     let config_dir = get_app_config_dir()?;
-    Ok(cfg.map(|c| summarize_config(&c, config_dir.to_string_lossy().to_string(), "app-managed-server-config".into())))
+    Ok(cfg.map(|c| {
+        summarize_config(
+            &c,
+            config_dir.to_string_lossy().to_string(),
+            "app-managed-server-config".into(),
+        )
+    }))
 }
 
 #[cfg(test)]
@@ -184,7 +208,10 @@ mod tests {
             save_decrypted_media: Some(true),
         };
 
-        assert_eq!(validate_server_config(&cfg), Vec::<ConfigValidationError>::new());
+        assert_eq!(
+            validate_server_config(&cfg),
+            Vec::<ConfigValidationError>::new()
+        );
     }
 
     #[test]
@@ -215,7 +242,8 @@ mod tests {
 
     #[test]
     fn accepts_camel_case_frontend_payload_but_serializes_snake_case_config() {
-        let cfg: ServerConfigDraft = serde_json::from_str(r#"{
+        let cfg: ServerConfigDraft = serde_json::from_str(
+            r#"{
             "dataDir": "E:/WeChat/wxid_xxx",
             "workDir": "E:/chatlog/work",
             "dataKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -225,7 +253,9 @@ mod tests {
             "saveDecryptedMedia": true,
             "platform": "windows",
             "version": 4
-        }"#).expect("camelCase payload should deserialize");
+        }"#,
+        )
+        .expect("camelCase payload should deserialize");
 
         assert_eq!(cfg.data_dir.as_deref(), Some("E:/WeChat/wxid_xxx"));
         let out = serde_json::to_string(&cfg).expect("config should serialize");

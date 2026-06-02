@@ -1,0 +1,27 @@
+{
+  "synthetic": true,
+  "fixturePurpose": "Synthetic sensitive markers used only to prove diagnostic redaction and blocked export behavior.",
+  "privacyNotes": "These values intentionally resemble sensitive inputs, but every value is synthetic and must be masked, omitted, or blocked in diagnostic output.",
+  "generatedAt": "2026-06-01T00:00:00.000Z",
+  "redactionCases": {
+    "dataKeySyntheticRedactionCase": "data_key=synthetic-data-key-redaction-case",
+    "apiKeySyntheticRedactionCase": "apiKey=sk-synthetic-redaction-case",
+    "tokenSyntheticRedactionCase": "token=synthetic-token-redaction-case",
+    "bearerSyntheticRedactionCase": "Bearer synthetic-bearer-redaction-case",
+    "windowsPathSyntheticRedactionCase": "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_redaction_case",
+    "wxidSyntheticRedactionCase": "wxid_synthetic_redaction_case",
+    "privateMessageSyntheticRedactionCase": "Synthetic private message for redaction test only"
+  },
+  "expectedExport": {
+    "redactionOk": true,
+    "mustNotContain": [
+      "synthetic-data-key-redaction-case",
+      "sk-synthetic-redaction-case",
+      "synthetic-token-redaction-case",
+      "synthetic-bearer-redaction-case",
+      "C:\\Users\\Synthetic",
+      "wxid_synthetic_redaction_case",
+      "Synthetic private message for redaction test only"
+    ]
+  }
+}

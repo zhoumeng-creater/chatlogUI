@@ -1,14 +1,12 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { useGraphStore } from "@/l2-coordinator/data-clerk/stores/useGraphStore";
-import { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { Typography } from "@l4/ui/Typography";
-import { AppleButton } from "@l4/ui/AppleButton";
-import type { GraphTimeline as GraphTimelineEntry } from "@/l2-coordinator/api-docs/graph";
+import { Button } from "@l4/ui/Button";
+import { getGraphTimelineDisplay } from "./graphDisplay";
+import type { GraphDataView, GraphTimelineEntryView } from "./graphTypes";
 
-const TYPE_ICONS: Record<string, string> = {
-  event: "\u{1F4C5}",
-  fact: "\u{1F4CB}",
-  relation: "\u{1F517}",
+const TYPE_LABELS: Record<string, string> = {
+  event: "事件",
+  fact: "事实",
+  relation: "关系",
 };
 
 function formatTime(ts: number): string {
@@ -20,103 +18,98 @@ function formatTime(ts: number): string {
   });
 }
 
-export function GraphTimeline() {
-  const timelineVisible = useGraphStore((s) => s.timelineVisible);
-  const data = useGraphStore((s) => s.data);
-  const highlightedTimelineId = useGraphStore((s) => s.highlightedTimelineId);
-  const graph = useGraphCommander();
+interface GraphTimelineProps {
+  data: GraphDataView | null;
+  timelineVisible: boolean;
+  highlightedTimelineId: string | null;
+  privacyOn: boolean;
+  onTimelineVisibleChange: (visible: boolean) => void;
+  onHighlightTimelineEntry: (id: string) => void;
+}
 
+export function GraphTimeline({
+  data,
+  timelineVisible,
+  highlightedTimelineId,
+  privacyOn,
+  onTimelineVisibleChange,
+  onHighlightTimelineEntry,
+}: GraphTimelineProps) {
   if (!data || !data.timeline || data.timeline.length === 0) return null;
 
+  if (!timelineVisible) return null;
+
   return (
-    <AnimatePresence>
-      {timelineVisible && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 150, opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          style={{
-            borderTop: "1px solid rgba(74,158,255,0.15)",
-            flexShrink: 0,
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "2px 8px",
-              borderBottom: "1px solid rgba(74,158,255,0.1)",
-              flexShrink: 0,
-            }}
-          >
+    <div className="graph-timeline">
+          <div className="graph-timeline__header">
             <Typography variant="caption" weight={600} color="var(--color-text-secondary)">
               时间轴 · {data.timeline.length} 条
             </Typography>
-            <AppleButton
+            <Button
               variant="ghost"
               size="sm"
-              onClick={() => graph.setTimelineVisible(false)}
-              style={{ padding: "0 6px", minWidth: 24, fontSize: 12 }}
+              onClick={() => onTimelineVisibleChange(false)}
+              className="graph-timeline__close"
+              title="关闭时间轴"
+              aria-label="关闭时间轴"
             >
               ×
-            </AppleButton>
+            </Button>
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "4px 8px" }}>
-            {data.timeline.map((entry: GraphTimelineEntry, i: number) => {
+          <div className="graph-timeline__body">
+            {data.timeline.map((entry: GraphTimelineEntryView, i: number) => {
               const id = `${i}`;
               const isHighlighted = highlightedTimelineId === id;
+              const display = getGraphTimelineDisplay(
+                {
+                  title: entry.title,
+                  source: entry.source ?? "",
+                  description: entry.description,
+                },
+                privacyOn,
+              );
               return (
                 <div
                   key={id}
-                  onClick={() => graph.highlightTimelineEntry(id)}
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    padding: "4px 6px",
-                    cursor: "pointer",
-                    borderRadius: 6,
-                    background: isHighlighted ? "rgba(74,158,255,0.1)" : "transparent",
-                    marginBottom: 2,
-                  }}
+                  onClick={() => onHighlightTimelineEntry(id)}
+                  className={
+                    isHighlighted
+                      ? "graph-timeline__entry graph-timeline__entry--highlighted"
+                      : "graph-timeline__entry"
+                  }
                 >
-                  <span style={{ fontSize: 12, flexShrink: 0 }}>
-                    {TYPE_ICONS[entry.type] ?? "\u{2022}"}
+                  <span className="graph-timeline__type">
+                    {TYPE_LABELS[entry.type] ?? "条目"}
                   </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <div className="graph-timeline__content">
+                    <div className="graph-timeline__meta">
                       <Typography
                         variant="caption"
                         weight={600}
                         color="var(--color-text-primary)"
-                        style={{ fontSize: 11 }}
                       >
-                        {entry.title}
+                        {display.title}
                       </Typography>
                       <Typography
                         variant="caption"
                         color="var(--color-text-tertiary)"
-                        style={{ fontSize: 10, flexShrink: 0 }}
+                        className="graph-timeline__time"
                       >
                         {formatTime(entry.time)}
                       </Typography>
                     </div>
-                    {entry.description && (
+                    {display.description && (
                       <Typography
                         variant="caption"
                         color="var(--color-text-tertiary)"
-                        style={{ fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                        className="graph-timeline__text"
                       >
-                        {entry.description}
+                        {display.description}
                       </Typography>
                     )}
-                    {entry.source && (
-                      <Typography variant="caption" color="var(--color-accent)" style={{ fontSize: 10 }}>
-                        来源: {entry.source}
+                    {display.source && (
+                      <Typography variant="caption" color="var(--color-accent)">
+                        来源: {display.source}
                       </Typography>
                     )}
                   </div>
@@ -124,8 +117,6 @@ export function GraphTimeline() {
               );
             })}
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </div>
   );
 }

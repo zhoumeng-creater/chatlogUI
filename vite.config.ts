@@ -32,4 +32,30 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    // The 3D graph stack is explicitly click-loaded; Three's core module is
+    // larger than Vite's default 500 kB warning threshold by itself.
+    chunkSizeWarningLimit: 1250,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const moduleId = id.replace(/\\/g, "/");
+
+          if (!moduleId.includes("/node_modules/")) {
+            return undefined;
+          }
+
+          if (
+            moduleId.includes("/node_modules/three/") ||
+            moduleId.includes("/node_modules/@react-three/") ||
+            moduleId.includes("/node_modules/d3-force-3d/")
+          ) {
+            return "vendor-graph-3d";
+          }
+
+          return undefined;
+        },
+      },
+    },
+  },
 }));

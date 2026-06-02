@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Input } from '@l4/ui/Input';
-import { AppleButton } from '@l4/ui/AppleButton';
+import { Button } from '@l4/ui/Button';
 
 interface QAInputProps {
   onSend: (query: string, scope: 'contact' | 'all') => void;
+  onStop: () => void;
   disabled: boolean;
   currentContact?: string;
 }
 
-export function QAInput({ onSend, disabled, currentContact }: QAInputProps) {
+export function QAInput({ onSend, onStop, disabled, currentContact }: QAInputProps) {
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<'contact' | 'all'>('contact');
 
@@ -37,15 +38,15 @@ export function QAInput({ onSend, disabled, currentContact }: QAInputProps) {
           }}
           disabled={disabled}
         />
-        <AppleButton
+        <Button
           variant="primary"
           size="sm"
-          onClick={handleSend}
-          disabled={disabled || !query.trim()}
+          onClick={disabled ? onStop : handleSend}
+          disabled={!disabled && !query.trim()}
           style={{ flexShrink: 0 }}
         >
-          发送
-        </AppleButton>
+          {disabled ? "停止" : "发送"}
+        </Button>
       </div>
       <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
         <label style={{ fontSize: 12, color: 'var(--color-text-tertiary)', cursor: 'pointer' }}>

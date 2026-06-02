@@ -4,36 +4,29 @@ import {
   GRAPH_MAX_LIMIT,
   GRAPH_FETCH_TIMEOUT_MS,
 } from "@/utils/constants";
-import type { VisualizeResult, VisualizeParams } from "@/l2-coordinator/api-docs/graph";
+import { requestJson } from "./httpClient";
+import { adaptGraphVisualize, type GraphVisualizeView } from "./graphAdapters";
+
+interface GraphVisualizeParams {
+  keyword?: string;
+  window?: string;
+  limit?: number;
+  start?: string;
+  end?: string;
+}
 
 export async function fetchGraphVisualize(
-  params: VisualizeParams = {},
-): Promise<VisualizeResult> {
+  params: GraphVisualizeParams = {},
+): Promise<GraphVisualizeView> {
   const { keyword, window, limit = GRAPH_DEFAULT_LIMIT, start, end } = params;
+  const cappedLimit = Math.min(limit, GRAPH_MAX_LIMIT);
   const url = new URL(`${GRAPH_BASE_URL}/api/v1/graph/visualize`);
-  url.searchParams.set("limit", String(Math.min(limit, GRAPH_MAX_LIMIT)));
+  url.searchParams.set("limit", String(cappedLimit));
   if (keyword) url.searchParams.set("keyword", keyword);
   if (window) url.searchParams.set("window", window);
   if (start) url.searchParams.set("start", start);
   if (end) url.searchParams.set("end", end);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), GRAPH_FETCH_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url.toString(), { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`图谱可视化请求失败: HTTP ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("图谱数据请求超时");
-    }
-    throw error;
-  }
+  const data = await requestJson(url.toString(), { timeoutMs: GRAPH_FETCH_TIMEOUT_MS });
+  return adaptGraphVisualize(data, { visualizationCap: cappedLimit });
 }

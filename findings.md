@@ -140,3 +140,265 @@
 - 新增 `specs/001-ready-desktop-app/release-evidence.md`、`specs/001-ready-desktop-app/architecture-boundary-check.md` 与 `docs/release/ready-desktop-app.md`；Spec Kit tasks 中 T003/T009/T041 已标记完成。
 - 完整验证通过：`pnpm verify` PASS（41 files / 262 tests），`cargo test` PASS（16 tests），`pnpm tauri build` PASS 并生成 MSI/NSIS x64 bundles。
 - 仍保留后续债务：严格 Mediator 边界下 L1/L3 仍有 store/commander/system 直连需要后续 cleanup；semantic/graph/common legacy UI 仍归 P2-C/P2-D/P2-E；GraphModule lazy chunk 仍超过 500 kB；Windows 安装、退出、重开和端口冲突人工 smoke 仍未完成。
+
+## 2026-05-30 P2-C 规划发现
+- `specs/000-productization/*` 在当前仓库不存在；P2-C 产品化依据应以 `.specify/memory/constitution.md`、`specs/001-ready-desktop-app/*`、`docs/release/ready-desktop-app.md` 和 P2/P2-B 文档为准。
+- P2-C 应继承 P2 总规划中的 Settings And Diagnostics 边界：设置中心、诊断面板、状态反馈、隐私表现统一；AI/Graph 的功能合约和模块隔离继续留给 P2-D/P3，发布安装 smoke 继续留给 P2-E/release gate。
+- 当前 Settings 已有 `/settings`、`SettingsLayout`、data/appearance/ai/about 四分类和 `Surface` 基础，但 `SettingsView` 仍在 L1 读取 `useAppStore` 与 `useAiCommander`，`SettingsLayout`/settings molecules 仍直接调用 `useSettingsCommander`，需要在 P2-C 计划里定义可接受的 staged boundary cleanup。
+- `DataSettings.tsx` 和 `ConfigImportPanel.tsx` 仍直接调用 L4 `openDirectoryPicker`，与 AGENTS/constitution 的“L3 通过 L2 Commander 接收回调”冲突；P2-C 应把目录选择收敛到 setup/settings commander。
+- `DiagnosticPanel.tsx` 直接展示 `configDir`、`dataDir`、`workDir` 和 raw error；`DevConsole` 导出日志通过 `alert()` 反馈，Rust `export_logs_command` 直接写入传入日志，尚未统一 redaction/fail-closed 诊断包契约。P2-C 必须建立诊断摘要模型、copy/export 入口和 redaction tests。
+- `maskSecrets.ts` 当前只覆盖 `data_key/img_key` 的少量 JSON/query 形态，不覆盖 API key、token、credential-like 值、message snippets 或敏感路径片段；这不满足 ready-desktop-app diagnostic package contract。
+- `StatusIndicator` tone 仍是 `neutral/success/warning/danger/accent`，P2 总规划要求统一为 `neutral/info/success/warning/danger/ai`；`StatusBar` 仍使用旧 index status 字段 `building/completed/total`，需要兼容真实 semantic status 并避免误导。
+- `ServiceControlPanel`、`ReadinessChecklist` 和部分 setup feedback 仍有 raw Tailwind button/status row；P2-C 可在不重做 Setup Center 的前提下，把服务控制、readiness、错误状态迁移到 tokenized Button/StatusIndicator/ReadinessStatePanel。
+- `AboutSettings` 的 app 版本目前硬编码 `1.0.0`，未区分 package version、Tauri config version、sidecar version/source；P2-C About 应诚实展示可取得的版本和“不可用/待检测”状态。
+
+## 2026-05-30 P2-C 二次复核发现
+- `.specify/memory/constitution.md` 对 P2-C 最关键的约束是：本地私有数据不外泄、L1/L2/L3/L4 边界可执行、所有用户可见流程必须有 loading/empty/error/success/recovery、诊断与调试必须基于证据。
+- `specs/001-ready-desktop-app/spec.md` 将 Settings/Privacy/Release Readiness 归为 US6/P1；P2-C 应优先覆盖 FR-017 到 FR-021、FR-020a 和 SC-008b，不能把 P2-D 语义或图谱能力混入本阶段。
+- `specs/001-ready-desktop-app/contracts/diagnostics-package.md` 明确诊断包只能由用户触发，不能自动收集；导出必须排除 raw dataKey、API key、token、消息正文、未脱敏身份和敏感本地路径；脱敏失败时必须阻止导出。
+- `specs/001-ready-desktop-app/contracts/app-readiness.md` 定义统一状态为 `idle/loading/empty/success/error/conflict/cancelled`，P2-C 计划中的 `ReadinessState` 和 `StatusIndicator` tone 迁移方向与此一致。
+- `specs/001-ready-desktop-app/tasks.md` 的 US6 任务 T025-T030 仍未完成；P2-C 可处理 T025/T027/T028 的设置、诊断、隐私显示子集，但 T029/T030 的安装、退出、重开、端口冲突人工 smoke 仍必须留给 release gate/P2-E，不能在计划里误标完成。
+- `docs/总体开发规划.md` 和 `开发指南.md` 的早期“前置端口猎杀”和假 macOS 视觉已被 P0/P2 后续规划修正；P2-C 应继承非破坏性端口策略和 token-driven 专业桌面工具方向。
+- 当前源码确认 P2-C 计划点名的问题仍存在：`SettingsView.tsx` 直接读取 `useAppStore`/`useAiCommander`；`SettingsLayout.tsx`、settings/setup molecules 仍直接调用 commander/store；`DataSettings.tsx` 和 `ConfigImportPanel.tsx` 仍直接调用 `openDirectoryPicker`；`DiagnosticPanel.tsx` 直接展示 raw path/error；`DevConsole.tsx` 使用 `AppleButton`、`framer-motion` 和 `alert()`；`useDevConsoleCommander.ts` 直接 `invoke("export_logs")`；`StatusIndicator` 仍有 `accent` tone；`AboutSettings` 仍显示硬编码 `1.0.0`。
+- P2-C 计划二次修订必须避免把 L4 `StatusIndicator` 反向依赖到 L2 `ReadinessTone`。L4 应保留独立 `StatusTone` union，L2 readiness 可以映射到同名 tone 字符串。
+- 只新增安全 `export_diagnostics_report` 不足以满足隐私契约，因为现有 `export_logs` Rust 命令仍会写入传入日志。P2-C 计划已改为让 legacy `export_logs_command()` 也通过同一个 Rust fail-closed guard。
+- `useDiagnosticsCommander` 不能用 `useMemo(..., [])` 从 Zustand `getState()` 取一次性快照，否则 setup/logs 变化后诊断摘要会陈旧；计划已改为使用 store selectors 和完整依赖。
+- `SettingsLayout` 继续内部调用 `useSettingsCommander()` 会削弱 P2-C 的 L1 shell/L3 props 边界；计划已改为让 `SettingsView` 传入 `activeCategory` 和 `onCategoryChange`。
+- AI 设置不能因为移除本地 `aiApiKey` 就假装凭据已保存。P2-C 计划已改为 Settings 只显示诚实凭据状态，不把 API key 写入 UI settings，也不把 `aiCredentialConfigured` 置为 true，除非后续从安全语义配置来源验证得到。
+
+## 2026-05-30 P2-C 实施发现
+- 当前 review suggested fixes 已转为源码修改，不再只是规划文件：新增 readiness model、diagnostics model、settings validation、diagnostic redaction 和 Rust log redaction 测试。
+- `StatusIndicator` tone 已迁移到 `neutral/info/success/warning/danger/ai`，会话最近 badge 改用 `info`，`StatusBar` 对 semantic index 运行/暂停/错误/ready 使用更诚实的状态表达。
+- 诊断导出改为用户触发的 `export_diagnostics_report`，前端 L4 `exportDiagnosticsReport()` 调 Rust command；legacy `export_logs` 也会经 `redact_log_payload()` 脱敏后写入，脱敏失败阻止导出。
+- Setup 诊断面板现在使用 `DiagnosticsPanel`，默认脱敏本地路径、data/img key、API key、token、credential、Bearer 和 `wxid_*`。DevConsole 只导出脱敏摘要，不再 alert 或直接 invoke。
+- UI settings 已移除 `aiApiKey` 字段；迁移旧 storage 时删除 `dataKey/aiApiKey` 并将 `aiCredentialConfigured` 置为 false。AI 设置只显示凭据状态，不保存 API key。
+- `SettingsView` 不再直接读取 app store 或 AI commander；改为 `useSettingsPageCommander`。`DataSettings` 和 `ConfigImportPanel` 不再直接调用 L4 directory picker，统一经 setup/settings commander。
+- Productization tasks T025-T028 已按当前实现标记完成；T029/T030 的 Windows install/quit/reopen/port conflict manual smoke 仍保持未完成。
+
+## 2026-05-31 P2-D 规划启动发现
+- 当前工作区位于 `codex/p2-c-settings-diagnostics-planning`，存在大量 P2-C 实施相关未提交改动；P2-D 规划应只追加/修改规划文档和工作记忆文件，不回滚或覆盖 P2-C 源码。
+- `task_plan.md` 与 `progress.md` 均显示 P2-C planning 和 implementation 已完成；P2-D 的自然起点是 P2-A/P2-B/P2-C 后剩余的 semantic/graph containment、真实后端契约修复、GraphModule 性能记录和旧 AI/Graph UI 清理。
+- `specs/000-productization/*` 在当前仓库不存在；P2-D 产品化依据继续使用 `.specify/memory/constitution.md`、`specs/001-ready-desktop-app/*`、`docs/release/ready-desktop-app.md`、P2 总计划、P2-B 综合审查/remediation 和 P2-C 计划/实施记录。
+
+## 2026-05-31 P2-D 语义与图谱审计发现
+- `chatlog_alpha` 的 `/api/v1/*` REST 默认需要 `format=json`；当前 semantic/graph 多数 L4 network atoms 仍直接 `fetch()` 并 `response.json()`，没有复用 `requestJson()` 的 JSON format/error normalization 路径。
+- 真实 `GET /api/v1/semantic/config` 返回 flat snake_case 配置和 `has_api_key`/`has_deepseek_api_key`，不会返回 `{ config }` 或 raw saved key；当前 `semantic.ts`、`fetchSemanticConfig.ts`、`SetupWizard.tsx` 仍以旧 camelCase/包裹结构为主。
+- 真实 `POST /api/v1/semantic/test` 返回 `{ ok, error? }`；当前 `testLLMConnection.ts` 与 UI 类型仍按 `{ success, message }` 处理，连接测试反馈可能误判。
+- 真实 semantic index status 使用 `ready/running/paused/processed/pending/failed/progress_pct/last_error`；当前 UI 的 `idle/building/ready/error` 和 `completed/total` 假设不足以表达暂停、运行、进度和失败细节。
+- 真实 QA stream 使用 SSE `event: delta|done|error`，其中 delta data 是 `{ text }`；当前 `streamQA.ts`/`sseParser.ts` 只解析 `data:` 的 JSON `type/content` 形态，且缺少明确 stop/cancel 状态。
+- 当前 semantic L3 仍有 `AppleButton`、普通 motion、`dangerouslySetInnerHTML`、raw sender/snippet/evidence 展示和重复 `loadAnalysis()` 风险；P2-D 必须把 semantic module root 和 leaf components 分层收敛。
+- 当前 graph L4 adapters 同样直接 fetch，缺少 `format=json`、malformed/empty/oversized 分类和客户端可视化上限策略。
+- `GraphModule.tsx` 顶层导入 `GraphCanvas`，因此进入图谱模块即会加载 3D 依赖；P2-D 应把 summary/table 默认视图与 on-demand visualize path 拆开，并在 build evidence 中记录 Graph chunk 结果。
+- `GraphCanvas.tsx` 在 loading/error/null data 时仍保留 canvas 渲染路径，`GraphEngine.tsx` 同步 force layout 且使用随机初始位置；大型或畸形数据存在卡顿、空白 canvas 和不可复现视觉状态风险。
+- `GraphControlBar.tsx`、`GraphTimeline.tsx` 仍使用 `AppleButton`/emoji/小型 raw 控件，`GraphTooltip.tsx`、`GraphLabels.tsx`、timeline 行仍可能展示 raw node/source label；需要与 P2-B/P2-C privacy display policy 对齐。
+- `WorkbenchView.tsx` 已把 semantic/graph 放入 lazy inspector module，是 P2-D 的正确起点；P2-D 不应恢复旧 Dashboard 右栏 AI 或 Graph 浮层模式。
+- ready-desktop-app tasks 中 T031-T038 对应 P2-D，但只有在 semantic adapters/commander/UI/navigation 和 graph adapters/commander/UI/navigation 都完成并通过验证后才能勾选。
+
+## 2026-05-31 P2-D 二次复核发现
+- 本轮复核重新对照了 `chatlog_alpha` 源码：`GET /api/v1/semantic/config` 的真实字段包含 `enabled`、`base_url`、`ollama_base_url`、`deepseek_base_url`、`embedding_provider`、`rerank_provider`、`chat_provider`、`embedding_model`、`rerank_model`、`chat_model`、`embedding_dimension`、`recall_k`、`top_n`、`similarity_threshold` 等；P2-D 计划需要明确不能继续用单一 `provider` 模型覆盖 embedding/rerank/chat 三类配置。
+- `POST /api/v1/semantic/config` 在 `api_key` 或 `deepseek_api_key` 为空时保留已保存凭据；计划需要把“空 key 不清空旧 key、UI 不回显 key、保存后以 `has_*` 字段判断凭据状态”写入适配器和 UI 任务。
+- 真实 QA request 支持 `query/chat/chats/window/entity_override/retrieval_depth/source_limit/top_n/history`；计划原先只强调 query/chat，已需要补充 request builder 测试，避免 L2/L3 把 scope 参数直接传成后端不存在的语义。
+- 真实 topics/profiles 响应不是旧 `TopicItem[]`/`ContactProfileData`：topics 返回 `window/window_label/from/to/count/truncated/topics/daily/summary/summary_error`，profiles 返回 `profiles/type_distribution/summary/summary_error`；P2-D 需要为这两个现有 L4 atom 增加 raw DTO 和 adapter 测试。
+- Graph handler 还包含 `/api/v1/graph/timeline`、`POST /api/v1/graph/rebuild|pause|resume` 和 `/api/v1/graph/config`。P2-D MVP 可以暂不做 config UI，但必须为 timeline 和 actions 建立 L4 atom/adapter 计划，否则图谱状态、恢复和 evidence 不完整。
+- 当前 `StatusBar.tsx` 仍接收 `IndexStatusResponse` 并主要读取 legacy `status` 字段；P2-D 计划需要把 StatusBar 或 compact semantic status view model 纳入改造，避免 semantic adapter 落地后全局状态栏继续显示不一致。
+
+## 2026-05-31 P2-D 实施基线发现
+- 已从 `codex/p2-c-settings-diagnostics-planning` 切到 `codex/p2-d-ai-graph-containment`，保留当前 P2-C 未提交源码和文档作为 P2-D 实施基线；不使用独立 worktree，因为普通 worktree 不会带入这些未提交基线。
+- 已按 D0 读取 P2-D 计划列出的来源文档和产品化契约；`specs/000-productization/*` 仍不存在，实施依据继续是 `.specify/memory/constitution.md`、`specs/001-ready-desktop-app/*`、release runbook、P2/P2-B/P2-C 计划和当前源码。
+- 当前库存扫描确认 semantic/graph 范围仍有直接 `fetch()`：`fetchSemanticConfig.ts`、`fetchIndexStatus.ts`、`fetchSemanticSearch.ts`、`fetchSemanticTopics.ts`、`fetchSemanticProfiles.ts`、`fetchSemanticQA.ts`、`streamQA.ts`、`testLLMConnection.ts`、`manageIndex.ts`、`fetchGraphStatus.ts`、`fetchGraphQuery.ts`、`fetchGraphVisualize.ts`。P2-D 必须迁移到 `requestJson()` 或 event-aware stream path。
+- 当前 semantic UI 仍有 visible `AppleButton` 和 `dangerouslySetInnerHTML`：`AiPanel.tsx`、`SetupWizard.tsx`、`QAInput.tsx`、`QAMessage.tsx`。这些是 D4 的用户可见 UI debt。
+- 当前 graph UI 仍有 `GraphModule.tsx` 顶层导入 `GraphCanvas`，`GraphControlBar.tsx`/`GraphTimeline.tsx` 使用 `AppleButton`，并且 label/tooltip/timeline 仍需隐私显示 helper。D7/D8 必须先让 summary/table 成为默认路径，再按需加载 3D。
+- `specs/001-ready-desktop-app/tasks.md` 中 T031-T038 仍未勾选；只能在对应 adapter、commander、UI、navigation 和验证都完成后更新。
+
+## 2026-05-31 P2-D 实施完成发现
+
+- Semantic REST/SSE 合约已从 UI 假设迁移到 L4 adapters：flat snake_case config、credential flags、index status/actions、search/topics/profiles、QA payload 和 named SSE events 均有测试覆盖；`scope` 不再传到后端 QA body。
+- Semantic optional state 已由 L2 view model 表达，缺 provider/index 不再阻塞 chat/search/stats；QA streaming 支持 connecting、streaming、completed、stopped、failed 和 empty。
+- Semantic visible UI 已清理旧 `AppleButton` 和 unsafe HTML；QA message、semantic search sender/snippet、topics/profile summary/main topics 均接入 privacy masking。
+- Graph REST 合约已建立 adapters/fetchers：status/query/visualize/timeline/actions 统一走 `requestJson(format=json)`，并在渲染前分类 loaded、empty、malformed、oversized、error/cancelled。
+- Graph 默认模块现在是 summary/table；`GraphCanvas` 只在明确点击“打开可视化”后 lazy import。Build 证据显示 lightweight `GraphModule` chunk 与 heavy `GraphCanvas` chunk 已分离。
+- Graph visible labels/tooltips/timeline rows 接入隐私 masking，旧 `AppleButton`/emoji/framer-motion 控件从 semantic/graph 可见路径移除。
+- Browser acceptance 暴露并修复 390px 下图谱不可达：single layout 原本 `inspectorMode=hidden`，现改为 drawer，且 compact/single toolbar 提供图谱入口。
+- 当前仍保留非 P2-D release-gate 待办：Windows installer manual smoke、quit/reopen、unknown `5030` port conflict 和完整隐私日志人工审查。
+
+## 2026-05-31 P2-D 综合复核发现
+
+- 已创建综合复核记录：`docs/reviews/2026-05-31-p2-d-comprehensive-review.md`。结论是 P2-D 有部分有效实现和自动化证据，但不能标记为完全满足阶段、项目、UI、架构、隐私和发布要求。
+- Semantic search adapter 仍按前端假设读取 `result.chat`、`result.sender`、字符串 `time`、`local_id`、`rerank_enabled/rerank_provider`；真实 `chatlog_alpha` 返回的是 `talker/talker_name/sender/sender_name/seq/time` 和 `rerank/rerank_tried/rerank_applied/rerank_error`。当前测试也使用错误 fixture，不能保护真实后端契约。
+- Semantic profile adapter/UI 仍按旧 profile 数据模型工作：真实 profiles 为 `sender/sender_name/messages/top_keywords`，`type_distribution` 是数组；当前 adapter 按 record 读取分布，`ContactProfile` 仍渲染 `activeHours/dailyFrequency/mainTopics`。
+- Semantic module 状态覆盖不足：`initialize()` 对 paused/error/failed/unavailable 映射不完整，`AiPanel` 仍主要按 `ai.phase` 分支，search/profile 缺少本地 empty/error/retry 状态。
+- 架构边界仍有明确违反：L4 system atoms 导入 L2 types；semantic/graph 多个 L3 leaf components 直接读取 L2 commander/store。该问题需要在 architecture checklist 中按文件记录，而不能只用 module root 例外概括。
+- 可见 UI 仍不统一：`AiPanel` 和 `SetupWizard` 有 hard-coded `#007AFF` 与 inline tab/provider styles；`SetupWizard` 连接测试未等待结果即进入下一步；`GraphControlBar`/`GraphTimeline` 存在 11px 文本和 24-30px 控件。
+- Productization/release evidence 仍不完整：T039/T040/T042 未完成；install、launch、quit、reopen、unknown port conflict smoke 仍为 Not run；GraphCanvas lazy chunk 仍超过 500 kB，只能说明默认路径被隔离，不能说明首次可视化体验已达标。
+- 已创建完整修复计划：`docs/superpowers/plans/2026-05-31-p2-d-comprehensive-remediation.md`，覆盖真实后端 fixture、semantic adapters/UI state、L3/L4 边界、UI 统一、graph visualization evidence、release evidence 和最终验证矩阵。
+
+## 2026-05-31 P2-D 综合修复执行发现
+
+- 当前分支为 `codex/p2-d-ai-graph-containment`，工作树已有大量 P2-C/P2-D 源码和文档改动；本轮继续在当前分支修复，不能创建会丢失未提交上下文的普通 worktree，也不能回滚既有修改。
+- 文档优先级确认：P2-D 综合复核记录和完整修复计划是本轮直接执行依据；constitution、ready-desktop-app spec/contracts/tasks、P2-D 原计划和 P2-A/P2-B/P2-C 记录是约束；早期开发指南/总体规划中的假 macOS、强制端口猎杀和重 glass 方向已被后续 P0/P2 文档修正，只保留四层架构、sidecar 核心和隐私本地化原则。
+- 初始扫描确认复核记录仍成立：`SemanticSearch`/`ContactProfile`/`QAPanel`/`TopicView` 等 semantic leaf 仍直接导入 L2 commander/store；`GraphCanvas`/`GraphControlBar`/`GraphEngine`/`GraphTimeline`/`GraphTooltip`/`GraphNode3D` 等 graph leaf 仍直接导入 L2；`src/l4-atom/system/sidecarManager.ts` 和 `chatlogConfig.ts` 仍导入 L2 setup types。
+- 初始 UI 扫描确认 P2-D visible debt 未完全清除：semantic/graph 默认路径已无 `dangerouslySetInnerHTML` 命中，但 `AiPanel`/`SetupWizard`/`GraphControlBar`/`GraphTimeline` 仍需要 tokenized controls、稳定命中区和 async test flow 修复。
+- Semantic search/profile adapter tests 已改用真实 backend-shaped fixtures：search 覆盖 `talker/talker_name/sender/sender_name/seq/time` 和 `rerank/rerank_tried/rerank_applied/rerank_error`，profile 覆盖 `sender/sender_name/messages/top_keywords` 和数组 `type_distribution`。旧 adapter 在 RED 阶段失败于 `totalCount` 和 `senderName` 缺失，修复后目标测试通过。
+- Semantic leaf components 已收敛为 props boundary：`QAPanel`、`QAMessage`、`SemanticSearch`、`TopicView`、`ContactProfile`、`SetupWizard` 不再导入 L2 commander/store；仅 `AiPanel.tsx` 作为语义模块根桥接 L2。
+- Graph leaf components 已收敛为 props boundary：`GraphCanvas`、`GraphControlBar`、`GraphEngine`、`GraphTimeline`、`GraphTooltip`、`GraphNode3D`、`GraphLabels`、`GraphEdge3D` 和 summary/fallback/visualize panels 不再导入 L2；仅 `GraphModule.tsx` 作为图谱模块根桥接 L2。
+- L4 upward dependency 已清理：system raw setup types 下沉到 `src/l4-atom/system/systemTypes.ts`，semantic SSE parser/types 下沉到 `src/l4-atom/network/semanticStreamParser.ts`，update manifest type 下沉到 `src/l4-atom/network/updateTypes.ts`；`rg -n "@l2|l2-coordinator" src/l4-atom` 无命中。
+- Visible control polish 已完成：semantic tabs/step meter/provider cards 使用 CSS token classes，SetupWizard 连接测试必须 await 成功后才能进入下一步；GraphControlBar 和 GraphTimeline 使用 32px+ 控件、tokenized divider/background 和响应式 wrapping。
+- Browser acceptance 使用 mocked local backend 验证 `/workbench`：1440px 下 semantic search/profile/settings 与 graph explicit visualization 通过；390px graph drawer 无 page-level horizontal overflow，默认 canvas count 为 0，点击可视化后 visible canvas bounding box 大于 180px。
+- Release/productization evidence 已更新：T039/T040 标记完成并记录 architecture/privacy audit；T042 仍保持未完成，因为安装、无终端启动、退出、重开和未知端口冲突 manual smoke 未执行。
+
+## 2026-05-31 P2-D 修复后复核发现
+
+- 修复后的 semantic/graph 主路径已经覆盖此前大部分关键问题：真实 backend-shaped adapter fixtures、leaf props boundary、L4 independence、unsafe UI scan、raw network scan、target/full/Rust/Tauri build 验证均通过。
+- `src/l3-molecule/semantic/AiPanel.tsx` 仍直接用 `ai.phase` 控制 loading/setup 分支；综合修复计划明确要求 `AiPanel` 从 `ai.moduleView` 渲染。该点应继续保留在修复计划中，避免以后出现 phase 与 module view 不一致的 UI 状态。
+- fresh UI acceptance 本轮未完成：浏览器插件超时，headless Chrome 只能到达 `/workbench` 的 setup/db gate，无法实际进入 semantic/graph 模块复测桌面和 390px 布局。因此不能删除依赖 UI smoke 的计划记录。
+- L1 架构债务仍存在：`SetupCenterView.tsx` 和 `WorkbenchShellView.tsx` 直接读取 setup/app stores；尤其 `WorkbenchShellView.tsx` 按 `dbReady` 在 L1 阻断工作台，使本轮浏览器烟测难以复现已记录的 mocked UI evidence。
+- UI token debt 只剩低风险局部项：`SemanticSearch.tsx` 示例查询背景和 `SetupWizard.tsx` 连接测试结果背景仍有 raw rgba；不会阻塞核心功能，但与统一 tokenized UI 的目标不完全一致。
+- 结论：当前不应删除 `docs/reviews/2026-05-31-p2-d-comprehensive-review.md` 或 `docs/superpowers/plans/2026-05-31-p2-d-comprehensive-remediation.md`。
+
+## 2026-06-01 Suggested Fix 修复发现
+
+- `AiPanel` 的直接 `ai.phase` 分支已移除，checking/setup/ready/error 等可见状态现在由 `ai.moduleView.kind` 决定；`phase` 仍留在 L2/store 内部用于 orchestration，不再作为 L3 渲染输入。
+- `WorkbenchShellView` 的 setup/db gate 文案、状态 tone、StatusBar readiness 和 workbench render decision 已移入 `deriveWorkbenchShellView()` 与 `useWorkbenchShellCommander()`。
+- 新增 dev-only `?codex-smoke=workbench-ready` 入口解决 fresh browser UI smoke 被 setup/db gate 阻断的问题；该入口只在 `import.meta.env.DEV` 下生效，不改变 production readiness gate。
+- `SetupCenterView` 同源 L1 store debt 已一并收敛：页面现在使用 `useSetupCenterCommander()`，数据库状态标签、按钮样式/文案和 aria-live 文案由 `deriveSetupCenterView()` 提供。
+- 复核扫描显示 `src/l1-entry` 不再直接读取 Zustand/setup/app stores，也没有 browser storage 访问；这关闭了上一轮 code review 中指出的 L1 readiness 边界问题。
+
+## 2026-06-01 P2-E Planning Findings
+
+- 本轮目标：撰写 P2-E 阶段规划，必须基于当前 P2-D suggested fix 后的真实进度、既有开发文档和当前源码，而不是重新解释早期 Sprint 计划。
+- 已加载/采用技能：`using-superpowers`、`brainstorming`、`planning-with-files`、`writing-plans`、`app-productization`、`verification-before-completion`；P2-E 涉及视觉 QA、可访问性和 release smoke，因此也参考了 `frontend-design`、`ui-acceptance`、`release-gate`、`frontend-code-review` 的工作准则。
+- 当前分支：`codex/p2-d-ai-graph-containment`。工作树已有大量 P2-C/P2-D/P2-D suggested fix 未提交改动，本轮只允许追加/修订规划与工作记忆文件，不回滚任何现有源码或文档改动。
+- `task_plan.md` 当前最新阶段是 Phase 25: P2-D Suggested Fix Implementation，状态 complete；尚无独立 P2-E Phase。
+- `progress.md` 记录 P2 总规划曾将 P2 拆为 P2-A 到 P2-E：P2-A tokens/shell/setup/settings 地基，P2-B chat/search/stats，P2-C settings/diagnostics，P2-D AI/Graph containment，P2-E visual QA/accessibility/release smoke。
+- P2-D 完成记录显示 `pnpm verify`、`cargo test`、`pnpm tauri build` 与 mocked/headless UI acceptance 已通过，但保留 `GraphCanvas` lazy chunk >500 kB warning、Rust crate name warning，以及未完成的人工 installer/launch/quit/reopen/port-conflict smoke。
+- `specs/000-productization/*` 在此前 P2-D 规划中已确认缺失；P2-E 应以 `.specify/memory/constitution.md`、`specs/001-ready-desktop-app/*`、`docs/release/ready-desktop-app.md`、P2/P2-B/P2-C/P2-D 计划和当前源码为事实来源。
+- 首次读取 `using-superpowers` 时误用了 `C:\Users\15995\.agents\skills\superpowers\using-superpowers\SKILL.md`，该路径不存在；已改用项目内 `.agents\skills\superpowers\using-superpowers\SKILL.md`。
+- 当前 ready-desktop-app task 状态确认：T039/T040/T041 已完成，T029/T030/T042 仍未完成；P2-E 不能在未执行 Windows x64 install/open/quit/reopen/unknown-port-conflict smoke 前勾选 T042。
+- 架构扫描复核：L1/L3 raw network scan 无输出；L4-to-L2 scan 无输出；semantic/graph L2 scan 只剩 `AiPanel.tsx` 与 `GraphModule.tsx` 这类已记录 module-root exception；`ai.phase` 在 L1/L3 无命中。
+- UI/a11y 扫描发现 `UpdateNotification.tsx` 仍是高优先级 P2-E 候选：当前 overlay 使用 inline hard-coded dark glass styles、backdrop dismissal，没有明确 `role=dialog`、`aria-modal`、打开时聚焦、关闭后焦点恢复或 Escape 行为。
+- Workbench drawer 当前有 backdrop click close 和 close button，但没有显式 drawer/dialog 语义、打开后 focus close button、Escape close 或 focus restore；P2-E 应以此作为 keyboard/a11y remediation，而不是只做截图检查。
+- Privacy 扫描发现新的候选缺口：`TopContactCard.tsx` 直接渲染 `item.display || item.sender` 到可见文本、avatar fallback 和 alt；`WorkbenchView.tsx` toolbar 直接渲染 `currentConversation.displayName`。P2-E 应补充 stats/workbench 隐私显示 helper 和测试。
+- Inline style/hard-coded color 扫描仍然很吵，尤其 setup/semantic/graph/common UI atoms；P2-E 计划应按 release-visible blocker 分类修复，避免把阶段变成风险过大的全局样式重写。
+- Graph 当前正确方向是“默认 summary/table 不挂载 canvas，用户显式打开可视化后才 lazy import GraphCanvas”；P2-E 应记录 nonblank canvas 和 chunk evidence，而不是把 >500 kB lazy chunk warning 误标为已解决。
+- 第一次 role/focus 正则扫描命令写错导致 `rg` regex parse error；已用更简单的 `role="dialog"|aria-modal|focus\(|useRef|Escape|onKeyDown|tabIndex` 重新扫描并记录结果。
+- 本轮二次复核确认 `specs/000-productization/*` 不存在；P2-E 不应引用缺失的 000 规格，而应继续以 `.specify/memory/constitution.md`、`specs/001-ready-desktop-app/*`、`docs/release/ready-desktop-app.md`、P2-A/P2-B/P2-C/P2-D 计划和当前源码为事实来源。
+- `docs/总体开发规划.md` 与 `开发指南.md` 中关于假 macOS 交通灯、强制端口清理、大面积 glass 的早期方向已被后续 P0/P2 文档修正；P2-E 的验收重点应是成熟桌面工作台证据、可访问性、隐私、sidecar 生命周期和 Windows x64 release smoke。
+- ready-desktop-app spec 明确 Windows x64 是首发平台、未知 `5030` 占用必须是可恢复冲突、语义功能不阻塞核心浏览、诊断必须用户触发且脱敏；当前 P2-E 草稿的 E0-E8 方向与这些约束一致。
+- P2-E 源码复核：L1/L3 raw network scan 无输出，L4-to-L2 scan 无输出，semantic/graph L2 imports 只剩 `AiPanel.tsx` 和 `GraphModule.tsx` 两个已记录 module-root exception，`ai.phase` 在 L1/L3 无命中。
+- `UpdateNotification.tsx` 当前仍使用 `AnimatePresence`/`motion.div`、inline dark glass styles、backdrop dismiss 和 hard-coded colors，且缺少 `role="dialog"`、`aria-modal`、初始 focus、Escape、focus restore 和 progressbar 语义；P2-E Task E2 需要保持为高优先级。
+- `WorkbenchFrame.tsx` drawer 仅有 backdrop click 和 close button，role/focus scan 没有发现 drawer/dialog 语义、Escape 关闭或 focus restore；这验证了 P2-E drawer a11y remediation 的必要性。
+- `TopContactCard.tsx` 和 `WorkbenchView.tsx` 分别直显 top sender 与当前 conversation displayName；P2-E privacy regression 应增加 stats sender helper、toolbar title helper 和测试，避免隐私模式只覆盖 conversation rows。
+- `AGENTS.md` 的 sidecar launcher 地址仍写 `0.0.0.0:5030`，但当前 `sidecar_args.rs`、local-backend contract 和 release runbook 都使用 `127.0.0.1:5030`。P2-E 计划已修订为显式记录并判定该 contract drift，不能在 release evidence 中含糊跳过。
+
+## 2026-06-01 P2-E Implementation Findings
+
+- 本轮继续基于 `codex/p2-d-ai-graph-containment` 当前脏工作区执行。`.worktrees` 已存在且被 gitignore 忽略，但普通新 worktree 不会带入当前未提交的 P2-C/P2-D/P2-D suggested-fix 基线，因此按 P2-E 计划保留当前工作区执行。
+- P2-E 执行依据确认：`AGENTS.md`、constitution、ready-desktop-app spec/research/data model/contracts 均要求本地优先、隐私默认保护、未知 `5030` 占用不可强杀、Windows x64 首发、四层架构边界、所有用户态有 loading/empty/error/success 和恢复提示。
+- 早期 `开发指南.md` 与 `docs/总体开发规划.md` 中关于假 macOS 交通灯、强制端口猎杀和重 glass UI 的方向已被后续 P0/P2/constitution 修正；P2-E 采用较新的安全端口策略、tokenized workbench UI 和 release evidence 规则。
+- 当前 P2-E 自动化优先修复三个代码阻塞面：Workbench/Stats 隐私泄漏、Workbench drawer focus/Escape/restore、UpdateNotification dialog/progressbar/focus。Windows x64 install/open/quit/reopen/unknown-port-conflict smoke 需要真实本机安装交互，不能用源码测试伪造。
+- 文档读取/扫描中出现一次 PowerShell `rg` 正则转义错误（`role=\"dialog\"` 模式被解析为未闭合 group）。该错误不影响判断，后续使用拆分模式或固定字符串扫描。
+- E1 privacy 修复事实：stats top sender 现在在隐私模式下统一显示 `已隐藏联系人`、avatar alt `已隐藏联系人头像`、fallback `隐`，但仍保留聚合计数；workbench toolbar 当前会话标题在隐私模式下显示 `已隐藏会话`，未选中时仍显示 `选择会话`。
+- E2 a11y 修复事实：Workbench drawer 和 UpdateNotification 都有可测试的派生 helper/view-model；源码已接入 dialog/aria/progressbar/focus/Escape 行为。后续 browser acceptance 需要验证这些源码语义在真实 DOM 下可观察。
+- UpdateNotification 进度条渲染已改用 clamp 后的 `view.progressValue`，避免后端或 updater 上报异常进度时把可视宽度撑出容器。
+- P2-E browser acceptance 使用 synthetic/mock 数据，不使用真实私聊内容。证据显示 privacy-on 下 synthetic `Alice Private`、`Secret content` 不再出现在 visible text；aggregate stats、dates、counts 保持可读。
+- Graph explicit visualization 的重 chunk 仍未“变小”，只是继续隔离在用户点击 `打开可视化` 之后。2026-06-01 final build 中 `GraphCanvas-BjdSMy5i.js` 仍为 1,034.92 kB（gzip 292.62 kB），这是已记录 caveat，不应表述成 chunk warning 被解决。
+- T029/T030 可以按本轮配置/build/docs evidence 标记完成；T042 不能标记完成，因为安装器 install/open/quit/reopen/sidecar cleanup/未知 `5030` 冲突都没有被人工执行。
+
+## 2026-06-01 P2-E 综合复核发现
+
+- 已创建综合复核记录：`docs/reviews/2026-06-01-p2-e-comprehensive-review.md`。结论是 P2-E 自动化修复有效，但当前状态只能称为 “automated verification passed with caveats”，不能称为 release-ready 或项目要求全部完成。
+- 发布门禁仍是最高优先级 blocker：`release-evidence.md` 中 install、launch、quit、reopen、unknown port conflict 仍为 Not run；`tasks.md` 的 T042 仍未勾选；release runbook 明确要求人工 Windows x64 packaged-app smoke。
+- 架构审计存在漏扫方向：`useWorkbenchCommander.ts` 和 `workbenchViewModel.ts` 仍从 L3 `workbenchLayout` 导入实现/类型，说明当前 architecture checklist 的 “pass” 不覆盖 L2-to-L3 反向依赖。
+- L3 props-only 规则仍未全局满足：`UpdateNotification.tsx` 直接使用 `useUpdateCommander`，`AppLayout.tsx` 直接读取 settings/dev-console stores。部分可作为 shell/module-root 例外，但必须按文件记录，而不能笼统声明架构完全清洁。
+- UI 统一性仍是可用但未完成：semantic/setup/workbench/settings/common UI 仍有大量 inline styles、hard-coded colors 或 legacy atom exports；390px smoke 未溢出，但 setup header 和底部 status cluster 仍偏紧。
+- Sidecar 合同存在文档漂移：`AGENTS.md` 写 `0.0.0.0:5030`，当前代码、local-backend contract 和 release docs 使用 `127.0.0.1:5030`。应以 local-private-data 安全目标做显式决策并统一文档/代码。
+- 隐私证据仍有人工缺口：自动化 masking 与 synthetic Playwright smoke 通过，但生成的 diagnostics package、日志、截图和 release artifact 隐私审查仍未完整记录。
+- Sidecar ownership 仍需 packaged runtime proof：未知 `5030` occupant 不得被强杀是产品合同要求，当前 manual smoke 未执行，且 `sidecar.rs` post-spawn `managed_pid` 赋值存在需要硬化的竞态风险。
+- GraphCanvas heavy chunk warning 仍存在；当前正确表述是默认路径隔离了 3D chunk，不能说性能 warning 已解决。
+- 已创建完整修复计划：`docs/superpowers/plans/2026-06-01-p2-e-comprehensive-remediation.md`，覆盖 release smoke、sidecar ownership、bind-address contract、L2/L3 架构边界、L3 shell exceptions、UI tokenization、update notification UX、privacy diagnostics、visual QA matrix、graph performance caveat 和最终验证。
+
+## 2026-06-01 P2-E 综合修复执行发现
+
+- 本轮继续在 `codex/p2-d-ai-graph-containment` 当前脏工作区执行；`git diff --stat` 显示已有 89 个 tracked 文件修改和大量未跟踪 P2-C/P2-D/P2-E 文件。这些是当前开发进度的一部分，不能用干净 worktree 或重置丢失。
+- 已读取 P2-E 综合审查记录、综合修复计划、release evidence、architecture checklist、release runbook、constitution、开发指南和总体规划。文档优先级确认：最新 constitution/P0-P2 审查与 P2-E 计划优先于早期“端口猎杀”“0.0.0.0 绑定”“重 glass UI”方向；四层架构、本地隐私、sidecar lifecycle 和 release evidence 规则仍为硬约束。
+- Task 0 evidence sanity scan 的 release-ready 命中均为阻塞/否定语境或计划说明；当前没有把 T042、Install、Launch、Quit、Reopen、Port conflict 误标为 Passed。P2-E 仍保持 “automated verification passed with caveats; release readiness blocked”。
+- Sidecar ownership 已按 TDD 修复：新增 Rust 测试 `post_spawn_pid_tracking_only_claims_spawned_child`，并让 post-spawn `managed_pid` 只记录实际 spawned child PID，不再从端口检查结果认领未知占用进程。该修复降低竞态风险，但不能替代 packaged app 未知 `5030` 占用 manual smoke。
+- Bind-address 合同已统一为 local-only `127.0.0.1:5030`：`AGENTS.md`、release runbook、release evidence、architecture checklist 和现有 `sidecar_args.rs` 对齐；历史 review/plan 中的 `0.0.0.0:5030` 只作为过去问题记录保留。
+- L2-to-L3 反向依赖已修复：`workbenchLayout` 从 L3 moved to `src/l2-coordinator/commander/workbenchLayout.ts`，相关测试移动到 L2；`rg -n "@l3/|@/l3-molecule|l3-molecule" src/l2-coordinator src/l4-atom` 无命中。
+- Common shell 例外已收敛：`AppLayout.tsx` 改为接收 shell/actions props，`useAppShellCommander()` 在 L2 负责 settings/dev-console stores、导航和 window material；`UpdateNotificationView.tsx` 改为 props view，`useUpdateNotificationCommander()` 和 L2 view model 负责 updater 状态/actions。状态切换不再重复恢复/重置焦点。
+- 仍存在更宽的 L3 commander/store staged debt：semantic/graph module roots、DevConsole、setup workflow、chat/search legacy roots 和少量 type-only shell imports 已在 `architecture-boundary-check.md` 按文件/范围列出，不能表述为全局 L3 props-only 完成。
+- Focused UI tokenization 已闭合 P2-E release-visible shell 范围：`SetupCenterView.tsx`、`SettingsView.tsx`、`WorkbenchShellView.tsx`、`WorkbenchView.tsx`、`UpdateNotificationView.tsx` 的 inline `style={{ ... }}` 扫描无命中。更广的 semantic/graph/setup legacy style cleanup 仍是 staged debt。
+- Diagnostics privacy audit 增强已落地：前端 diagnostics/maskSecrets 测试覆盖 synthetic data key、API key、token、private message、local identity markers 和脱敏 false-positive；Rust `diagnostics_report_export_redacts_synthetic_release_audit_values` 生成临时诊断报告并确认 raw synthetic secrets/private text 不落盘。
+- Graph performance 决策保持不变：heavy `GraphCanvas` chunk 继续只在用户显式可视化后加载，P2-E 不把 1MB lazy chunk warning 表述为已解决；后续若要进一步优化应作为 P3/performance work。
+- 最终自动化验证通过：P2-E comprehensive target suite 9 files / 38 tests，`pnpm verify` 60 files / 336 tests，`cargo test` 19 tests，`pnpm tauri build` 产出 MSI/NSIS；`git diff --check` 无 whitespace error。剩余发布阻塞是人工 Windows packaged smoke 和真实 packaged diagnostics artifact review。
+
+## 2026-06-01 P2-E 综合修复后复核发现
+
+- 用户修复后，核心自动化链路通过：targeted P2-E/diagnostics tests 7 files / 24 tests；`pnpm typecheck` PASS；`cargo fmt --check` PASS；`pnpm verify` PASS（60 files / 336 tests）；`cargo test` PASS（19 tests）；`pnpm tauri build` PASS（MSI/NSIS 产出）；`git diff --check` 无 whitespace error。
+- 关键架构扫描通过：`rg -n "@l3/|@/l3-molecule|l3-molecule" src/l2-coordinator src/l4-atom` 无命中；L1/L3 raw network 无命中；L4-to-L2 无命中；L1/L3 `ai.phase` 和 `dangerouslySetInnerHTML|AppleButton|GlassPanel` 无命中。
+- 侧车合同与 ownership 修复方向正确：`AGENTS.md`、code、release docs 当前统一为 `127.0.0.1:5030`；`sidecar.rs` 已记录 spawned child PID 并通过 `post_spawn_pid_tracking_only_claims_spawned_child` 覆盖未知 occupant 不被认领的情况。
+- Common shell 拆分方向正确：`AppLayout.tsx` 现在接收 shell/actions props，`useAppShellCommander()` 在 L2 处理 settings/dev-console/window material；`UpdateNotificationView.tsx` 是 props view，focus restore 不再随状态变化反复触发。
+- 不应删除 P2-E 综合 review/plan：`release-evidence.md` 仍记录 Install/Launch/Quit/Reopen/Port conflict 为 Not run；T042 仍未勾选；真实 packaged diagnostics artifact review 仍 pending。
+- L3 staged debt 仍真实存在且应保留计划追踪：semantic/graph module roots、DevConsole、setup workflow、chat/search legacy roots 仍直接接入 L2；此外 `WorkbenchRail.tsx` 从 L2 导入 `buildWorkbenchRailItems()`，这不是纯 type-only import，最好后续改为由 L2/WorkbenchView 传入 rail item props。
+- UI smoke 结果可用但仍有 polish：Chrome/Playwright fallback 检查 `/`、`/settings`、`/workbench?codex-smoke=workbench-ready` 在 390px/1440px 无 page-level overflow、无小于 28px 的按钮；但 390px 底部状态栏仍只显示 `:5030`，语义不够清楚，属于可见 UI polish debt。
+- P2-E 综合修复计划和综合审查记录应保留，直到 manual packaged app smoke、真实 packaged diagnostics artifact review、剩余 L3 exceptions 和状态栏/语义模块 UI polish 被关闭或明确降级到后续阶段。
+
+## 2026-06-01 P2-E Suggested Fix Implementation Findings
+
+- 已按上一轮 review 的 Suggested fix 修复两个可自动闭合问题：`WorkbenchRail.tsx` 不再从 L2 导入非 type-only helper，改为接收 L2 commander 生成的 `railItems` props；底部状态栏不再显示孤立 `:5030`，改为 `端口 5030`。
+- TDD 覆盖新增：`workbenchBoundary.test.ts` 验证 WorkbenchRail 使用传入 item 渲染，不拥有 L2 rail item 构造职责；`statusBarDisplay.test.ts` 验证端口标签可读且不以裸冒号开头。
+- 架构扫描确认 `rg -n "@l2|l2-coordinator" src/l3-molecule/workbench/WorkbenchRail.tsx` 无命中；UI smoke 确认 `/settings` 与 `/workbench?codex-smoke=workbench-ready` 在 390px 下均显示 `端口 5030`，不再显示孤立 `:5030`。
+- 本轮重新运行 `pnpm verify` 通过（62 files / 338 tests，生产构建通过，仍保留 GraphCanvas lazy chunk >500 kB warning）；`git diff --check` 无 whitespace error，仅 CRLF 规范化提示。
+- 不能删除 P2-E 综合 review/plan：Windows packaged install/open/quit/reopen/unknown-port-conflict smoke 仍未执行，真实 packaged diagnostics artifact review 仍 pending，T042 仍未完成；当前状态仍是 automated verification passed with manual release-smoke blocker。
+
+## 2026-06-01 P2-E Packaged Release Gate Closure Findings
+
+- 真实 packaged smoke 发现 `sidecar("binaries/chatlog_alpha")` 与 Tauri v2 安装布局不匹配：`externalBin` 源文件在 `src-tauri/binaries`，但 build/install 目标是安装根目录 `chatlog_alpha.exe`；运行时必须调用 `sidecar("chatlog_alpha")`。
+- 真实 packaged quit smoke 发现主窗口关闭不会自动调用已有 `shutdown_sidecar` command；需要在 Tauri `CloseRequested` 生命周期里同步清理 `SidecarState` child，否则 app 退出后 app-managed sidecar 继续监听 `5030`。
+- Graph warning 的根因不是 `GraphCanvas` UI 代码本身，而是 Three/R3F/D3 依赖进入同一个异步 chunk。拆分后 `GraphCanvas` 约 12.93 kB，重依赖集中在 explicit-click `vendor-graph-3d` lazy chunk；因为 Three 核心模块本身超过默认 500 kB，需设置明确 3D vendor budget。
+- Rust crate warning 的根因是 `[lib] name = "chatlogUI_lib"`，已改为 `chatlog_ui_lib` 并同步 `main.rs`；`cargo test` 编译输出不再出现该 warning。
+- Packaged diagnostics artifact 真实导出可用：14 lines / 433 bytes，`Data key` 记录为 `present`，未包含 raw 合成 data key、合成私密文本或完整 user profile path。
+- Unknown `5030` occupant smoke 可自动化：外部 PowerShell `TcpListener` 作为 unknown owner，app 显示可恢复冲突文案，关闭 app 后 unknown listener 仍保持，证明 ownership cleanup 未误杀外部进程。
+- Smoke 结束后已清理合成 `chatlog-server.json`、临时 data/work 目录、外部 listener，并确认无 `chatlog*` 进程或 `5030` listener。
+
+## 2026-06-01 P4/P5 Planning Findings
+
+- 本轮 P4/P5 规划以 P2-E 完成态作为基线：`release-evidence.md`、`p2-e-visual-qa-matrix.md` 和 release runbook 已记录 Windows x64 packaged install/open/quit/reopen、app-managed sidecar health、packaged diagnostics export、unknown `5030` conflict、GraphCanvas chunk warning closure 和最终验证通过。P4/P5 不应重复 P2-E release-smoke 闭合工作。
+- 当前 `chatlogUI` 前端只覆盖 core chat/search/stats/setup/settings、semantic、graph MVP 和基础 diagnostics/privacy；`src/l4-atom/network/index.ts` 尚无 SNS、media resource、DB explorer、hook/push、favorites、members、unread/new_messages、MCP/wx-cli endpoint runner 的公开网络原子。
+- 本地 `chatlog_alpha` 原始 HTTP 能力仍有大量 P4 缺口：`/image/*key`、`/video/*key`、`/file/*key`、`/voice/*key`、`/data/*path`、`/api/v1/sns_notifications`、`/api/v1/sns_feed`、`/api/v1/sns_search`、`/api/v1/sns/media/proxy`、`/api/v1/db/search`、`/api/v1/db/tables`、`/api/v1/db/data`、`/api/v1/db/query`、`/api/v1/cache/clear`、hook config/status/events/stream/Hermes endpoints、`/mcp`、`/sse`、`/message`、semantic index preview、graph ingest/QA。
+- 当前 Workbench 模块只有 `chat | stats | ai | graph | settings`，导航尚未为 P4 的“媒体/收藏/朋友圈/数据库/接口调试/推送/诊断”提供明确分组入口。P4 UI 应避免继续堆叠到聊天主流程，而应采用 Apple-like desktop workbench 的分组 rail、inspector、sheet 和 data-dense table/detail 模式。
+- 当前 `DevConsole` 主要记录 sidecar stdout/stderr 和基础导出；`httpClient.ts` 没有统一记录 HTTP request/response/error event，UI action、Tauri command、updater、privacy audit、E2E smoke summary 也没有统一事件模型。P4 developer diagnostics 需要先建立 redaction-first diagnostic event pipeline。
+- 当前隐私模式已覆盖核心聊天、搜索、统计、语义、图谱和诊断的部分可见/aria/export 面，但 P4 新增媒体、SNS、DB rows、hook events、endpoint runner、raw response preview、screenshots、downloads 和 logs 都会重新扩大敏感面，必须为每个新模块定义 privacy-on 视图、aria label、copy/export 和 screenshot-safe 行为。
+- `.github/workflows/build-check.yml` 与 `release.yml` 已存在并支持多平台构建、sidecar prepare、updater signing secret check 和 release updater artifacts；但仓库没有独立 `e2e/` 或 `tests/` 目录，现有可重复验证主要是 Vitest、Rust tests、shell smoke、临时 Playwright/Chrome evidence。P5 应把 launch/workbench/privacy/advanced modules/release smoke 固化为可重复 E2E 和 visual evidence。
+- 当前仓库没有 `cmd/chatlog` sidecar 源码，`src-tauri/binaries/` 又被 `.gitignore` 忽略。`.github/scripts/prepare-sidecar.sh` 在 build-check 模式可生成 CI placeholder，但 release 模式需要已有非空目标 binary 或源码；因此真正的 GitHub release workflow 仍有 sidecar artifact acquisition/reproducibility 风险，必须在 P5 发布质量中显式关闭。
+- `src-tauri/tauri.conf.json` 当前 CSP 允许 `img-src` 访问 `http://127.0.0.1:5030`，但未显式声明 `media-src`。P4 媒体模块支持视频/语音前，必须把 CSP/能力变更作为 sidecar/security 任务审查，不能靠浏览器默认行为碰运气。
+- `ui-ux-pro-max` 设计系统脚本第一次在 Windows GBK 输出下触发 `UnicodeEncodeError`，且一次 search 参数写错；已用 `PYTHONIOENCODING=utf-8` 和正确参数重跑。可采用的设计结论是 data-dense developer/dashboard、privacy trust state、keyboard/a11y/error/empty/loading 规范；“landing/hero/单一夸张风格”不适合当前桌面工具。
+
+## 2026-06-01 P4/P5-0 Planning Findings
+
+- 当前已有 P4/P5 总路线图：`docs/superpowers/plans/2026-06-01-p4-p5-advanced-capabilities-diagnostics-release-quality.md`，但用户本轮要求的是 P4/P5-0 独立阶段规划，应在总路线图之上补一份更窄、更可执行的计划。
+- `specs/002-advanced-capabilities/` 尚不存在；`specs/001-ready-desktop-app/test-data-policy.md` 也不存在，虽然 `tasks.md` 的 T002 曾要求定义 sanitized fixture policy。P4/P5-0 应补齐新阶段能力矩阵、隐私/诊断契约、fixture/E2E 策略，并决定是否同步补 001 的历史缺口。
+- 当前源码确认：`src/l4-atom/network/index.ts` 只导出 core chat/search/stats、semantic、graph、update fetchers；尚无 media、SNS、DB explorer、hook、MCP/API runner 的 L4 原子。
+- 当前诊断确认：`DevConsole` 仍主要消费 `useDevConsoleStore` 的 sidecar stdout/stderr/system logs；`useDiagnosticsCommander` 只汇总 setup/profile/readiness/log count；没有统一 HTTP/UI/Tauri/updater/release diagnostic event pipeline。
+- 当前 `httpClient.ts` 只负责 `format=json`、timeout、HTTP body/status preservation；没有 request/response diagnostic event emission，也没有 endpoint label/correlation id/duration metadata。
+- 当前 E2E 基础确认：仓库无 `e2e/` 或 `tests/` 目录，`package.json` 没有 `pnpm e2e` 脚本；P2-E 浏览器证据主要来自临时 Playwright/Chrome/UIA smoke。
+- `chatlog_alpha` 路由确认：原始能力覆盖 media (`/image/*key`、`/video/*key`、`/file/*key`、`/voice/*key`、`/data/*path`)、SNS、favorites/members/unread/new_messages、DB explorer/query/cache、hook/Hermes/SSE、MCP (`/mcp`、`/sse`、`/message`)、semantic index preview、graph ingest/QA。P4/P5-0 能力矩阵必须逐项定所有者、隐私风险、fixture 和 E2E 目标。
+- `src-tauri/tauri.conf.json` 目前 CSP 有 `img-src ... http://127.0.0.1:5030`，但没有显式 `media-src`；P4/P5-0 计划应把媒体播放的 CSP/packaged smoke 作为后续 P4-B 的 release/security gate，而不是在 foundation 阶段贸然放宽。
+- 已新建 P4/P5-0 专项计划 `docs/superpowers/plans/2026-06-01-p4-p5-0-capability-diagnostics-e2e-foundation.md`，将 foundation 范围明确为：建立 `specs/002-advanced-capabilities` 文档、补齐 test-data policy、建立 L4 diagnostic event atom、给 `httpClient` 增加可选脱敏诊断事件、建立 L2 diagnostic event store/view model、升级 DevConsole 基础过滤、建立 synthetic fixtures 和 mock backend 策略。
+- 宽口径 P4/P5 总计划中早期写错的 `src/l3-molecule/dev/DevConsole.tsx` 已更正为当前真实路径 `src/l3-molecule/common/DevConsole.tsx`，并补充了专项计划链接。
+
+## 2026-06-01 P4/P5-0 Implementation Findings
+
+- `rg` 默认不支持 lookahead/lookbehind。P4/P5-0 文档中涉及 synthetic path/secret 的安全扫描命令必须使用 `rg --pcre2` 或拆成简单扫描；本轮已修正 ready desktop test-data policy 和 P4/P5-0 plan 中的建议命令。
+- L4 diagnostic event foundation 可保持独立：`diagnosticEvents.ts` 只创建、脱敏、序列化、限制事件，不导入 L2/L3/Zustand/Tauri，不持久化状态；`requestJson` 通过可选 callback 发事件，避免 L4 直接耦合 store。
+- 当前 HTTP 诊断事件是 opt-in foundation。现有 fetchers 默认行为不变，后续 P4-A/P4-B 应按 endpoint family 将 L2 commander/fetcher 调用接入 `onDiagnosticEvent`，才能在真实运行时看到 HTTP 事件。
+- DevConsole 已从 L3 直接 commander 调用改为 props-driven view，`WorkbenchView` 在 L1 注入 L2 commander 数据。这关闭了 P4/P5-0 触碰范围内的 DevConsole L3-to-L2 耦合，但更宽的 L3 staged debt 仍以既有 architecture checklist 为准。
+- `diagnostics-redaction.json` 故意包含 `C:\Users\Synthetic\WeChat Files\wxid_synthetic_redaction_case`、synthetic key/token/message markers，用于 redaction tests。扫描结果命中这些 synthetic values 时应视为预期测试输入，而不是泄漏。
+- Browser plugin in-app connection timed out during UI acceptance even though Vite page returned 200。Fallback Playwright CLI succeeded and provided viewport/overflow/privacy evidence. This should remain a tooling caveat, not a product failure.
+
+## 2026-06-02 P4/P5-0 Review Fix Findings
+
+- `requestJson` 原先暴露 `RequestInit.signal`，但实际传给 `fetch` 的是内部 timeout `AbortController.signal`；调用方取消无法触发，只有 timeout 能结束请求。修复后 caller `AbortSignal` 会合并到内部 controller，并以 `http.abort`/`errorKind=abort` 记录，不再误报为 timeout。
+- P4/P5-0 的初始 `capability-matrix.md` 只有能力族级别，不能直接作为后续 P4 实施清单。已补 endpoint-level inventory，列出每个 endpoint 的 desktop surface、L4/L2 owner、fixture target、E2E state target 和状态。
+- 初始 E2E fixture plan 只列未来覆盖目标，没有 route/state/viewport/privacy fixture matrix。已新增 `e2e-matrix.md`，把 setup/workbench/settings/dev-console/advanced entries/packaged smoke 的宽度、隐私模式、fixture 来源和阶段 owner 固定下来。
+- 宽口径 P4/P5 总计划中仍保留旧的 global subscribe/emit diagnostic event 描述和旧 fixture 文件名；已同步为当前 opt-in callback foundation 与 `advanced-capabilities.json`/`diagnostics-redaction.json`，避免后续按过时接口开发。

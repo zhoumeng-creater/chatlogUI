@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PortState } from "@l2/data-clerk/types/setup";
+import type { PortState } from "./systemTypes";
 import type { SpawnSidecarOptions } from "./spawnSidecar";
 import { spawnSidecar } from "./spawnSidecar";
 

@@ -1,5 +1,6 @@
-import { useSettingsCommander } from "@l2/commander/useSettingsCommander";
-import { Field, Input, SegmentedControl, Surface, Typography } from "@l4/ui";
+import type { SettingsState } from "@/l2-coordinator/api-docs/settings";
+import type { SettingsSaveStatus } from "@l2/data-clerk/stores/useSettingsStore";
+import { Field, Input, SegmentedControl, StatusIndicator, Surface, Typography } from "@l4/ui";
 
 const PROVIDERS = [
   { value: "ollama", label: "Ollama" },
@@ -7,9 +8,14 @@ const PROVIDERS = [
   { value: "deepseek", label: "DeepSeek" },
 ];
 
-export function AIModelSettings() {
-  const { settings, updateAndSave } = useSettingsCommander();
+interface AIModelSettingsProps {
+  settings: SettingsState;
+  saveStatus: SettingsSaveStatus;
+  saveMessage: string | null;
+  onChange: (partial: Partial<SettingsState>) => void;
+}
 
+export function AIModelSettings({ settings, saveStatus, saveMessage, onChange }: AIModelSettingsProps) {
   return (
     <div className="settings-stack">
       <Typography variant="h2">AI 模型</Typography>
@@ -21,7 +27,7 @@ export function AIModelSettings() {
               label="模型提供商"
               value={settings.aiProvider}
               options={PROVIDERS}
-              onChange={(provider) => updateAndSave({ aiProvider: provider })}
+              onChange={(provider) => onChange({ aiProvider: provider })}
             />
           </Field>
 
@@ -29,18 +35,21 @@ export function AIModelSettings() {
             <Input
               id="settings-ai-endpoint"
               value={settings.aiEndpoint}
-              onChange={(event) => updateAndSave({ aiEndpoint: event.currentTarget.value })}
+              onChange={(event) => onChange({ aiEndpoint: event.currentTarget.value })}
             />
           </Field>
 
           {settings.aiProvider !== "ollama" && (
-            <Field id="settings-ai-api-key" label="API Key">
+            <Field
+              id="settings-ai-credential"
+              label="凭据状态"
+              hint="API Key 不保存在 UI 设置存储中。语义配置向导会在后续阶段按后端合约处理连接测试、保存和索引状态。"
+            >
               <Input
-                id="settings-ai-api-key"
-                type="password"
+                id="settings-ai-credential"
                 autoComplete="off"
-                value={settings.aiApiKey}
-                onChange={(event) => updateAndSave({ aiApiKey: event.currentTarget.value })}
+                value={settings.aiCredentialConfigured ? "已由安全配置来源验证" : "未配置"}
+                disabled
               />
             </Field>
           )}
@@ -49,11 +58,18 @@ export function AIModelSettings() {
             <Input
               id="settings-ai-model"
               value={settings.aiModel}
-              onChange={(event) => updateAndSave({ aiModel: event.currentTarget.value })}
+              onChange={(event) => onChange({ aiModel: event.currentTarget.value })}
               placeholder={settings.aiProvider === "ollama" ? "llama3" : "模型名称"}
             />
           </Field>
         </form>
+        {saveMessage && (
+          <StatusIndicator
+            label={saveMessage}
+            tone={saveStatus === "error" ? "danger" : saveStatus === "saving" ? "info" : "success"}
+            busy={saveStatus === "saving"}
+          />
+        )}
       </Surface>
     </div>
   );

@@ -1,18 +1,21 @@
 import * as THREE from "three";
 import { Text } from "@react-three/drei";
-import type { GraphNode } from "@/l2-coordinator/api-docs/graph";
+import type { GraphNodeView } from "./graphTypes";
+import { getGraphNodeLabel } from "./graphDisplay";
 
 interface GraphLabelsProps {
-  nodes: GraphNode[];
+  nodes: GraphNodeView[];
   positions: Map<string, THREE.Vector3>;
+  privacyOn: boolean;
 }
 
-export function GraphLabels({ nodes, positions }: GraphLabelsProps) {
+export function GraphLabels({ nodes, positions, privacyOn }: GraphLabelsProps) {
   return (
     <group>
       {nodes.map((node) => {
         const pos = positions.get(node.id);
         if (!pos) return null;
+        const label = getGraphNodeLabel(node.name, privacyOn);
         return (
           <Text
             key={`label-${node.id}`}
@@ -24,7 +27,7 @@ export function GraphLabels({ nodes, positions }: GraphLabelsProps) {
             outlineWidth={0.02}
             outlineColor="#000000"
           >
-            {node.name.length > 8 ? node.name.slice(0, 7) + "\u2026" : node.name}
+            {label.length > 8 ? label.slice(0, 7) + "\u2026" : label}
           </Text>
         );
       })}

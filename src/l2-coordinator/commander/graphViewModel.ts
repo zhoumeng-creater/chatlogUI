@@ -1,0 +1,103 @@
+import type {
+  GraphLoadStatus,
+  GraphStatusView,
+  GraphVisualizeView,
+} from "@/l4-atom/network/graphAdapters";
+
+export interface GraphModuleViewInput {
+  statusSummary: GraphStatusView | null;
+  visualize: GraphVisualizeView | null;
+  visualizationRequested: boolean;
+}
+
+export interface GraphModuleTableRow {
+  id: string;
+  type: "node" | "edge" | "timeline";
+  label: string;
+  detail: string;
+}
+
+export interface GraphModuleView {
+  kind: GraphLoadStatus | "unavailable" | "failed";
+  blocksCoreWorkbench: boolean;
+  canVisualize: boolean;
+  shouldMountCanvas: boolean;
+  message: string;
+  tableRows: GraphModuleTableRow[];
+}
+
+export function deriveGraphModuleView(input: GraphModuleViewInput): GraphModuleView {
+  if (input.statusSummary?.state === "unavailable") {
+    return baseView("unavailable", "Graph service is unavailable.");
+  }
+
+  if (input.statusSummary?.state === "error") {
+    return baseView("failed", input.statusSummary.lastError || "Graph service failed.");
+  }
+
+  if (!input.visualize) {
+    return {
+      ...baseView(input.statusSummary?.state === "running" ? "loading" : "idle", "Load graph summary to inspect relationships."),
+      canVisualize: false,
+    };
+  }
+
+  if (input.visualize.state !== "loaded") {
+    return {
+      ...baseView(input.visualize.state, input.visualize.error || graphStateMessage(input.visualize.state)),
+      tableRows: graphTableRows(input.visualize),
+    };
+  }
+
+  return {
+    kind: "loaded",
+    blocksCoreWorkbench: false,
+    canVisualize: true,
+    shouldMountCanvas: input.visualizationRequested,
+    message: "Graph summary is loaded.",
+    tableRows: graphTableRows(input.visualize),
+  };
+}
+
+function baseView(kind: GraphModuleView["kind"], message: string): GraphModuleView {
+  return {
+    kind,
+    blocksCoreWorkbench: false,
+    canVisualize: false,
+    shouldMountCanvas: false,
+    message,
+    tableRows: [],
+  };
+}
+
+function graphTableRows(visualize: GraphVisualizeView): GraphModuleTableRow[] {
+  return [
+    ...visualize.nodes.map((node) => ({
+      id: `node-${node.id}`,
+      type: "node" as const,
+      label: node.label,
+      detail: node.kind,
+    })),
+    ...visualize.edges.map((edge) => ({
+      id: `edge-${edge.id}`,
+      type: "edge" as const,
+      label: edge.label,
+      detail: `${edge.source} -> ${edge.target}`,
+    })),
+    ...visualize.timelineRows.map((row, index) => ({
+      id: `timeline-${index}`,
+      type: "timeline" as const,
+      label: row.title,
+      detail: row.source || row.description,
+    })),
+  ];
+}
+
+function graphStateMessage(state: GraphLoadStatus): string {
+  if (state === "empty") return "No graph data is available for the current filters.";
+  if (state === "malformed") return "Graph data is malformed and cannot be visualized.";
+  if (state === "oversized") return "Graph data is too large to visualize. Narrow the filters first.";
+  if (state === "cancelled") return "Graph loading was cancelled.";
+  if (state === "error") return "Graph loading failed.";
+  return "Graph is not loaded.";
+}

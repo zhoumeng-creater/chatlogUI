@@ -1,9 +1,9 @@
 // ========== 配置相关 ==========
 
-export type LLMProvider = 'ollama' | 'glm' | 'deepseek';
+export type LLMProvider = "ollama" | "glm" | "deepseek" | string;
 
 export interface SemanticConfig {
-  provider: LLMProvider;
+  provider?: LLMProvider;
   ollamaBaseUrl?: string;
   ollamaEmbeddingModel?: string;
   ollamaChatModel?: string;
@@ -14,6 +14,38 @@ export interface SemanticConfig {
   deepseekApiKey?: string;
   deepseekBaseUrl?: string;
   deepseekChatModel?: string;
+  enabled?: boolean;
+  baseUrl?: string;
+  providers?: {
+    embedding: { provider: string; model: string; configured: boolean; dimension?: number };
+    rerank: { provider: string; model: string; configured: boolean; enabled?: boolean };
+    chat: {
+      provider: string;
+      model: string;
+      configured: boolean;
+      enabled?: boolean;
+      thinking?: boolean;
+      maxTokens?: number;
+      temperature?: number;
+    };
+  };
+  credentials?: {
+    apiKeySaved: boolean;
+    deepseekApiKeySaved: boolean;
+  };
+  retrieval?: {
+    recallK: number;
+    topN: number;
+    similarityThreshold: number;
+  };
+  readiness?: {
+    embeddingConfigured: boolean;
+    rerankConfigured: boolean;
+    chatConfigured: boolean;
+    hasAnySavedCredential: boolean;
+    readyForSearch: boolean;
+    readyForQa: boolean;
+  };
 }
 
 export interface SemanticConfigResponse {
@@ -21,19 +53,36 @@ export interface SemanticConfigResponse {
 }
 
 export interface ConnectionTestResult {
-  success: boolean;
+  ok?: boolean;
   message: string;
+  success?: boolean;
   latencyMs?: number;
 }
 
 // ========== 索引相关 ==========
 
-export type IndexStatus = 'idle' | 'building' | 'paused' | 'ready' | 'error';
+export type IndexStatus =
+  | "idle"
+  | "building"
+  | "running"
+  | "paused"
+  | "ready"
+  | "error"
+  | "unavailable";
 
 export interface IndexStatusResponse {
   status: IndexStatus;
+  state?: IndexStatus;
   total: number;
   completed: number;
+  ready?: boolean;
+  running?: boolean;
+  paused?: boolean;
+  processed?: number;
+  pending?: number;
+  failed?: number;
+  progressPct?: number;
+  lastError?: string;
   error?: string;
   startedAt?: string;
 }
@@ -43,7 +92,21 @@ export interface IndexStatusResponse {
 export interface QARequest {
   query: string;
   chat?: string;
+  chats?: string[];
+  window?: string;
+  entityOverride?: string;
+  retrievalDepth?: string;
+  sourceLimit?: number;
+  topN?: number;
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
   scope?: 'contact' | 'all';
+}
+
+export interface QADonePayload {
+  answer: string;
+  evidence: Array<Record<string, unknown>>;
+  reason: string;
+  metadata: Record<string, unknown>;
 }
 
 export interface QAMessage {
@@ -71,7 +134,9 @@ export interface SemanticSearchRequest {
 
 export interface SemanticSearchResultItem {
   chat: string;
+  chatName: string;
   sender: string;
+  senderId: string;
   time: string;
   content: string;
   relevanceScore: number;
@@ -80,7 +145,18 @@ export interface SemanticSearchResultItem {
 
 export interface SemanticSearchResponse {
   query: string;
-  totalCount: number;
+  totalCount?: number;
+  sourceCount?: number;
+  count?: number;
+  window?: string;
+  depth?: string;
+  rerank?: {
+    enabled: boolean;
+    provider: string;
+    tried?: boolean;
+    applied?: boolean;
+    error?: string;
+  };
   results: SemanticSearchResultItem[];
 }
 
@@ -89,21 +165,44 @@ export interface SemanticSearchResponse {
 export interface TopicItem {
   topic: string;
   count: number;
-  percentage: number;
+  percentage?: number;
+  keywords?: string[];
 }
 
 export interface TopicsResponse {
-  chat: string;
-  username: string;
+  chat?: string;
+  username?: string;
+  window?: string;
+  windowLabel?: string;
+  from?: number;
+  to?: number;
+  count?: number;
+  truncated?: boolean;
   topics: TopicItem[];
+  daily?: Array<{ date: string; count: number }>;
+  summary?: string;
+  summaryError?: string;
   timeRange?: string;
 }
 
 // ========== 联系人画像相关 ==========
 
 export interface ContactProfileData {
-  chat: string;
-  username: string;
+  chat?: string;
+  username?: string;
+  window?: string;
+  windowLabel?: string;
+  from?: number;
+  to?: number;
+  count?: number;
+  truncated?: boolean;
+  profiles?: Array<{
+    sender: string;
+    senderName: string;
+    messages: number;
+    topKeywords: Array<{ topic: string; count: number }>;
+  }>;
+  typeDistribution?: Array<{ type: string; count: number }>;
   role?: string;
   activeHours?: string;
   dailyFrequency?: number;
@@ -134,13 +233,18 @@ export interface AiState {
   qaMessages: QAMessage[];
   qaLoading: boolean;
   qaStreaming: boolean;
+  qaStatus: 'idle' | 'connecting' | 'streaming' | 'completed' | 'stopped' | 'failed' | 'empty';
+  qaError: string | null;
   searchQuery: string;
   searchResults: SemanticSearchResponse | null;
   searchLoading: boolean;
+  searchError: string | null;
   topics: TopicsResponse | null;
   topicsLoading: boolean;
+  topicsError: string | null;
   profile: ContactProfileData | null;
   profileLoading: boolean;
+  profileError: string | null;
   error: string | null;
 }
 
@@ -152,14 +256,19 @@ export interface AiActions {
   appendQAToken: (msgId: string, token: string) => void;
   setQALoading: (loading: boolean) => void;
   setQAStreaming: (streaming: boolean) => void;
+  setQAStatus: (status: AiState['qaStatus']) => void;
+  setQAError: (error: string | null) => void;
   clearQAMessages: () => void;
   setSearchQuery: (query: string) => void;
   setSearchResults: (results: SemanticSearchResponse | null) => void;
   setSearchLoading: (loading: boolean) => void;
+  setSearchError: (error: string | null) => void;
   setTopics: (topics: TopicsResponse | null) => void;
   setTopicsLoading: (loading: boolean) => void;
+  setTopicsError: (error: string | null) => void;
   setProfile: (profile: ContactProfileData | null) => void;
   setProfileLoading: (loading: boolean) => void;
+  setProfileError: (error: string | null) => void;
   setError: (error: string | null) => void;
   reset: () => void;
 }

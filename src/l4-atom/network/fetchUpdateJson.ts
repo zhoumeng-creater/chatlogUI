@@ -1,9 +1,9 @@
-import type { UpdateManifest } from "@/l2-coordinator/api-docs/update";
+import type { UpdateManifestView } from "./updateTypes";
 
 const DEFAULT_UPDATE_URL =
   "https://github.com/zhoumeng-creater/chatlogUI/releases/latest/download/latest.json";
 
-export async function fetchUpdateJson(): Promise<UpdateManifest> {
+export async function fetchUpdateJson(): Promise<UpdateManifestView> {
   const response = await fetch(DEFAULT_UPDATE_URL, {
     headers: { Accept: "application/json" },
   });
@@ -13,7 +13,7 @@ export async function fetchUpdateJson(): Promise<UpdateManifest> {
   }
 
   const data: unknown = await response.json();
-  const manifest = data as UpdateManifest;
+  const manifest = data as UpdateManifestView;
 
   if (!manifest.version || !manifest.platforms) {
     throw new Error("更新清单格式无效");

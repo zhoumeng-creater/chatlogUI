@@ -2,19 +2,52 @@ import { useState } from 'react';
 import { Typography } from '@l4/ui/Typography';
 import { Input } from '@l4/ui/Input';
 import { Spinner } from '@l4/ui/Spinner';
-import { useAiCommander } from '@l2/commander/useAiCommander';
-import { useChatCommander } from '@l2/commander/useChatCommander';
+import { Button } from '@l4/ui/Button';
+import { getSemanticDisplayText } from './semanticDisplay';
 
-export function SemanticSearch() {
-  const { debouncedSearch, searchResults, searchLoading } = useAiCommander();
-  const { selectAndLoad } = useChatCommander();
+interface SemanticSearchResultItemView {
+  chat: string;
+  chatName?: string;
+  sender: string;
+  senderId?: string;
+  time: string;
+  content: string;
+  relevanceScore: number;
+  localId: number;
+}
+
+interface SemanticSearchResultsView {
+  count?: number;
+  totalCount?: number;
+  results: SemanticSearchResultItemView[];
+}
+
+interface SemanticSearchProps {
+  searchResults: SemanticSearchResultsView | null;
+  searchLoading: boolean;
+  searchError?: string | null;
+  privacyOn: boolean;
+  onSearch: (query: string, scope?: "contact" | "all") => void;
+  onSelectResult: (chat: string, label: string) => void;
+  onRetry?: () => void;
+}
+
+export function SemanticSearch({
+  searchResults,
+  searchLoading,
+  searchError,
+  privacyOn,
+  onSearch,
+  onSelectResult,
+  onRetry,
+}: SemanticSearchProps) {
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<'contact' | 'all'>('contact');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
     setQuery(v);
-    debouncedSearch(v, scope);
+    onSearch(v, scope);
   };
 
   const exampleQueries = [
@@ -58,7 +91,7 @@ export function SemanticSearch() {
             {exampleQueries.map((eq, i) => (
               <div
                 key={i}
-                onClick={() => { setQuery(eq); debouncedSearch(eq, scope); }}
+                onClick={() => { setQuery(eq); onSearch(eq, scope); }}
                 style={{
                   padding: '8px 12px',
                   marginBottom: 6,
@@ -66,7 +99,7 @@ export function SemanticSearch() {
                   background: 'rgba(0,122,255,0.06)',
                   cursor: 'pointer',
                   fontSize: 13,
-                  color: '#007AFF',
+                  color: 'var(--accent)',
                 }}
               >
                 {eq}
@@ -75,33 +108,63 @@ export function SemanticSearch() {
           </div>
         )}
 
+        {searchError && (
+          <div style={{ padding: 16, textAlign: "center" }} role="alert">
+            <Typography variant="body" color="var(--danger)" style={{ marginBottom: 8 }}>
+              {searchError}
+            </Typography>
+            {onRetry && (
+              <Button variant="secondary" size="sm" onClick={onRetry}>
+                重试
+              </Button>
+            )}
+          </div>
+        )}
+
+        {query && !searchLoading && !searchError && searchResults && searchResults.results.length === 0 && (
+          <div style={{ padding: 16, textAlign: "center" }}>
+            <Typography variant="body" color="var(--text-secondary)">
+              没有找到语义匹配结果。
+            </Typography>
+          </div>
+        )}
+
         {searchResults && (
           <div>
             <Typography variant="caption" color="var(--color-text-secondary)" style={{ marginBottom: 8 }}>
-              找到 {searchResults.totalCount} 条结果
+              找到 {searchResults.count ?? searchResults.totalCount ?? searchResults.results.length} 条结果
             </Typography>
             {searchResults.results.map((r, i) => (
+              (() => {
+                const sender = getSemanticDisplayText(r.sender, privacyOn, "未知发送者");
+                const chatLabel = getSemanticDisplayText(r.chatName || r.chat, privacyOn, "未知会话");
+                const content = getSemanticDisplayText(r.content, privacyOn);
+                const score = r.relevanceScore <= 1 ? r.relevanceScore * 100 : r.relevanceScore;
+                return (
               <div
                 key={i}
-                onClick={() => selectAndLoad(r.chat, r.chat)}
+                onClick={() => {
+                  if (r.chat) onSelectResult(r.chat, r.chatName || r.chat);
+                }}
                 style={{
                   padding: '8px 10px',
                   marginBottom: 6,
                   borderRadius: 8,
-                  cursor: 'pointer',
+                  cursor: r.chat ? 'pointer' : 'default',
+                  opacity: r.chat ? 1 : 0.64,
                   borderBottom: '1px solid var(--color-border)',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
                   <Typography variant="caption" weight={600}>
-                    {r.sender}
+                    {chatLabel} · {sender}
                   </Typography>
                   <Typography variant="caption" color="var(--color-text-quaternary)">
                     {r.time}
                   </Typography>
                 </div>
                 <Typography variant="caption" color="var(--color-text-secondary)" style={{ marginBottom: 4 }}>
-                  {r.content.length > 100 ? r.content.slice(0, 100) + '...' : r.content}
+                  {content.length > 100 ? content.slice(0, 100) + '...' : content}
                 </Typography>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div
@@ -116,17 +179,19 @@ export function SemanticSearch() {
                     <div
                       style={{
                         height: '100%',
-                        width: `${r.relevanceScore}%`,
-                        background: 'linear-gradient(90deg, #34C759, #007AFF)',
+                        width: `${Math.max(0, Math.min(100, score))}%`,
+                        background: 'linear-gradient(90deg, var(--success), var(--accent))',
                         borderRadius: 2,
                       }}
                     />
                   </div>
                   <Typography variant="caption" color="var(--color-text-quaternary)">
-                    {Math.round(r.relevanceScore)}%
+                    {Math.round(score)}%
                   </Typography>
                 </div>
               </div>
+                );
+              })()
             ))}
           </div>
         )}

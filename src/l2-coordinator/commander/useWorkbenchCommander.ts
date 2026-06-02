@@ -3,17 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
 import { useSearchStore } from "@l2/data-clerk/stores/useSearchStore";
+import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { useAiCommander } from "./useAiCommander";
 import { useChatCommander } from "./useChatCommander";
 import { useGraphCommander } from "./useGraphCommander";
 import { useSearchCommander } from "./useSearchCommander";
 import { useStatsCommander } from "./useStatsCommander";
-import { getWorkbenchLayout } from "@l3/workbench/workbenchLayout";
+import { getWorkbenchLayout } from "./workbenchLayout";
 import {
   getInspectorTitle,
   isInspectorModule,
   resolveSinglePaneView,
   shouldRenderConversationListAsMain,
+  buildWorkbenchModuleBadges,
+  buildWorkbenchRailItems,
+  formatWorkbenchConversationTitle,
   type SinglePaneView,
   type WorkbenchModule,
 } from "./workbenchViewModel";
@@ -38,6 +42,7 @@ export function useWorkbenchCommander() {
   const appPhase = useAppStore((state) => state.appPhase);
   const sidecarStatus = useAppStore((state) => state.sidecarStatus);
   const errorMessage = useAppStore((state) => state.errorMessage);
+  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
 
   const chat = useChatCommander();
   const search = useSearchCommander();
@@ -145,6 +150,13 @@ export function useWorkbenchCommander() {
 
   const selectModule = useCallback(
     (module: WorkbenchModule) => {
+      if (module !== "ai") {
+        ai.stopQAStream();
+      }
+      if (module !== "graph" && graph.loading) {
+        graph.cancelGraphLoad();
+      }
+
       setActiveModule(module);
 
       if (module === "settings") {
@@ -165,8 +177,14 @@ export function useWorkbenchCommander() {
         setInspectorOpen(true);
       }
     },
-    [openGraph, navigate],
+    [ai, graph, openGraph, navigate],
   );
+
+  const moduleBadges = buildWorkbenchModuleBadges({
+    semanticStatus: ai.compactStatus,
+    graphView: graph.moduleView,
+  });
+  const railItems = buildWorkbenchRailItems(activeModule, moduleBadges);
 
   const retryStats = useCallback(() => {
     if (currentChat) {
@@ -189,14 +207,26 @@ export function useWorkbenchCommander() {
     singlePaneView: resolvedSinglePaneView,
     conversationListAsMain,
     currentConversation,
+    toolbarConversationTitle: formatWorkbenchConversationTitle(currentConversation, privacyOn),
+    privacyOn,
     currentChat,
     inspectorOpen,
     inspectorTitle: getInspectorTitle(inspectorModule),
+    moduleBadges,
+    railItems,
     openConversationList,
     handleConversationOpened,
     selectModule,
     retryStats,
-    closeInspector: () => setInspectorOpen(false),
+    closeInspector: () => {
+      if (activeModule === "ai") {
+        ai.stopQAStream();
+      }
+      if (activeModule === "graph" && graph.loading) {
+        graph.cancelGraphLoad();
+      }
+      setInspectorOpen(false);
+    },
     goSetup: () => navigate("/"),
   };
 }

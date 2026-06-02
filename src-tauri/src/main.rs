@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    chatlogUI_lib::run()
+    chatlog_ui_lib::run()
 }

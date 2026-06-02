@@ -7,37 +7,61 @@ import { AIModelSettings } from "@l3/settings/AIModelSettings";
 import { AppearanceSettings } from "@l3/settings/AppearanceSettings";
 import { DataSettings } from "@l3/settings/DataSettings";
 import { AboutSettings } from "@l3/settings/AboutSettings";
-import { useSettingsCommander } from "@l2/commander/useSettingsCommander";
-import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
-import { useAiCommander } from "@l2/commander/useAiCommander";
+import { useAppShellCommander } from "@l2/commander";
+import { useSettingsPageCommander } from "@l2/commander/useSettingsPageCommander";
 import { Typography } from "@l4/ui/Typography";
 import { Button } from "@l4/ui/Button";
 
 export function SettingsView() {
   const navigate = useNavigate();
-  const { activeCategory } = useSettingsCommander();
-  const sidecarStatus = useAppStore((s) => s.sidecarStatus);
-  const { indexStatus } = useAiCommander();
+  const commander = useSettingsPageCommander();
+  const appShell = useAppShellCommander("设置");
 
   const renderContent = () => {
-    switch (activeCategory) {
+    switch (commander.activeCategory) {
       case "ai":
-        return <AIModelSettings />;
+        return (
+          <AIModelSettings
+            settings={commander.settings}
+            saveStatus={commander.saveStatus}
+            saveMessage={commander.saveMessage}
+            onChange={commander.updateAndSave}
+          />
+        );
       case "appearance":
-        return <AppearanceSettings />;
+        return (
+          <AppearanceSettings
+            settings={commander.settings}
+            saveStatus={commander.saveStatus}
+            saveMessage={commander.saveMessage}
+            onChange={commander.updateAndSave}
+          />
+        );
       case "data":
-        return <DataSettings />;
+        return (
+          <DataSettings
+            settings={commander.settings}
+            saveStatus={commander.saveStatus}
+            saveMessage={commander.saveMessage}
+            onChooseDataDirectory={commander.chooseDataDirectory}
+          />
+        );
       case "about":
-        return <AboutSettings />;
+        return (
+          <AboutSettings
+            updateStatusText={commander.updateStatusText}
+            onCheckUpdate={commander.checkForUpdates}
+          />
+        );
       default:
         return null;
     }
   };
 
   return (
-    <AppLayout title="设置">
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", gap: 16, borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-raised)" }}>
+    <AppLayout shell={appShell.view} actions={appShell.actions}>
+      <div className="settings-page">
+        <div className="settings-page__header">
         <Button
           variant="ghost"
           size="sm"
@@ -48,10 +72,15 @@ export function SettingsView() {
         </Button>
         <Typography variant="label" weight={600}>设置</Typography>
         </div>
-        <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
-          <SettingsLayout>{renderContent()}</SettingsLayout>
+        <div className="settings-page__body">
+          <SettingsLayout
+            activeCategory={commander.activeCategory}
+            onCategoryChange={commander.setActiveCategory}
+          >
+            {renderContent()}
+          </SettingsLayout>
         </div>
-        <StatusBar status={sidecarStatus} indexStatus={indexStatus} />
+        <StatusBar status={commander.sidecarStatus} indexStatus={commander.indexStatus} />
       </div>
     </AppLayout>
   );

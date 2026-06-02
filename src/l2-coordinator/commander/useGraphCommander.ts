@@ -1,9 +1,17 @@
 import { useCallback } from "react";
 import { useGraphStore } from "@/l2-coordinator/data-clerk/stores/useGraphStore";
 import {
+  fetchGraphStatus,
+  fetchGraphTimeline,
   fetchGraphVisualize,
+  manageGraph,
 } from "@l4/network";
 import type { EntityKind, VisualizeParams } from "@/l2-coordinator/api-docs/graph";
+import type {
+  GraphStatusView,
+  GraphVisualizeView,
+} from "@/l4-atom/network/graphAdapters";
+import { deriveGraphModuleView } from "./graphViewModel";
 
 export function useGraphCommander() {
   const store = useGraphStore();
@@ -12,7 +20,7 @@ export function useGraphCommander() {
     useGraphStore.setState({ loading: true, error: null });
     try {
       const data = await fetchGraphVisualize(params);
-      useGraphStore.getState().setData(data);
+      useGraphStore.getState().setVisualize(data as unknown as GraphVisualizeView);
     } catch (error) {
       useGraphStore.getState().setError(
         error instanceof Error ? error.message : "加载图谱数据失败",
@@ -20,30 +28,97 @@ export function useGraphCommander() {
     }
   }, []);
 
-  const searchGraph = useCallback(async (keyword: string) => {
-    useGraphStore.setState({ loading: true, keyword });
+  const refreshStatus = useCallback(async () => {
     try {
-      const data = await fetchGraphVisualize({ keyword });
-      useGraphStore.getState().setData(data);
+      const status = await fetchGraphStatus();
+      useGraphStore.getState().setStatusSummary(status as unknown as GraphStatusView | null);
     } catch (error) {
       useGraphStore.getState().setError(
-        error instanceof Error ? error.message : "图谱搜索失败",
+        error instanceof Error ? error.message : "图谱状态查询失败",
       );
     }
   }, []);
 
+  const loadGraphTimeline = useCallback(async (params: VisualizeParams = {}) => {
+    try {
+      const timeline = await fetchGraphTimeline(params);
+      useGraphStore.getState().setTimeline(timeline);
+    } catch {
+      useGraphStore.getState().setTimeline(null);
+    }
+  }, []);
+
+  const loadGraphSummary = useCallback(async (params: VisualizeParams = {}) => {
+    useGraphStore.setState({ loading: true, error: null, visualizationRequested: false });
+    try {
+      const [status, visualize] = await Promise.all([
+        fetchGraphStatus(),
+        fetchGraphVisualize(params),
+      ]);
+      const graphStore = useGraphStore.getState();
+      graphStore.setStatusSummary(status as unknown as GraphStatusView | null);
+      graphStore.setVisualize(visualize as unknown as GraphVisualizeView);
+      graphStore.setLoading(false);
+      void loadGraphTimeline(params);
+    } catch (error) {
+      useGraphStore.getState().setError(
+        error instanceof Error ? error.message : "加载图谱摘要失败",
+      );
+    }
+  }, [loadGraphTimeline]);
+
+  const loadVisualization = useCallback(async () => {
+    const graphStore = useGraphStore.getState();
+    graphStore.setVisualizationRequested(true);
+    if (graphStore.visualize?.state === "loaded") return;
+    await loadGraph({
+      keyword: graphStore.keyword || undefined,
+      window: graphStore.timeWindow || undefined,
+    });
+  }, [loadGraph]);
+
+  const cancelGraphLoad = useCallback(() => {
+    useGraphStore.setState({ loading: false, loadStatus: "cancelled" });
+  }, []);
+
+  const retryGraphLoad = useCallback(async () => {
+    const { keyword, timeWindow } = useGraphStore.getState();
+    await loadGraphSummary({ keyword: keyword || undefined, window: timeWindow || undefined });
+  }, [loadGraphSummary]);
+
+  const runGraphAction = useCallback(async (action: "rebuild" | "pause" | "resume") => {
+    try {
+      const result = await manageGraph(action);
+      useGraphStore.getState().setActionStatus(result);
+      await refreshStatus();
+    } catch (error) {
+      useGraphStore.getState().setError(
+        error instanceof Error ? error.message : `图谱操作 ${action} 失败`,
+      );
+    }
+  }, [refreshStatus]);
+
+  const searchGraph = useCallback(async (keyword: string) => {
+    useGraphStore.setState({ keyword });
+    await loadGraphSummary({ keyword });
+  }, [loadGraphSummary]);
+
   const refreshGraph = useCallback(async () => {
     const { keyword, timeWindow } = useGraphStore.getState();
-    await loadGraph({ keyword: keyword || undefined, window: timeWindow || undefined });
-  }, [loadGraph]);
+    await loadGraphSummary({ keyword: keyword || undefined, window: timeWindow || undefined });
+  }, [loadGraphSummary]);
 
   const openGraph = useCallback(async () => {
     useGraphStore.setState({ visible: true, minimized: false });
-    const { data } = useGraphStore.getState();
-    if (!data) {
-      await loadGraph();
+    const { visualize } = useGraphStore.getState();
+    if (!visualize) {
+      await loadGraphSummary();
     }
-  }, [loadGraph]);
+  }, [loadGraphSummary]);
+
+  const openGraphModule = useCallback(async () => {
+    await openGraph();
+  }, [openGraph]);
 
   const closeGraph = useCallback(() => {
     useGraphStore.getState().setVisible(false);
@@ -79,6 +154,11 @@ export function useGraphCommander() {
     await searchGraph(keyword);
   }, [searchGraph]);
 
+  const setGraphFilter = useCallback((params: { keyword?: string; window?: string }) => {
+    if (params.keyword !== undefined) useGraphStore.getState().setKeyword(params.keyword);
+    if (params.window !== undefined) useGraphStore.getState().setTimeWindow(params.window);
+  }, []);
+
   const setVisibleKinds = useCallback((kinds: EntityKind[]) => {
     useGraphStore.getState().setVisibleEntityKinds(kinds);
   }, []);
@@ -107,6 +187,17 @@ export function useGraphCommander() {
 
   return {
     data: store.data,
+    loadStatus: store.loadStatus,
+    statusSummary: store.statusSummary,
+    visualize: store.visualize,
+    timeline: store.timeline,
+    actionStatus: store.actionStatus,
+    visualizationRequested: store.visualizationRequested,
+    moduleView: deriveGraphModuleView({
+      statusSummary: store.statusSummary,
+      visualize: store.visualize,
+      visualizationRequested: store.visualizationRequested,
+    }),
     loading: store.loading,
     error: store.error,
     keyword: store.keyword,
@@ -126,6 +217,18 @@ export function useGraphCommander() {
     setLayoutMode,
     setTimelineVisible,
     highlightTimelineEntry,
+    openGraphModule,
+    refreshStatus,
+    loadGraphSummary,
+    loadGraphTimeline,
+    loadVisualization,
+    cancelGraphLoad,
+    retryGraphLoad,
+    rebuildGraph: () => runGraphAction("rebuild"),
+    pauseGraph: () => runGraphAction("pause"),
+    resumeGraph: () => runGraphAction("resume"),
+    setGraphFilter,
+    clearGraphError: () => store.setError(null),
     loadGraph,
     searchGraph,
     refreshGraph,

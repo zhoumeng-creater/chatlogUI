@@ -232,42 +232,42 @@
 
 **Independent Test**: Change settings, enable privacy controls, export diagnostics, build Windows x64 package, install, launch, quit, and reopen.
 
-- [ ] T025 [US6] Implement settings persistence and validation in `src/l2-coordinator/commander/useSettingsCommander.ts`
+- [x] T025 [US6] Implement settings persistence and validation in `src/l2-coordinator/commander/useSettingsCommander.ts`
   - Files likely to change: `src/l2-coordinator/commander/useSettingsCommander.ts`, `src/l2-coordinator/data-clerk/stores/useSettingsStore.ts`, `src/l4-atom/system/chatlogConfig.ts`, `src/l4-atom/system/chatlogConfig.test.ts`
   - Acceptance criteria: Data source, semantic metadata, privacy mode, and app preferences save with validation feedback and without echoing saved credentials.
   - Verification commands: `pnpm test -- src/l4-atom/system/chatlogConfig.test.ts`; `pnpm typecheck`
   - Sidecar/privacy/release risk: Medium sidecar relevance; high privacy relevance; high release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud yes with mocked config store.
 
-- [ ] T026 [P] [US6] Apply privacy masking across display helpers in `src/l3-molecule/chat/conversationDisplay.ts`
+- [x] T026 [P] [US6] Apply privacy masking across display helpers in `src/l3-molecule/chat/conversationDisplay.ts`
   - Files likely to change: `src/l3-molecule/chat/conversationDisplay.ts`, `src/l3-molecule/chat/conversationDisplay.test.ts`, `src/l3-molecule/stats/statsDisplay.ts`, `src/l3-molecule/stats/statsDisplay.test.ts`, `src/l3-molecule/search/SearchResultsPane.tsx`
   - Acceptance criteria: Names, message bodies, credentials, and identifying snippets are masked while aggregate statistics and non-sensitive structure remain usable.
   - Verification commands: `pnpm test -- src/l3-molecule/chat/conversationDisplay.test.ts src/l3-molecule/stats/statsDisplay.test.ts`; `pnpm typecheck`
   - Sidecar/privacy/release risk: No sidecar risk; high privacy relevance; medium release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud yes.
 
-- [ ] T027 [US6] Build user-triggered diagnostics flow in `src-tauri/src/commands.rs`
+- [x] T027 [US6] Build user-triggered diagnostics flow in `src-tauri/src/commands.rs`
   - Files likely to change: `src-tauri/src/commands.rs`, `src-tauri/src/config_store.rs`, `src/l4-atom/system/index.ts`, `src/l2-coordinator/commander/useSetupCommander.ts`, `src/l3-molecule/setup/DiagnosticPanel.tsx`
   - Acceptance criteria: Diagnostic export is explicit, cancellable, redacted, fails closed on redaction failure, and never collects automatically.
   - Verification commands: `Push-Location src-tauri; cargo test; Pop-Location`; `pnpm typecheck`; `pnpm lint`
   - Sidecar/privacy/release risk: Medium sidecar relevance; high privacy relevance; high release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud partial because filesystem export behavior needs local validation.
 
-- [ ] T028 [P] [US6] Render settings validation and privacy controls in `src/l1-entry/pages/SettingsView.tsx`
+- [x] T028 [P] [US6] Render settings validation and privacy controls in `src/l1-entry/pages/SettingsView.tsx`
   - Files likely to change: `src/l1-entry/pages/SettingsView.tsx`, `src/l3-molecule/settings/DataSettings.tsx`, `src/l3-molecule/settings/AIModelSettings.tsx`, `src/l3-molecule/settings/AppearanceSettings.tsx`, `src/l3-molecule/settings/AboutSettings.tsx`
   - Acceptance criteria: Settings show editing, saving, saved, validation error, missing semantic provider, credential hidden, and privacy active states.
   - Verification commands: `pnpm lint`; `pnpm typecheck`; `pnpm build`
   - Sidecar/privacy/release risk: Low sidecar risk; high privacy relevance; medium release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud yes.
 
-- [ ] T029 [US6] Verify Windows x64 Tauri bundle configuration in `src-tauri/tauri.conf.json`
+- [x] T029 [US6] Verify Windows x64 Tauri bundle configuration in `src-tauri/tauri.conf.json`
   - Files likely to change: `src-tauri/tauri.conf.json`, `src-tauri/build.rs`, `src-tauri/capabilities/default.json`, `src-tauri/src/main.rs`
   - Acceptance criteria: Bundle expects `src-tauri/binaries/chatlog_alpha`, permissions remain minimal, sidecar launch is packaged-app safe, and missing sidecar assets produce a visible failure state.
   - Verification commands: `Push-Location src-tauri; cargo test; Pop-Location`; `pnpm tauri build`
   - Sidecar/privacy/release risk: High sidecar risk; medium privacy relevance; high release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud no for final package validation because Windows x64 installer smoke is required.
 
-- [ ] T030 [US6] Document release caveats and smoke results in `docs/release/ready-desktop-app.md`
+- [x] T030 [US6] Document release caveats and smoke results in `docs/release/ready-desktop-app.md`
   - Files likely to change: `docs/release/ready-desktop-app.md`, `specs/001-ready-desktop-app/release-evidence.md`, `specs/001-ready-desktop-app/quickstart.md`
   - Acceptance criteria: Document covers Windows x64 scope, local data requirements, sidecar lifecycle, port conflict behavior, privacy logging, macOS follow-up, and unresolved caveats.
   - Verification commands: `rg -n "Windows x64|macOS|5030|privacy|sidecar|caveat" docs/release/ready-desktop-app.md`
@@ -284,28 +284,28 @@
 
 **Independent Test**: Exercise missing provider, rejected provider, index unavailable, index running, index failed, index ready, streaming, stopped, failed, and empty-answer states.
 
-- [ ] T031 [P] [US4] Verify semantic REST and SSE L4 adapters in `src/l4-atom/network/streamQA.ts`
+- [x] T031 [P] [US4] Verify semantic REST and SSE L4 adapters in `src/l4-atom/network/streamQA.ts`
   - Files likely to change: `src/l4-atom/network/fetchSemanticConfig.ts`, `src/l4-atom/network/fetchIndexStatus.ts`, `src/l4-atom/network/manageIndex.ts`, `src/l4-atom/network/streamQA.ts`, `src/l2-coordinator/diplomat/sseParser.ts`
   - Acceptance criteria: Adapters expose semantic config, index readiness, index actions, QA stream chunks, stream errors, cancellation, and empty answer states with redacted payloads.
   - Verification commands: `pnpm test -- src/l2-coordinator/diplomat`; `pnpm typecheck`
   - Sidecar/privacy/release risk: Medium sidecar relevance; high privacy relevance; low release risk.
   - Codex App worktree/cloud: Worktree yes; cloud yes with mocked SSE.
 
-- [ ] T032 [US4] Implement semantic orchestration in `src/l2-coordinator/commander/useAiCommander.ts`
+- [x] T032 [US4] Implement semantic orchestration in `src/l2-coordinator/commander/useAiCommander.ts`
   - Files likely to change: `src/l2-coordinator/commander/useAiCommander.ts`, `src/l2-coordinator/data-clerk/stores/useAiStore.ts`, `src/l2-coordinator/api-docs/semantic.ts`
   - Acceptance criteria: L2 keeps semantic optional, prevents missing provider from blocking core app use, coordinates index readiness, streams partial answers, and cancels safely on stop or route leave.
   - Verification commands: `pnpm test -- src/l2-coordinator`; `pnpm typecheck`
   - Sidecar/privacy/release risk: Low sidecar risk; high privacy relevance if provider credentials exist; medium release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud yes with mocked providers.
 
-- [ ] T033 [P] [US4] Render semantic config, index, and QA states in `src/l3-molecule/semantic/AiPanel.tsx`
+- [x] T033 [P] [US4] Render semantic config, index, and QA states in `src/l3-molecule/semantic/AiPanel.tsx`
   - Files likely to change: `src/l3-molecule/semantic/AiPanel.tsx`, `src/l3-molecule/semantic/SetupWizard.tsx`, `src/l3-molecule/semantic/QAPanel.tsx`, `src/l3-molecule/semantic/QAInput.tsx`, `src/l3-molecule/semantic/QAMessage.tsx`
   - Acceptance criteria: UI distinguishes missing config, validating, ready, unavailable index, running index, failed index, streaming, stopped, failed, empty, and completed answer states.
   - Verification commands: `pnpm lint`; `pnpm typecheck`; `pnpm build`
   - Sidecar/privacy/release risk: No sidecar risk; high privacy relevance for questions and answers; low release risk.
   - Codex App worktree/cloud: Worktree yes; cloud yes.
 
-- [ ] T034 [US4] Wire semantic navigation without blocking other workflows in `src/l1-entry/pages/WorkbenchView.tsx`
+- [x] T034 [US4] Wire semantic navigation without blocking other workflows in `src/l1-entry/pages/WorkbenchView.tsx`
   - Files likely to change: `src/l1-entry/pages/WorkbenchView.tsx`, `src/l3-molecule/workbench/WorkbenchFrame.tsx`, `src/l2-coordinator/commander/useWorkbenchCommander.ts`
   - Acceptance criteria: Semantic area can be opened or left while dashboard, browse, and search remain usable when semantic provider configuration is missing.
   - Verification commands: `pnpm test -- src/l2-coordinator/commander/workbenchViewModel.test.ts`; `pnpm lint`; `pnpm typecheck`
@@ -322,28 +322,28 @@
 
 **Independent Test**: Load available graph data, no graph data, failed graph load, malformed data, and oversized data.
 
-- [ ] T035 [P] [US5] Verify graph L4 adapters in `src/l4-atom/network/fetchGraphVisualize.ts`
+- [x] T035 [P] [US5] Verify graph L4 adapters in `src/l4-atom/network/fetchGraphVisualize.ts`
   - Files likely to change: `src/l4-atom/network/fetchGraphStatus.ts`, `src/l4-atom/network/fetchGraphQuery.ts`, `src/l4-atom/network/fetchGraphVisualize.ts`, `src/l2-coordinator/api-docs/graph.ts`
   - Acceptance criteria: Adapters classify available, empty, failed, malformed, and oversized graph responses with redacted labels where needed.
   - Verification commands: `pnpm test -- src/l4-atom/network`; `pnpm typecheck`
   - Sidecar/privacy/release risk: Low sidecar risk; medium privacy relevance; low release risk.
   - Codex App worktree/cloud: Worktree yes; cloud yes with mocked HTTP.
 
-- [ ] T036 [US5] Implement graph orchestration and bounds in `src/l2-coordinator/commander/useGraphCommander.ts`
+- [x] T036 [US5] Implement graph orchestration and bounds in `src/l2-coordinator/commander/useGraphCommander.ts`
   - Files likely to change: `src/l2-coordinator/commander/useGraphCommander.ts`, `src/l2-coordinator/data-clerk/stores/useGraphStore.ts`
   - Acceptance criteria: L2 tracks graph loading, empty, error, oversized, loaded, selected node, selected relation, retry, and cancel states.
   - Verification commands: `pnpm test -- src/l2-coordinator`; `pnpm typecheck`
   - Sidecar/privacy/release risk: Low sidecar risk; medium privacy relevance; medium release relevance because freezes affect product readiness.
   - Codex App worktree/cloud: Worktree yes; cloud yes.
 
-- [ ] T037 [P] [US5] Render bounded graph MVP states in `src/l3-molecule/graph/GraphModule.tsx`
+- [x] T037 [P] [US5] Render bounded graph MVP states in `src/l3-molecule/graph/GraphModule.tsx`
   - Files likely to change: `src/l3-molecule/graph/GraphModule.tsx`, `src/l3-molecule/graph/GraphCanvas.tsx`, `src/l3-molecule/graph/GraphTooltip.tsx`, `src/l3-molecule/graph/GraphControlBar.tsx`, `src/l3-molecule/graph/GraphLabels.tsx`
   - Acceptance criteria: Graph renders inspectable node or relation data, empty state, failure state, oversized state, and privacy-masked labels while keeping controls responsive.
   - Verification commands: `pnpm lint`; `pnpm typecheck`; `pnpm build`
   - Sidecar/privacy/release risk: No sidecar risk; medium privacy relevance; medium release relevance due to UI freeze risk.
   - Codex App worktree/cloud: Worktree yes; cloud partial because final canvas interaction should be checked in a local browser/app.
 
-- [ ] T038 [US5] Wire graph view and fallback states in `src/l1-entry/pages/WorkbenchView.tsx`
+- [x] T038 [US5] Wire graph view and fallback states in `src/l1-entry/pages/WorkbenchView.tsx`
   - Files likely to change: `src/l1-entry/pages/WorkbenchView.tsx`, `src/l3-molecule/workbench/WorkbenchRail.tsx`, `src/l3-molecule/workbench/WorkbenchFrame.tsx`
   - Acceptance criteria: Graph navigation opens the graph MVP, exposes retry and recovery states, and does not hide dashboard, browse, search, or semantic routes.
   - Verification commands: `pnpm test -- src/l3-molecule/workbench/workbenchLayout.test.ts`; `pnpm lint`; `pnpm typecheck`
@@ -358,14 +358,14 @@
 
 **Purpose**: Confirm the product satisfies the constitution, quickstart, packaging, privacy, and architecture constraints.
 
-- [ ] T039 Run architecture boundary audit and record result in `specs/001-ready-desktop-app/architecture-boundary-check.md`
+- [x] T039 Run architecture boundary audit and record result in `specs/001-ready-desktop-app/architecture-boundary-check.md`
   - Files likely to change: `specs/001-ready-desktop-app/architecture-boundary-check.md`
   - Acceptance criteria: Audit records no direct L1/L3 network calls, no L4 atom cross-coupling, and L2 ownership for orchestration and error translation.
   - Verification commands: `rg -n "fetch\\(|http|invoke\\(" src/l1-entry src/l3-molecule`; `rg -n "from .*l4-atom/network" src/l3-molecule src/l1-entry`
   - Sidecar/privacy/release risk: Medium sidecar relevance; medium privacy relevance; high release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud yes.
 
-- [ ] T040 Run privacy and diagnostics audit in `specs/001-ready-desktop-app/release-evidence.md`
+- [x] T040 Run privacy and diagnostics audit in `specs/001-ready-desktop-app/release-evidence.md`
   - Files likely to change: `specs/001-ready-desktop-app/release-evidence.md`
   - Acceptance criteria: Evidence records zero raw data keys, provider credentials, tokens, private message bodies, unredacted identities, and sensitive local paths in logs, diagnostics, screenshots, fixtures, and release notes.
   - Verification commands: `rg -n "dataKey|token|api[_-]?key|secret|credential" src specs docs`; manual review of generated diagnostic package if available.
@@ -379,7 +379,7 @@
   - Sidecar/privacy/release risk: Low sidecar risk; medium privacy relevance through test fixtures; high release relevance.
   - Codex App worktree/cloud: Worktree yes; cloud yes if dependencies are available.
 
-- [ ] T042 Run Tauri packaging and Windows x64 smoke evidence in `specs/001-ready-desktop-app/release-evidence.md`
+- [x] T042 Run Tauri packaging and Windows x64 smoke evidence in `specs/001-ready-desktop-app/release-evidence.md`
   - Files likely to change: `specs/001-ready-desktop-app/release-evidence.md`, `docs/release/ready-desktop-app.md`
   - Acceptance criteria: Evidence covers `cargo test`, `pnpm tauri build`, Windows x64 install, launch, quit, reopen, sidecar cleanup, port conflict, and documented macOS follow-up caveats.
   - Verification commands: `Push-Location src-tauri; cargo test; Pop-Location`; `pnpm tauri build`; manual Windows x64 smoke from `specs/001-ready-desktop-app/quickstart.md`

@@ -1,21 +1,19 @@
 import { useState } from "react";
-import { openDirectoryPicker } from "@l4/system";
 import { useSetupCommander } from "@l2/commander";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import { Button, Typography } from "@l4/ui";
 
 export function ConfigImportPanel() {
-  const { importDataDirectory } = useSetupCommander();
+  const { chooseAndImportDataDirectory } = useSetupCommander();
   const loading = useSetupStore((s) => s.loading);
   const error = useSetupStore((s) => s.error);
   const profile = useSetupStore((s) => s.profile);
   const [picked, setPicked] = useState<string | null>(null);
 
   async function handlePickDir() {
-    const dir = await openDirectoryPicker();
+    const dir = await chooseAndImportDataDirectory();
     if (!dir) return;
     setPicked(dir);
-    await importDataDirectory(dir);
   }
 
   return (

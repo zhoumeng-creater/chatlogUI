@@ -47,7 +47,11 @@ fn normalize_http_addr(value: &str) -> String {
 fn normalize_option(value: Option<String>) -> Option<String> {
     value.and_then(|v| {
         let trimmed = v.trim().to_string();
-        if trimmed.is_empty() { None } else { Some(trimmed) }
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
     })
 }
 

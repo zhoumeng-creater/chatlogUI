@@ -1,4 +1,6 @@
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
+import { createReadinessState } from "@l2/data-clerk/types/readiness";
+import { ReadinessStatePanel } from "@l3/common/ReadinessStatePanel";
 
 export function ReadinessChecklist() {
   const profile = useSetupStore((s) => s.profile);
@@ -6,29 +8,31 @@ export function ReadinessChecklist() {
   const dbReady = useSetupStore((s) => s.dbReady);
 
   const items = [
-    { label: "配置已保存", done: profile !== null },
-    { label: "HTTP 服务健康", done: httpReady },
-    { label: "数据库就绪", done: dbReady },
+    createReadinessState({
+      scope: "setup",
+      status: profile ? "success" : "empty",
+      title: profile ? "配置已保存" : "等待配置",
+      message: profile ? "本地配置摘要已保存。" : "请选择数据目录或填写高级配置。",
+    }),
+    createReadinessState({
+      scope: "backend",
+      status: httpReady ? "success" : "idle",
+      title: httpReady ? "HTTP 服务健康" : "HTTP 未就绪",
+      message: httpReady ? "本地服务可连接。" : "启动或连接本地服务后会继续检查。",
+    }),
+    createReadinessState({
+      scope: "database",
+      status: dbReady ? "success" : httpReady ? "loading" : "idle",
+      title: dbReady ? "数据库就绪" : "数据库未就绪",
+      message: dbReady ? "聊天数据库可读取。" : "等待数据库校验完成。",
+    }),
   ];
 
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-gray-700">就绪检查</h3>
-      <ul className="space-y-1">
-        {items.map((item) => (
-          <li key={item.label} className="flex items-center gap-2 text-sm">
-            <span
-              className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
-                item.done ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400"
-              }`}
-              aria-hidden="true"
-            >
-              {item.done ? "\u2713" : "\u2014"}
-            </span>
-            <span className={item.done ? "text-gray-700" : "text-gray-400"}>{item.label}</span>
-          </li>
-        ))}
-      </ul>
+    <div className="readiness-list">
+      {items.map((item) => (
+        <ReadinessStatePanel key={item.scope} state={item} />
+      ))}
     </div>
   );
 }

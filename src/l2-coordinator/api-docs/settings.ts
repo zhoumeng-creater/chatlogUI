@@ -7,7 +7,7 @@ export interface SettingsState {
   aiProvider: string;
   aiModel: string;
   aiEndpoint: string;
-  aiApiKey: string;
+  aiCredentialConfigured: boolean;
   theme: ThemeMode;
   fontSize: FontSize;
   reduceAnimations: boolean;
@@ -21,7 +21,7 @@ export const SETTINGS_DEFAULTS: SettingsState = {
   aiProvider: "ollama",
   aiModel: "",
   aiEndpoint: "http://localhost:11434",
-  aiApiKey: "",
+  aiCredentialConfigured: false,
   theme: "system",
   fontSize: "medium",
   reduceAnimations: false,

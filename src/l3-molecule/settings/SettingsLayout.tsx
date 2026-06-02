@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import type { SettingsCategory } from "@/l2-coordinator/api-docs/settings";
 import { Bot, Database, Info, Palette } from "lucide-react";
-import { useSettingsCommander } from "@l2/commander/useSettingsCommander";
 
 const CATEGORIES: { key: SettingsCategory; label: string; icon: ReactNode }[] = [
   { key: "data", label: "数据", icon: <Database size={16} /> },
@@ -12,11 +11,11 @@ const CATEGORIES: { key: SettingsCategory; label: string; icon: ReactNode }[] = 
 
 interface SettingsLayoutProps {
   children: ReactNode;
+  activeCategory: SettingsCategory;
+  onCategoryChange: (category: SettingsCategory) => void;
 }
 
-export function SettingsLayout({ children }: SettingsLayoutProps) {
-  const { activeCategory, setActiveCategory } = useSettingsCommander();
-
+export function SettingsLayout({ children, activeCategory, onCategoryChange }: SettingsLayoutProps) {
   return (
     <div className="settings-shell">
       <nav className="settings-shell__nav" aria-label="设置分类">
@@ -24,7 +23,7 @@ export function SettingsLayout({ children }: SettingsLayoutProps) {
           <button
             key={cat.key}
             type="button"
-            onClick={() => setActiveCategory(cat.key)}
+            onClick={() => onCategoryChange(cat.key)}
             className={[
               "settings-category-button",
               activeCategory === cat.key ? "settings-category-button--active" : "",

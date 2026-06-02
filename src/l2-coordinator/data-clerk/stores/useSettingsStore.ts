@@ -2,19 +2,21 @@ import { create } from "zustand";
 import type { SettingsCategory, SettingsState } from "@/l2-coordinator/api-docs/settings";
 import { SETTINGS_DEFAULTS } from "@/l2-coordinator/api-docs/settings";
 import { SETTINGS_STORAGE_KEY } from "@/utils/constants";
+import { sanitizeSettingsForStorage } from "@/l2-coordinator/commander/settingsValidation";
 
 export function migrateSettings(raw: unknown): Partial<SettingsState> {
   if (!raw || typeof raw !== "object") return {};
-  const source = raw as Record<string, unknown>;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { dataKey, ...rest } = source;
-  return rest as Partial<SettingsState>;
+  return sanitizeSettingsForStorage(raw as Record<string, unknown>);
 }
+
+export type SettingsSaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface SettingsStoreData {
   settings: SettingsState;
   activeCategory: SettingsCategory;
   loaded: boolean;
+  saveStatus: SettingsSaveStatus;
+  saveMessage: string | null;
 }
 
 interface SettingsStoreActions {
@@ -22,6 +24,7 @@ interface SettingsStoreActions {
   updateSettings: (partial: Partial<SettingsState>) => void;
   loadFromStorage: () => void;
   saveToStorage: () => void;
+  setSaveFeedback: (status: SettingsSaveStatus, message?: string | null) => void;
   reset: () => void;
   togglePrivacy: () => void;
 }
@@ -30,14 +33,16 @@ type SettingsStore = SettingsStoreData & SettingsStoreActions;
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   settings: { ...SETTINGS_DEFAULTS },
-  activeCategory: "ai",
+  activeCategory: "data",
   loaded: false,
+  saveStatus: "idle",
+  saveMessage: null,
 
   setActiveCategory: (category: SettingsCategory) => set({ activeCategory: category }),
 
   updateSettings: (partial: Partial<SettingsState>) =>
     set((state) => ({
-      settings: { ...state.settings, ...partial },
+      settings: { ...state.settings, ...sanitizeSettingsForStorage(partial as Record<string, unknown>) },
     })),
 
   loadFromStorage: () => {
@@ -49,6 +54,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         set({
           settings: { ...SETTINGS_DEFAULTS, ...cleaned },
           loaded: true,
+          activeCategory: "data",
         });
       } else {
         set({ loaded: true, activeCategory: "data" });
@@ -66,7 +72,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
 
-  reset: () => set({ settings: { ...SETTINGS_DEFAULTS }, activeCategory: "data", loaded: true }),
+  setSaveFeedback: (status, message = null) => set({ saveStatus: status, saveMessage: message }),
+
+  reset: () => set({
+    settings: { ...SETTINGS_DEFAULTS },
+    activeCategory: "data",
+    loaded: true,
+    saveStatus: "idle",
+    saveMessage: null,
+  }),
 
   togglePrivacy: () => {
     set((state) => {

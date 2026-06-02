@@ -14,6 +14,17 @@ describe("migrateSettings", () => {
     expect(migrated.sidecarPort).toBe(5030);
   });
 
+  it("removes persisted AI API keys and does not claim credentials are configured", () => {
+    const migrated = migrateSettings({
+      aiProvider: "glm",
+      aiApiKey: "sk-secret",
+      aiCredentialConfigured: true,
+    });
+
+    expect("aiApiKey" in migrated).toBe(false);
+    expect(migrated.aiCredentialConfigured).toBe(false);
+  });
+
   it("returns empty object for non-object input", () => {
     expect(migrateSettings(null)).toEqual({});
     expect(migrateSettings(undefined)).toEqual({});

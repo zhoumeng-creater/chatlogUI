@@ -1,4 +1,3 @@
-#[cfg(debug_assertions)]
 use tauri::Manager;
 
 mod commands;
@@ -26,12 +25,19 @@ pub fn run() {
             }
             Ok(())
         })
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+                let state = window.state::<sidecar::SidecarState>();
+                sidecar::shutdown_sidecar_for_app_exit(&state);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::spawn_sidecar,
             commands::check_health,
             commands::shutdown_sidecar,
             commands::get_system_theme,
             commands::export_logs,
+            commands::export_diagnostics_report,
             material::apply_window_material,
             commands::import_data_dir_config,
             commands::save_managed_server_config,
