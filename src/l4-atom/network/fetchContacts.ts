@@ -22,25 +22,25 @@ export interface FetchConversationsOptions {
 
 export async function fetchSessions(
   options: FetchConversationsOptions = {},
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<RawSessionsResponse> {
   const params = new URLSearchParams();
   if (options.limit) params.set("limit", String(options.limit));
   if (options.query) params.set("query", options.query);
 
   const qs = params.toString();
-  return requestJson<RawSessionsResponse>(
-    `${BASE_URL}/api/v1/sessions${qs ? "?" + qs : ""}`,
-    {
-      timeoutMs: 15000,
-      ...withRequestDiagnostics(requestOptions, { endpointFamily: "sessions" }),
-    },
-  );
+  return requestJson<RawSessionsResponse>(`${BASE_URL}/api/v1/sessions${qs ? "?" + qs : ""}`, {
+    timeoutMs: 15000,
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "sessions",
+      method: "GET",
+    }),
+  });
 }
 
 export async function fetchContactsApi(
   options: FetchConversationsOptions = {},
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<RawContactsResponse> {
   const params = new URLSearchParams();
   if (options.limit) params.set("limit", String(options.limit));
@@ -49,18 +49,18 @@ export async function fetchContactsApi(
   if (options.isFriend !== undefined) params.set("is_friend", String(options.isFriend));
 
   const qs = params.toString();
-  return requestJson<RawContactsResponse>(
-    `${BASE_URL}/api/v1/contacts${qs ? "?" + qs : ""}`,
-    {
-      timeoutMs: 15000,
-      ...withRequestDiagnostics(requestOptions, { endpointFamily: "contacts" }),
-    },
-  );
+  return requestJson<RawContactsResponse>(`${BASE_URL}/api/v1/contacts${qs ? "?" + qs : ""}`, {
+    timeoutMs: 15000,
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "contacts",
+      method: "GET",
+    }),
+  });
 }
 
 export async function fetchChatRoomsApi(
   options: FetchConversationsOptions = {},
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<RawChatRoomsResponse> {
   const params = new URLSearchParams();
   if (options.limit) params.set("limit", String(options.limit));
@@ -68,23 +68,23 @@ export async function fetchChatRoomsApi(
   if (options.query) params.set("query", options.query);
 
   const qs = params.toString();
-  return requestJson<RawChatRoomsResponse>(
-    `${BASE_URL}/api/v1/chatrooms${qs ? "?" + qs : ""}`,
-    {
-      timeoutMs: 15000,
-      ...withRequestDiagnostics(requestOptions, { endpointFamily: "chatrooms" }),
-    },
-  );
+  return requestJson<RawChatRoomsResponse>(`${BASE_URL}/api/v1/chatrooms${qs ? "?" + qs : ""}`, {
+    timeoutMs: 15000,
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "chatrooms",
+      method: "GET",
+    }),
+  });
 }
 
 export async function fetchConversations(
   options: FetchConversationsOptions = {},
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ) {
   const [sessions, contacts, chatrooms] = await Promise.all([
-    fetchSessions(options, requestOptions),
-    fetchContactsApi(options, requestOptions),
-    fetchChatRoomsApi(options, requestOptions),
+    fetchSessions(options, diagnosticOptions),
+    fetchContactsApi(options, diagnosticOptions),
+    fetchChatRoomsApi(options, diagnosticOptions),
   ]);
 
   return {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createDeferredSubscription } from "./deferredSubscription";
 
 describe("createDeferredSubscription", () => {
@@ -32,5 +32,25 @@ describe("createDeferredSubscription", () => {
     cleanup();
 
     expect(unlistenCount).toBe(1);
+  });
+
+  it("reports setup failures without writing raw errors to the console", async () => {
+    const errors: unknown[] = [];
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    createDeferredSubscription(
+      async () => {
+        throw new Error("token=raw-subscription-token");
+      },
+      (error) => errors.push(error),
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(errors).toHaveLength(1);
+    expect(consoleSpy).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
   });
 });

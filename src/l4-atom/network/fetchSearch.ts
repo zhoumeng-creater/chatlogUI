@@ -22,7 +22,7 @@ export interface FetchSearchOptions {
 
 export async function fetchSearch(
   options: FetchSearchOptions,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ) {
   const params = new URLSearchParams();
   params.set("keyword", options.keyword);
@@ -38,7 +38,10 @@ export async function fetchSearch(
     `${BASE_URL}/api/v1/search?${params.toString()}`,
     {
       timeoutMs: 20000,
-      ...withRequestDiagnostics(requestOptions, { endpointFamily: "search" }),
+      ...withRequestDiagnostics(diagnosticOptions, {
+        endpointFamily: "search",
+        method: "GET",
+      }),
     },
   );
   return adaptSearchResponse(raw);

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { DiagnosticEvent } from "./diagnosticEvents";
 import { fetchGraphQuery } from "./fetchGraphQuery";
 import { fetchGraphStatus } from "./fetchGraphStatus";
 import { fetchGraphTimeline } from "./fetchGraphTimeline";
 import { fetchGraphVisualize } from "./fetchGraphVisualize";
 import { manageGraph } from "./manageGraph";
-import type { DiagnosticEvent } from "./diagnosticEvents";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -56,55 +56,30 @@ describe("graph REST atoms", () => {
     expect(calls.find((call) => call.url.includes("/graph/visualize"))?.url).toContain("limit=300");
   });
 
-  it("emits safe diagnostic events for graph REST fetchers and actions", async () => {
-    const diagnosticEvents: DiagnosticEvent[] = [];
+  it("emits redacted graph diagnostic events when diagnostics are supplied", async () => {
+    const events: DiagnosticEvent[] = [];
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: string | URL | Request) => {
-        const path = new URL(String(input)).pathname;
-
-        if (path.endsWith("/api/v1/graph/status")) {
-          return json({ enabled: true, entity_count: 1, relation_count: 2 });
-        }
-        if (path.endsWith("/api/v1/graph/query")) {
-          return json({ entities: [], relations: [], events: [], facts: [] });
-        }
-        if (path.endsWith("/api/v1/graph/visualize")) {
-          return json({ nodes: [], edges: [], timeline: [] });
-        }
-        if (path.endsWith("/api/v1/graph/timeline")) {
-          return json({ items: [], count: 0 });
-        }
-        if (path.endsWith("/api/v1/graph/rebuild")) {
-          return json({ ok: true, accepted: true, status: "running" });
-        }
-
-        return json({});
-      }),
+      vi.fn(async () => json({ entities: [], relations: [], events: [], facts: [] })),
     );
 
-    const diagnostics = {
-      diagnostics: { correlationId: "graph-smoke", recoveryHint: "retry" as const },
-      onDiagnosticEvent: (event: DiagnosticEvent) => diagnosticEvents.push(event),
-    };
-
-    await fetchGraphStatus(diagnostics);
-    await fetchGraphQuery({ keyword: "Alice Private" }, undefined, diagnostics);
-    await fetchGraphVisualize({ keyword: "Alice Private" }, diagnostics);
-    await fetchGraphTimeline({ keyword: "Alice Private" }, diagnostics);
-    await manageGraph("rebuild", diagnostics);
-
-    expect(diagnosticEvents.map((event) => event.attributes?.endpointFamily)).toEqual(
-      expect.arrayContaining([
-        "graph-status",
-        "graph-query",
-        "graph-visualize",
-        "graph-timeline",
-        "graph-action",
-      ]),
+    await fetchGraphQuery(
+      { keyword: "Synthetic private message for redaction test only", entity: "wxid_synthetic_redaction_case" },
+      undefined,
+      {
+        diagnostics: { endpointFamily: "graph", recoveryHint: "retry" },
+        onDiagnosticEvent: (event) => events.push(event),
+      },
     );
-    expect(diagnosticEvents.every((event) => event.correlationId === "graph-smoke")).toBe(true);
-    expect(JSON.stringify(diagnosticEvents)).not.toContain("Alice Private");
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      source: "http",
+      category: "http.request",
+      attributes: { endpointFamily: "graph" },
+    });
+    expect(JSON.stringify(events[0])).not.toContain("Synthetic private message");
+    expect(JSON.stringify(events[0])).not.toContain("wxid_synthetic");
   });
 });
 

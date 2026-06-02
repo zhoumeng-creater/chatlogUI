@@ -18,7 +18,7 @@ export interface SemanticSearchRequestInput {
 
 export async function fetchSemanticSearch(
   params: SemanticSearchRequestInput,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticSearchResultSet> {
   const { query, limit = SEMANTIC_SEARCH_DEFAULT_LIMIT, chat } = params;
   const url = new URL(`${AI_BASE_URL}/api/v1/semantic/search`);
@@ -28,7 +28,10 @@ export async function fetchSemanticSearch(
 
   const data = await requestJson(url.toString(), {
     timeoutMs: 30000,
-    ...withRequestDiagnostics(requestOptions, { endpointFamily: "semantic-search" }),
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "semantic",
+      method: "GET",
+    }),
   });
   return adaptSemanticSearch(data);
 }

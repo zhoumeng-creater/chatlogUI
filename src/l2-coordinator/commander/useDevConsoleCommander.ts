@@ -2,9 +2,14 @@ import { useEffect, useCallback } from "react";
 import { listenSidecarLogs } from "@l4/system/listenSidecarLogs";
 import { useDevConsoleStore } from "@/l2-coordinator/data-clerk/stores/useDevConsoleStore";
 import { useDiagnosticEventStore } from "@l2/data-clerk/stores/useDiagnosticEventStore";
+import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
+import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
+import { useUpdateStore } from "@l2/data-clerk/stores/useUpdateStore";
 import { exportDiagnosticsReport } from "@l4/system/exportDiagnostics";
 import { maskDiagnosticText } from "@/utils/maskSecrets";
-import { buildDiagnosticsReport, formatDiagnosticsExportError } from "./diagnostics";
+import { buildDiagnosticsReport } from "./diagnostics";
+import { buildRuntimeDiagnosticsManifest } from "./diagnosticsManifest";
 import { createDeferredSubscription } from "./deferredSubscription";
 import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
 import {
@@ -25,14 +30,28 @@ export function useDevConsoleCommander() {
     filters,
   });
 
-  const exportLogs = useCallback(async (): Promise<{ path: string | null; error: string | null }> => {
+  const exportLogs = useCallback(async (): Promise<string | null> => {
     try {
       const { logs } = useDevConsoleStore.getState();
       const { items } = useDiagnosticEventStore.getState();
+      const setup = useSetupStore.getState();
+      const { sidecarStatus } = useAppStore.getState();
+      const { status: updateStatus } = useUpdateStore.getState();
+      const { privacyOn } = useSettingsStore.getState().settings;
       const errors = logs.filter((log) => log.level === "stderr" || log.level === "error");
       const lastError = errors.length > 0 ? errors[errors.length - 1]?.message : "-";
       const report = buildDiagnosticsReport({
         privacyOn: true,
+        manifest: buildRuntimeDiagnosticsManifest({
+          profile: setup.profile,
+          mode: setup.mode,
+          portState: setup.portState,
+          httpReady: setup.httpReady,
+          dbReady: setup.dbReady,
+          sidecarStatus,
+          updateStatus,
+          privacyOn,
+        }),
         diagnosticEventsSummary: summarizeDiagnosticEventsForReport(items),
         items: [
           { label: "Log count", value: logs.length },
@@ -40,12 +59,19 @@ export function useDevConsoleCommander() {
           { label: "Last error", value: lastError ?? "-" },
         ],
       });
-      return {
-        path: await exportDiagnosticsReport(report),
-        error: null,
-      };
+      const path = await exportDiagnosticsReport(report);
+      recordLocalDiagnosticEvent({
+        source: "ui",
+        level: "info",
+        category: "diagnostic.export",
+        summary: "Dev console diagnostics export completed",
+        recoveryHint: "none",
+        attributes: {
+          target: "dev-console",
+        },
+      });
+      return path;
     } catch (error) {
-      const safeExportError = formatDiagnosticsExportError(error);
       const safeMessage = maskDiagnosticText(
         error instanceof Error ? error.message : String(error),
         { privacyMode: true },
@@ -55,13 +81,16 @@ export function useDevConsoleCommander() {
         `诊断导出失败: ${safeMessage}`,
       );
       recordLocalDiagnosticEvent({
-        source: "tauri",
+        source: "ui",
         level: "error",
-        category: "tauri.diagnostics.export.failed",
-        summary: `诊断导出失败: ${error instanceof Error ? error.message : String(error)}`,
-        recoveryHint: "privacy-blocked",
+        category: "diagnostic.export",
+        summary: `诊断导出失败: ${safeMessage}`,
+        recoveryHint: "retry",
+        attributes: {
+          target: "dev-console",
+        },
       });
-      return { path: null, error: safeExportError };
+      return null;
     }
   }, []);
 
@@ -109,6 +138,26 @@ export function useDevConsoleLifecycle() {
           maskDiagnosticText(payload.message, { privacyMode: true }),
         );
       }),
+      (error) => {
+        const safeMessage = maskDiagnosticText(
+          error instanceof Error ? error.message : String(error),
+          { privacyMode: true },
+        );
+        useDevConsoleStore.getState().addLog(
+          "system",
+          `订阅初始化失败: ${safeMessage}`,
+        );
+        recordLocalDiagnosticEvent({
+          source: "tauri",
+          level: "error",
+          category: "sidecar.logs.subscription",
+          summary: `Sidecar log subscription failed: ${safeMessage}`,
+          recoveryHint: "retry",
+          attributes: {
+            target: "dev-console",
+          },
+        });
+      },
     );
   }, []);
 }

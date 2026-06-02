@@ -32,10 +32,10 @@ import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 type IndexAction = "rebuild" | "pause" | "resume" | "clear";
 
-function createSemanticDiagnostics(correlationId: string) {
+function semanticDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
     endpointFamily: "semantic",
-    correlationId,
+    method,
     recoveryHint: "retry",
   });
 }
@@ -55,7 +55,7 @@ export function useAiCommander() {
 
     indexPollRef.current = setInterval(async () => {
       try {
-        const status = await fetchIndexStatus(createSemanticDiagnostics("semantic-index-poll"));
+        const status = await fetchIndexStatus(semanticDiagnostics());
         store.setIndexStatus(status);
 
         if (status.status === "ready") {
@@ -78,14 +78,14 @@ export function useAiCommander() {
   const initialize = useCallback(async () => {
     store.setPhase("checking_config");
     try {
-      const config = await fetchSemanticConfig(createSemanticDiagnostics("semantic-config-load"));
+      const config = await fetchSemanticConfig(semanticDiagnostics());
       if (!config) {
         store.setPhase("not_configured");
         return;
       }
       store.setConfig(config);
       store.setPhase("index_checking");
-      const status = await fetchIndexStatus(createSemanticDiagnostics("semantic-index-check"));
+      const status = await fetchIndexStatus(semanticDiagnostics());
       store.setIndexStatus(status);
       if (status.status === "ready") {
         store.setPhase("index_ready");
@@ -107,7 +107,7 @@ export function useAiCommander() {
 
   const saveConfig = useCallback(async (config: SemanticConfig) => {
     try {
-      await setSemanticConfig(config, createSemanticDiagnostics("semantic-config-save"));
+      await setSemanticConfig(config, semanticDiagnostics("POST"));
       store.setConfig(config);
       store.setPhase("index_not_built");
     } catch (error) {
@@ -117,7 +117,7 @@ export function useAiCommander() {
 
   const testConnection = useCallback(async (provider: string, cfg: Record<string, string>) => {
     try {
-      return await testLLMConnection(provider, cfg, createSemanticDiagnostics("semantic-provider-test"));
+      return await testLLMConnection(provider, cfg, semanticDiagnostics("POST"));
     } catch (error) {
       return { ok: false, success: false, message: String(error) };
     }
@@ -125,7 +125,7 @@ export function useAiCommander() {
 
   const doIndexAction = useCallback(async (action: IndexAction) => {
     try {
-      await manageIndex(action, createSemanticDiagnostics(`semantic-index-${action}`));
+      await manageIndex(action, semanticDiagnostics("POST"));
       if (action === "rebuild") {
         store.setPhase("index_building");
         startIndexPolling();
@@ -242,7 +242,7 @@ export function useAiCommander() {
         }
       },
       abortController.signal,
-      createSemanticDiagnostics("semantic-qa-stream"),
+      semanticDiagnostics("POST"),
     );
   }, [currentChat, store]);
 
@@ -262,7 +262,7 @@ export function useAiCommander() {
         scope,
       };
       const results = await withOverloadRetry(() =>
-        fetchSemanticSearch(params, createSemanticDiagnostics("semantic-search")),
+        fetchSemanticSearch(params, semanticDiagnostics()),
       );
       store.setSearchResults(results);
     } catch (error) {
@@ -288,7 +288,7 @@ export function useAiCommander() {
 
     try {
       const topics = await withOverloadRetry(() =>
-        fetchSemanticTopics(currentChat, createSemanticDiagnostics("semantic-topics")),
+        fetchSemanticTopics(currentChat, semanticDiagnostics()),
       );
       store.setTopics(topics);
     } catch (error) {
@@ -297,7 +297,7 @@ export function useAiCommander() {
 
     try {
       const profile = await withOverloadRetry(() =>
-        fetchSemanticProfiles(currentChat, createSemanticDiagnostics("semantic-profiles")),
+        fetchSemanticProfiles(currentChat, semanticDiagnostics()),
       );
       store.setProfile(profile);
     } catch (error) {

@@ -18,7 +18,7 @@ export interface FetchStatsOptions {
 
 export async function fetchStats(
   options: FetchStatsOptions,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ) {
   const params = new URLSearchParams();
   params.set("chat", options.chat);
@@ -30,7 +30,10 @@ export async function fetchStats(
     `${BASE_URL}/api/v1/stats?${params.toString()}`,
     {
       timeoutMs: 15000,
-      ...withRequestDiagnostics(requestOptions, { endpointFamily: "stats" }),
+      ...withRequestDiagnostics(diagnosticOptions, {
+        endpointFamily: "stats",
+        method: "GET",
+      }),
     },
   );
   return adaptStatsResponse(raw);
@@ -44,7 +47,7 @@ export interface FetchDashboardTrendOptions {
 
 export async function fetchDashboardTrend(
   options: FetchDashboardTrendOptions = {},
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ) {
   const params = new URLSearchParams();
   if (options.chat) params.set("chat", options.chat);
@@ -55,7 +58,10 @@ export async function fetchDashboardTrend(
     `${BASE_URL}/api/v1/dashboard/trend?${params.toString()}`,
     {
       timeoutMs: 15000,
-      ...withRequestDiagnostics(requestOptions, { endpointFamily: "dashboard-trend" }),
+      ...withRequestDiagnostics(diagnosticOptions, {
+        endpointFamily: "stats",
+        method: "GET",
+      }),
     },
   );
   return adaptDashboardTrendResponse(raw);

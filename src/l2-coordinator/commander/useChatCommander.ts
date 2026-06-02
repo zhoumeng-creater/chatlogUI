@@ -22,8 +22,8 @@ export function useChatCommander() {
       const { conversations, contacts, chatrooms } = await fetchConversations(
         { limit: 500 },
         createDiagnosticHttpOptions({
-          endpointFamily: "conversations",
-          correlationId: "conversation-refresh",
+          endpointFamily: "sessions",
+          method: "GET",
           recoveryHint: "retry",
         }),
       );
@@ -53,7 +53,7 @@ export function useChatCommander() {
         { chat, limit: HISTORY_PAGE_SIZE, offset: 0 },
         createDiagnosticHttpOptions({
           endpointFamily: "history",
-          correlationId: "history-refresh",
+          method: "GET",
           recoveryHint: "retry",
         }),
       );
@@ -80,7 +80,7 @@ export function useChatCommander() {
         { chat, limit: HISTORY_PAGE_SIZE, offset: nextOffset },
         createDiagnosticHttpOptions({
           endpointFamily: "history",
-          correlationId: "history-pagination",
+          method: "GET",
           recoveryHint: "retry",
         }),
       );

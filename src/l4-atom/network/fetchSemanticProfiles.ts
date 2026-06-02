@@ -8,14 +8,17 @@ import { adaptSemanticProfiles, type SemanticProfilesView } from "./semanticAdap
 
 export async function fetchSemanticProfiles(
   chat: string,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticProfilesView> {
   const url = new URL(`${AI_BASE_URL}/api/v1/semantic/profiles`);
   url.searchParams.set('chat', chat);
 
   const data = await requestJson(url.toString(), {
     timeoutMs: 30000,
-    ...withRequestDiagnostics(requestOptions, { endpointFamily: "semantic-profiles" }),
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "semantic",
+      method: "GET",
+    }),
   });
   return adaptSemanticProfiles(data);
 }

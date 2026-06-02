@@ -25,7 +25,7 @@ export interface FetchHistoryOptions {
 
 export async function fetchHistory(
   options: FetchHistoryOptions,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ) {
   const params = new URLSearchParams();
   params.set("chat", options.chat);
@@ -44,7 +44,10 @@ export async function fetchHistory(
     `${BASE_URL}/api/v1/history?${params.toString()}`,
     {
       timeoutMs: 30000,
-      ...withRequestDiagnostics(requestOptions, { endpointFamily: "history" }),
+      ...withRequestDiagnostics(diagnosticOptions, {
+        endpointFamily: "history",
+        method: "GET",
+      }),
     },
   );
   return adaptHistoryResponse(raw);

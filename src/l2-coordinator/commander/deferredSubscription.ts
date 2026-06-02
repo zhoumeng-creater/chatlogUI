@@ -1,6 +1,9 @@
 type Unlisten = () => void;
 
-export function createDeferredSubscription(setup: () => Promise<Unlisten>): Unlisten {
+export function createDeferredSubscription(
+  setup: () => Promise<Unlisten>,
+  onSetupError?: (error: unknown) => void,
+): Unlisten {
   let active = true;
   let unlisten: Unlisten | undefined;
 
@@ -13,7 +16,7 @@ export function createDeferredSubscription(setup: () => Promise<Unlisten>): Unli
       }
     })
     .catch((error) => {
-      console.error("订阅初始化失败:", error);
+      onSetupError?.(error);
     });
 
   return () => {

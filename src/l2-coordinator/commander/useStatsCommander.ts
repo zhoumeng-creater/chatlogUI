@@ -13,7 +13,7 @@ export function useStatsCommander() {
         { chat },
         createDiagnosticHttpOptions({
           endpointFamily: "stats",
-          correlationId: "stats-refresh",
+          method: "GET",
           recoveryHint: "retry",
         }),
       );
@@ -28,8 +28,8 @@ export function useStatsCommander() {
       const result = await fetchDashboardTrend(
         { chat, window: "7d", summary: false },
         createDiagnosticHttpOptions({
-          endpointFamily: "dashboard-trend",
-          correlationId: "trend-refresh",
+          endpointFamily: "stats",
+          method: "GET",
           recoveryHint: "retry",
         }),
       );

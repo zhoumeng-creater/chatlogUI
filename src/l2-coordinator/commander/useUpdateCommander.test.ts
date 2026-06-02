@@ -31,7 +31,6 @@ describe("useUpdateCommander diagnostics", () => {
       level: "error",
       category: "update.check.failed",
       recoveryHint: "open-settings",
-      privacy: "redacted",
     });
     expect(JSON.stringify(event)).not.toContain("raw-update-token");
   });

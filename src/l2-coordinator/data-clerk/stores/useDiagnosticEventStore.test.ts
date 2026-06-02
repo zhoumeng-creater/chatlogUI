@@ -57,15 +57,30 @@ describe("useDiagnosticEventStore", () => {
     });
   });
 
-  it("tracks endpoint, failed-only, and time range filters", () => {
+  it("updates endpoint, failed-only, and time-range filters without resetting earlier choices", () => {
+    useDiagnosticEventStore.getState().setFilters({ source: "http" });
     useDiagnosticEventStore.getState().setFilters({
-      endpointFamily: "search",
+      endpointFamily: "semantic",
       failedOnly: true,
       timeRange: "last15m",
     });
 
-    expect(useDiagnosticEventStore.getState().filters).toMatchObject({
-      endpointFamily: "search",
+    expect(useDiagnosticEventStore.getState().filters).toEqual({
+      source: "http",
+      level: "all",
+      privacy: "all",
+      endpointFamily: "semantic",
+      failedOnly: true,
+      timeRange: "last15m",
+    });
+
+    useDiagnosticEventStore.getState().clear();
+
+    expect(useDiagnosticEventStore.getState().filters).toEqual({
+      source: "http",
+      level: "all",
+      privacy: "all",
+      endpointFamily: "semantic",
       failedOnly: true,
       timeRange: "last15m",
     });

@@ -41,7 +41,7 @@ export function useSearchCommander() {
         }),
         createDiagnosticHttpOptions({
           endpointFamily: "search",
-          correlationId: "search-execute",
+          method: "GET",
           recoveryHint: "retry",
         }),
       );
@@ -116,7 +116,7 @@ export function useSearchCommander() {
         }),
         createDiagnosticHttpOptions({
           endpointFamily: "search",
-          correlationId: "search-pagination",
+          method: "GET",
           recoveryHint: "retry",
         }),
       );

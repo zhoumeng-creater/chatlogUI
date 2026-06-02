@@ -7,11 +7,13 @@ import {
 import { adaptSemanticIndexStatus, type SemanticIndexStatus } from "./semanticAdapters";
 
 export async function fetchIndexStatus(
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticIndexStatus> {
-  const data = await requestJson(
-    `${AI_BASE_URL}/api/v1/semantic/index/status`,
-    withRequestDiagnostics(requestOptions, { endpointFamily: "semantic-index-status" }),
-  );
+  const data = await requestJson(`${AI_BASE_URL}/api/v1/semantic/index/status`, {
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "semantic",
+      method: "GET",
+    }),
+  });
   return adaptSemanticIndexStatus(data);
 }

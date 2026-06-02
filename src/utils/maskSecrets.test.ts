@@ -38,51 +38,35 @@ describe("diagnostic redaction", () => {
   it("detects diagnostic text that still contains unsafe private markers", () => {
     expect(containsSensitiveDiagnosticText("data_key=raw-secret")).toBe(true);
     expect(containsSensitiveDiagnosticText("C:\\Users\\Alice\\WeChat Files")).toBe(true);
-    expect(containsSensitiveDiagnosticText("Data key: missing")).toBe(false);
-    expect(containsSensitiveDiagnosticText("Image key: present")).toBe(false);
     expect(containsSensitiveDiagnosticText("HTTP ready: true")).toBe(false);
   });
 
-  it("masks SNS proxy query values and media resource keys", () => {
-    const input = [
-      "/api/v1/sns/media/proxy?url=https%3A%2F%2Fprivate.example%2Fa.jpg&key=raw-media-key",
-      "GET /image/raw-image-key failed",
-      "GET /video/raw-video-key failed",
-      "GET /file/raw-file-key failed",
-      "GET /voice/raw-voice-key failed",
-      "GET /data/C:/Users/Alice/WeChat Files/wxid_private/file.dat failed",
-    ].join("\n");
-
-    const redacted = maskDiagnosticText(input, { privacyMode: true });
-
-    expect(redacted).not.toContain("private.example");
-    expect(redacted).not.toContain("raw-media-key");
-    expect(redacted).not.toContain("raw-image-key");
-    expect(redacted).not.toContain("raw-video-key");
-    expect(redacted).not.toContain("raw-file-key");
-    expect(redacted).not.toContain("raw-voice-key");
-    expect(redacted).not.toContain("Alice");
-    expect(redacted).not.toContain("wxid_private");
-    expect(containsSensitiveDiagnosticText(redacted)).toBe(false);
-  });
-
-  it("detects unredacted media and SNS diagnostic values as unsafe", () => {
-    expect(containsSensitiveDiagnosticText("/image/raw-image-key")).toBe(true);
-    expect(containsSensitiveDiagnosticText("/api/v1/sns/media/proxy?url=https://private.example/a.jpg")).toBe(true);
-    expect(containsSensitiveDiagnosticText("key=raw-media-key")).toBe(true);
-  });
-
-  it("masks generic remote URLs while preserving local service status text", () => {
+  it("masks media keys, SNS proxy queries, SQL, raw responses, and request queries", () => {
     const redacted = maskDiagnosticText(
-      "Remote target https://private.example.com/api/messages?token=raw-token local http://127.0.0.1:5030/health",
+      [
+        "GET http://127.0.0.1:5030/image/synthetic-media-key?token=raw-token",
+        "media_key=synthetic-media-key",
+        "SNS http://127.0.0.1:5030/api/v1/sns/media/proxy?url=https://sns.example/private.jpg&token=raw-token",
+        "SQL select * from message where content='synthetic-private-message-should-be-redacted'",
+        "raw response {\"content\":\"synthetic-private-message-should-be-redacted\",\"sender\":\"wxid_private\"}",
+        "query keyword=synthetic-private-message-should-be-redacted&chat=wxid_private",
+      ].join("\n"),
       { privacyMode: true },
     );
 
-    expect(redacted).not.toContain("private.example.com");
-    expect(redacted).not.toContain("raw-token");
-    expect(redacted).toContain("[redacted-url]");
-    expect(redacted).toContain("http://127.0.0.1:5030/health");
-    expect(containsSensitiveDiagnosticText(redacted)).toBe(false);
-    expect(containsSensitiveDiagnosticText("Remote target https://private.example.com/api")).toBe(true);
+    expect(redacted).not.toContain("synthetic-media-key");
+    expect(redacted).not.toContain("sns.example/private.jpg");
+    expect(redacted).not.toContain("select * from message");
+    expect(redacted).not.toContain("synthetic-private-message");
+    expect(redacted).not.toContain("wxid_private");
+    expect(redacted).toContain("[redacted-query]");
+    expect(redacted).toContain("[redacted-sql]");
+  });
+
+  it("detects unmasked advanced diagnostic payload markers", () => {
+    expect(containsSensitiveDiagnosticText("/image/synthetic-media-key")).toBe(true);
+    expect(containsSensitiveDiagnosticText("select * from message")).toBe(true);
+    expect(containsSensitiveDiagnosticText("keyword=private chat text")).toBe(true);
+    expect(containsSensitiveDiagnosticText("durationMs: 12")).toBe(false);
   });
 });

@@ -12,14 +12,14 @@ const MAX_DIAGNOSTIC_EVENTS = 1000;
 export type DiagnosticSourceFilter = "all" | DiagnosticEventSource | "sidecar";
 export type DiagnosticLevelFilter = "all" | DiagnosticEventLevel;
 export type DiagnosticPrivacyFilter = "all" | DiagnosticEventPrivacy;
-export type DiagnosticEndpointFilter = "all" | string;
+export type DiagnosticEndpointFamilyFilter = "all" | string;
 export type DiagnosticTimeRangeFilter = "all" | "last15m" | "last1h" | "session";
 
 export interface DiagnosticEventFilters {
   source: DiagnosticSourceFilter;
   level: DiagnosticLevelFilter;
   privacy: DiagnosticPrivacyFilter;
-  endpointFamily: DiagnosticEndpointFilter;
+  endpointFamily: DiagnosticEndpointFamilyFilter;
   failedOnly: boolean;
   timeRange: DiagnosticTimeRangeFilter;
 }

@@ -35,6 +35,7 @@
 
 2. **P4-A: Diagnostics and privacy mode 2.0.**
    Add a redaction-first event pipeline and screenshot/export rules before raw data surfaces expand.
+   Dedicated implementation plan: `docs/superpowers/plans/2026-06-02-p4-a-developer-diagnostics-privacy-mode-2.md`.
 
 3. **P4-B: Media, attachments, favorites, chatroom members, unread, and new messages.**
    These are closest to the existing chat workflow and will improve daily usability immediately.
@@ -385,6 +386,12 @@ Completion criteria:
 
 **Goal:** Make the app safe to use and safe to debug after raw-data-heavy features land.
 
+**Dedicated plan:** `docs/superpowers/plans/2026-06-02-p4-a-developer-diagnostics-privacy-mode-2.md`
+
+**Implementation status:** Implemented through source/UI evidence on 2026-06-02 from the completed P4/P5-0 foundation. The detailed plan kept this phase focused on production diagnostic-event integration, DevConsole 2.0, Privacy Mode 2.0, diagnostics export manifest, UI acceptance, and leak-scan verification. It intentionally did not duplicate the P4/P5-0 capability matrix, base diagnostic event atom, or synthetic fixture setup.
+
+P4-A used an L2-owned callback bridge rather than a global emitter. L4 network/system atoms remain independent and only accept optional diagnostics callbacks/options. The Rust export payload shape was not changed; manifest 2.0 is emitted as safe line-based report content through the existing user-triggered fail-closed export path.
+
 **Primary files:**
 
 - `src/l2-coordinator/data-clerk/stores/useDiagnosticEventStore.ts`
@@ -394,18 +401,18 @@ Completion criteria:
 - `src/l3-molecule/diagnostics/*`
 - `src/utils/maskSecrets.ts`
 - `src/utils/maskSecrets.test.ts`
-- `src-tauri/src/sidecar.rs`
-- `src-tauri/src/commands.rs`
+- `src/l2-coordinator/commander/diagnosticEventBridge.ts`
+- `src/l2-coordinator/commander/diagnosticsManifest.ts`
 
 Tasks:
 
-- [ ] Upgrade DevConsole from sidecar-only log viewer to unified event console.
-- [ ] Add filters: source, level, time, endpoint group, privacy state, failed-only.
-- [ ] Add event detail drawer with redacted request metadata and suggested next action.
-- [ ] Add screenshot-safe mode or extend global privacy mode for high-risk modules.
-- [ ] Add diagnostics export manifest with app version, build channel, sidecar state, HTTP event summary, readiness summary, update state, and redaction result.
-- [ ] Add tests for visible text, aria labels, serialized diagnostics, and Rust report export.
-- [ ] Add privacy leak scans for synthetic raw strings in DevConsole DOM and export output.
+- [x] Upgrade DevConsole from sidecar-only log viewer to unified event console.
+- [x] Add filters: source, level, time, endpoint group, privacy state, failed-only.
+- [x] Add event detail drawer with redacted request metadata and suggested next action.
+- [x] Extend global privacy/redaction behavior for diagnostic rows, detail text, copy/export, settings/about diagnostics, and high-risk raw labels.
+- [x] Add diagnostics export manifest with app version, build channel, sidecar state, HTTP event summary, readiness summary, update state, and redaction result.
+- [x] Add tests for serialized diagnostics, event filtering/detail view-models, HTTP/SSE diagnostic wiring, updater/system events, and redaction helpers.
+- [x] Add privacy leak scans and browser evidence for synthetic raw strings in DevConsole DOM and diagnostics surfaces.
 
 Acceptance:
 
@@ -418,8 +425,13 @@ Verification:
 ```powershell
 pnpm test src\utils\maskSecrets.test.ts src\l2-coordinator\commander\diagnostics.test.ts
 pnpm test src\l2-coordinator\commander\diagnosticEventViewModel.test.ts
-cd src-tauri; cargo test diagnostics
+pnpm test src\l4-atom\network\diagnosticEvents.test.ts src\l4-atom\network\httpClient.test.ts src\l2-coordinator\data-clerk\stores\useDiagnosticEventStore.test.ts
+pnpm typecheck
 ```
+
+Rust diagnostics tests are not required for the implemented P4-A slice because no Rust/Tauri payload schema, CSP, capability, or sidecar launcher code changed.
+
+Final 2026-06-02 source verification passed: `pnpm lint`, `pnpm typecheck`, `pnpm test` (47 files / 241 tests), `pnpm build`, `pnpm verify`, and architecture/privacy scans. `git diff --check` reported no whitespace errors, only CRLF normalization warnings.
 
 ---
 

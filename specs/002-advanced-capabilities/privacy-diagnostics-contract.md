@@ -39,6 +39,19 @@ type DiagnosticEventPrivacy = "safe" | "redacted" | "blocked";
 
 Safe attributes are restricted to values such as endpoint family, method, status, duration, category, retryable flag, and aggregate counts. Attributes that cannot be proven safe must be omitted or replaced with `[redacted]`.
 
+## P4-A Implementation Status
+
+As of 2026-06-02, P4-A implements Diagnostics and Privacy Mode 2.0 on top of the P4/P5-0 foundation:
+
+- Production HTTP diagnostics are wired through an L2-owned callback bridge. L4 network and system atoms still do not import L2, Zustand, Tauri state, or UI modules.
+- Core setup/workbench/search/stats/chat readiness, semantic, graph, DB readiness/status, and semantic QA SSE families can emit safe local events with endpoint family, method, status, duration, category, retryability, optional correlation ID, and fixed recovery hint.
+- UI, Tauri window material, sidecar log subscription, updater, and diagnostics export failures are translated by L2 into local diagnostic events.
+- DevConsole 2.0 adds source, level, privacy, endpoint family, time range, and failed-only filters, plus safe status/duration/recovery labels and a detail panel that only renders safe rows.
+- Diagnostics export uses manifest version 2.0 as line-based report content. It records app/build/update/platform/package/backend/sidecar/readiness/setup/release/redaction summaries while preserving the existing user-triggered fail-closed export path.
+- Redaction helpers cover media resource keys/paths, SNS proxy query values, SQL, request query/body labels, raw response/body labels, local WeChat/profile paths, credentials, tokens, and synthetic private message markers.
+- Setup diagnostics, Settings/About diagnostics, and Workbench DevConsole use the same L2 report/redaction model.
+- No telemetry, automatic upload, generic remote HTTP client, Tauri CSP broadening, Tauri capability broadening, Rust export payload shape change, or `chatlog_alpha` sidecar contract change was introduced.
+
 ## Retention
 
 - UI state may retain a bounded number of events in memory.

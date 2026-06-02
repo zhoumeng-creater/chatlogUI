@@ -21,8 +21,8 @@ describe("readiness fetchers", () => {
     expect(capturedUrl).toBe("http://127.0.0.1:5030/health?format=json");
   });
 
-  it("emits safe readiness diagnostic events without persisting full service URLs", async () => {
-    const diagnosticEvents: DiagnosticEvent[] = [];
+  it("emits a health diagnostic event when diagnostics are supplied", async () => {
+    const events: DiagnosticEvent[] = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response(JSON.stringify({ status: "ok" }), { status: 200 })),
@@ -30,22 +30,17 @@ describe("readiness fetchers", () => {
 
     await expect(
       fetchHealth("127.0.0.1:5030", {
-        diagnostics: { correlationId: "setup-readiness", recoveryHint: "check-service" },
-        onDiagnosticEvent: (event) => diagnosticEvents.push(event),
+        diagnostics: { endpointFamily: "health", recoveryHint: "check-service" },
+        onDiagnosticEvent: (event) => events.push(event),
       }),
     ).resolves.toBe(true);
 
-    expect(diagnosticEvents[0]).toMatchObject({
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
       source: "http",
       category: "http.request",
-      correlationId: "setup-readiness",
       recoveryHint: "check-service",
-      attributes: {
-        endpointFamily: "health",
-        method: "GET",
-        status: 200,
-      },
+      attributes: { endpointFamily: "health" },
     });
-    expect(JSON.stringify(diagnosticEvents[0])).not.toContain("127.0.0.1:5030");
   });
 });

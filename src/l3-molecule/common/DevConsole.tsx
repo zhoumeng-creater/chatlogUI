@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
+import { Download, Trash2, X } from "lucide-react";
 import { Typography } from "@l4/ui/Typography";
 import { Button } from "@l4/ui/Button";
 
 type DiagnosticSourceFilter = "all" | "http" | "sidecar" | "tauri" | "ui" | "updater" | "release";
 type DiagnosticLevelFilter = "all" | "debug" | "info" | "warn" | "error";
 type DiagnosticPrivacyFilter = "all" | "safe" | "redacted" | "blocked";
-type DiagnosticEndpointFilter = "all" | string;
 type DiagnosticTimeRangeFilter = "all" | "last15m" | "last1h" | "session";
 
-interface DiagnosticConsoleOption {
+interface DiagnosticFilterOption {
   value: string;
   label: string;
 }
@@ -26,9 +26,9 @@ interface DiagnosticConsoleRow {
   privacy: Exclude<DiagnosticPrivacyFilter, "all">;
   category: string;
   summary: string;
-  endpointFamily?: string;
-  statusLabel?: string;
-  durationLabel?: string;
+  endpointFamily: string;
+  statusLabel: string;
+  durationLabel: string;
   recoveryLabel: string;
   isFailed: boolean;
   detailRows: DiagnosticConsoleDetailRow[];
@@ -50,12 +50,12 @@ interface DevConsoleView {
     source: DiagnosticSourceFilter;
     level: DiagnosticLevelFilter;
     privacy: DiagnosticPrivacyFilter;
-    endpointFamily: DiagnosticEndpointFilter;
+    endpointFamily: string;
     failedOnly: boolean;
     timeRange: DiagnosticTimeRangeFilter;
   };
-  endpointOptions: DiagnosticConsoleOption[];
-  timeRangeOptions: DiagnosticConsoleOption[];
+  endpointOptions: DiagnosticFilterOption[];
+  timeRangeOptions: DiagnosticFilterOption[];
   hasActiveFilters: boolean;
   emptyMessage: string;
   activeEmptyMessage: string;
@@ -64,11 +64,11 @@ interface DevConsoleView {
 interface DevConsoleActions {
   toggle: () => void;
   clear: () => void;
-  exportLogs: () => Promise<{ path: string | null; error: string | null }>;
+  exportLogs: () => Promise<string | null>;
   setSourceFilter: (source: DiagnosticSourceFilter) => void;
   setLevelFilter: (level: DiagnosticLevelFilter) => void;
   setPrivacyFilter: (privacy: DiagnosticPrivacyFilter) => void;
-  setEndpointFamilyFilter: (endpointFamily: DiagnosticEndpointFilter) => void;
+  setEndpointFamilyFilter: (endpointFamily: string) => void;
   setFailedOnlyFilter: (failedOnly: boolean) => void;
   setTimeRangeFilter: (timeRange: DiagnosticTimeRangeFilter) => void;
 }
@@ -82,6 +82,7 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const selectedRow = view.rows.find((row) => row.id === selectedRowId) ?? null;
 
   useEffect(() => {
     if (scrollRef.current && view.visible && view.autoScroll) {
@@ -90,17 +91,14 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
   }, [view.rows, view.visible, view.autoScroll]);
 
   useEffect(() => {
-    if (!selectedRowId) return;
-    if (!view.rows.some((row) => row.id === selectedRowId)) {
+    if (selectedRowId && !view.rows.some((row) => row.id === selectedRowId)) {
       setSelectedRowId(null);
     }
   }, [selectedRowId, view.rows]);
 
   const handleExport = async () => {
-    const result = await actions.exportLogs();
-    setStatusMessage(
-      result.path ? `诊断已导出到: ${result.path}` : result.error ?? "诊断导出失败。",
-    );
+    const path = await actions.exportLogs();
+    setStatusMessage(path ? `诊断已导出到: ${path}` : "诊断导出失败，请检查脱敏状态。");
   };
 
   if (!view.visible) return null;
@@ -108,7 +106,6 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
   const emptyMessage = view.counts.total === 0
     ? view.emptyMessage
     : view.activeEmptyMessage;
-  const selectedRow = view.rows.find((row) => row.id === selectedRowId) ?? null;
 
   return (
     <div className="dev-console">
@@ -118,9 +115,18 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
           <span className="dev-console__count">{view.counts.total} 条事件</span>
         </Typography>
         <div className="dev-console__actions">
-          <Button variant="ghost" size="sm" onClick={handleExport}>导出诊断</Button>
-          <Button variant="ghost" size="sm" onClick={actions.clear}>清空</Button>
-          <Button variant="ghost" size="sm" onClick={actions.toggle}>关闭</Button>
+          <Button variant="ghost" size="sm" onClick={handleExport}>
+            <Download size={14} />
+            导出
+          </Button>
+          <Button variant="ghost" size="sm" onClick={actions.clear}>
+            <Trash2 size={14} />
+            清空
+          </Button>
+          <Button variant="ghost" size="sm" onClick={actions.toggle}>
+            <X size={14} />
+            关闭
+          </Button>
         </div>
       </div>
       <div className="dev-console__summary" aria-label="诊断事件摘要">
@@ -128,7 +134,7 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
         <span>诊断 {view.counts.diagnosticEvents}</span>
         <span>警告/错误 {view.counts.warningsOrErrors}</span>
         <span>脱敏/阻止 {view.counts.redactedOrBlocked}</span>
-        {view.hasActiveFilters && <span>筛选中</span>}
+        {view.hasActiveFilters && <span>筛选中 {view.rows.length}</span>}
       </div>
       <div className="dev-console__filters" aria-label="诊断事件筛选">
         <label>
@@ -161,20 +167,6 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
             <option value="info">Info</option>
             <option value="warn">Warn</option>
             <option value="error">Error</option>
-          </select>
-        </label>
-        <label>
-          隐私
-          <select
-            value={view.filters.privacy}
-            onChange={(event) =>
-              actions.setPrivacyFilter(event.currentTarget.value as DiagnosticPrivacyFilter)
-            }
-          >
-            <option value="all">全部</option>
-            <option value="safe">安全</option>
-            <option value="redacted">已脱敏</option>
-            <option value="blocked">已阻止</option>
           </select>
         </label>
         <label>
@@ -211,9 +203,25 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
           <input
             type="checkbox"
             checked={view.filters.failedOnly}
-            onChange={(event) => actions.setFailedOnlyFilter(event.currentTarget.checked)}
+            onChange={(event) =>
+              actions.setFailedOnlyFilter(event.currentTarget.checked)
+            }
           />
           仅失败
+        </label>
+        <label>
+          隐私
+          <select
+            value={view.filters.privacy}
+            onChange={(event) =>
+              actions.setPrivacyFilter(event.currentTarget.value as DiagnosticPrivacyFilter)
+            }
+          >
+            <option value="all">全部</option>
+            <option value="safe">安全</option>
+            <option value="redacted">已脱敏</option>
+            <option value="blocked">已阻止</option>
+          </select>
         </label>
       </div>
       <p className="dev-console__status" aria-live="polite">{statusMessage}</p>
@@ -227,8 +235,8 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
           <button
             key={row.id}
             type="button"
-            className={`dev-console__line${selectedRowId === row.id ? " dev-console__line--selected" : ""}`}
-            aria-pressed={selectedRowId === row.id}
+            className={`dev-console__line${row.isFailed ? " dev-console__line--failed" : ""}`}
+            aria-pressed={selectedRow?.id === row.id}
             onClick={() => setSelectedRowId(row.id)}
           >
             <span className="dev-console__time">{formatTimestamp(row.timestamp)}</span>
@@ -241,37 +249,38 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
             <span className={`dev-console__privacy dev-console__privacy--${row.privacy}`}>
               {getPrivacyLabel(row.privacy)}
             </span>
-            {row.endpointFamily && (
-              <span className="dev-console__endpoint">{row.endpointFamily}</span>
-            )}
-            {row.statusLabel && (
-              <span className="dev-console__status-code">{row.statusLabel}</span>
-            )}
-            {row.durationLabel && (
-              <span className="dev-console__duration">{row.durationLabel}</span>
-            )}
-            <span className="dev-console__recovery">{row.recoveryLabel}</span>
+            <span className="dev-console__endpoint">{row.endpointFamily}</span>
+            <span className="dev-console__status-code">{row.statusLabel}</span>
+            <span className="dev-console__duration">{row.durationLabel}</span>
             <span className="dev-console__category">{row.category}</span>
+            <span className="dev-console__recovery">{row.recoveryLabel}</span>
             <span className="dev-console__message">{row.summary}</span>
           </button>
         ))}
       </div>
       {selectedRow && (
-        <div className="dev-console__detail" aria-label="诊断事件详情">
+        <section className="dev-console__detail" aria-label="诊断事件详情">
           <div className="dev-console__detail-header">
-            <span>{selectedRow.category}</span>
-            <span>{formatTimestamp(selectedRow.timestamp)}</span>
+            <Typography variant="caption" weight={700}>
+              {selectedRow.category}
+            </Typography>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedRowId(null)}>
+              <X size={14} />
+              关闭详情
+            </Button>
           </div>
-          <div className="dev-console__detail-summary">{selectedRow.summary}</div>
+          <Typography variant="caption" color="var(--text-secondary)">
+            {selectedRow.summary}
+          </Typography>
           <dl className="dev-console__detail-grid">
-            {selectedRow.detailRows.map((row) => (
-              <div key={`${row.label}-${row.value}`}>
-                <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
+            {selectedRow.detailRows.map((detail) => (
+              <div key={`${detail.label}-${detail.value}`}>
+                <dt>{detail.label}</dt>
+                <dd>{detail.value}</dd>
               </div>
             ))}
           </dl>
-        </div>
+        </section>
       )}
     </div>
   );

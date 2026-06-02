@@ -8,12 +8,15 @@ import {
 import { adaptGraphStatus, type GraphStatusView } from "./graphAdapters";
 
 export async function fetchGraphStatus(
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphStatusView | null> {
   try {
     const data = await requestJson(`${GRAPH_BASE_URL}/api/v1/graph/status`, {
       timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
-      ...withRequestDiagnostics(requestOptions, { endpointFamily: "graph-status" }),
+      ...withRequestDiagnostics(diagnosticOptions, {
+        endpointFamily: "graph",
+        method: "GET",
+      }),
     });
     return adaptGraphStatus(data);
   } catch (error) {

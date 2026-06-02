@@ -37,14 +37,6 @@ function portFromAddress(value: string): number {
   return Number(value.split(":").pop()) || 5030;
 }
 
-function createSetupReadinessDiagnostics(correlationId: string) {
-  return createDiagnosticHttpOptions({
-    endpointFamily: "setup-readiness",
-    correlationId,
-    recoveryHint: "check-service",
-  });
-}
-
 export interface SetupCommander {
   loadExistingProfile: () => Promise<void>;
   chooseMode: (mode: SetupMode) => void;
@@ -213,13 +205,21 @@ export function useSetupCommander(): SetupCommander {
       if (inspectedPortState === "owned") {
         const healthy = await fetchHealth(
           profile.httpAddr,
-          createSetupReadinessDiagnostics("managed-owned-health"),
+          createDiagnosticHttpOptions({
+            endpointFamily: "health",
+            method: "GET",
+            recoveryHint: "check-service",
+          }),
         );
         setReadiness({ httpReady: healthy });
         if (healthy) {
           const dbResult = await fetchDbReadiness(
             profile.httpAddr,
-            createSetupReadinessDiagnostics("managed-owned-db"),
+            createDiagnosticHttpOptions({
+              endpointFamily: "db",
+              method: "GET",
+              recoveryHint: "check-service",
+            }),
           );
           setReadiness({ dbReady: dbResult.ready });
         }
@@ -236,13 +236,21 @@ export function useSetupCommander(): SetupCommander {
       setPortState("owned");
       const healthy = await fetchHealth(
         profile.httpAddr,
-        createSetupReadinessDiagnostics("managed-start-health"),
+        createDiagnosticHttpOptions({
+          endpointFamily: "health",
+          method: "GET",
+          recoveryHint: "check-service",
+        }),
       );
       setReadiness({ httpReady: healthy });
       if (healthy) {
         const dbResult = await fetchDbReadiness(
           profile.httpAddr,
-          createSetupReadinessDiagnostics("managed-start-db"),
+          createDiagnosticHttpOptions({
+            endpointFamily: "db",
+            method: "GET",
+            recoveryHint: "check-service",
+          }),
         );
         setReadiness({ dbReady: dbResult.ready });
       }
@@ -261,7 +269,11 @@ export function useSetupCommander(): SetupCommander {
       try {
         const healthy = await fetchHealth(
           baseUrl,
-          createSetupReadinessDiagnostics("external-health"),
+          createDiagnosticHttpOptions({
+            endpointFamily: "health",
+            method: "GET",
+            recoveryHint: "check-service",
+          }),
         );
         if (!healthy) {
           setError("无法连接到外部服务");
@@ -270,7 +282,11 @@ export function useSetupCommander(): SetupCommander {
         setReadiness({ httpReady: true });
         const dbResult = await fetchDbReadiness(
           baseUrl,
-          createSetupReadinessDiagnostics("external-db"),
+          createDiagnosticHttpOptions({
+            endpointFamily: "db",
+            method: "GET",
+            recoveryHint: "check-service",
+          }),
         );
         setReadiness({ dbReady: dbResult.ready });
         setProfile({
@@ -304,14 +320,22 @@ export function useSetupCommander(): SetupCommander {
     try {
       const healthy = await fetchHealth(
         baseUrl,
-        createSetupReadinessDiagnostics("setup-check-health"),
+        createDiagnosticHttpOptions({
+          endpointFamily: "health",
+          method: "GET",
+          recoveryHint: "check-service",
+        }),
       );
       setReadiness({ httpReady: healthy });
 
         if (healthy) {
           const dbResult = await fetchDbReadiness(
             baseUrl,
-            createSetupReadinessDiagnostics("setup-check-db"),
+            createDiagnosticHttpOptions({
+              endpointFamily: "db",
+              method: "GET",
+              recoveryHint: "check-service",
+            }),
           );
           setReadiness({ dbReady: dbResult.ready });
       }

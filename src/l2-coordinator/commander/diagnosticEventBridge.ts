@@ -1,59 +1,74 @@
-import { useDiagnosticEventStore } from "@l2/data-clerk/stores/useDiagnosticEventStore";
 import {
   createDiagnosticEvent,
   type CreateDiagnosticEventInput,
   type DiagnosticEvent,
   type DiagnosticEventLevel,
+  type DiagnosticEventSource,
   type DiagnosticRecoveryHint,
 } from "@l4/network/diagnosticEvents";
 import type { RequestDiagnosticsOptions } from "@l4/network/httpClient";
+import { useDiagnosticEventStore } from "@/l2-coordinator/data-clerk/stores/useDiagnosticEventStore";
 
-export interface DiagnosticHttpBridgeOptions {
+interface DiagnosticHttpOptionsInput {
   endpointFamily: string;
   method?: string;
   correlationId?: string;
   recoveryHint?: DiagnosticRecoveryHint;
 }
 
-export interface ReleaseDiagnosticEventInput {
-  level: DiagnosticEventLevel;
+interface DiagnosticEventSinkDefaults {
+  source: DiagnosticEventSource;
   category: string;
-  summary: string;
-  releaseGate: string;
+  level?: DiagnosticEventLevel;
+  correlationId?: string;
   recoveryHint?: DiagnosticRecoveryHint;
 }
 
-export function recordDiagnosticEvent(event: DiagnosticEvent): DiagnosticEvent {
-  useDiagnosticEventStore.getState().addEvent(event);
-  return event;
+type DiagnosticEventSinkInput = Pick<
+  CreateDiagnosticEventInput,
+  "level" | "summary" | "privacy" | "attributes"
+> & {
+  category?: string;
+  correlationId?: string;
+  recoveryHint?: DiagnosticRecoveryHint;
+};
+
+export function createDiagnosticHttpOptions(
+  input: DiagnosticHttpOptionsInput,
+): RequestDiagnosticsOptions {
+  return {
+    diagnostics: {
+      endpointFamily: input.endpointFamily,
+      method: input.method,
+      correlationId: input.correlationId,
+      recoveryHint: input.recoveryHint,
+    },
+    onDiagnosticEvent: recordDiagnosticEvent,
+  };
+}
+
+export function createDiagnosticEventSink(defaults: DiagnosticEventSinkDefaults) {
+  return (input: DiagnosticEventSinkInput): DiagnosticEvent =>
+    recordLocalDiagnosticEvent({
+      source: defaults.source,
+      level: input.level ?? defaults.level ?? "info",
+      category: input.category ?? defaults.category,
+      summary: input.summary,
+      privacy: input.privacy,
+      correlationId: input.correlationId ?? defaults.correlationId,
+      recoveryHint: input.recoveryHint ?? defaults.recoveryHint,
+      attributes: input.attributes,
+    });
 }
 
 export function recordLocalDiagnosticEvent(
   input: CreateDiagnosticEventInput,
 ): DiagnosticEvent {
-  return recordDiagnosticEvent(createDiagnosticEvent(input));
+  const event = createDiagnosticEvent(input);
+  recordDiagnosticEvent(event);
+  return event;
 }
 
-export function createDiagnosticHttpOptions(
-  options: DiagnosticHttpBridgeOptions,
-): RequestDiagnosticsOptions {
-  return {
-    diagnostics: options,
-    onDiagnosticEvent: recordDiagnosticEvent,
-  };
-}
-
-export function recordReleaseDiagnosticEvent(
-  input: ReleaseDiagnosticEventInput,
-): DiagnosticEvent {
-  return recordLocalDiagnosticEvent({
-    source: "release",
-    level: input.level,
-    category: input.category,
-    summary: input.summary,
-    recoveryHint: input.recoveryHint,
-    attributes: {
-      releaseGate: input.releaseGate,
-    },
-  });
+export function recordDiagnosticEvent(event: DiagnosticEvent): void {
+  useDiagnosticEventStore.getState().addEvent(event);
 }

@@ -16,7 +16,7 @@ interface GraphTimelineParams {
 
 export async function fetchGraphTimeline(
   params: GraphTimelineParams = {},
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphTimelineView> {
   const url = new URL(`${GRAPH_BASE_URL}/api/v1/graph/timeline`);
   if (params.keyword) url.searchParams.set("keyword", params.keyword);
@@ -27,7 +27,10 @@ export async function fetchGraphTimeline(
 
   const data = await requestJson(url.toString(), {
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
-    ...withRequestDiagnostics(requestOptions, { endpointFamily: "graph-timeline" }),
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "graph",
+      method: "GET",
+    }),
   });
   return adaptGraphTimeline(data);
 }

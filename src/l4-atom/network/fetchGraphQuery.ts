@@ -24,7 +24,7 @@ interface GraphQueryParams {
 export async function fetchGraphQuery(
   params: GraphQueryParams | string = {},
   legacyLimit?: number,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphQueryView> {
   const options: GraphQueryParams =
     typeof params === "string" ? { keyword: params, limit: legacyLimit } : params;
@@ -40,7 +40,10 @@ export async function fetchGraphQuery(
 
   const data = await requestJson(url.toString(), {
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
-    ...withRequestDiagnostics(requestOptions, { endpointFamily: "graph-query" }),
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "graph",
+      method: "GET",
+    }),
   });
   return adaptGraphQuery(data);
 }

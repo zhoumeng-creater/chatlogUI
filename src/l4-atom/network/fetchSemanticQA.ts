@@ -13,15 +13,15 @@ import {
 
 export async function fetchSemanticQA(
   params: SemanticQARequestInput,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticQADonePayload> {
   const data = await requestJson(`${AI_BASE_URL}/api/v1/semantic/qa`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(buildSemanticQARequestPayload(params)),
     timeoutMs: 60000,
-    ...withRequestDiagnostics(requestOptions, {
-      endpointFamily: "semantic-qa",
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "semantic",
       method: "POST",
     }),
   });

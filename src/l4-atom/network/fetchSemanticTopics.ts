@@ -8,14 +8,17 @@ import { adaptSemanticTopics, type SemanticTopicsView } from "./semanticAdapters
 
 export async function fetchSemanticTopics(
   chat: string,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticTopicsView> {
   const url = new URL(`${AI_BASE_URL}/api/v1/semantic/topics`);
   url.searchParams.set('chat', chat);
 
   const data = await requestJson(url.toString(), {
     timeoutMs: 30000,
-    ...withRequestDiagnostics(requestOptions, { endpointFamily: "semantic-topics" }),
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "semantic",
+      method: "GET",
+    }),
   });
   return adaptSemanticTopics(data);
 }

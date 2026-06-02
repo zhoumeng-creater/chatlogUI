@@ -21,8 +21,6 @@ describe("diagnosticEvents", () => {
         status: 200,
         durationMs: 24,
         endpointFamily: "db",
-        correlationId: "db-refresh-1",
-        recoveryHint: "retry",
       },
       testOptions,
     );
@@ -34,8 +32,6 @@ describe("diagnosticEvents", () => {
       level: "info",
       privacy: "safe",
       category: "http.request",
-      correlationId: "db-refresh-1",
-      recoveryHint: "retry",
       summary: "GET db completed with HTTP 200",
       attributes: {
         endpointFamily: "db",
@@ -135,20 +131,71 @@ describe("diagnosticEvents", () => {
     });
   });
 
-  it("normalizes unsafe recovery metadata instead of persisting private values", () => {
+  it("keeps safe correlation and recovery metadata on HTTP events", () => {
+    const event = createHttpDiagnosticEvent(
+      {
+        url: "http://127.0.0.1:5030/api/v1/search?keyword=secret",
+        method: "GET",
+        status: 503,
+        durationMs: 64,
+        endpointFamily: "search",
+        correlationId: "search-2026-06-02",
+        recoveryHint: "retry",
+      },
+      testOptions,
+    );
+
+    expect(event.correlationId).toBe("search-2026-06-02");
+    expect(event.recoveryHint).toBe("retry");
+    expect(JSON.stringify(event)).not.toContain("keyword=secret");
+  });
+
+  it("omits unsafe diagnostic attributes before they enter L2 state", () => {
+    const event = createDiagnosticEvent(
+      {
+        source: "http",
+        level: "warn",
+        category: "http.error",
+        summary: "GET db failed",
+        attributes: {
+          endpointFamily: "db",
+          url: "http://127.0.0.1:5030/api/v1/db/query?sql=select * from MSG",
+          query: "keyword=Synthetic private message for redaction test only",
+          requestBody: "dataKey=synthetic-data-key-redaction-case",
+          responseBody: "wxid_synthetic_redaction_case",
+          sql: "select * from MSG",
+          mediaKey: "image_synthetic_secret_key",
+          snsProxyUrl: "/api/v1/sns/media/proxy?url=secret&key=private",
+          status: 503,
+        },
+      },
+      testOptions,
+    );
+
+    expect(event.attributes).toEqual({
+      endpointFamily: "db",
+      status: 503,
+    });
+    expect(JSON.stringify(event)).not.toContain("select * from MSG");
+    expect(JSON.stringify(event)).not.toContain("Synthetic private message");
+    expect(JSON.stringify(event)).not.toContain("synthetic-data-key");
+    expect(JSON.stringify(event)).not.toContain("wxid_synthetic");
+    expect(JSON.stringify(event)).not.toContain("image_synthetic_secret_key");
+    expect(JSON.stringify(event)).not.toContain("sns/media/proxy");
+  });
+
+  it("falls back to no recovery hint when an unsafe hint is supplied", () => {
     const event = createDiagnosticEvent(
       {
         source: "ui",
         level: "warn",
-        category: "diagnostic.metadata",
-        summary: "metadata test",
-        correlationId: "unsafe private id with spaces",
+        category: "privacy.audit",
+        summary: "privacy audit blocked unsafe copy",
         recoveryHint: "open-raw-secret" as never,
       },
       testOptions,
     );
 
-    expect(event.correlationId).toBeUndefined();
     expect(event.recoveryHint).toBe("none");
   });
 });

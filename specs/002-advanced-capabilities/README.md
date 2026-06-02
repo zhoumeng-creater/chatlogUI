@@ -10,6 +10,8 @@ The goal is to cover raw `chatlog_alpha` capability families safely: media, chat
 
 P4/P5-0 is a foundation stage. It does not implement complete media, SNS, DB, hook, MCP, or API runner UI. It creates the matrix, privacy contract, diagnostic event baseline, and synthetic fixture strategy required before those higher-risk modules are built.
 
+P4-A has now implemented the developer diagnostics and privacy-mode upgrade on top of that foundation: production-safe diagnostic event wiring, DevConsole 2.0 filters/detail, manifest 2.0 diagnostics export lines, expanded redaction helpers, settings/about diagnostics reuse, and browser evidence for the diagnostics surfaces. This does not implement P4-B media, P4-C SNS, P4-D DB/API runner, P4-E hook/MCP/residual modules, or the persistent P5 E2E/release-quality suites.
+
 ## Files
 
 - `capability-matrix.md`: endpoint family ownership, privacy level, product batch, diagnostic needs, fixture strategy, and verification status.

@@ -24,7 +24,7 @@ const logs: LogEntry[] = [
 const events: DiagnosticEvent[] = [
   {
     id: "http-1",
-    timestamp: "2026-06-01T00:00:00.000Z",
+    timestamp: "2026-06-01T00:20:00.000Z",
     source: "http",
     level: "warn",
     privacy: "safe",
@@ -34,6 +34,7 @@ const events: DiagnosticEvent[] = [
     recoveryHint: "check-service",
     attributes: {
       endpointFamily: "db",
+      method: "GET",
       status: 503,
       durationMs: 12,
     },
@@ -44,11 +45,10 @@ const events: DiagnosticEvent[] = [
     source: "ui",
     level: "error",
     privacy: "blocked",
-      category: "diagnostic.export",
-      summary: "[blocked diagnostic event]",
-      recoveryHint: "privacy-blocked",
-    },
-  ];
+    category: "diagnostic.export",
+    summary: "[blocked diagnostic event]",
+  },
+];
 
 describe("diagnosticEventViewModel", () => {
   it("combines sidecar logs and diagnostic events with counts", () => {
@@ -74,18 +74,9 @@ describe("diagnosticEventViewModel", () => {
       redactedOrBlocked: 1,
     });
     expect(view.emptyMessage).toBe("暂无诊断事件或 Sidecar 日志。");
-    expect(view.endpointOptions.map((option) => option.value)).toContain("db");
-    expect(view.rows.find((row) => row.id === "http-1")?.detailRows).toEqual(
-      expect.arrayContaining([
-        { label: "Endpoint", value: "db" },
-        { label: "Status", value: "503" },
-        { label: "Recovery", value: "检查服务状态" },
-        { label: "Correlation", value: "db-refresh" },
-      ]),
-    );
   });
 
-  it("filters rows by source, level, privacy, endpoint, failure state, and time range", () => {
+  it("filters rows by source, level, and privacy", () => {
     const view = buildDiagnosticEventViewModel({
       logs,
       events,
@@ -93,16 +84,14 @@ describe("diagnosticEventViewModel", () => {
         source: "http",
         level: "warn",
         privacy: "safe",
-        endpointFamily: "db",
-        failedOnly: true,
-        timeRange: "last15m",
+        endpointFamily: "all",
+        failedOnly: false,
+        timeRange: "all",
       },
-      now: new Date("2026-06-01T00:10:00.000Z"),
     });
 
     expect(view.rows.map((row) => row.id)).toEqual(["http-1"]);
     expect(view.activeEmptyMessage).toBe("当前筛选条件下没有诊断事件。");
-    expect(view.hasActiveFilters).toBe(true);
   });
 
   it("summarizes events for diagnostics export without private payloads", () => {
@@ -118,5 +107,57 @@ describe("diagnosticEventViewModel", () => {
       endpointFamilies: "db: 1, ui: 1",
       latestSummary: "[blocked diagnostic event]",
     });
+  });
+
+  it("filters by endpoint, failed-only, and time range", () => {
+    const view = buildDiagnosticEventViewModel({
+      logs,
+      events,
+      filters: {
+        source: "all",
+        level: "all",
+        privacy: "all",
+        endpointFamily: "db",
+        failedOnly: true,
+        timeRange: "last15m",
+      },
+      now: new Date("2026-06-01T00:25:00.000Z"),
+    });
+
+    expect(view.rows.map((row) => row.id)).toEqual(["http-1"]);
+    expect(view.endpointOptions).toEqual([
+      { value: "all", label: "全部端点" },
+      { value: "db", label: "db" },
+      { value: "sidecar", label: "sidecar" },
+      { value: "ui", label: "ui" },
+    ]);
+    expect(view.hasActiveFilters).toBe(true);
+  });
+
+  it("builds screenshot-safe detail rows with recovery hints", () => {
+    const view = buildDiagnosticEventViewModel({
+      logs: [],
+      events,
+      filters: {
+        source: "all",
+        level: "all",
+        privacy: "all",
+        endpointFamily: "all",
+        failedOnly: false,
+        timeRange: "all",
+      },
+    });
+
+    const [row] = view.rows;
+    expect(row).toMatchObject({
+      id: "http-1",
+      endpointFamily: "db",
+      statusLabel: "503",
+      durationLabel: "12 ms",
+      recoveryLabel: "检查服务状态",
+      isFailed: true,
+    });
+    expect(row.detailRows).toContainEqual({ label: "Correlation", value: "db-refresh" });
+    expect(JSON.stringify(row.detailRows)).not.toContain("dataKey");
   });
 });

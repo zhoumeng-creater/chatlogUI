@@ -1,5 +1,5 @@
 import { AI_BASE_URL, SSE_TIMEOUT_MS } from '@/utils/constants';
-import { createDiagnosticEvent } from "./diagnosticEvents";
+import { createHttpDiagnosticEvent } from "./diagnosticEvents";
 import type { RequestDiagnosticsOptions } from "./httpClient";
 import type { SemanticQARequestInput } from "./semanticAdapters";
 import {
@@ -20,33 +20,31 @@ export function streamQA(
   onChunk: ChunkCallback,
   onError: ErrorCallback,
   signal?: AbortSignal,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): StreamQAHandle {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SSE_TIMEOUT_MS);
+  let abortReason: "timeout" | "abort" = "timeout";
+  const abortWithReason = (reason: "timeout" | "abort") => {
+    abortReason = reason;
+    controller.abort();
+  };
+  const timeoutId = setTimeout(() => abortWithReason("timeout"), SSE_TIMEOUT_MS);
   const startedAt = nowMs();
-  const endpointFamily = requestOptions?.diagnostics?.endpointFamily ?? "semantic-qa-stream";
-
-  const emitLifecycleEvent = (
-    category: string,
-    level: "info" | "warn" | "error",
-    summary: string,
-    attributes: Record<string, unknown> = {},
+  const streamUrl = `${AI_BASE_URL}/api/v1/semantic/qa/stream`;
+  const emitDiagnosticEvent = (
+    status: number | null,
+    errorKind?: "http-status" | "timeout" | "abort" | "network",
   ) => {
-    requestOptions?.onDiagnosticEvent?.(
-      createDiagnosticEvent({
-        source: "http",
-        level,
-        category,
-        summary,
-        correlationId: requestOptions.diagnostics?.correlationId,
-        recoveryHint: requestOptions.diagnostics?.recoveryHint,
-        attributes: {
-          endpointFamily,
-          method: "POST",
-          durationMs: Math.max(0, Math.round(nowMs() - startedAt)),
-          ...attributes,
-        },
+    diagnosticOptions?.onDiagnosticEvent?.(
+      createHttpDiagnosticEvent({
+        url: streamUrl,
+        method: "POST",
+        status,
+        durationMs: Math.max(0, Math.round(nowMs() - startedAt)),
+        endpointFamily: diagnosticOptions.diagnostics?.endpointFamily ?? "semantic",
+        correlationId: diagnosticOptions.diagnostics?.correlationId,
+        recoveryHint: diagnosticOptions.diagnostics?.recoveryHint,
+        errorKind,
       }),
     );
   };
@@ -54,14 +52,11 @@ export function streamQA(
   const combinedSignal = signal
     ? combineSignals(signal, controller.signal)
     : controller.signal;
+  signal?.addEventListener("abort", () => {
+    abortReason = "abort";
+  }, { once: true });
 
-  emitLifecycleEvent(
-    "http.stream.start",
-    "info",
-    "POST semantic-qa-stream started",
-  );
-
-  fetch(`${AI_BASE_URL}/api/v1/semantic/qa/stream`, {
+  fetch(streamUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(buildSemanticQARequestPayload(params)),
@@ -71,113 +66,49 @@ export function streamQA(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        emitLifecycleEvent(
-          "http.stream.error",
-          "warn",
-          `POST semantic-qa-stream failed with HTTP ${response.status}`,
-          {
-            status: response.status,
-            errorKind: "http-status",
-            retryable: response.status >= 500,
-          },
-        );
+        emitDiagnosticEvent(response.status, "http-status");
         throw new Error(`QA 流请求失败: HTTP ${response.status}`);
       }
+      emitDiagnosticEvent(response.status);
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error('无法读取响应流');
 
       const decoder = new TextDecoder();
       const parser = createSemanticSSEParser();
-      let completed = false;
-      const forwardEvent = (event: SemanticStreamEvent) => {
-        onChunk(event);
-        if (event.type === "done" && !completed) {
-          completed = true;
-          emitLifecycleEvent(
-            "http.stream.done",
-            "info",
-            "POST semantic-qa-stream completed",
-            {
-              status: response.status,
-            },
-          );
-        }
-      };
 
       try {
         let reading = true;
         while (reading) {
           const { done, value } = await reader.read();
           if (done) {
-            for (const event of parser.flush()) forwardEvent(event);
+            for (const event of parser.flush()) onChunk(event);
             reading = false;
             continue;
           }
 
           const text = decoder.decode(value, { stream: true });
-          for (const event of parser.push(text)) forwardEvent(event);
+          for (const event of parser.push(text)) onChunk(event);
         }
       } catch (err) {
         if (!(err instanceof DOMException && err.name === 'AbortError')) {
-          emitLifecycleEvent(
-            "http.stream.error",
-            "error",
-            "POST semantic-qa-stream failed while reading",
-            {
-              status: response.status,
-              errorKind: "network",
-              retryable: true,
-            },
-          );
           onError(err instanceof Error ? err : new Error(String(err)));
-        } else {
-          emitLifecycleEvent(
-            "http.stream.abort",
-            "warn",
-            "POST semantic-qa-stream was cancelled",
-            {
-              status: response.status,
-              errorKind: "abort",
-              retryable: false,
-            },
-          );
         }
       }
     })
     .catch((err) => {
       clearTimeout(timeoutId);
-      if (!(err instanceof DOMException && err.name === 'AbortError')) {
-        emitLifecycleEvent(
-          "http.stream.error",
-          "error",
-          "POST semantic-qa-stream failed",
-          {
-            errorKind: "network",
-            retryable: true,
-          },
-        );
-        onError(err instanceof Error ? err : new Error(String(err)));
-      } else {
-        emitLifecycleEvent(
-          "http.stream.abort",
-          "warn",
-          "POST semantic-qa-stream was cancelled",
-          {
-            errorKind: "abort",
-            retryable: false,
-          },
-        );
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        emitDiagnosticEvent(null, abortReason);
+        return;
       }
+      emitDiagnosticEvent(null, "network");
+      onError(err instanceof Error ? err : new Error(String(err)));
     });
 
   return {
-    cancel: () => controller.abort(),
+    cancel: () => abortWithReason("abort"),
   };
-}
-
-function nowMs(): number {
-  return globalThis.performance?.now?.() ?? Date.now();
 }
 
 function combineSignals(...signals: AbortSignal[]): AbortSignal {
@@ -190,4 +121,8 @@ function combineSignals(...signals: AbortSignal[]): AbortSignal {
     signal.addEventListener('abort', () => controller.abort(signal.reason));
   }
   return controller.signal;
+}
+
+function nowMs(): number {
+  return globalThis.performance?.now?.() ?? Date.now();
 }

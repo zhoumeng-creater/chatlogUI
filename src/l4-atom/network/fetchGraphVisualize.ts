@@ -21,7 +21,7 @@ interface GraphVisualizeParams {
 
 export async function fetchGraphVisualize(
   params: GraphVisualizeParams = {},
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphVisualizeView> {
   const { keyword, window, limit = GRAPH_DEFAULT_LIMIT, start, end } = params;
   const cappedLimit = Math.min(limit, GRAPH_MAX_LIMIT);
@@ -34,7 +34,10 @@ export async function fetchGraphVisualize(
 
   const data = await requestJson(url.toString(), {
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
-    ...withRequestDiagnostics(requestOptions, { endpointFamily: "graph-visualize" }),
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "graph",
+      method: "GET",
+    }),
   });
   return adaptGraphVisualize(data, { visualizationCap: cappedLimit });
 }

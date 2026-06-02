@@ -402,3 +402,46 @@
 - P4/P5-0 的初始 `capability-matrix.md` 只有能力族级别，不能直接作为后续 P4 实施清单。已补 endpoint-level inventory，列出每个 endpoint 的 desktop surface、L4/L2 owner、fixture target、E2E state target 和状态。
 - 初始 E2E fixture plan 只列未来覆盖目标，没有 route/state/viewport/privacy fixture matrix。已新增 `e2e-matrix.md`，把 setup/workbench/settings/dev-console/advanced entries/packaged smoke 的宽度、隐私模式、fixture 来源和阶段 owner 固定下来。
 - 宽口径 P4/P5 总计划中仍保留旧的 global subscribe/emit diagnostic event 描述和旧 fixture 文件名；已同步为当前 opt-in callback foundation 与 `advanced-capabilities.json`/`diagnostics-redaction.json`，避免后续按过时接口开发。
+
+## 2026-06-02 P4-A Planning Findings
+
+- 本轮在新 worktree `codex/p4a-diagnostics-privacy-plan` 中撰写规划；当前 master 领先远端 11 个提交，但工作区无未提交源码改动，适合用隔离分支处理文档。
+- P4/P5 总路线图明确 P4-A 目标是 Developer Diagnostics 与 Privacy Mode 2.0：把 DevConsole 从 sidecar log viewer 升级为统一事件控制台，补 source/level/time/endpoint/privacy/failed filters、event detail drawer、screenshot-safe/privacy 扩展、diagnostics export manifest 和 leak scans。
+- P4/P5-0 已完成基础能力：endpoint-level capability matrix、`privacy-diagnostics-contract.md`、`e2e-matrix.md`、L4 diagnostic event helpers、`httpClient` opt-in redacted diagnostics、L2 diagnostic event store/view model 和 DevConsole foundation。因此 P4-A 计划应落在“接入、扩展、导出、隐私模式和验证矩阵”，不能重复设计全局 emitter 或基础 atom。
+- 旧开发指南和总体规划中关于强制 kill unknown port、假 macOS traffic lights、重 glass UI 的方向已被后续 AGENTS、P2-E release evidence 和 P4/P5 planning supersede；P4-A 应以 local-only `127.0.0.1:5030`、redaction-first diagnostics、L1/L2/L3/L4 边界和 data-dense desktop tool UI 为准。
+- `ui-ux-pro-max` 检索对 P4-A 的适用结论是 data-dense dashboard / developer tool / real-time monitor，而不是 landing 或 hero。规划中应要求 DevConsole 使用表格/事件流/筛选/详情抽屉，保持中性工作台色系和语义状态色；避免大卡片堆叠、营销式布局、emoji 图标和装饰渐变。
+- UI 验收重点应写入 P4-A：source/level/privacy filters 可键盘操作；error/export blocked 状态有 `aria-live` 或等效语义；状态不能只靠颜色表达；390px 与 1440px 均无 page-level overflow；privacy-on 下 visible text、alt/aria、tooltip、copy/export、diagnostic rows 和截图都不能泄漏 synthetic private markers。
+- `specs/002-advanced-capabilities/e2e-matrix.md` 已把 Dev Console、diagnostics export、privacy-on/off、1440/390、`diagnostics-redaction.json` 和后续 P5-B/P5-C owner 固定下来。P4-A 计划应把这些 matrix row 转成实现验收与验证命令，而不是另起一套测试定义。
+- 当前 `requestJson` 支持 `onDiagnosticEvent`，但 `rg` 确认生产代码没有任何 fetcher/commander 传入该 callback；HTTP diagnostic events 目前只在单测里真实产生。P4-A 必须规划核心 endpoint family 的接入方式，例如在 L2 传入 store-backed callback，或给 L4 fetchers 增加可选 diagnostics 参数，保持默认行为不变。
+- 当前 DevConsole foundation 只有 source/level/privacy 三类筛选，未覆盖 P4-A 总计划要求的 time、endpoint group、failed-only、event detail drawer、suggested next action、screenshot-safe mode 或 diagnostics export manifest。
+- `useDiagnosticsCommander` 当前报告项以 setup/readiness/log count/event summary 为主，缺少 app version、build channel、package readiness、sidecar lifecycle exit summary、update state、release smoke summary 等 P4-A manifest 字段。
+- `fetchDbReady.ts` 和 `fetchDbStatus.ts` 仍使用原生 `fetch` 和内部 timeout，不走 `requestJson`。它们属于 L4 原子直接网络调用是允许的，但 P4-A 如果要求统一 HTTP 诊断，需要给这些 readiness atoms 增加同等脱敏事件能力或迁移到 `requestJson`。
+- `createDeferredSubscription()` 在订阅失败时仍 `console.error("订阅初始化失败:", error)`；P4-A 可把订阅失败转换成 redacted `ui`/`tauri` diagnostic event，避免未来 Browser/Tauri event listener 失败只停留在浏览器控制台。
+- 已新增 `docs/superpowers/plans/2026-06-02-p4-a-developer-diagnostics-privacy-mode-2.md` 并在 P4/P5 总路线图中接入。该计划不包含完整源码，重点是执行任务、文件边界、隐私契约、UI 验收、测试命令和风险登记。
+
+## 2026-06-02 P4-A Implementation Findings
+
+- 当前最相关的执行上下文在 `.worktrees/p4a-diagnostics-privacy-plan`，不是主工作区 `master`。该 worktree 保留了用户撰写的 P4-A 规划和工作记忆改动，应作为实现基线继续推进。
+- P4-A 规划明确不重做 P4/P5-0 foundation，不实现 P4-B/P4-C/P4-D 高级模块，不改变 `chatlog_alpha` sidecar contract，也不放宽 Tauri CSP/capabilities。
+- 本轮实现必须优先闭合当前真实 gap：生产 fetcher 尚未接入 `onDiagnosticEvent`；DevConsole 只有 foundation 级过滤；diagnostics manifest 不够完整；Privacy Mode 2.0 需要覆盖 visible/aria/tooltip/copy/export/detail drawer。
+- AGENTS 中列出的 `specs/000-productization/` 在当前 worktree 不存在。当前可执行产品化依据是 `specs/001-ready-desktop-app/` 与 `specs/002-advanced-capabilities/`，二者均要求 local-only diagnostics、user-triggered export、fail-closed redaction、L1/L2/L3/L4 边界和 no real/private fixture policy。
+- A1 实现中，`correlationId` 适合放在 event 顶层并限制为短安全字符集；`recoveryHint` 只允许固定枚举，未知值降级为 `none`。这比把任意建议文本放进 attributes 更符合 diagnostics contract 的“安全元数据”要求。
+- A2 的低耦合形态是 L4 fetchers 只接受可选 diagnostic callback/options，仍不导入 store；L2 commander/bridge 持有 store-backed callback。这样可以把生产 HTTP 事件接进 DevConsole，同时保持 L4 独立和默认请求行为不变。
+- 复合请求不能让 L2 默认 `endpointFamily` 覆盖具体 L4 endpoint。`fetchConversations()` 的 sessions/contacts/chatrooms 回归测试证明该风险真实存在；最终规则是 L4 endpoint family/method 是事实来源，L2 只提供 correlation/recovery 和 callback。
+- `streamQA` 属于 SSE 增量流，不能靠 `requestJson()` 覆盖。P4-A 需要在 `streamQA` 内部记录 response ok、HTTP failure、abort/timeout/network 生命周期事件，同时保持 abort 不触发用户错误回调。
+- A3 确认 L4 system atom 不应直接创建或存储 diagnostic events；它们只暴露 failure callback。由 L2 commander 将 Tauri/updater/subscription/export 状态翻译成统一诊断事件，符合四层边界。
+- Runtime console logging 已从 production TS/TSX 路径移除。未来如果必须保留 console 输出，应先证明它不会携带 raw path/token/message，并同时记录 redacted diagnostic event。
+- A4 的关键边界是“含义推断在 L2，渲染在 L3”：endpoint family、failure、time range、recovery hint 和详情字段都由 `diagnosticEventViewModel` 生成，`DevConsole` 不直接读取 store 或推断诊断语义。
+- 对没有 `endpointFamily` attributes 的本地事件，按 `event.source` 作为端点族 fallback，可让 UI/Tauri/updater/release 事件参与同一个 endpoint filter，而不会把它们伪装成 HTTP endpoint。
+- A5 发现 `maskDiagnosticText` 原先的 privacy field replacement 没有捕获组，可能把 `$1=[redacted]` 原样写入输出。已修复为显式捕获 key 并同时覆盖 JSON/key-value/line 形式。
+- P4-A 不能只靠 diagnostic event attributes whitelist 防泄漏；diagnostics report/copy/export 路径仍可能收到 raw query、SQL、SNS proxy URL 或 media key label，因此 report model 也必须按 label fail-closed/redact。
+- A6 选择不改变 Rust export payload shape。Manifest 2.0 作为 line-based safe report lines 写入现有 `{ redactionOk, lines }`，能复用 Rust fail-closed guard，避免不必要的 Tauri/Rust schema churn。
+- Runtime manifest 不应包含 `configDir`、`dataDir`、`workDir` 等 raw path；这些仍作为普通 report items 经过 `maskDiagnosticText`，manifest 本身只记录 config source、mode、readiness、update 和 local-only backend base URL。
+- A7 确认 setup/settings/workbench 可以共享一个 diagnostics model：setup 和 settings/about 使用 `DiagnosticsPanel`，workbench 使用 DevConsole，但两者的 copy/export 均来自同一个 manifest/report builder。
+- A8 工具 caveat：不要把 headless Chromium `user-data-dir` 放进 Vite 项目目录，否则 Vite watcher 会监听浏览器 cache/session files 并持续 reload，导致验收脚本看到空 body。系统 temp 目录 profile 可正常验收。
+- A8 发现并修复了 DevConsole 事件行作为 button 的 hit target 风险；`min-height: 28px` 后桌面/390px small-button scan 均为空。
+- A9 文档证据必须区分 source/UI evidence 与 packaged release evidence。P4-A 没有改 Rust/Tauri/CSP/capabilities/sidecar startup，也没有产出新的 packaged artifact，因此 ready-desktop release docs 只能记录 P4-A source/UI extension，不能替代 2026-06-01 Windows x64 packaged gate。
+- A9 后 DevConsole 架构状态已变更：旧 architecture checklist 中 “DevConsole 直接使用 useDevConsoleCommander” 的 staged debt 对当前文件不再准确；P4-A 后 `DevConsole.tsx` 是 props-driven L3 view，L2 commander/bridge 拥有 event recording、filter state、manifest export 和 recovery semantics。
+- A9 操作发现：`apply_patch` 在当前桌面线程默认锚定主工作区路径，而 shell 命令可以通过 `workdir` 指向 P4-A worktree。后续所有补丁必须显式使用 `.worktrees/p4a-diagnostics-privacy-plan/...` 路径，避免误改主工作区。
+- A10 验证发现：把 worktree 放在仓库子目录时，ESLint 会向上查找父目录配置；没有 `root: true` 时会同时加载父仓库和 worktree 的 `.eslintrc.cjs`，造成插件重复解析。分支内加入 `root: true` 后 lint/verify 均通过。
+- A10 final leak-scan 解释：`src/utils/maskSecrets.ts` 中的 synthetic marker 命中是有意的 redaction denylist，不是泄漏。排除测试和该 redaction helper 后，生产 UI/业务源码没有 synthetic private marker 命中。

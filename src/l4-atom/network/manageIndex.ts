@@ -10,7 +10,7 @@ type IndexAction = 'rebuild' | 'pause' | 'resume' | 'clear';
 
 export async function manageIndex(
   action: IndexAction,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticIndexActionResult> {
   const endpoints: Record<IndexAction, string> = {
     rebuild: `${AI_BASE_URL}/api/v1/semantic/index/rebuild`,
@@ -21,8 +21,8 @@ export async function manageIndex(
 
   const data = await requestJson(endpoints[action], {
     method: 'POST',
-    ...withRequestDiagnostics(requestOptions, {
-      endpointFamily: "semantic-index-action",
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "semantic",
       method: "POST",
     }),
   });

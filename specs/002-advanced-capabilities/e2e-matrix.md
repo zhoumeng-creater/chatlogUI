@@ -31,8 +31,8 @@ Every runnable row in later P5 phases must keep these checks:
 | `/dashboard?codex-smoke=workbench-ready` | dashboard alias | 1440, 390 | off/on | `core-ready.json` | alias reaches same workbench shell and does not regress navigation | P5-B browser E2E | foundation-ready |
 | `/settings` | data, appearance, AI, about sections | 1440, 390 | off/on | `core-ready.json` | tab/section navigation, forms fit, privacy controls are visible and persistent | P5-B browser E2E | foundation-ready |
 | `/settings` | update notification available/downloading/ready/error | 1440, 390 | off/on | synthetic update state | dialog semantics, focus restore, progressbar aria, safe error text | P5-B a11y | foundation-ready |
-| Workbench Dev Console | sidecar logs plus HTTP/UI/Tauri/update/release events | 1440, 390 | off/on | `diagnostics-redaction.json` | source/level/privacy filters work, no raw secret markers, counts match events | P5-B browser E2E | foundation-ready |
-| Diagnostics export | explicit export success and redaction failure | 1440, 390 | off/on | `diagnostics-redaction.json` | export is user-triggered, blocked values are redacted or export fails closed | P5-A contract + P5-C release | foundation-ready |
+| Workbench Dev Console | sidecar logs plus HTTP/UI/Tauri/update/release events | 1440, 390 | off/on | `diagnostics-redaction.json` | source/level/privacy/endpoint/time/failed-only filters work, no raw secret markers, counts match events, safe detail panel visible | P5-B browser E2E | P4-A source/UI evidence passed 2026-06-02; persistent P5-B suite not yet added |
+| Diagnostics export | explicit export success and redaction failure | 1440, 390 | off/on | `diagnostics-redaction.json` | export is user-triggered, blocked values are redacted or export fails closed; manifest 2.0 lines explain app/sidecar/readiness/update/event state | P5-A contract + P5-C release | P4-A manifest/source/UI evidence passed 2026-06-02; packaged P5-C export rerun not yet added |
 | Advanced media entry | image/video/file/voice/data placeholders | 1440, 390 | off/on | `advanced-capabilities.json` | media keys and paths never render raw; load/error/retry states fit | P4-B + P5-B | documented |
 | Chat extension entry | unread, members, new messages, favorites | 1440, 390 | off/on | `advanced-capabilities.json` | count/list/empty/error states; identities masked in privacy mode | P4-B + P5-B | documented |
 | SNS entry | notifications, feed, search, media proxy placeholder | 1440, 390 | off/on | `advanced-capabilities.json` | feed/search states; proxy `url` and `key` never visible or logged | P4-C + P5-B | documented |
@@ -61,3 +61,14 @@ When P5 introduces a runnable E2E suite, it should:
 - Run privacy-on and privacy-off variants for every route that can display identity, message, path, media, or credential-like text.
 - Capture screenshots only from synthetic fixtures or masked UI states.
 - Record skipped rows with a documented blocker and owner phase, not by deleting the row.
+
+## P4-A Evidence 2026-06-02
+
+P4-A upgraded the existing foundation rows for Workbench Dev Console and Diagnostics export without starting the persistent P5-B browser suite or P5-C packaged release rerun.
+
+- Workbench route checked with Vite plus cached Chromium DevTools Protocol at `/workbench?codex-smoke=workbench-ready` for `1440x900` and `390x820`.
+- DevConsole evidence: no page-level horizontal overflow, five filter selects visible, failed-only checkbox visible, event rows visible, safe detail panel visible, and no visible synthetic/private marker strings.
+- Settings/About diagnostics checked at `/settings` for `1440x900` and `390x820`.
+- Diagnostics evidence: shared DiagnosticsPanel visible, `Export manifest version 2.0` visible, redaction state visible, no page-level horizontal overflow, and no visible synthetic/private marker strings.
+- Hit target check: event row buttons and visible UI buttons were at least 28px high after the DevConsole row min-height fix.
+- Tooling caveat: headless Chromium user-data-dir must stay outside the Vite project tree; a worktree-local profile caused Vite watcher reload churn and was replaced by a system temp profile.

@@ -10,13 +10,13 @@ export type GraphAction = "rebuild" | "pause" | "resume";
 
 export async function manageGraph(
   action: GraphAction,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphActionResult> {
   const data = await requestJson(`${GRAPH_BASE_URL}/api/v1/graph/${action}`, {
     method: "POST",
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
-    ...withRequestDiagnostics(requestOptions, {
-      endpointFamily: "graph-action",
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "graph",
       method: "POST",
     }),
   });

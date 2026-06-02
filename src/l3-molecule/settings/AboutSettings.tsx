@@ -1,12 +1,23 @@
 import { Button, Surface, Typography } from "@l4/ui";
+import { DiagnosticsPanel } from "@l3/diagnostics/DiagnosticsPanel";
+import type { DiagnosticsReport } from "@l2/commander/diagnostics";
 import packageJson from "../../../package.json";
 
 interface AboutSettingsProps {
   updateStatusText: string;
   onCheckUpdate: () => Promise<void>;
+  diagnosticReport: DiagnosticsReport;
+  diagnosticCopyText: string;
+  onExportDiagnostics: () => Promise<string>;
 }
 
-export function AboutSettings({ updateStatusText, onCheckUpdate }: AboutSettingsProps) {
+export function AboutSettings({
+  updateStatusText,
+  onCheckUpdate,
+  diagnosticReport,
+  diagnosticCopyText,
+  onExportDiagnostics,
+}: AboutSettingsProps) {
   return (
     <div className="settings-stack">
       <Typography variant="h2">关于</Typography>
@@ -54,6 +65,12 @@ export function AboutSettings({ updateStatusText, onCheckUpdate }: AboutSettings
           )}
         </div>
       </Surface>
+
+      <DiagnosticsPanel
+        report={diagnosticReport}
+        copyText={diagnosticCopyText}
+        onExport={onExportDiagnostics}
+      />
     </div>
   );
 }

@@ -37,19 +37,6 @@ export type RequestDiagnosticsOptions = Pick<
   "diagnostics" | "onDiagnosticEvent"
 >;
 
-export function withRequestDiagnostics(
-  options: RequestDiagnosticsOptions | undefined,
-  diagnostics: RequestJsonOptions["diagnostics"],
-): RequestDiagnosticsOptions {
-  return {
-    diagnostics: {
-      ...options?.diagnostics,
-      ...diagnostics,
-    },
-    onDiagnosticEvent: options?.onDiagnosticEvent,
-  };
-}
-
 export function withJsonFormat(rawUrl: string): string {
   const url = new URL(rawUrl);
   if (!url.searchParams.has("format")) {
@@ -149,6 +136,25 @@ export async function requestJson<T = unknown>(
     clearTimeout(timeoutId);
     callerSignal?.removeEventListener("abort", abortFromCaller);
   }
+}
+
+export function withRequestDiagnostics(
+  options: RequestDiagnosticsOptions | undefined,
+  diagnostics: NonNullable<RequestJsonOptions["diagnostics"]>,
+): RequestDiagnosticsOptions {
+  const callerDiagnostics = options?.diagnostics;
+
+  return {
+    diagnostics: {
+      ...callerDiagnostics,
+      ...diagnostics,
+      endpointFamily: diagnostics.endpointFamily ?? callerDiagnostics?.endpointFamily,
+      method: diagnostics.method ?? callerDiagnostics?.method,
+      correlationId: callerDiagnostics?.correlationId ?? diagnostics.correlationId,
+      recoveryHint: callerDiagnostics?.recoveryHint ?? diagnostics.recoveryHint,
+    },
+    onDiagnosticEvent: options?.onDiagnosticEvent,
+  };
 }
 
 function nowMs(): number {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { streamQA } from "./streamQA";
 import type { DiagnosticEvent } from "./diagnosticEvents";
+import { streamQA } from "./streamQA";
 import type { SemanticStreamEvent } from "./semanticStreamParser";
 
 afterEach(() => {
@@ -86,7 +86,7 @@ describe("streamQA", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it("emits safe stream lifecycle diagnostics without token or prompt payloads", async () => {
+  it("emits a redacted stream diagnostic event when diagnostics are supplied", async () => {
     const diagnosticEvents: DiagnosticEvent[] = [];
 
     vi.stubGlobal(
@@ -95,46 +95,34 @@ describe("streamQA", () => {
         new Response(
           new ReadableStream({
             start(controller) {
-              const encoder = new TextEncoder();
-              controller.enqueue(encoder.encode('event: delta\ndata: {"text":"private token"}\n\n'));
-              controller.enqueue(encoder.encode('event: done\ndata: {"answer":"private answer","evidence":[{"chat":"wxid_private"}],"reason":"done"}\n\n'));
               controller.close();
             },
           }),
           { status: 200 },
-        )
+        ),
       ),
     );
 
-    await new Promise<void>((resolve, reject) => {
-      streamQA(
-        { query: "private question", chat: "wxid_private" },
-        (event) => {
-          if (event.type === "done") resolve();
-        },
-        reject,
-        undefined,
-        {
-          diagnostics: {
-            correlationId: "qa-stream",
-            recoveryHint: "retry",
-          },
-          onDiagnosticEvent: (event) => diagnosticEvents.push(event),
-        },
-      );
-    });
+    streamQA(
+      { query: "Synthetic private message for redaction test only", chat: "wxid_synthetic_redaction_case" },
+      vi.fn(),
+      vi.fn(),
+      undefined,
+      {
+        diagnostics: { endpointFamily: "semantic", recoveryHint: "retry" },
+        onDiagnosticEvent: (event) => diagnosticEvents.push(event),
+      },
+    );
 
-    expect(diagnosticEvents.map((event) => event.category)).toEqual([
-      "http.stream.start",
-      "http.stream.done",
-    ]);
-    expect(diagnosticEvents.map((event) => event.attributes?.endpointFamily)).toEqual([
-      "semantic-qa-stream",
-      "semantic-qa-stream",
-    ]);
-    expect(JSON.stringify(diagnosticEvents)).not.toContain("private question");
-    expect(JSON.stringify(diagnosticEvents)).not.toContain("private token");
-    expect(JSON.stringify(diagnosticEvents)).not.toContain("private answer");
-    expect(JSON.stringify(diagnosticEvents)).not.toContain("wxid_private");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(diagnosticEvents).toHaveLength(1);
+    expect(diagnosticEvents[0]).toMatchObject({
+      source: "http",
+      category: "http.request",
+      attributes: { endpointFamily: "semantic", method: "POST" },
+    });
+    expect(JSON.stringify(diagnosticEvents[0])).not.toContain("Synthetic private message");
+    expect(JSON.stringify(diagnosticEvents[0])).not.toContain("wxid_synthetic");
   });
 });

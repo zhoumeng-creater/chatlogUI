@@ -16,7 +16,7 @@ export interface ConnectionTestResultView {
 export async function testLLMConnection(
   provider: string,
   config: Record<string, string>,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<ConnectionTestResultView> {
   const startTime = Date.now();
 
@@ -24,8 +24,8 @@ export async function testLLMConnection(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider, ...config }),
-    ...withRequestDiagnostics(requestOptions, {
-      endpointFamily: "semantic-test",
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "semantic",
       method: "POST",
     }),
   });

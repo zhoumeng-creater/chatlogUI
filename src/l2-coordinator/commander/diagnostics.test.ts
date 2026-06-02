@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildDiagnosticsReport,
-  formatDiagnosticsExportError,
-  serializeDiagnosticsReport,
-} from "./diagnostics";
+import { buildDiagnosticsReport, serializeDiagnosticsReport } from "./diagnostics";
 
 describe("diagnostics report model", () => {
   it("builds a redacted report and fails closed when redaction cannot be proven", () => {
@@ -60,6 +56,9 @@ describe("diagnostics report model", () => {
         warningsOrErrors: 2,
         redactedOrBlocked: 1,
         sources: "http, sidecar",
+        levels: "warn: 2",
+        privacyStates: "safe: 3, redacted: 1",
+        endpointFamilies: "db: 2, sidecar: 2",
         latestSummary: "GET db failed with HTTP 503",
       },
     });
@@ -71,40 +70,79 @@ describe("diagnostics report model", () => {
     expect(text).toContain("Diagnostic warnings/errors: 2");
     expect(text).toContain("Diagnostic redacted/blocked: 1");
     expect(text).toContain("Diagnostic sources: http, sidecar");
+    expect(text).toContain("Diagnostic levels: warn: 2");
+    expect(text).toContain("Diagnostic privacy states: safe: 3, redacted: 1");
+    expect(text).toContain("Diagnostic endpoint families: db: 2, sidecar: 2");
     expect(text).toContain("Latest diagnostic event: GET db failed with HTTP 503");
   });
 
-  it("allows key presence summaries without treating missing or present as raw secrets", () => {
+  it("fails closed or redacts advanced raw diagnostic payload labels", () => {
     const report = buildDiagnosticsReport({
       privacyOn: true,
       items: [
-        { label: "Data key", value: "missing" },
-        { label: "Image key", value: "present" },
-        { label: "HTTP ready", value: false },
+        { label: "Request query", value: "keyword=synthetic-private-message-should-be-redacted&chat=wxid_private" },
+        { label: "SQL", value: "select * from message where content='synthetic-private-message-should-be-redacted'" },
+        { label: "Raw response", value: "{\"content\":\"synthetic-private-message-should-be-redacted\"}" },
+        { label: "SNS proxy URL", value: "http://127.0.0.1:5030/api/v1/sns/media/proxy?url=https://sns.example/private.jpg" },
+        { label: "Media key", value: "synthetic-media-key" },
       ],
     });
 
     const text = serializeDiagnosticsReport(report);
 
     expect(report.redactionOk).toBe(true);
-    expect(text).toContain("Data key: missing");
-    expect(text).toContain("Image key: present");
+    expect(text).not.toContain("synthetic-private-message");
+    expect(text).not.toContain("wxid_private");
+    expect(text).not.toContain("select * from message");
+    expect(text).not.toContain("sns.example/private.jpg");
+    expect(text).not.toContain("synthetic-media-key");
   });
 
-  it("formats export failures with a specific safe reason", () => {
-    expect(
-      formatDiagnosticsExportError(
-        new Error("诊断报告仍包含敏感信息，已阻止导出。"),
-      ),
-    ).toBe("诊断导出被隐私保护阻止：诊断报告仍包含敏感信息，已阻止导出。");
+  it("adds diagnostics manifest 2.0 fields and redacts manifest paths", () => {
+    const report = buildDiagnosticsReport({
+      privacyOn: true,
+      manifest: {
+        appVersion: "0.1.0",
+        buildChannel: "dev",
+        updaterEnabled: false,
+        platform: "windows",
+        architecture: "x64",
+        packageReadiness: "not checked",
+        backendBaseUrl: "http://127.0.0.1:5030",
+        sidecarState: "running",
+        portState: "available",
+        httpReady: true,
+        dbReady: false,
+        setupMode: "managed",
+        configSource: "C:\\Users\\Alice\\WeChat Files\\wxid_private",
+        updateStatus: "idle",
+        releaseSmoke: "not run",
+        redactionState: "passed",
+      },
+      items: [],
+      diagnosticEventsSummary: {
+        total: 2,
+        warningsOrErrors: 1,
+        redactedOrBlocked: 0,
+        sources: "http, updater",
+        levels: "info: 1, warn: 1",
+        privacyStates: "safe: 2",
+        endpointFamilies: "db: 1, updater: 1",
+        latestSummary: "GET db failed with HTTP 503",
+      },
+    });
 
-    const filesystemMessage = formatDiagnosticsExportError(
-      new Error("failed to write C:\\Users\\Alice\\WeChat Files\\wxid_private\\diag.txt"),
-    );
+    const text = serializeDiagnosticsReport(report);
 
-    expect(filesystemMessage).toContain("诊断导出写入失败");
-    expect(filesystemMessage).toContain("[redacted-path]");
-    expect(filesystemMessage).not.toContain("Alice");
-    expect(filesystemMessage).not.toContain("wxid_private");
+    expect(report.redactionOk).toBe(true);
+    expect(text).toContain("Export manifest version: 2.0");
+    expect(text).toContain("App version: 0.1.0");
+    expect(text).toContain("Build channel: dev");
+    expect(text).toContain("Updater enabled: false");
+    expect(text).toContain("Backend base URL: http://127.0.0.1:5030");
+    expect(text).toContain("Update status: idle");
+    expect(text).toContain("Diagnostic endpoint families: db: 1, updater: 1");
+    expect(text).not.toContain("Alice");
+    expect(text).not.toContain("wxid_private");
   });
 });

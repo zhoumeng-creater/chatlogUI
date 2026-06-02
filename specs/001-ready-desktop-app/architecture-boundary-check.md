@@ -89,7 +89,15 @@ Remaining L3 commander/store exceptions are explicit staged debt rather than a c
 | --- | --- | --- | --- |
 | Semantic module root | `src/l3-molecule/semantic/AiPanel.tsx` | Accepted P2-D module-root bridge. Leaf semantic components receive props. | Move orchestration into an L2/L1 container if semantic module roots must become pure molecules. |
 | Graph module root | `src/l3-molecule/graph/GraphModule.tsx` | Accepted P2-D module-root bridge. Graph leaf panels/canvas receive props. | Move graph orchestration into an L2/L1 container if graph module roots must become pure molecules. |
-| Dev console shell tool | `src/l3-molecule/common/DevConsole.tsx` | Uses `useDevConsoleCommander()` directly as an existing shell tool. | Split into an L2 container plus presentational console view. |
+| Dev console shell tool | `src/l3-molecule/common/DevConsole.tsx` | P4/P5-0 and P4-A split this into a props-driven view. `useDevConsoleCommander()` owns state/actions in L2. | Keep new diagnostics additions in the same L2 commander + props view shape. |
 | Setup workflow molecules | `SetupModeChooser`, `ConfigImportPanel`, `ManualAdvancedConfigPanel`, `ServiceControlPanel`, `ReadinessChecklist`, `DiagnosticPanel`, `SetupStepper` | Existing setup components still read setup commanders/stores in localized places. | Route all setup state/actions through `useSetupCenterCommander()` and pass props into setup leaves. |
 | Chat/search legacy roots | `ChatView`, `ConversationList`, `MessageList`, `SearchResults`, `GlobalSearch` | Existing chat/search roots still bridge L2 state. They do not call raw network atoms. | Future P2-F/P3 cleanup: split each root into L2 container + props-only L3 views. |
 | Type-only shell imports | `StatusBar.tsx`, `ReadinessStatePanel.tsx` | Uses L2 types/helpers for shell display compatibility. | Move stable display types/helpers to neutral local UI/domain modules if global props-only L3 enforcement becomes required. |
+
+## 2026-06-02 P4-A Diagnostics Boundary Scan
+
+- `rg -n "@l4/network|@/l4-atom/network|fetch\(|EventSource|WebSocket|axios" src\l1-entry src\l3-molecule`: no matches. P4-A diagnostics surfaces did not introduce raw network access in L1/L3.
+- `rg -n "@l2|l2-coordinator|zustand" src\l4-atom\system src\l4-atom\network`: no matches. L4 network/system atoms remain independent while exposing optional diagnostics callbacks/options.
+- `rg -n "@l2|l2-coordinator|useDiagnosticEventStore|useDevConsoleStore" src\l3-molecule\common\DevConsole.tsx`: no matches. DevConsole 2.0 remains a props-driven L3 view.
+- P4-A records diagnostic events through `src/l2-coordinator/commander/diagnosticEventBridge.ts` and constructs diagnostics export manifest lines through `src/l2-coordinator/commander/diagnosticsManifest.ts`.
+- P4-A did not broaden Tauri CSP/capabilities, did not alter sidecar launch/bind-address behavior, and did not change the Rust diagnostics export payload shape.

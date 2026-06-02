@@ -1200,7 +1200,7 @@
 
 .dev-console {
   display: flex;
-  height: 360px;
+  height: 280px;
   flex-direction: column;
   overflow: hidden;
   border-top: 1px solid var(--border-subtle);
@@ -1261,14 +1261,6 @@
   color: var(--text-secondary);
 }
 
-.dev-console__checkbox {
-  min-height: 28px;
-}
-
-.dev-console__checkbox input {
-  margin: 0;
-}
-
 .dev-console__filters select {
   min-height: 28px;
   border: 1px solid var(--border-subtle);
@@ -1278,9 +1270,12 @@
   font-size: 12px;
 }
 
+.dev-console__checkbox input {
+  margin: 0;
+}
+
 .dev-console__body {
-  flex: 1 1 96px;
-  min-height: 72px;
+  flex: 1;
   overflow: auto;
   padding: 6px 12px;
   font-family: "Cascadia Code", "Consolas", monospace;
@@ -1290,23 +1285,24 @@
 
 .dev-console__line {
   width: 100%;
+  min-height: 28px;
   border: 0;
   border-radius: var(--radius-sm);
+  padding: 2px 4px;
   background: transparent;
   color: inherit;
-  cursor: pointer;
   font: inherit;
   text-align: left;
+  cursor: pointer;
 }
 
 .dev-console__line:hover,
-.dev-console__line--selected {
+.dev-console__line[aria-pressed="true"] {
   background: var(--surface-subtle);
 }
 
-.dev-console__line:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 56%, transparent);
-  outline-offset: 2px;
+.dev-console__line--failed {
+  box-shadow: inset 2px 0 0 var(--danger);
 }
 
 .dev-console__time,
@@ -1349,26 +1345,29 @@
 }
 
 .dev-console__endpoint {
-  max-width: 96px;
+  width: 78px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.dev-console__status-code,
-.dev-console__duration {
-  width: 48px;
+.dev-console__status-code {
+  width: 38px;
 }
 
-.dev-console__recovery {
-  width: 72px;
+.dev-console__duration {
+  width: 58px;
 }
 
 .dev-console__category {
-  width: 132px;
+  width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dev-console__recovery {
+  width: 76px;
 }
 
 .dev-console__message {
@@ -1378,36 +1377,26 @@
 }
 
 .dev-console__detail {
-  flex: 0 1 auto;
-  max-height: 180px;
+  max-height: 118px;
   overflow: auto;
   border-top: 1px solid var(--border-subtle);
-  padding: 8px 12px 10px;
+  padding: 8px 12px;
   background: var(--surface-base);
 }
 
 .dev-console__detail-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.dev-console__detail-summary {
-  margin-top: 4px;
-  overflow-wrap: anywhere;
-  color: var(--text-primary);
-  font-family: "Cascadia Code", "Consolas", monospace;
-  font-size: 12px;
 }
 
 .dev-console__detail-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px 12px;
-  margin: 8px 0 0;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 4px 10px;
+  margin: 6px 0 0;
+  font-size: 12px;
 }
 
 .dev-console__detail-grid div {
@@ -1416,7 +1405,6 @@
 
 .dev-console__detail-grid dt {
   color: var(--text-muted);
-  font-size: 11px;
 }
 
 .dev-console__detail-grid dd {
@@ -1424,12 +1412,11 @@
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--text-primary);
-  font-size: 12px;
 }
 
 @media (max-width: 640px) {
   .dev-console {
-    height: min(480px, calc(100vh - 120px));
+    height: 340px;
   }
 
   .dev-console__header,
@@ -1445,12 +1432,11 @@
     flex-wrap: wrap;
   }
 
-  .dev-console__detail-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dev-console__detail {
-    max-height: 170px;
+  .dev-console__endpoint,
+  .dev-console__category,
+  .dev-console__recovery {
+    width: auto;
+    max-width: 100%;
   }
 }
 

@@ -27,23 +27,29 @@ export function normalizeServiceBaseUrl(value: string): string {
 
 export async function fetchHealth(
   baseUrl: string,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<boolean> {
   const result = await requestJson<HealthResponse>(`${normalizeServiceBaseUrl(baseUrl)}/health`, {
     timeoutMs: 5000,
-    ...withRequestDiagnostics(requestOptions, { endpointFamily: "health" }),
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "health",
+      method: "GET",
+    }),
   });
   return result.status === "ok" || result.ok === true;
 }
 
 export async function fetchDbReadiness(
   baseUrl: string,
-  requestOptions?: RequestDiagnosticsOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<DbReadiness> {
   try {
     await requestJson(`${normalizeServiceBaseUrl(baseUrl)}/api/v1/db`, {
       timeoutMs: 10000,
-      ...withRequestDiagnostics(requestOptions, { endpointFamily: "db-readiness" }),
+      ...withRequestDiagnostics(diagnosticOptions, {
+        endpointFamily: "db",
+        method: "GET",
+      }),
     });
     return { ready: true, status: "ready", message: "数据库就绪" };
   } catch (error) {

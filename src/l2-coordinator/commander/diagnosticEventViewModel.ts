@@ -10,16 +10,6 @@ import type { LogEntry, LogLevel } from "@l2/data-clerk/stores/useDevConsoleStor
 
 export type { DiagnosticEventFilters };
 
-export interface DiagnosticConsoleDetailRow {
-  label: string;
-  value: string;
-}
-
-export interface DiagnosticConsoleOption {
-  value: string;
-  label: string;
-}
-
 export interface DiagnosticConsoleRow {
   id: string;
   timestamp: string;
@@ -28,13 +18,18 @@ export interface DiagnosticConsoleRow {
   privacy: DiagnosticEventPrivacy;
   category: string;
   summary: string;
-  endpointFamily?: string;
-  statusLabel?: string;
-  durationLabel?: string;
+  endpointFamily: string;
+  statusLabel: string;
+  durationLabel: string;
   recoveryLabel: string;
   isFailed: boolean;
   detailRows: DiagnosticConsoleDetailRow[];
   attributes?: Record<string, string | number | boolean | null>;
+}
+
+export interface DiagnosticConsoleDetailRow {
+  label: string;
+  value: string;
 }
 
 export interface DiagnosticConsoleCounts {
@@ -49,11 +44,16 @@ export interface DiagnosticEventViewModel {
   rows: DiagnosticConsoleRow[];
   counts: DiagnosticConsoleCounts;
   filters: DiagnosticEventFilters;
-  endpointOptions: DiagnosticConsoleOption[];
-  timeRangeOptions: DiagnosticConsoleOption[];
+  endpointOptions: DiagnosticFilterOption[];
+  timeRangeOptions: DiagnosticFilterOption[];
   hasActiveFilters: boolean;
   emptyMessage: string;
   activeEmptyMessage: string;
+}
+
+export interface DiagnosticFilterOption {
+  value: string;
+  label: string;
 }
 
 export interface DiagnosticReportEventSummary {
@@ -76,26 +76,29 @@ export function buildDiagnosticEventViewModel(input: {
   const logRows = input.logs.map(toSidecarRow);
   const eventRows = input.events.map(toEventRow);
   const allRows = [...logRows, ...eventRows];
-  const rows = allRows.filter((row) => matchesFilters(row, input.filters, input.now));
+  const now = input.now ?? new Date();
+  const rows = allRows.filter((row) => matchesFilters(row, input.filters, now));
 
   return {
     rows,
     counts: {
-      total: allRows.length,
+      total: input.logs.length + input.events.length,
       sidecarLogs: input.logs.length,
       diagnosticEvents: input.events.length,
-      warningsOrErrors: allRows.filter((row) => isWarningOrError(row)).length,
+      warningsOrErrors: allRows.filter((row) =>
+        row.level === "warn" || row.level === "error"
+      ).length,
       redactedOrBlocked: allRows.filter((row) =>
         row.privacy === "redacted" || row.privacy === "blocked"
       ).length,
     },
     filters: input.filters,
-    endpointOptions: buildEndpointOptions(eventRows),
+    endpointOptions: buildEndpointOptions(allRows),
     timeRangeOptions: [
       { value: "all", label: "全部时间" },
       { value: "last15m", label: "最近 15 分钟" },
       { value: "last1h", label: "最近 1 小时" },
-      { value: "session", label: "本次会话" },
+      { value: "session", label: "当前会话" },
     ],
     hasActiveFilters: hasActiveFilters(input.filters),
     emptyMessage: "暂无诊断事件或 Sidecar 日志。",
@@ -121,43 +124,42 @@ export function summarizeDiagnosticEventsForReport(
     levels: summarizeCounts(events.map((event) => event.level)),
     privacyStates: summarizeCounts(events.map((event) => event.privacy)),
     endpointFamilies: summarizeCounts(events.map((event) =>
-      getEndpointFamily(event) ?? event.source
+      readStringAttribute(event, "endpointFamily") ?? event.source
     )),
     latestSummary: latest?.summary ?? "-",
   };
 }
 
 function toSidecarRow(log: LogEntry): DiagnosticConsoleRow {
-  const level = mapLogLevel(log.level);
   return {
     id: `log-${log.id}`,
     timestamp: log.time,
     source: "sidecar",
-    level,
+    level: mapLogLevel(log.level),
     privacy: "safe",
     category: `sidecar.${log.level}`,
     summary: log.message,
-    recoveryLabel: getRecoveryLabel("check-service"),
-    isFailed: level === "error",
+    endpointFamily: "sidecar",
+    statusLabel: "-",
+    durationLabel: "-",
+    recoveryLabel: "无",
+    isFailed: log.level === "stderr" || log.level === "error",
     detailRows: [
       { label: "Source", value: "sidecar" },
-      { label: "Level", value: level },
-      { label: "Privacy", value: "safe" },
+      { label: "Level", value: mapLogLevel(log.level) },
+      { label: "Category", value: `sidecar.${log.level}` },
     ],
   };
 }
 
 function toEventRow(event: DiagnosticEvent): DiagnosticConsoleRow {
-  const endpointFamily = getEndpointFamily(event);
-  const status = getNumericAttribute(event, "status");
-  const durationMs = getNumericAttribute(event, "durationMs");
-  const recoveryLabel = getRecoveryLabel(event.recoveryHint);
-  const detailRows = buildDetailRows(event, {
-    endpointFamily,
-    status,
-    durationMs,
-    recoveryLabel,
-  });
+  const endpointFamily = readStringAttribute(event, "endpointFamily") ?? event.source;
+  const status = readNumberAttribute(event, "status");
+  const durationMs = readNumberAttribute(event, "durationMs");
+  const isFailed =
+    event.level === "warn" ||
+    event.level === "error" ||
+    (typeof status === "number" && status >= 400);
 
   return {
     id: event.id,
@@ -168,46 +170,13 @@ function toEventRow(event: DiagnosticEvent): DiagnosticConsoleRow {
     category: event.category,
     summary: event.summary,
     endpointFamily,
-    statusLabel: status === undefined ? undefined : String(status),
-    durationLabel: durationMs === undefined ? undefined : `${durationMs}ms`,
-    recoveryLabel,
-    isFailed: isEventFailed(event, status),
-    detailRows,
+    statusLabel: typeof status === "number" ? String(status) : "-",
+    durationLabel: typeof durationMs === "number" ? `${durationMs} ms` : "-",
+    recoveryLabel: getRecoveryLabel(event.recoveryHint),
+    isFailed,
+    detailRows: buildDetailRows(event, endpointFamily),
     attributes: event.attributes,
   };
-}
-
-function buildDetailRows(
-  event: DiagnosticEvent,
-  metadata: {
-    endpointFamily?: string;
-    status?: number;
-    durationMs?: number;
-    recoveryLabel: string;
-  },
-): DiagnosticConsoleDetailRow[] {
-  const rows: DiagnosticConsoleDetailRow[] = [
-    { label: "Source", value: event.source },
-    { label: "Level", value: event.level },
-    { label: "Privacy", value: event.privacy },
-    { label: "Category", value: event.category },
-  ];
-
-  if (metadata.endpointFamily) {
-    rows.push({ label: "Endpoint", value: metadata.endpointFamily });
-  }
-  if (metadata.status !== undefined) {
-    rows.push({ label: "Status", value: String(metadata.status) });
-  }
-  if (metadata.durationMs !== undefined) {
-    rows.push({ label: "Duration", value: `${metadata.durationMs}ms` });
-  }
-  rows.push({ label: "Recovery", value: metadata.recoveryLabel });
-  if (event.correlationId) {
-    rows.push({ label: "Correlation", value: event.correlationId });
-  }
-
-  return rows;
 }
 
 function mapLogLevel(level: LogLevel): DiagnosticEventLevel {
@@ -218,7 +187,7 @@ function mapLogLevel(level: LogLevel): DiagnosticEventLevel {
 function matchesFilters(
   row: DiagnosticConsoleRow,
   filters: DiagnosticEventFilters,
-  now: Date = new Date(),
+  now: Date,
 ): boolean {
   if (filters.source !== "all" && row.source !== filters.source) return false;
   if (filters.level !== "all" && row.level !== filters.level) return false;
@@ -231,25 +200,10 @@ function matchesFilters(
   return true;
 }
 
-function matchesTimeRange(
-  timestamp: string,
-  timeRange: DiagnosticEventFilters["timeRange"],
-  now: Date,
-): boolean {
-  if (timeRange === "all" || timeRange === "session") return true;
-
-  const eventTime = new Date(timestamp).getTime();
-  if (Number.isNaN(eventTime)) return false;
-
-  const windowMs = timeRange === "last15m" ? 15 * 60_000 : 60 * 60_000;
-  const ageMs = now.getTime() - eventTime;
-  return ageMs >= 0 && ageMs <= windowMs;
-}
-
-function buildEndpointOptions(rows: DiagnosticConsoleRow[]): DiagnosticConsoleOption[] {
-  const endpointFamilies = Array.from(
-    new Set(rows.map((row) => row.endpointFamily).filter(Boolean) as string[]),
-  ).sort();
+function buildEndpointOptions(rows: DiagnosticConsoleRow[]): DiagnosticFilterOption[] {
+  const endpointFamilies = Array.from(new Set(rows.map((row) => row.endpointFamily)))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 
   return [
     { value: "all", label: "全部端点" },
@@ -271,20 +225,67 @@ function hasActiveFilters(filters: DiagnosticEventFilters): boolean {
   );
 }
 
-function isWarningOrError(row: DiagnosticConsoleRow): boolean {
-  return row.level === "warn" || row.level === "error";
+function matchesTimeRange(
+  timestamp: string,
+  timeRange: DiagnosticEventFilters["timeRange"],
+  now: Date,
+): boolean {
+  if (timeRange === "all" || timeRange === "session") return true;
+
+  const timestampMs = Date.parse(timestamp);
+  if (Number.isNaN(timestampMs)) return false;
+
+  const windowMs = timeRange === "last15m" ? 15 * 60 * 1000 : 60 * 60 * 1000;
+  return timestampMs >= now.getTime() - windowMs && timestampMs <= now.getTime();
 }
 
-function isEventFailed(event: DiagnosticEvent, status: number | undefined): boolean {
-  return event.level === "warn" || event.level === "error" || (status ?? 0) >= 400;
+function buildDetailRows(
+  event: DiagnosticEvent,
+  endpointFamily: string,
+): DiagnosticConsoleDetailRow[] {
+  const rows: DiagnosticConsoleDetailRow[] = [
+    { label: "Source", value: event.source },
+    { label: "Level", value: event.level },
+    { label: "Privacy", value: event.privacy },
+    { label: "Category", value: event.category },
+    { label: "Endpoint", value: endpointFamily },
+  ];
+
+  const status = readNumberAttribute(event, "status");
+  const durationMs = readNumberAttribute(event, "durationMs");
+  if (typeof status === "number") rows.push({ label: "Status", value: String(status) });
+  if (typeof durationMs === "number") {
+    rows.push({ label: "Duration", value: `${durationMs} ms` });
+  }
+  if (event.recoveryHint) {
+    rows.push({ label: "Recovery", value: getRecoveryLabel(event.recoveryHint) });
+  }
+  if (event.correlationId) {
+    rows.push({ label: "Correlation", value: event.correlationId });
+  }
+
+  for (const [key, value] of Object.entries(event.attributes ?? {})) {
+    if (key === "endpointFamily" || key === "status" || key === "durationMs") {
+      continue;
+    }
+    rows.push({ label: formatAttributeLabel(key), value: String(value) });
+  }
+
+  return rows;
 }
 
-function getEndpointFamily(event: DiagnosticEvent): string | undefined {
-  const value = event.attributes?.endpointFamily;
-  return typeof value === "string" && value ? value : undefined;
+function readStringAttribute(
+  event: DiagnosticEvent,
+  key: string,
+): string | undefined {
+  const value = event.attributes?.[key];
+  return typeof value === "string" ? value : undefined;
 }
 
-function getNumericAttribute(event: DiagnosticEvent, key: string): number | undefined {
+function readNumberAttribute(
+  event: DiagnosticEvent,
+  key: string,
+): number | undefined {
   const value = event.attributes?.[key];
   return typeof value === "number" ? value : undefined;
 }
@@ -297,15 +298,18 @@ function getRecoveryLabel(hint: DiagnosticRecoveryHint | undefined): string {
   return "无";
 }
 
+function formatAttributeLabel(key: string): string {
+  return key.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
+}
+
 function summarizeCounts(values: string[]): string {
-  if (values.length === 0) return "-";
-  const counts = values.reduce<Record<string, number>>((result, value) => {
-    result[value] = (result[value] ?? 0) + 1;
-    return result;
+  const counts = values.reduce<Record<string, number>>((acc, value) => {
+    acc[value] = (acc[value] ?? 0) + 1;
+    return acc;
   }, {});
 
-  return Object.entries(counts)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([value, count]) => `${value}: ${count}`)
-    .join(", ");
+  const entries = Object.entries(counts).sort(([a], [b]) => a.localeCompare(b));
+  return entries.length > 0
+    ? entries.map(([value, count]) => `${value}: ${count}`).join(", ")
+    : "-";
 }

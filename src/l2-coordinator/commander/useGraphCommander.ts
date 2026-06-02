@@ -14,10 +14,10 @@ import type {
 import { deriveGraphModuleView } from "./graphViewModel";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
-function createGraphDiagnostics(correlationId: string) {
+function graphDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
     endpointFamily: "graph",
-    correlationId,
+    method,
     recoveryHint: "retry",
   });
 }
@@ -28,7 +28,7 @@ export function useGraphCommander() {
   const loadGraph = useCallback(async (params: VisualizeParams = {}) => {
     useGraphStore.setState({ loading: true, error: null });
     try {
-      const data = await fetchGraphVisualize(params, createGraphDiagnostics("graph-visualize"));
+      const data = await fetchGraphVisualize(params, graphDiagnostics());
       useGraphStore.getState().setVisualize(data as unknown as GraphVisualizeView);
     } catch (error) {
       useGraphStore.getState().setError(
@@ -39,7 +39,7 @@ export function useGraphCommander() {
 
   const refreshStatus = useCallback(async () => {
     try {
-      const status = await fetchGraphStatus(createGraphDiagnostics("graph-status"));
+      const status = await fetchGraphStatus(graphDiagnostics());
       useGraphStore.getState().setStatusSummary(status as unknown as GraphStatusView | null);
     } catch (error) {
       useGraphStore.getState().setError(
@@ -50,7 +50,7 @@ export function useGraphCommander() {
 
   const loadGraphTimeline = useCallback(async (params: VisualizeParams = {}) => {
     try {
-      const timeline = await fetchGraphTimeline(params, createGraphDiagnostics("graph-timeline"));
+      const timeline = await fetchGraphTimeline(params, graphDiagnostics());
       useGraphStore.getState().setTimeline(timeline);
     } catch {
       useGraphStore.getState().setTimeline(null);
@@ -61,8 +61,8 @@ export function useGraphCommander() {
     useGraphStore.setState({ loading: true, error: null, visualizationRequested: false });
     try {
       const [status, visualize] = await Promise.all([
-        fetchGraphStatus(createGraphDiagnostics("graph-summary-status")),
-        fetchGraphVisualize(params, createGraphDiagnostics("graph-summary-visualize")),
+        fetchGraphStatus(graphDiagnostics()),
+        fetchGraphVisualize(params, graphDiagnostics()),
       ]);
       const graphStore = useGraphStore.getState();
       graphStore.setStatusSummary(status as unknown as GraphStatusView | null);
@@ -97,7 +97,7 @@ export function useGraphCommander() {
 
   const runGraphAction = useCallback(async (action: "rebuild" | "pause" | "resume") => {
     try {
-      const result = await manageGraph(action, createGraphDiagnostics(`graph-${action}`));
+      const result = await manageGraph(action, graphDiagnostics("POST"));
       useGraphStore.getState().setActionStatus(result);
       await refreshStatus();
     } catch (error) {
