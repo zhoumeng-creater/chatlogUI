@@ -1,5 +1,9 @@
 import { AI_BASE_URL, SEMANTIC_SEARCH_DEFAULT_LIMIT } from '@/utils/constants';
-import { requestJson } from "./httpClient";
+import {
+  requestJson,
+  withRequestDiagnostics,
+  type RequestDiagnosticsOptions,
+} from "./httpClient";
 import {
   adaptSemanticSearch,
   type SemanticSearchResultSet,
@@ -13,7 +17,8 @@ export interface SemanticSearchRequestInput {
 }
 
 export async function fetchSemanticSearch(
-  params: SemanticSearchRequestInput
+  params: SemanticSearchRequestInput,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticSearchResultSet> {
   const { query, limit = SEMANTIC_SEARCH_DEFAULT_LIMIT, chat } = params;
   const url = new URL(`${AI_BASE_URL}/api/v1/semantic/search`);
@@ -21,6 +26,12 @@ export async function fetchSemanticSearch(
   url.searchParams.set('limit', String(limit));
   if (chat) url.searchParams.set('chat', chat);
 
-  const data = await requestJson(url.toString(), { timeoutMs: 30000 });
+  const data = await requestJson(url.toString(), {
+    timeoutMs: 30000,
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "semantic",
+      method: "GET",
+    }),
+  });
   return adaptSemanticSearch(data);
 }

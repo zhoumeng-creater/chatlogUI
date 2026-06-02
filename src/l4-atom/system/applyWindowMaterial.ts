@@ -3,12 +3,19 @@ import { canInvokeTauriCommand } from "./tauriRuntime";
 
 type WindowMaterial = "mica" | "acrylic" | "vibrancy" | "none";
 
-export async function applyWindowMaterial(material: WindowMaterial): Promise<void> {
+interface ApplyWindowMaterialOptions {
+  onFailure?: (failure: { material: WindowMaterial; error: unknown }) => void;
+}
+
+export async function applyWindowMaterial(
+  material: WindowMaterial,
+  options: ApplyWindowMaterialOptions = {},
+): Promise<void> {
   if (!canInvokeTauriCommand()) return;
 
   try {
     await invoke("apply_window_material", { material });
   } catch (error) {
-    console.error("Failed to apply window material:", error);
+    options.onFailure?.({ material, error });
   }
 }

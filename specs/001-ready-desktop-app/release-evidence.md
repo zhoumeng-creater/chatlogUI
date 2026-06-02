@@ -29,6 +29,20 @@ This file is the redaction-safe evidence template for release readiness. Do not 
 | Privacy redaction | Passed | P2-C/P2-E automated redaction tests pass; real packaged diagnostics artifact was exported and manually scanned for raw synthetic key, private text, and full user profile path leakage |
 | Caveats | Passed with note | The smoke used synthetic local data and did not include real private WeChat content; macOS packaging remains a separate follow-up |
 
+## 2026-06-02 P4-A Diagnostics And Privacy Mode 2.0 Source Evidence
+
+This section records source/UI evidence for the advanced diagnostics/privacy upgrade. It does not replace the 2026-06-01 packaged Windows x64 release gate and does not claim a new packaged artifact was built or rerun for P4-A.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Production diagnostics wiring | Passed | L2 `diagnosticEventBridge` wires store-backed safe callbacks into production core, semantic, graph, readiness/status, update, Tauri/UI, export, and semantic QA SSE paths. L4 atoms still receive only optional diagnostics callbacks/options. |
+| DevConsole 2.0 | Passed | Workbench DevConsole now has source, level, privacy, endpoint, time, and failed-only filters; status/duration/recovery labels; and a safe detail panel. |
+| Manifest 2.0 export lines | Passed | Diagnostics reports now include manifest version, app/build/update/platform/package/backend/sidecar/readiness/setup/release/redaction summaries as safe line-based output through the existing fail-closed export path. |
+| Privacy redaction expansion | Passed | JS tests cover media keys/paths, SNS proxy query values, SQL, request query/body labels, raw response/body labels, local identity paths, credentials, tokens, and synthetic private message markers. |
+| Browser UI evidence | Passed | Vite plus cached Chromium DevTools Protocol checked `/workbench?codex-smoke=workbench-ready` and `/settings` at `1440x900` and `390x820`: no page-level overflow, no visible synthetic/private marker strings, and no sub-28px visible button targets after the DevConsole row min-height fix. |
+| Final frontend verification | Passed | `pnpm lint`, `pnpm typecheck`, `pnpm test` (47 files / 241 tests), `pnpm build`, and `pnpm verify` passed on 2026-06-02. `git diff --check` returned no whitespace errors, only CRLF normalization warnings. |
+| Rust/Tauri scope | Not changed | P4-A did not change Rust export payload shape, Tauri CSP, Tauri capabilities, sidecar startup, sidecar bind address, or backend contract; no new packaged artifact was produced for this source/UI evidence slice. |
+
 ## No-Terminal Launch Cases
 
 | Case | Expected Result | Evidence |

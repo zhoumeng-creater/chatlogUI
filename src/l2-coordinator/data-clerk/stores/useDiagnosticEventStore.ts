@@ -12,11 +12,16 @@ const MAX_DIAGNOSTIC_EVENTS = 1000;
 export type DiagnosticSourceFilter = "all" | DiagnosticEventSource | "sidecar";
 export type DiagnosticLevelFilter = "all" | DiagnosticEventLevel;
 export type DiagnosticPrivacyFilter = "all" | DiagnosticEventPrivacy;
+export type DiagnosticEndpointFamilyFilter = "all" | string;
+export type DiagnosticTimeRangeFilter = "all" | "last15m" | "last1h" | "session";
 
 export interface DiagnosticEventFilters {
   source: DiagnosticSourceFilter;
   level: DiagnosticLevelFilter;
   privacy: DiagnosticPrivacyFilter;
+  endpointFamily: DiagnosticEndpointFamilyFilter;
+  failedOnly: boolean;
+  timeRange: DiagnosticTimeRangeFilter;
 }
 
 export interface DiagnosticEventState {
@@ -39,6 +44,9 @@ export const useDiagnosticEventStore = create<DiagnosticEventStore>((set) => ({
     source: "all",
     level: "all",
     privacy: "all",
+    endpointFamily: "all",
+    failedOnly: false,
+    timeRange: "all",
   },
 
   addEvent: (event) =>

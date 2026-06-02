@@ -1270,6 +1270,10 @@
   font-size: 12px;
 }
 
+.dev-console__checkbox input {
+  margin: 0;
+}
+
 .dev-console__body {
   flex: 1;
   overflow: auto;
@@ -1279,10 +1283,36 @@
   line-height: 18px;
 }
 
+.dev-console__line {
+  width: 100%;
+  min-height: 28px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dev-console__line:hover,
+.dev-console__line[aria-pressed="true"] {
+  background: var(--surface-subtle);
+}
+
+.dev-console__line--failed {
+  box-shadow: inset 2px 0 0 var(--danger);
+}
+
 .dev-console__time,
 .dev-console__source,
 .dev-console__level,
 .dev-console__privacy,
+.dev-console__endpoint,
+.dev-console__status-code,
+.dev-console__duration,
+.dev-console__recovery,
 .dev-console__category {
   flex: 0 0 auto;
   color: var(--text-muted);
@@ -1314,17 +1344,74 @@
   color: var(--danger);
 }
 
-.dev-console__category {
-  width: 132px;
+.dev-console__endpoint {
+  width: 78px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dev-console__status-code {
+  width: 38px;
+}
+
+.dev-console__duration {
+  width: 58px;
+}
+
+.dev-console__category {
+  width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dev-console__recovery {
+  width: 76px;
 }
 
 .dev-console__message {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--text-secondary);
+}
+
+.dev-console__detail {
+  max-height: 118px;
+  overflow: auto;
+  border-top: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  background: var(--surface-base);
+}
+
+.dev-console__detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.dev-console__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 4px 10px;
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.dev-console__detail-grid div {
+  min-width: 0;
+}
+
+.dev-console__detail-grid dt {
+  color: var(--text-muted);
+}
+
+.dev-console__detail-grid dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
 }
 
 @media (max-width: 640px) {
@@ -1343,6 +1430,13 @@
 
   .dev-console__line {
     flex-wrap: wrap;
+  }
+
+  .dev-console__endpoint,
+  .dev-console__category,
+  .dev-console__recovery {
+    width: auto;
+    max-width: 100%;
   }
 }
 

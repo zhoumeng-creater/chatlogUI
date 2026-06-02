@@ -1,4 +1,10 @@
-export { requestJson, ChatlogHttpError, withJsonFormat } from "./httpClient";
+export {
+  requestJson,
+  ChatlogHttpError,
+  withJsonFormat,
+  withRequestDiagnostics,
+} from "./httpClient";
+export type { RequestDiagnosticsOptions } from "./httpClient";
 export {
   createDiagnosticEvent,
   createHttpDiagnosticEvent,
@@ -11,6 +17,7 @@ export type {
   DiagnosticEventAttributes,
   DiagnosticEventLevel,
   DiagnosticEventPrivacy,
+  DiagnosticRecoveryHint,
   DiagnosticEventSource,
 } from "./diagnosticEvents";
 export { fetchDbStatus } from "./fetchDbStatus";

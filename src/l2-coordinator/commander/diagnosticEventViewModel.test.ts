@@ -24,14 +24,17 @@ const logs: LogEntry[] = [
 const events: DiagnosticEvent[] = [
   {
     id: "http-1",
-    timestamp: "2026-06-01T00:00:00.000Z",
+    timestamp: "2026-06-01T00:20:00.000Z",
     source: "http",
     level: "warn",
     privacy: "safe",
     category: "http.error",
     summary: "GET db failed with HTTP 503",
+    correlationId: "db-refresh",
+    recoveryHint: "check-service",
     attributes: {
       endpointFamily: "db",
+      method: "GET",
       status: 503,
       durationMs: 12,
     },
@@ -52,7 +55,14 @@ describe("diagnosticEventViewModel", () => {
     const view = buildDiagnosticEventViewModel({
       logs,
       events,
-      filters: { source: "all", level: "all", privacy: "all" },
+      filters: {
+        source: "all",
+        level: "all",
+        privacy: "all",
+        endpointFamily: "all",
+        failedOnly: false,
+        timeRange: "all",
+      },
     });
 
     expect(view.rows).toHaveLength(4);
@@ -70,7 +80,14 @@ describe("diagnosticEventViewModel", () => {
     const view = buildDiagnosticEventViewModel({
       logs,
       events,
-      filters: { source: "http", level: "warn", privacy: "safe" },
+      filters: {
+        source: "http",
+        level: "warn",
+        privacy: "safe",
+        endpointFamily: "all",
+        failedOnly: false,
+        timeRange: "all",
+      },
     });
 
     expect(view.rows.map((row) => row.id)).toEqual(["http-1"]);
@@ -85,7 +102,62 @@ describe("diagnosticEventViewModel", () => {
       warningsOrErrors: 2,
       redactedOrBlocked: 1,
       sources: "http, ui",
+      levels: "error: 1, warn: 1",
+      privacyStates: "blocked: 1, safe: 1",
+      endpointFamilies: "db: 1, ui: 1",
       latestSummary: "[blocked diagnostic event]",
     });
+  });
+
+  it("filters by endpoint, failed-only, and time range", () => {
+    const view = buildDiagnosticEventViewModel({
+      logs,
+      events,
+      filters: {
+        source: "all",
+        level: "all",
+        privacy: "all",
+        endpointFamily: "db",
+        failedOnly: true,
+        timeRange: "last15m",
+      },
+      now: new Date("2026-06-01T00:25:00.000Z"),
+    });
+
+    expect(view.rows.map((row) => row.id)).toEqual(["http-1"]);
+    expect(view.endpointOptions).toEqual([
+      { value: "all", label: "全部端点" },
+      { value: "db", label: "db" },
+      { value: "sidecar", label: "sidecar" },
+      { value: "ui", label: "ui" },
+    ]);
+    expect(view.hasActiveFilters).toBe(true);
+  });
+
+  it("builds screenshot-safe detail rows with recovery hints", () => {
+    const view = buildDiagnosticEventViewModel({
+      logs: [],
+      events,
+      filters: {
+        source: "all",
+        level: "all",
+        privacy: "all",
+        endpointFamily: "all",
+        failedOnly: false,
+        timeRange: "all",
+      },
+    });
+
+    const [row] = view.rows;
+    expect(row).toMatchObject({
+      id: "http-1",
+      endpointFamily: "db",
+      statusLabel: "503",
+      durationLabel: "12 ms",
+      recoveryLabel: "检查服务状态",
+      isFailed: true,
+    });
+    expect(row.detailRows).toContainEqual({ label: "Correlation", value: "db-refresh" });
+    expect(JSON.stringify(row.detailRows)).not.toContain("dataKey");
   });
 });

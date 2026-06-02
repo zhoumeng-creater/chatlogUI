@@ -1,5 +1,9 @@
 import { SIDECAR_PORT } from "@/utils/constants";
-import { requestJson } from "./httpClient";
+import {
+  requestJson,
+  withRequestDiagnostics,
+  type RequestDiagnosticsOptions,
+} from "./httpClient";
 import type { RawHistoryResponse } from "./chatlogRawTypes";
 import { adaptHistoryResponse } from "./chatlogAdapters";
 
@@ -19,7 +23,10 @@ export interface FetchHistoryOptions {
   hasMedia?: boolean;
 }
 
-export async function fetchHistory(options: FetchHistoryOptions) {
+export async function fetchHistory(
+  options: FetchHistoryOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
+) {
   const params = new URLSearchParams();
   params.set("chat", options.chat);
   if (options.limit !== undefined) params.set("limit", String(options.limit));
@@ -35,7 +42,13 @@ export async function fetchHistory(options: FetchHistoryOptions) {
 
   const raw = await requestJson<RawHistoryResponse>(
     `${BASE_URL}/api/v1/history?${params.toString()}`,
-    { timeoutMs: 30000 }
+    {
+      timeoutMs: 30000,
+      ...withRequestDiagnostics(diagnosticOptions, {
+        endpointFamily: "history",
+        method: "GET",
+      }),
+    },
   );
   return adaptHistoryResponse(raw);
 }

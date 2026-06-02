@@ -1,5 +1,9 @@
 import { SIDECAR_PORT } from "@/utils/constants";
-import { requestJson } from "./httpClient";
+import {
+  requestJson,
+  withRequestDiagnostics,
+  type RequestDiagnosticsOptions,
+} from "./httpClient";
 import type { RawSearchResponse } from "./chatlogRawTypes";
 import { adaptSearchResponse } from "./chatlogAdapters";
 
@@ -16,7 +20,10 @@ export interface FetchSearchOptions {
   msgType?: string;
 }
 
-export async function fetchSearch(options: FetchSearchOptions) {
+export async function fetchSearch(
+  options: FetchSearchOptions,
+  diagnosticOptions?: RequestDiagnosticsOptions,
+) {
   const params = new URLSearchParams();
   params.set("keyword", options.keyword);
   if (options.limit !== undefined) params.set("limit", String(options.limit));
@@ -29,7 +36,13 @@ export async function fetchSearch(options: FetchSearchOptions) {
 
   const raw = await requestJson<RawSearchResponse>(
     `${BASE_URL}/api/v1/search?${params.toString()}`,
-    { timeoutMs: 20000 }
+    {
+      timeoutMs: 20000,
+      ...withRequestDiagnostics(diagnosticOptions, {
+        endpointFamily: "search",
+        method: "GET",
+      }),
+    },
   );
   return adaptSearchResponse(raw);
 }

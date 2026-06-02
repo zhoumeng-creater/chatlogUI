@@ -418,3 +418,31 @@
 - [x] 同步宽口径 P4/P5 总计划中过时的 diagnostic event 接口描述和 fixture 文件名，避免后续执行按旧全局 emitter 或旧 fixture 名称开发。
 - [x] 验证通过：targeted diagnostic/http tests PASS（5 files / 22 tests）；`pnpm typecheck` PASS；`pnpm verify` PASS（65 files / 352 tests，build PASS）；placeholder/privacy/architecture/stale-interface scans 无输出；`git diff --check` 无 whitespace error，仅既有 LF/CRLF warning。
 - **Status:** complete
+
+### Phase 37: P4-A Developer Diagnostics And Privacy Mode 2.0 Planning
+- [x] 加载并采用本轮规划所需技能：using-superpowers、planning-with-files、brainstorming、writing-plans、app-productization、using-git-worktrees；同时评估 UI、sidecar、release、verification 相关技能作为规划审查视角。
+- [x] 创建隔离 worktree/分支 `codex/p4a-diagnostics-privacy-plan`，避免直接在 `master` 上撰写非平凡规划。
+- [x] 读取当前工作记忆和 P4/P5 总路线图，确认 P4/P5-0 foundation 与 review fix 已完成，P4-A 不应重复能力矩阵和基础 event atom 工作。
+- [x] 复读 P4/P5-0 专项计划、advanced capability specs、ready-desktop-app 契约、release evidence、architecture checklist 和 diagnostics package contract。
+- [x] 审计当前 diagnostics、privacy、DevConsole、HTTP diagnostic、Tauri export 与相关测试代码。
+- [x] 撰写独立 P4-A 实施规划，聚焦 Developer Diagnostics 与 Privacy Mode 2.0。
+- [x] 完成规划文档占位词、范围、架构边界、隐私合同和验证矩阵自查。
+- **规划文档:** docs/superpowers/plans/2026-06-02-p4-a-developer-diagnostics-privacy-mode-2.md
+- **Status:** completed
+
+### Phase 38: P4-A Developer Diagnostics And Privacy Mode 2.0 Implementation
+- [x] 恢复 planning-with-files 上下文，确认当前分支为 `codex/p4a-diagnostics-privacy-plan`，不是 `master`。
+- [x] 将既有 P4-A 实施规划作为用户已批准执行基线；不重新发起设计审批。
+- [x] A0: 基线、边界扫描和当前红线记录。
+- [x] A1: 扩展 diagnostic event model/store filters。
+- [x] A2: L2 diagnostic event bridge 和核心 HTTP 事件接入。
+- [x] A3: UI/Tauri/updater/subscription diagnostic events。
+- [x] A4: DevConsole 2.0 view model 和 dense UI。
+- [x] A5: Privacy Mode 2.0 和 redaction helpers。
+- [x] A6: Diagnostics export manifest 2.0。
+- [x] A7: setup/settings/workbench diagnostics surface integration。
+- [x] A8: UI acceptance/browser evidence。
+- [x] A9: 文档和证据收口。
+- [x] A10: final verification。
+- **规划文档:** docs/superpowers/plans/2026-06-02-p4-a-developer-diagnostics-privacy-mode-2.md
+- **Status:** complete

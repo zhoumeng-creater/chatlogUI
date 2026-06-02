@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { DiagnosticEvent } from "./diagnosticEvents";
 import { streamQA } from "./streamQA";
 import type { SemanticStreamEvent } from "./semanticStreamParser";
 
@@ -83,5 +84,45 @@ describe("streamQA", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("emits a redacted stream diagnostic event when diagnostics are supplied", async () => {
+    const diagnosticEvents: DiagnosticEvent[] = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.close();
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    streamQA(
+      { query: "Synthetic private message for redaction test only", chat: "wxid_synthetic_redaction_case" },
+      vi.fn(),
+      vi.fn(),
+      undefined,
+      {
+        diagnostics: { endpointFamily: "semantic", recoveryHint: "retry" },
+        onDiagnosticEvent: (event) => diagnosticEvents.push(event),
+      },
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(diagnosticEvents).toHaveLength(1);
+    expect(diagnosticEvents[0]).toMatchObject({
+      source: "http",
+      category: "http.request",
+      attributes: { endpointFamily: "semantic", method: "POST" },
+    });
+    expect(JSON.stringify(diagnosticEvents[0])).not.toContain("Synthetic private message");
+    expect(JSON.stringify(diagnosticEvents[0])).not.toContain("wxid_synthetic");
   });
 });

@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import { fetchConversations, fetchHistory } from "@l4/network";
+import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 const HISTORY_PAGE_SIZE = 50;
 
@@ -18,7 +19,14 @@ export function useChatCommander() {
     loadingRef.current = true;
     useChatStore.getState().setConversationsLoading();
     try {
-      const { conversations, contacts, chatrooms } = await fetchConversations({ limit: 500 });
+      const { conversations, contacts, chatrooms } = await fetchConversations(
+        { limit: 500 },
+        createDiagnosticHttpOptions({
+          endpointFamily: "sessions",
+          method: "GET",
+          recoveryHint: "retry",
+        }),
+      );
 
       const contactsByUsername: Record<string, unknown> = {};
       for (const c of (contacts.contacts ?? [])) {
@@ -41,7 +49,14 @@ export function useChatCommander() {
   const loadHistory = useCallback(async (chat: string) => {
     useChatStore.getState().setMessagesLoading(true);
     try {
-      const result = await fetchHistory({ chat, limit: HISTORY_PAGE_SIZE, offset: 0 });
+      const result = await fetchHistory(
+        { chat, limit: HISTORY_PAGE_SIZE, offset: 0 },
+        createDiagnosticHttpOptions({
+          endpointFamily: "history",
+          method: "GET",
+          recoveryHint: "retry",
+        }),
+      );
       useChatStore.getState().setMessages(
         result.messages,
         result.totalCount,
@@ -61,7 +76,14 @@ export function useChatCommander() {
     const nextOffset = messages.length;
 
     try {
-      const result = await fetchHistory({ chat, limit: HISTORY_PAGE_SIZE, offset: nextOffset });
+      const result = await fetchHistory(
+        { chat, limit: HISTORY_PAGE_SIZE, offset: nextOffset },
+        createDiagnosticHttpOptions({
+          endpointFamily: "history",
+          method: "GET",
+          recoveryHint: "retry",
+        }),
+      );
       useChatStore.getState().appendMessages(result.messages, result.offset, hasMoreHistory(result));
     } catch {
       useChatStore.getState().setMessagesError("加载更多记录失败");

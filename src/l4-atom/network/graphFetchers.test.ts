@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { DiagnosticEvent } from "./diagnosticEvents";
 import { fetchGraphQuery } from "./fetchGraphQuery";
 import { fetchGraphStatus } from "./fetchGraphStatus";
 import { fetchGraphTimeline } from "./fetchGraphTimeline";
@@ -53,6 +54,32 @@ describe("graph REST atoms", () => {
     expect(calls.every((call) => call.url.includes("format=json"))).toBe(true);
     expect(calls.find((call) => call.url.includes("/graph/query"))?.url).toContain("limit=300");
     expect(calls.find((call) => call.url.includes("/graph/visualize"))?.url).toContain("limit=300");
+  });
+
+  it("emits redacted graph diagnostic events when diagnostics are supplied", async () => {
+    const events: DiagnosticEvent[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json({ entities: [], relations: [], events: [], facts: [] })),
+    );
+
+    await fetchGraphQuery(
+      { keyword: "Synthetic private message for redaction test only", entity: "wxid_synthetic_redaction_case" },
+      undefined,
+      {
+        diagnostics: { endpointFamily: "graph", recoveryHint: "retry" },
+        onDiagnosticEvent: (event) => events.push(event),
+      },
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      source: "http",
+      category: "http.request",
+      attributes: { endpointFamily: "graph" },
+    });
+    expect(JSON.stringify(events[0])).not.toContain("Synthetic private message");
+    expect(JSON.stringify(events[0])).not.toContain("wxid_synthetic");
   });
 });
 

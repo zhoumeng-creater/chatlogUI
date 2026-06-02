@@ -4,11 +4,13 @@ import { useAiCommander } from "./useAiCommander";
 import { useSetupCommander } from "./useSetupCommander";
 import { useSettingsCommander } from "./useSettingsCommander";
 import { useUpdateCommander } from "./useUpdateCommander";
+import { useDiagnosticsCommander } from "./useDiagnosticsCommander";
 
 export function useSettingsPageCommander() {
   const settings = useSettingsCommander();
   const setup = useSetupCommander();
   const update = useUpdateCommander();
+  const diagnostics = useDiagnosticsCommander();
   const sidecarStatus = useAppStore((s) => s.sidecarStatus);
   const { indexStatus } = useAiCommander();
   const [updateStatusText, setUpdateStatusText] = useState("");
@@ -36,5 +38,6 @@ export function useSettingsPageCommander() {
     chooseDataDirectory,
     checkForUpdates,
     updateStatusText,
+    diagnostics,
   };
 }

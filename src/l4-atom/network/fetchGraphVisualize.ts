@@ -4,7 +4,11 @@ import {
   GRAPH_MAX_LIMIT,
   GRAPH_FETCH_TIMEOUT_MS,
 } from "@/utils/constants";
-import { requestJson } from "./httpClient";
+import {
+  requestJson,
+  withRequestDiagnostics,
+  type RequestDiagnosticsOptions,
+} from "./httpClient";
 import { adaptGraphVisualize, type GraphVisualizeView } from "./graphAdapters";
 
 interface GraphVisualizeParams {
@@ -17,6 +21,7 @@ interface GraphVisualizeParams {
 
 export async function fetchGraphVisualize(
   params: GraphVisualizeParams = {},
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphVisualizeView> {
   const { keyword, window, limit = GRAPH_DEFAULT_LIMIT, start, end } = params;
   const cappedLimit = Math.min(limit, GRAPH_MAX_LIMIT);
@@ -27,6 +32,12 @@ export async function fetchGraphVisualize(
   if (start) url.searchParams.set("start", start);
   if (end) url.searchParams.set("end", end);
 
-  const data = await requestJson(url.toString(), { timeoutMs: GRAPH_FETCH_TIMEOUT_MS });
+  const data = await requestJson(url.toString(), {
+    timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
+    ...withRequestDiagnostics(diagnosticOptions, {
+      endpointFamily: "graph",
+      method: "GET",
+    }),
+  });
   return adaptGraphVisualize(data, { visualizationCap: cappedLimit });
 }

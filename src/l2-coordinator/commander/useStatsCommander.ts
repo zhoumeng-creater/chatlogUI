@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useStatsStore } from "@/l2-coordinator/data-clerk/stores/useStatsStore";
 import { fetchStats, fetchDashboardTrend } from "@l4/network";
+import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 export function useStatsCommander() {
   const store = useStatsStore();
@@ -8,7 +9,14 @@ export function useStatsCommander() {
   const loadStats = useCallback(async (chat: string) => {
     useStatsStore.getState().setLoading(true);
     try {
-      const result = await fetchStats({ chat });
+      const result = await fetchStats(
+        { chat },
+        createDiagnosticHttpOptions({
+          endpointFamily: "stats",
+          method: "GET",
+          recoveryHint: "retry",
+        }),
+      );
       useStatsStore.getState().setStats(result);
     } catch {
       useStatsStore.getState().setError("加载统计失败");
@@ -17,7 +25,14 @@ export function useStatsCommander() {
 
   const loadTrend = useCallback(async (chat?: string) => {
     try {
-      const result = await fetchDashboardTrend({ chat, window: "7d", summary: false });
+      const result = await fetchDashboardTrend(
+        { chat, window: "7d", summary: false },
+        createDiagnosticHttpOptions({
+          endpointFamily: "stats",
+          method: "GET",
+          recoveryHint: "retry",
+        }),
+      );
       useStatsStore.getState().setTrend(result.daily);
     } catch {
       // 趋势数据非关键，静默失败

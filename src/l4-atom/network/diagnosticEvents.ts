@@ -15,6 +15,13 @@ export type DiagnosticEventLevel = "debug" | "info" | "warn" | "error";
 
 export type DiagnosticEventPrivacy = "safe" | "redacted" | "blocked";
 
+export type DiagnosticRecoveryHint =
+  | "retry"
+  | "check-service"
+  | "open-settings"
+  | "privacy-blocked"
+  | "none";
+
 export interface DiagnosticEvent {
   id: string;
   timestamp: string;
@@ -23,6 +30,8 @@ export interface DiagnosticEvent {
   privacy: DiagnosticEventPrivacy;
   category: string;
   summary: string;
+  correlationId?: string;
+  recoveryHint?: DiagnosticRecoveryHint;
   attributes?: DiagnosticEventAttributes;
 }
 
@@ -35,6 +44,8 @@ export interface CreateDiagnosticEventInput {
   category: string;
   summary: string;
   privacy?: DiagnosticEventPrivacy;
+  correlationId?: string;
+  recoveryHint?: DiagnosticRecoveryHint;
   attributes?: Record<string, unknown>;
 }
 
@@ -46,6 +57,8 @@ export interface CreateHttpDiagnosticEventInput {
   endpointFamily?: string;
   errorKind?: "http-status" | "timeout" | "abort" | "network";
   retryable?: boolean;
+  correlationId?: string;
+  recoveryHint?: DiagnosticRecoveryHint;
 }
 
 export interface DiagnosticEventFactoryOptions {
@@ -69,6 +82,14 @@ const SAFE_ATTRIBUTE_KEYS = new Set([
   "releaseGate",
 ]);
 
+const RECOVERY_HINTS = new Set<DiagnosticRecoveryHint>([
+  "retry",
+  "check-service",
+  "open-settings",
+  "privacy-blocked",
+  "none",
+]);
+
 let nextEventId = 0;
 
 export function createDiagnosticEvent(
@@ -87,6 +108,8 @@ export function createDiagnosticEvent(
       privacy: "blocked",
       category: input.category,
       summary: "[blocked diagnostic event]",
+      correlationId: sanitizeCorrelationId(input.correlationId),
+      recoveryHint: normalizeRecoveryHint(input.recoveryHint),
       attributes: sanitizeDiagnosticAttributes(input.attributes),
     };
   }
@@ -109,6 +132,8 @@ export function createDiagnosticEvent(
     privacy,
     category: input.category,
     summary: unsafeAfterMask ? "[blocked diagnostic event]" : maskedSummary,
+    correlationId: sanitizeCorrelationId(input.correlationId),
+    recoveryHint: normalizeRecoveryHint(input.recoveryHint),
     attributes,
   };
 }
@@ -128,6 +153,8 @@ export function createHttpDiagnosticEvent(
         level: "warn",
         category: "http.abort",
         summary: `${method} ${endpointFamily} was cancelled`,
+        correlationId: input.correlationId,
+        recoveryHint: input.recoveryHint,
         attributes: {
           endpointFamily,
           method,
@@ -148,6 +175,8 @@ export function createHttpDiagnosticEvent(
         level: "warn",
         category: "http.timeout",
         summary: `${method} ${endpointFamily} timed out`,
+        correlationId: input.correlationId,
+        recoveryHint: input.recoveryHint,
         attributes: {
           endpointFamily,
           method,
@@ -168,6 +197,8 @@ export function createHttpDiagnosticEvent(
         level: "error",
         category: "http.network",
         summary: `${method} ${endpointFamily} failed with a network error`,
+        correlationId: input.correlationId,
+        recoveryHint: input.recoveryHint,
         attributes: {
           endpointFamily,
           method,
@@ -188,6 +219,8 @@ export function createHttpDiagnosticEvent(
         level: "warn",
         category: "http.error",
         summary: `${method} ${endpointFamily} failed with HTTP ${status}`,
+        correlationId: input.correlationId,
+        recoveryHint: input.recoveryHint,
         attributes: {
           endpointFamily,
           method,
@@ -207,6 +240,8 @@ export function createHttpDiagnosticEvent(
       level: "info",
       category: "http.request",
       summary: `${method} ${endpointFamily} completed with HTTP ${status ?? "unknown"}`,
+      correlationId: input.correlationId,
+      recoveryHint: input.recoveryHint,
       attributes: {
         endpointFamily,
         method,
@@ -270,6 +305,18 @@ function isDiagnosticAttributeValue(
     typeof value === "number" ||
     typeof value === "boolean"
   );
+}
+
+function sanitizeCorrelationId(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return /^[A-Za-z0-9._:-]{1,80}$/.test(value) ? value : undefined;
+}
+
+function normalizeRecoveryHint(
+  value: DiagnosticRecoveryHint | undefined,
+): DiagnosticRecoveryHint | undefined {
+  if (value === undefined) return undefined;
+  return RECOVERY_HINTS.has(value) ? value : "none";
 }
 
 function deriveEndpointFamily(rawUrl: string | undefined): string {

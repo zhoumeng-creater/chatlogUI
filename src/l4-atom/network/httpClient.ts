@@ -1,6 +1,7 @@
 import {
   createHttpDiagnosticEvent,
   type DiagnosticEvent,
+  type DiagnosticRecoveryHint,
 } from "./diagnosticEvents";
 
 export class ChatlogHttpError extends Error {
@@ -25,9 +26,16 @@ export interface RequestJsonOptions extends RequestInit {
   diagnostics?: {
     endpointFamily?: string;
     method?: string;
+    correlationId?: string;
+    recoveryHint?: DiagnosticRecoveryHint;
   };
   onDiagnosticEvent?: (event: DiagnosticEvent) => void;
 }
+
+export type RequestDiagnosticsOptions = Pick<
+  RequestJsonOptions,
+  "diagnostics" | "onDiagnosticEvent"
+>;
 
 export function withJsonFormat(rawUrl: string): string {
   const url = new URL(rawUrl);
@@ -76,6 +84,8 @@ export async function requestJson<T = unknown>(
         url: finalUrl,
         method,
         endpointFamily: diagnostics?.endpointFamily,
+        correlationId: diagnostics?.correlationId,
+        recoveryHint: diagnostics?.recoveryHint,
         durationMs: Math.max(0, Math.round(nowMs() - startedAt)),
         ...event,
       }),
@@ -126,6 +136,25 @@ export async function requestJson<T = unknown>(
     clearTimeout(timeoutId);
     callerSignal?.removeEventListener("abort", abortFromCaller);
   }
+}
+
+export function withRequestDiagnostics(
+  options: RequestDiagnosticsOptions | undefined,
+  diagnostics: NonNullable<RequestJsonOptions["diagnostics"]>,
+): RequestDiagnosticsOptions {
+  const callerDiagnostics = options?.diagnostics;
+
+  return {
+    diagnostics: {
+      ...callerDiagnostics,
+      ...diagnostics,
+      endpointFamily: diagnostics.endpointFamily ?? callerDiagnostics?.endpointFamily,
+      method: diagnostics.method ?? callerDiagnostics?.method,
+      correlationId: callerDiagnostics?.correlationId ?? diagnostics.correlationId,
+      recoveryHint: callerDiagnostics?.recoveryHint ?? diagnostics.recoveryHint,
+    },
+    onDiagnosticEvent: options?.onDiagnosticEvent,
+  };
 }
 
 function nowMs(): number {

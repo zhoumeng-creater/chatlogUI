@@ -51,6 +51,9 @@ export function SettingsView() {
           <AboutSettings
             updateStatusText={commander.updateStatusText}
             onCheckUpdate={commander.checkForUpdates}
+            diagnosticReport={commander.diagnostics.report}
+            diagnosticCopyText={commander.diagnostics.copyText}
+            onExportDiagnostics={commander.diagnostics.exportReport}
           />
         );
       default:

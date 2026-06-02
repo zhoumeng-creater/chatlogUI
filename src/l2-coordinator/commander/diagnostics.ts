@@ -16,13 +16,37 @@ export interface DiagnosticLine {
 export interface DiagnosticsReportInput {
   privacyOn: boolean;
   items: DiagnosticItemInput[];
+  manifest?: DiagnosticsManifestInput;
   diagnosticEventsSummary?: {
     total: number;
     warningsOrErrors: number;
     redactedOrBlocked: number;
     sources: string;
+    levels?: string;
+    privacyStates?: string;
+    endpointFamilies?: string;
     latestSummary: string;
   };
+}
+
+export interface DiagnosticsManifestInput {
+  manifestVersion?: string;
+  appVersion: string;
+  buildChannel: string;
+  updaterEnabled: boolean;
+  platform?: string | null;
+  architecture?: string | null;
+  packageReadiness?: string | null;
+  backendBaseUrl: string;
+  sidecarState: string;
+  portState: string;
+  httpReady: boolean;
+  dbReady: boolean;
+  setupMode: string;
+  configSource: string;
+  updateStatus: string;
+  releaseSmoke?: string | null;
+  redactionState?: string | null;
 }
 
 export interface DiagnosticsReport {
@@ -39,6 +63,7 @@ function formatDiagnosticValue(value: unknown): string {
 }
 
 export function buildDiagnosticsReport(input: DiagnosticsReportInput): DiagnosticsReport {
+  const manifestItems = input.manifest ? buildManifestItems(input.manifest) : [];
   const eventSummaryItems: DiagnosticItemInput[] = input.diagnosticEventsSummary
     ? [
         { label: "Diagnostic events", value: input.diagnosticEventsSummary.total },
@@ -52,13 +77,25 @@ export function buildDiagnosticsReport(input: DiagnosticsReportInput): Diagnosti
         },
         { label: "Diagnostic sources", value: input.diagnosticEventsSummary.sources },
         {
+          label: "Diagnostic levels",
+          value: input.diagnosticEventsSummary.levels ?? "-",
+        },
+        {
+          label: "Diagnostic privacy states",
+          value: input.diagnosticEventsSummary.privacyStates ?? "-",
+        },
+        {
+          label: "Diagnostic endpoint families",
+          value: input.diagnosticEventsSummary.endpointFamilies ?? "-",
+        },
+        {
           label: "Latest diagnostic event",
           value: input.diagnosticEventsSummary.latestSummary,
         },
       ]
     : [];
 
-  const lines = [...input.items, ...eventSummaryItems].map((item) => ({
+  const lines = [...manifestItems, ...input.items, ...eventSummaryItems].map((item) => ({
     label: item.label,
     value: shouldRedactDiagnosticValue(item.label)
       ? "******"
@@ -82,7 +119,29 @@ export function serializeDiagnosticsReport(report: DiagnosticsReport): string {
   return report.lines.map((line) => `${line.label}: ${line.value}`).join("\n");
 }
 
+function buildManifestItems(manifest: DiagnosticsManifestInput): DiagnosticItemInput[] {
+  return [
+    { label: "Export manifest version", value: manifest.manifestVersion ?? "2.0" },
+    { label: "App version", value: manifest.appVersion },
+    { label: "Build channel", value: manifest.buildChannel },
+    { label: "Updater enabled", value: manifest.updaterEnabled },
+    { label: "Platform", value: manifest.platform ?? "-" },
+    { label: "Architecture", value: manifest.architecture ?? "-" },
+    { label: "Package readiness", value: manifest.packageReadiness ?? "not checked" },
+    { label: "Backend base URL", value: manifest.backendBaseUrl },
+    { label: "Sidecar state", value: manifest.sidecarState },
+    { label: "Port state", value: manifest.portState },
+    { label: "HTTP ready", value: manifest.httpReady },
+    { label: "DB ready", value: manifest.dbReady },
+    { label: "Setup mode", value: manifest.setupMode },
+    { label: "Config source", value: manifest.configSource },
+    { label: "Update status", value: manifest.updateStatus },
+    { label: "Release smoke", value: manifest.releaseSmoke ?? "not run" },
+    { label: "Redaction result", value: manifest.redactionState ?? "pending" },
+  ];
+}
+
 function shouldRedactDiagnosticValue(label: string): boolean {
-  return /data[_-]?key|img[_-]?key|api[_-]?key|token|secret|credential|password|authorization|private message|message body|chat content/i
+  return /data[_-]?key|img[_-]?key|api[_-]?key|token|secret|credential|password|authorization|private message|message body|chat content|request query|query|sql|raw response|request body|response body|sns proxy|media key|image key|video key|file key|voice key/i
     .test(label);
 }

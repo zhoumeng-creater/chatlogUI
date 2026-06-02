@@ -20,6 +20,7 @@ import {
 } from "@l4/system/sidecarManager";
 import { openDirectoryPicker } from "@l4/system/openDirectoryPicker";
 import { fetchHealth, fetchDbReadiness } from "@l4/network/readiness";
+import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { deriveSetupStep } from "./setupMachine";
 
 function isProfileConfigValid(profile: ReturnType<typeof useSetupStore.getState>["profile"]): boolean {
@@ -202,10 +203,24 @@ export function useSetupCommander(): SetupCommander {
         return;
       }
       if (inspectedPortState === "owned") {
-        const healthy = await fetchHealth(profile.httpAddr);
+        const healthy = await fetchHealth(
+          profile.httpAddr,
+          createDiagnosticHttpOptions({
+            endpointFamily: "health",
+            method: "GET",
+            recoveryHint: "check-service",
+          }),
+        );
         setReadiness({ httpReady: healthy });
         if (healthy) {
-          const dbResult = await fetchDbReadiness(profile.httpAddr);
+          const dbResult = await fetchDbReadiness(
+            profile.httpAddr,
+            createDiagnosticHttpOptions({
+              endpointFamily: "db",
+              method: "GET",
+              recoveryHint: "check-service",
+            }),
+          );
           setReadiness({ dbReady: dbResult.ready });
         }
         syncStep();
@@ -219,10 +234,24 @@ export function useSetupCommander(): SetupCommander {
         httpAddr: profile.httpAddr,
       });
       setPortState("owned");
-      const healthy = await fetchHealth(profile.httpAddr);
+      const healthy = await fetchHealth(
+        profile.httpAddr,
+        createDiagnosticHttpOptions({
+          endpointFamily: "health",
+          method: "GET",
+          recoveryHint: "check-service",
+        }),
+      );
       setReadiness({ httpReady: healthy });
       if (healthy) {
-        const dbResult = await fetchDbReadiness(profile.httpAddr);
+        const dbResult = await fetchDbReadiness(
+          profile.httpAddr,
+          createDiagnosticHttpOptions({
+            endpointFamily: "db",
+            method: "GET",
+            recoveryHint: "check-service",
+          }),
+        );
         setReadiness({ dbReady: dbResult.ready });
       }
       syncStep();
@@ -238,13 +267,27 @@ export function useSetupCommander(): SetupCommander {
       setLoading(true);
       setError(null);
       try {
-        const healthy = await fetchHealth(baseUrl);
+        const healthy = await fetchHealth(
+          baseUrl,
+          createDiagnosticHttpOptions({
+            endpointFamily: "health",
+            method: "GET",
+            recoveryHint: "check-service",
+          }),
+        );
         if (!healthy) {
           setError("无法连接到外部服务");
           return;
         }
         setReadiness({ httpReady: true });
-        const dbResult = await fetchDbReadiness(baseUrl);
+        const dbResult = await fetchDbReadiness(
+          baseUrl,
+          createDiagnosticHttpOptions({
+            endpointFamily: "db",
+            method: "GET",
+            recoveryHint: "check-service",
+          }),
+        );
         setReadiness({ dbReady: dbResult.ready });
         setProfile({
           mode: "external",
@@ -275,11 +318,25 @@ export function useSetupCommander(): SetupCommander {
     const profile = useSetupStore.getState().profile;
     const baseUrl = profile?.httpAddr ?? "http://127.0.0.1:5030";
     try {
-      const healthy = await fetchHealth(baseUrl);
+      const healthy = await fetchHealth(
+        baseUrl,
+        createDiagnosticHttpOptions({
+          endpointFamily: "health",
+          method: "GET",
+          recoveryHint: "check-service",
+        }),
+      );
       setReadiness({ httpReady: healthy });
 
         if (healthy) {
-          const dbResult = await fetchDbReadiness(baseUrl);
+          const dbResult = await fetchDbReadiness(
+            baseUrl,
+            createDiagnosticHttpOptions({
+              endpointFamily: "db",
+              method: "GET",
+              recoveryHint: "check-service",
+            }),
+          );
           setReadiness({ dbReady: dbResult.ready });
       }
       syncStep();

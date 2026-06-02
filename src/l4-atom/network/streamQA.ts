@@ -1,4 +1,6 @@
 import { AI_BASE_URL, SSE_TIMEOUT_MS } from '@/utils/constants';
+import { createHttpDiagnosticEvent } from "./diagnosticEvents";
+import type { RequestDiagnosticsOptions } from "./httpClient";
 import type { SemanticQARequestInput } from "./semanticAdapters";
 import {
   createSemanticSSEParser,
@@ -17,16 +19,44 @@ export function streamQA(
   params: SemanticQARequestInput,
   onChunk: ChunkCallback,
   onError: ErrorCallback,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): StreamQAHandle {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SSE_TIMEOUT_MS);
+  let abortReason: "timeout" | "abort" = "timeout";
+  const abortWithReason = (reason: "timeout" | "abort") => {
+    abortReason = reason;
+    controller.abort();
+  };
+  const timeoutId = setTimeout(() => abortWithReason("timeout"), SSE_TIMEOUT_MS);
+  const startedAt = nowMs();
+  const streamUrl = `${AI_BASE_URL}/api/v1/semantic/qa/stream`;
+  const emitDiagnosticEvent = (
+    status: number | null,
+    errorKind?: "http-status" | "timeout" | "abort" | "network",
+  ) => {
+    diagnosticOptions?.onDiagnosticEvent?.(
+      createHttpDiagnosticEvent({
+        url: streamUrl,
+        method: "POST",
+        status,
+        durationMs: Math.max(0, Math.round(nowMs() - startedAt)),
+        endpointFamily: diagnosticOptions.diagnostics?.endpointFamily ?? "semantic",
+        correlationId: diagnosticOptions.diagnostics?.correlationId,
+        recoveryHint: diagnosticOptions.diagnostics?.recoveryHint,
+        errorKind,
+      }),
+    );
+  };
 
   const combinedSignal = signal
     ? combineSignals(signal, controller.signal)
     : controller.signal;
+  signal?.addEventListener("abort", () => {
+    abortReason = "abort";
+  }, { once: true });
 
-  fetch(`${AI_BASE_URL}/api/v1/semantic/qa/stream`, {
+  fetch(streamUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(buildSemanticQARequestPayload(params)),
@@ -36,8 +66,10 @@ export function streamQA(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        emitDiagnosticEvent(response.status, "http-status");
         throw new Error(`QA 流请求失败: HTTP ${response.status}`);
       }
+      emitDiagnosticEvent(response.status);
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error('无法读取响应流');
@@ -66,13 +98,16 @@ export function streamQA(
     })
     .catch((err) => {
       clearTimeout(timeoutId);
-      if (!(err instanceof DOMException && err.name === 'AbortError')) {
-        onError(err instanceof Error ? err : new Error(String(err)));
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        emitDiagnosticEvent(null, abortReason);
+        return;
       }
+      emitDiagnosticEvent(null, "network");
+      onError(err instanceof Error ? err : new Error(String(err)));
     });
 
   return {
-    cancel: () => controller.abort(),
+    cancel: () => abortWithReason("abort"),
   };
 }
 
@@ -86,4 +121,8 @@ function combineSignals(...signals: AbortSignal[]): AbortSignal {
     signal.addEventListener('abort', () => controller.abort(signal.reason));
   }
   return controller.signal;
+}
+
+function nowMs(): number {
+  return globalThis.performance?.now?.() ?? Date.now();
 }

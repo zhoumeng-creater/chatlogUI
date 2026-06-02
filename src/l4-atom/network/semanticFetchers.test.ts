@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { DiagnosticEvent } from "./diagnosticEvents";
 import { fetchIndexStatus } from "./fetchIndexStatus";
 import { fetchSemanticConfig, setSemanticConfig } from "./fetchSemanticConfig";
 import { fetchSemanticProfiles } from "./fetchSemanticProfiles";
@@ -138,6 +139,39 @@ describe("semantic REST atoms", () => {
 
     const qaBody = JSON.parse(String(calls.find((call) => call.url.includes("/semantic/qa?"))?.init?.body));
     expect(qaBody).toEqual({ query: "alpha", chat: "wxid_a" });
+  });
+
+  it("emits redacted semantic diagnostic events when diagnostics are supplied", async () => {
+    const events: DiagnosticEvent[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json({
+          query: "alpha",
+          source_count: 0,
+          count: 0,
+          rerank: false,
+          results: [],
+        }),
+      ),
+    );
+
+    await fetchSemanticSearch(
+      { query: "Synthetic private message for redaction test only", chat: "wxid_synthetic_redaction_case" },
+      {
+        diagnostics: { endpointFamily: "semantic", recoveryHint: "retry" },
+        onDiagnosticEvent: (event) => events.push(event),
+      },
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      source: "http",
+      category: "http.request",
+      attributes: { endpointFamily: "semantic" },
+    });
+    expect(JSON.stringify(events[0])).not.toContain("Synthetic private message");
+    expect(JSON.stringify(events[0])).not.toContain("wxid_synthetic");
   });
 });
 

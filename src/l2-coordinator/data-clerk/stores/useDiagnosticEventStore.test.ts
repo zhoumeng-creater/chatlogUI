@@ -22,6 +22,9 @@ describe("useDiagnosticEventStore", () => {
         source: "all",
         level: "all",
         privacy: "all",
+        endpointFamily: "all",
+        failedOnly: false,
+        timeRange: "all",
       },
     });
   });
@@ -48,6 +51,38 @@ describe("useDiagnosticEventStore", () => {
       source: "http",
       level: "warn",
       privacy: "all",
+      endpointFamily: "all",
+      failedOnly: false,
+      timeRange: "all",
+    });
+  });
+
+  it("updates endpoint, failed-only, and time-range filters without resetting earlier choices", () => {
+    useDiagnosticEventStore.getState().setFilters({ source: "http" });
+    useDiagnosticEventStore.getState().setFilters({
+      endpointFamily: "semantic",
+      failedOnly: true,
+      timeRange: "last15m",
+    });
+
+    expect(useDiagnosticEventStore.getState().filters).toEqual({
+      source: "http",
+      level: "all",
+      privacy: "all",
+      endpointFamily: "semantic",
+      failedOnly: true,
+      timeRange: "last15m",
+    });
+
+    useDiagnosticEventStore.getState().clear();
+
+    expect(useDiagnosticEventStore.getState().filters).toEqual({
+      source: "http",
+      level: "all",
+      privacy: "all",
+      endpointFamily: "semantic",
+      failedOnly: true,
+      timeRange: "last15m",
     });
   });
 });
