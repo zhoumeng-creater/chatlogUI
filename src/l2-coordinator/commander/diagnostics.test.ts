@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildDiagnosticsReport, serializeDiagnosticsReport } from "./diagnostics";
+import {
+  buildDiagnosticsReport,
+  formatDiagnosticsExportError,
+  serializeDiagnosticsReport,
+} from "./diagnostics";
 
 describe("diagnostics report model", () => {
   it("builds a redacted report and fails closed when redaction cannot be proven", () => {
@@ -68,5 +72,39 @@ describe("diagnostics report model", () => {
     expect(text).toContain("Diagnostic redacted/blocked: 1");
     expect(text).toContain("Diagnostic sources: http, sidecar");
     expect(text).toContain("Latest diagnostic event: GET db failed with HTTP 503");
+  });
+
+  it("allows key presence summaries without treating missing or present as raw secrets", () => {
+    const report = buildDiagnosticsReport({
+      privacyOn: true,
+      items: [
+        { label: "Data key", value: "missing" },
+        { label: "Image key", value: "present" },
+        { label: "HTTP ready", value: false },
+      ],
+    });
+
+    const text = serializeDiagnosticsReport(report);
+
+    expect(report.redactionOk).toBe(true);
+    expect(text).toContain("Data key: missing");
+    expect(text).toContain("Image key: present");
+  });
+
+  it("formats export failures with a specific safe reason", () => {
+    expect(
+      formatDiagnosticsExportError(
+        new Error("诊断报告仍包含敏感信息，已阻止导出。"),
+      ),
+    ).toBe("诊断导出被隐私保护阻止：诊断报告仍包含敏感信息，已阻止导出。");
+
+    const filesystemMessage = formatDiagnosticsExportError(
+      new Error("failed to write C:\\Users\\Alice\\WeChat Files\\wxid_private\\diag.txt"),
+    );
+
+    expect(filesystemMessage).toContain("诊断导出写入失败");
+    expect(filesystemMessage).toContain("[redacted-path]");
+    expect(filesystemMessage).not.toContain("Alice");
+    expect(filesystemMessage).not.toContain("wxid_private");
   });
 });

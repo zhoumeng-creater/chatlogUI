@@ -7,6 +7,7 @@ import { fetchSemanticSearch } from "./fetchSemanticSearch";
 import { fetchSemanticTopics } from "./fetchSemanticTopics";
 import { manageIndex } from "./manageIndex";
 import { testLLMConnection } from "./testLLMConnection";
+import type { DiagnosticEvent } from "./diagnosticEvents";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -138,6 +139,78 @@ describe("semantic REST atoms", () => {
 
     const qaBody = JSON.parse(String(calls.find((call) => call.url.includes("/semantic/qa?"))?.init?.body));
     expect(qaBody).toEqual({ query: "alpha", chat: "wxid_a" });
+  });
+
+  it("emits safe diagnostic events for semantic REST fetchers and actions", async () => {
+    const diagnosticEvents: DiagnosticEvent[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname;
+
+        if (path.endsWith("/api/v1/semantic/config") && init?.method === "POST") {
+          return json({ ok: true });
+        }
+        if (path.endsWith("/api/v1/semantic/config")) {
+          return json({ enabled: false });
+        }
+        if (path.endsWith("/api/v1/semantic/index/status")) {
+          return json({ ready: false, running: false, paused: true, processed: 0, pending: 1 });
+        }
+        if (path.endsWith("/api/v1/semantic/search")) {
+          return json({ query: "private query", source_count: 0, count: 0, results: [] });
+        }
+        if (path.endsWith("/api/v1/semantic/topics")) {
+          return json({ count: 0, topics: [], daily: [] });
+        }
+        if (path.endsWith("/api/v1/semantic/profiles")) {
+          return json({ count: 0, profiles: [], type_distribution: [] });
+        }
+        if (path.endsWith("/api/v1/semantic/test")) {
+          return json({ ok: true });
+        }
+        if (path.includes("/api/v1/semantic/index/")) {
+          return json({ ok: true, accepted: true, status: "running" });
+        }
+        if (path.endsWith("/api/v1/semantic/qa")) {
+          return json({ answer: "synthetic answer", evidence: [], reason: "done" });
+        }
+
+        return json({});
+      }),
+    );
+
+    const diagnostics = {
+      diagnostics: { correlationId: "semantic-smoke", recoveryHint: "retry" as const },
+      onDiagnosticEvent: (event: DiagnosticEvent) => diagnosticEvents.push(event),
+    };
+
+    await fetchSemanticConfig(diagnostics);
+    await setSemanticConfig({ api_key: "synthetic-secret" }, diagnostics);
+    await fetchIndexStatus(diagnostics);
+    await fetchSemanticSearch({ query: "private semantic query", chat: "wxid_private" }, diagnostics);
+    await fetchSemanticTopics("wxid_private", diagnostics);
+    await fetchSemanticProfiles("wxid_private", diagnostics);
+    await testLLMConnection("deepseek", { api_key: "synthetic-secret" }, diagnostics);
+    await manageIndex("rebuild", diagnostics);
+    await fetchSemanticQA({ query: "private question", chat: "wxid_private" }, diagnostics);
+
+    expect(diagnosticEvents.map((event) => event.attributes?.endpointFamily)).toEqual(
+      expect.arrayContaining([
+        "semantic-config",
+        "semantic-index-status",
+        "semantic-search",
+        "semantic-topics",
+        "semantic-profiles",
+        "semantic-test",
+        "semantic-index-action",
+        "semantic-qa",
+      ]),
+    );
+    expect(diagnosticEvents.every((event) => event.correlationId === "semantic-smoke")).toBe(true);
+    expect(JSON.stringify(diagnosticEvents)).not.toContain("private semantic query");
+    expect(JSON.stringify(diagnosticEvents)).not.toContain("synthetic-secret");
+    expect(JSON.stringify(diagnosticEvents)).not.toContain("wxid_private");
   });
 });
 

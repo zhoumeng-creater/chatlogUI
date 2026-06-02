@@ -20,6 +20,7 @@ import {
 } from "@l4/system/sidecarManager";
 import { openDirectoryPicker } from "@l4/system/openDirectoryPicker";
 import { fetchHealth, fetchDbReadiness } from "@l4/network/readiness";
+import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { deriveSetupStep } from "./setupMachine";
 
 function isProfileConfigValid(profile: ReturnType<typeof useSetupStore.getState>["profile"]): boolean {
@@ -34,6 +35,14 @@ function isProfileConfigValid(profile: ReturnType<typeof useSetupStore.getState>
 
 function portFromAddress(value: string): number {
   return Number(value.split(":").pop()) || 5030;
+}
+
+function createSetupReadinessDiagnostics(correlationId: string) {
+  return createDiagnosticHttpOptions({
+    endpointFamily: "setup-readiness",
+    correlationId,
+    recoveryHint: "check-service",
+  });
 }
 
 export interface SetupCommander {
@@ -202,10 +211,16 @@ export function useSetupCommander(): SetupCommander {
         return;
       }
       if (inspectedPortState === "owned") {
-        const healthy = await fetchHealth(profile.httpAddr);
+        const healthy = await fetchHealth(
+          profile.httpAddr,
+          createSetupReadinessDiagnostics("managed-owned-health"),
+        );
         setReadiness({ httpReady: healthy });
         if (healthy) {
-          const dbResult = await fetchDbReadiness(profile.httpAddr);
+          const dbResult = await fetchDbReadiness(
+            profile.httpAddr,
+            createSetupReadinessDiagnostics("managed-owned-db"),
+          );
           setReadiness({ dbReady: dbResult.ready });
         }
         syncStep();
@@ -219,10 +234,16 @@ export function useSetupCommander(): SetupCommander {
         httpAddr: profile.httpAddr,
       });
       setPortState("owned");
-      const healthy = await fetchHealth(profile.httpAddr);
+      const healthy = await fetchHealth(
+        profile.httpAddr,
+        createSetupReadinessDiagnostics("managed-start-health"),
+      );
       setReadiness({ httpReady: healthy });
       if (healthy) {
-        const dbResult = await fetchDbReadiness(profile.httpAddr);
+        const dbResult = await fetchDbReadiness(
+          profile.httpAddr,
+          createSetupReadinessDiagnostics("managed-start-db"),
+        );
         setReadiness({ dbReady: dbResult.ready });
       }
       syncStep();
@@ -238,13 +259,19 @@ export function useSetupCommander(): SetupCommander {
       setLoading(true);
       setError(null);
       try {
-        const healthy = await fetchHealth(baseUrl);
+        const healthy = await fetchHealth(
+          baseUrl,
+          createSetupReadinessDiagnostics("external-health"),
+        );
         if (!healthy) {
           setError("无法连接到外部服务");
           return;
         }
         setReadiness({ httpReady: true });
-        const dbResult = await fetchDbReadiness(baseUrl);
+        const dbResult = await fetchDbReadiness(
+          baseUrl,
+          createSetupReadinessDiagnostics("external-db"),
+        );
         setReadiness({ dbReady: dbResult.ready });
         setProfile({
           mode: "external",
@@ -275,11 +302,17 @@ export function useSetupCommander(): SetupCommander {
     const profile = useSetupStore.getState().profile;
     const baseUrl = profile?.httpAddr ?? "http://127.0.0.1:5030";
     try {
-      const healthy = await fetchHealth(baseUrl);
+      const healthy = await fetchHealth(
+        baseUrl,
+        createSetupReadinessDiagnostics("setup-check-health"),
+      );
       setReadiness({ httpReady: healthy });
 
         if (healthy) {
-          const dbResult = await fetchDbReadiness(baseUrl);
+          const dbResult = await fetchDbReadiness(
+            baseUrl,
+            createSetupReadinessDiagnostics("setup-check-db"),
+          );
           setReadiness({ dbReady: dbResult.ready });
       }
       syncStep();

@@ -1,7 +1,12 @@
 import { useCallback, useEffect } from "react";
 import { useUpdateStore } from "@/l2-coordinator/data-clerk/stores/useUpdateStore";
 import { UPDATE_CHECK_DELAY_MS } from "@/utils/constants";
+import type {
+  DiagnosticEventLevel,
+  DiagnosticRecoveryHint,
+} from "@l4/network/diagnosticEvents";
 import type { DownloadEvent, Update } from "@tauri-apps/plugin-updater";
+import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
 
 let automaticUpdateCheckStarted = false;
 let availableUpdate: Update | null = null;
@@ -9,6 +14,21 @@ let downloadedUpdate: Update | null = null;
 
 function isUpdaterEnabled(): boolean {
   return import.meta.env.PROD && import.meta.env.VITE_ENABLE_UPDATER === "true";
+}
+
+export function recordUpdateDiagnosticEvent(input: {
+  level: DiagnosticEventLevel;
+  category: string;
+  summary: string;
+  recoveryHint?: DiagnosticRecoveryHint;
+}) {
+  return recordLocalDiagnosticEvent({
+    source: "updater",
+    level: input.level,
+    category: input.category,
+    summary: input.summary,
+    recoveryHint: input.recoveryHint,
+  });
 }
 
 async function closeUpdate(update: Update | null): Promise<void> {
@@ -52,6 +72,11 @@ export function useUpdateCommander() {
   const checkUpdate = useCallback(async (): Promise<boolean> => {
     if (!isUpdaterEnabled()) {
       useUpdateStore.getState().setStatus("idle");
+      recordUpdateDiagnosticEvent({
+        level: "info",
+        category: "update.disabled",
+        summary: "Updater disabled for current build",
+      });
       return false;
     }
 
@@ -73,6 +98,12 @@ export function useUpdateCommander() {
       useUpdateStore.getState().setError(
         error instanceof Error ? error.message : "检查更新失败",
       );
+      recordUpdateDiagnosticEvent({
+        level: "error",
+        category: "update.check.failed",
+        summary: error instanceof Error ? error.message : "检查更新失败",
+        recoveryHint: "open-settings",
+      });
       return false;
     }
   }, []);
@@ -80,6 +111,12 @@ export function useUpdateCommander() {
   const downloadUpdate = useCallback(async () => {
     if (!isUpdaterEnabled()) {
       useUpdateStore.getState().setError("当前构建未启用自动更新");
+      recordUpdateDiagnosticEvent({
+        level: "warn",
+        category: "update.download.disabled",
+        summary: "Updater disabled for current build",
+        recoveryHint: "open-settings",
+      });
       return;
     }
 
@@ -101,12 +138,24 @@ export function useUpdateCommander() {
       useUpdateStore.getState().setError(
         error instanceof Error ? error.message : "下载更新失败",
       );
+      recordUpdateDiagnosticEvent({
+        level: "error",
+        category: "update.download.failed",
+        summary: error instanceof Error ? error.message : "下载更新失败",
+        recoveryHint: "retry",
+      });
     }
   }, []);
 
   const installAndRestart = useCallback(async () => {
     if (!isUpdaterEnabled()) {
       useUpdateStore.getState().setError("当前构建未启用自动更新");
+      recordUpdateDiagnosticEvent({
+        level: "warn",
+        category: "update.install.disabled",
+        summary: "Updater disabled for current build",
+        recoveryHint: "open-settings",
+      });
       return;
     }
 
@@ -124,6 +173,12 @@ export function useUpdateCommander() {
       useUpdateStore.getState().setError(
         error instanceof Error ? error.message : "安装更新失败，请手动下载",
       );
+      recordUpdateDiagnosticEvent({
+        level: "error",
+        category: "update.install.failed",
+        summary: error instanceof Error ? error.message : "安装更新失败，请手动下载",
+        recoveryHint: "retry",
+      });
     }
   }, []);
 

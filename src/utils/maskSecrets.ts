@@ -32,6 +32,11 @@ export interface MaskDiagnosticOptions {
 
 export function maskDiagnosticText(input: string, options: MaskDiagnosticOptions = {}): string {
   let text = maskSecretText(input)
+    .replace(/\bhttps?:\/\/(?!(?:localhost|127\.0\.0\.1|\[::1\])(?::|\/|$))[^\s]+/gi, "[redacted-url]")
+    .replace(/([?&](?:url|key)=)[^&\s]+/gi, "$1******")
+    .replace(/\b(key\s*[=:]\s*)(?!present\b|missing\b)[^\s,;&]+/gi, "$1******")
+    .replace(/\/(image|video|file|voice)\/[^?\s]+/gi, "/$1/[redacted-key]")
+    .replace(/\/data\/[^\s]+/gi, "/data/[redacted-path]")
     .replace(/[A-Z]:\\Users\\[^\\\n]+(?:\\[^\n]*)?/gi, "[redacted-path]")
     .replace(/[A-Z]:\\[^:\n]*(?:WeChat Files|微信 Files|微信文件)[^\n]*/gi, "[redacted-path]")
     .replace(/(?:^|\s)[^\s\n]*WeChat Files[^\n]*/gi, " [redacted-path]")
@@ -47,14 +52,20 @@ export function maskDiagnosticText(input: string, options: MaskDiagnosticOptions
 export function containsSensitiveDiagnosticText(input: string): boolean {
   const normalized = input.toLowerCase();
   return [
-    /data[_-]?key\s*[=:]\s*(?!\*+)[^\s,;]+/i,
-    /img[_-]?key\s*[=:]\s*(?!\*+)[^\s,;]+/i,
-    /api[_-]?key\s*[=:]\s*(?!\*+)[^\s,;]+/i,
+    /data[_\s-]?key\s*[=:]\s*(?!\*+|present\b|missing\b)[^\s,;]+/i,
+    /img[_\s-]?key\s*[=:]\s*(?!\*+|present\b|missing\b)[^\s,;]+/i,
+    /image[_\s-]?key\s*[=:]\s*(?!\*+|present\b|missing\b)[^\s,;]+/i,
+    /api[_\s-]?key\s*[=:]\s*(?!\*+|present\b|missing\b)[^\s,;]+/i,
     /token\s*[=:]\s*(?!\*+)[^\s,;]+/i,
     /secret\s*[=:]\s*(?!\*+)[^\s,;]+/i,
     /credential\s*[=:]\s*(?!\*+)[^\s,;]+/i,
     /password\s*[=:]\s*(?!\*+)[^\s,;]+/i,
     /bearer\s+(?!\*+)[^\s,;]+/i,
+    /[?&](?:url|key)=(?!\*+)[^&\s]+/i,
+    /\bhttps?:\/\/(?!(?:localhost|127\.0\.0\.1|\[::1\])(?::|\/|$))[^\s]+/i,
+    /\bkey\s*[=:]\s*(?!\*+|present\b|missing\b)[^\s,;&]+/i,
+    /\/(?:image|video|file|voice)\/(?!\[redacted-key\])[^?\s]+/i,
+    /\/data\/(?!\[redacted-path\])[^?\s]+/i,
     /[a-z]:\\users\\/i,
     /wechat files/i,
     /wxid_[a-z0-9_-]+/i,

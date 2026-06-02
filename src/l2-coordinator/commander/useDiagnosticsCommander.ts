@@ -5,6 +5,7 @@ import { useDevConsoleStore } from "@/l2-coordinator/data-clerk/stores/useDevCon
 import { useDiagnosticEventStore } from "@l2/data-clerk/stores/useDiagnosticEventStore";
 import { exportDiagnosticsReport } from "@l4/system/exportDiagnostics";
 import { buildDiagnosticsReport, serializeDiagnosticsReport } from "./diagnostics";
+import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
 import { summarizeDiagnosticEventsForReport } from "./diagnosticEventViewModel";
 
 export function useDiagnosticsCommander() {
@@ -47,7 +48,18 @@ export function useDiagnosticsCommander() {
   const copyText = useMemo(() => serializeDiagnosticsReport(report), [report]);
 
   const exportReport = useCallback(async () => {
-    return exportDiagnosticsReport(report);
+    try {
+      return await exportDiagnosticsReport(report);
+    } catch (error) {
+      recordLocalDiagnosticEvent({
+        source: "tauri",
+        level: "error",
+        category: "tauri.diagnostics.export.failed",
+        summary: `诊断导出失败: ${error instanceof Error ? error.message : String(error)}`,
+        recoveryHint: report.redactionOk ? "retry" : "privacy-blocked",
+      });
+      throw error;
+    }
   }, [report]);
 
   return {

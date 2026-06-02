@@ -1,5 +1,9 @@
 import { SIDECAR_PORT } from "@/utils/constants";
-import { requestJson } from "./httpClient";
+import {
+  requestJson,
+  withRequestDiagnostics,
+  type RequestDiagnosticsOptions,
+} from "./httpClient";
 import type { RawStatsResponse, RawDashboardTrendResponse } from "./chatlogRawTypes";
 import { adaptStatsResponse, adaptDashboardTrendResponse } from "./chatlogAdapters";
 
@@ -12,7 +16,10 @@ export interface FetchStatsOptions {
   until?: number;
 }
 
-export async function fetchStats(options: FetchStatsOptions) {
+export async function fetchStats(
+  options: FetchStatsOptions,
+  requestOptions?: RequestDiagnosticsOptions,
+) {
   const params = new URLSearchParams();
   params.set("chat", options.chat);
   if (options.time) params.set("time", options.time);
@@ -21,7 +28,10 @@ export async function fetchStats(options: FetchStatsOptions) {
 
   const raw = await requestJson<RawStatsResponse>(
     `${BASE_URL}/api/v1/stats?${params.toString()}`,
-    { timeoutMs: 15000 }
+    {
+      timeoutMs: 15000,
+      ...withRequestDiagnostics(requestOptions, { endpointFamily: "stats" }),
+    },
   );
   return adaptStatsResponse(raw);
 }
@@ -32,7 +42,10 @@ export interface FetchDashboardTrendOptions {
   summary?: boolean;
 }
 
-export async function fetchDashboardTrend(options: FetchDashboardTrendOptions = {}) {
+export async function fetchDashboardTrend(
+  options: FetchDashboardTrendOptions = {},
+  requestOptions?: RequestDiagnosticsOptions,
+) {
   const params = new URLSearchParams();
   if (options.chat) params.set("chat", options.chat);
   if (options.window) params.set("window", options.window);
@@ -40,7 +53,10 @@ export async function fetchDashboardTrend(options: FetchDashboardTrendOptions = 
 
   const raw = await requestJson<RawDashboardTrendResponse>(
     `${BASE_URL}/api/v1/dashboard/trend?${params.toString()}`,
-    { timeoutMs: 15000 }
+    {
+      timeoutMs: 15000,
+      ...withRequestDiagnostics(requestOptions, { endpointFamily: "dashboard-trend" }),
+    },
   );
   return adaptDashboardTrendResponse(raw);
 }

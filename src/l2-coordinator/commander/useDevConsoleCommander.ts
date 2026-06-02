@@ -3,10 +3,10 @@ import { listenSidecarLogs } from "@l4/system/listenSidecarLogs";
 import { useDevConsoleStore } from "@/l2-coordinator/data-clerk/stores/useDevConsoleStore";
 import { useDiagnosticEventStore } from "@l2/data-clerk/stores/useDiagnosticEventStore";
 import { exportDiagnosticsReport } from "@l4/system/exportDiagnostics";
-import { createDiagnosticEvent } from "@l4/network/diagnosticEvents";
 import { maskDiagnosticText } from "@/utils/maskSecrets";
-import { buildDiagnosticsReport } from "./diagnostics";
+import { buildDiagnosticsReport, formatDiagnosticsExportError } from "./diagnostics";
 import { createDeferredSubscription } from "./deferredSubscription";
+import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
 import {
   buildDiagnosticEventViewModel,
   summarizeDiagnosticEventsForReport,
@@ -25,7 +25,7 @@ export function useDevConsoleCommander() {
     filters,
   });
 
-  const exportLogs = useCallback(async (): Promise<string | null> => {
+  const exportLogs = useCallback(async (): Promise<{ path: string | null; error: string | null }> => {
     try {
       const { logs } = useDevConsoleStore.getState();
       const { items } = useDiagnosticEventStore.getState();
@@ -40,8 +40,12 @@ export function useDevConsoleCommander() {
           { label: "Last error", value: lastError ?? "-" },
         ],
       });
-      return exportDiagnosticsReport(report);
+      return {
+        path: await exportDiagnosticsReport(report),
+        error: null,
+      };
     } catch (error) {
+      const safeExportError = formatDiagnosticsExportError(error);
       const safeMessage = maskDiagnosticText(
         error instanceof Error ? error.message : String(error),
         { privacyMode: true },
@@ -50,15 +54,14 @@ export function useDevConsoleCommander() {
         "system",
         `诊断导出失败: ${safeMessage}`,
       );
-      useDiagnosticEventStore.getState().addEvent(
-        createDiagnosticEvent({
-          source: "ui",
-          level: "error",
-          category: "diagnostic.export",
-          summary: `诊断导出失败: ${safeMessage}`,
-        }),
-      );
-      return null;
+      recordLocalDiagnosticEvent({
+        source: "tauri",
+        level: "error",
+        category: "tauri.diagnostics.export.failed",
+        summary: `诊断导出失败: ${error instanceof Error ? error.message : String(error)}`,
+        recoveryHint: "privacy-blocked",
+      });
+      return { path: null, error: safeExportError };
     }
   }, []);
 
@@ -87,6 +90,12 @@ export function useDevConsoleCommander() {
         updateFilter({ level }),
       setPrivacyFilter: (privacy: DiagnosticEventFilters["privacy"]) =>
         updateFilter({ privacy }),
+      setEndpointFamilyFilter: (endpointFamily: DiagnosticEventFilters["endpointFamily"]) =>
+        updateFilter({ endpointFamily }),
+      setFailedOnlyFilter: (failedOnly: DiagnosticEventFilters["failedOnly"]) =>
+        updateFilter({ failedOnly }),
+      setTimeRangeFilter: (timeRange: DiagnosticEventFilters["timeRange"]) =>
+        updateFilter({ timeRange }),
     },
   };
 }

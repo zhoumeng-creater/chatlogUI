@@ -21,6 +21,9 @@ export interface DiagnosticsReportInput {
     warningsOrErrors: number;
     redactedOrBlocked: number;
     sources: string;
+    levels?: string;
+    privacyStates?: string;
+    endpointFamilies?: string;
     latestSummary: string;
   };
 }
@@ -51,6 +54,15 @@ export function buildDiagnosticsReport(input: DiagnosticsReportInput): Diagnosti
           value: input.diagnosticEventsSummary.redactedOrBlocked,
         },
         { label: "Diagnostic sources", value: input.diagnosticEventsSummary.sources },
+        { label: "Diagnostic levels", value: input.diagnosticEventsSummary.levels ?? "-" },
+        {
+          label: "Diagnostic privacy states",
+          value: input.diagnosticEventsSummary.privacyStates ?? "-",
+        },
+        {
+          label: "Diagnostic endpoint families",
+          value: input.diagnosticEventsSummary.endpointFamilies ?? "-",
+        },
         {
           label: "Latest diagnostic event",
           value: input.diagnosticEventsSummary.latestSummary,
@@ -80,6 +92,27 @@ export function buildDiagnosticsReport(input: DiagnosticsReportInput): Diagnosti
 
 export function serializeDiagnosticsReport(report: DiagnosticsReport): string {
   return report.lines.map((line) => `${line.label}: ${line.value}`).join("\n");
+}
+
+export function formatDiagnosticsExportError(error: unknown): string {
+  const safeMessage = maskDiagnosticText(
+    error instanceof Error ? error.message : String(error),
+    { privacyMode: true },
+  );
+
+  if (/敏感信息|阻止导出|redaction|sensitive/i.test(safeMessage)) {
+    return `诊断导出被隐私保护阻止：${safeMessage}`;
+  }
+
+  if (/write|file|filesystem|permission|denied|保存|写入|文件|目录|磁盘/i.test(safeMessage)) {
+    return `诊断导出写入失败：${safeMessage}`;
+  }
+
+  if (/sidecar|service|health|5030|服务/i.test(safeMessage)) {
+    return `诊断导出受服务状态影响：${safeMessage}`;
+  }
+
+  return `诊断导出失败：${safeMessage}`;
 }
 
 function shouldRedactDiagnosticValue(label: string): boolean {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
+import { formatDiagnosticsExportError } from "@l2/commander/diagnostics";
 import { Button, StatusIndicator, Surface, Typography } from "@l4/ui";
 import { DiagnosticCopyButton } from "./DiagnosticCopyButton";
 
@@ -29,7 +30,7 @@ export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPane
       setMessage(`已导出到 ${path}`);
     } catch (error) {
       setExportState("error");
-      setMessage(error instanceof Error ? error.message : String(error));
+      setMessage(formatDiagnosticsExportError(error));
     }
   }
 

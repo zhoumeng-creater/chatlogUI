@@ -5,6 +5,18 @@ import { Button } from "@l4/ui/Button";
 type DiagnosticSourceFilter = "all" | "http" | "sidecar" | "tauri" | "ui" | "updater" | "release";
 type DiagnosticLevelFilter = "all" | "debug" | "info" | "warn" | "error";
 type DiagnosticPrivacyFilter = "all" | "safe" | "redacted" | "blocked";
+type DiagnosticEndpointFilter = "all" | string;
+type DiagnosticTimeRangeFilter = "all" | "last15m" | "last1h" | "session";
+
+interface DiagnosticConsoleOption {
+  value: string;
+  label: string;
+}
+
+interface DiagnosticConsoleDetailRow {
+  label: string;
+  value: string;
+}
 
 interface DiagnosticConsoleRow {
   id: string;
@@ -14,6 +26,12 @@ interface DiagnosticConsoleRow {
   privacy: Exclude<DiagnosticPrivacyFilter, "all">;
   category: string;
   summary: string;
+  endpointFamily?: string;
+  statusLabel?: string;
+  durationLabel?: string;
+  recoveryLabel: string;
+  isFailed: boolean;
+  detailRows: DiagnosticConsoleDetailRow[];
   attributes?: Record<string, string | number | boolean | null>;
 }
 
@@ -32,7 +50,13 @@ interface DevConsoleView {
     source: DiagnosticSourceFilter;
     level: DiagnosticLevelFilter;
     privacy: DiagnosticPrivacyFilter;
+    endpointFamily: DiagnosticEndpointFilter;
+    failedOnly: boolean;
+    timeRange: DiagnosticTimeRangeFilter;
   };
+  endpointOptions: DiagnosticConsoleOption[];
+  timeRangeOptions: DiagnosticConsoleOption[];
+  hasActiveFilters: boolean;
   emptyMessage: string;
   activeEmptyMessage: string;
 }
@@ -40,10 +64,13 @@ interface DevConsoleView {
 interface DevConsoleActions {
   toggle: () => void;
   clear: () => void;
-  exportLogs: () => Promise<string | null>;
+  exportLogs: () => Promise<{ path: string | null; error: string | null }>;
   setSourceFilter: (source: DiagnosticSourceFilter) => void;
   setLevelFilter: (level: DiagnosticLevelFilter) => void;
   setPrivacyFilter: (privacy: DiagnosticPrivacyFilter) => void;
+  setEndpointFamilyFilter: (endpointFamily: DiagnosticEndpointFilter) => void;
+  setFailedOnlyFilter: (failedOnly: boolean) => void;
+  setTimeRangeFilter: (timeRange: DiagnosticTimeRangeFilter) => void;
 }
 
 interface DevConsoleProps {
@@ -54,6 +81,7 @@ interface DevConsoleProps {
 export function DevConsole({ view, actions }: DevConsoleProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [statusMessage, setStatusMessage] = useState("");
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
   useEffect(() => {
     if (scrollRef.current && view.visible && view.autoScroll) {
@@ -61,9 +89,18 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
     }
   }, [view.rows, view.visible, view.autoScroll]);
 
+  useEffect(() => {
+    if (!selectedRowId) return;
+    if (!view.rows.some((row) => row.id === selectedRowId)) {
+      setSelectedRowId(null);
+    }
+  }, [selectedRowId, view.rows]);
+
   const handleExport = async () => {
-    const path = await actions.exportLogs();
-    setStatusMessage(path ? `诊断已导出到: ${path}` : "诊断导出失败，请检查脱敏状态。");
+    const result = await actions.exportLogs();
+    setStatusMessage(
+      result.path ? `诊断已导出到: ${result.path}` : result.error ?? "诊断导出失败。",
+    );
   };
 
   if (!view.visible) return null;
@@ -71,6 +108,7 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
   const emptyMessage = view.counts.total === 0
     ? view.emptyMessage
     : view.activeEmptyMessage;
+  const selectedRow = view.rows.find((row) => row.id === selectedRowId) ?? null;
 
   return (
     <div className="dev-console">
@@ -90,6 +128,7 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
         <span>诊断 {view.counts.diagnosticEvents}</span>
         <span>警告/错误 {view.counts.warningsOrErrors}</span>
         <span>脱敏/阻止 {view.counts.redactedOrBlocked}</span>
+        {view.hasActiveFilters && <span>筛选中</span>}
       </div>
       <div className="dev-console__filters" aria-label="诊断事件筛选">
         <label>
@@ -138,6 +177,44 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
             <option value="blocked">已阻止</option>
           </select>
         </label>
+        <label>
+          端点
+          <select
+            value={view.filters.endpointFamily}
+            onChange={(event) =>
+              actions.setEndpointFamilyFilter(event.currentTarget.value)
+            }
+          >
+            {view.endpointOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          时间
+          <select
+            value={view.filters.timeRange}
+            onChange={(event) =>
+              actions.setTimeRangeFilter(event.currentTarget.value as DiagnosticTimeRangeFilter)
+            }
+          >
+            {view.timeRangeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="dev-console__checkbox">
+          <input
+            type="checkbox"
+            checked={view.filters.failedOnly}
+            onChange={(event) => actions.setFailedOnlyFilter(event.currentTarget.checked)}
+          />
+          仅失败
+        </label>
       </div>
       <p className="dev-console__status" aria-live="polite">{statusMessage}</p>
       <div ref={scrollRef} className="dev-console__body">
@@ -147,7 +224,13 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
           </Typography>
         )}
         {view.rows.map((row) => (
-          <div key={row.id} className="dev-console__line">
+          <button
+            key={row.id}
+            type="button"
+            className={`dev-console__line${selectedRowId === row.id ? " dev-console__line--selected" : ""}`}
+            aria-pressed={selectedRowId === row.id}
+            onClick={() => setSelectedRowId(row.id)}
+          >
             <span className="dev-console__time">{formatTimestamp(row.timestamp)}</span>
             <span className={`dev-console__source dev-console__source--${row.source}`}>
               {getSourceLabel(row.source)}
@@ -158,11 +241,38 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
             <span className={`dev-console__privacy dev-console__privacy--${row.privacy}`}>
               {getPrivacyLabel(row.privacy)}
             </span>
+            {row.endpointFamily && (
+              <span className="dev-console__endpoint">{row.endpointFamily}</span>
+            )}
+            {row.statusLabel && (
+              <span className="dev-console__status-code">{row.statusLabel}</span>
+            )}
+            {row.durationLabel && (
+              <span className="dev-console__duration">{row.durationLabel}</span>
+            )}
+            <span className="dev-console__recovery">{row.recoveryLabel}</span>
             <span className="dev-console__category">{row.category}</span>
             <span className="dev-console__message">{row.summary}</span>
-          </div>
+          </button>
         ))}
       </div>
+      {selectedRow && (
+        <div className="dev-console__detail" aria-label="诊断事件详情">
+          <div className="dev-console__detail-header">
+            <span>{selectedRow.category}</span>
+            <span>{formatTimestamp(selectedRow.timestamp)}</span>
+          </div>
+          <div className="dev-console__detail-summary">{selectedRow.summary}</div>
+          <dl className="dev-console__detail-grid">
+            {selectedRow.detailRows.map((row) => (
+              <div key={`${row.label}-${row.value}`}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
     </div>
   );
 }

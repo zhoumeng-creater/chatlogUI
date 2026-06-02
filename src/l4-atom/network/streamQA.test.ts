@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { streamQA } from "./streamQA";
+import type { DiagnosticEvent } from "./diagnosticEvents";
 import type { SemanticStreamEvent } from "./semanticStreamParser";
 
 afterEach(() => {
@@ -83,5 +84,57 @@ describe("streamQA", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("emits safe stream lifecycle diagnostics without token or prompt payloads", async () => {
+    const diagnosticEvents: DiagnosticEvent[] = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              const encoder = new TextEncoder();
+              controller.enqueue(encoder.encode('event: delta\ndata: {"text":"private token"}\n\n'));
+              controller.enqueue(encoder.encode('event: done\ndata: {"answer":"private answer","evidence":[{"chat":"wxid_private"}],"reason":"done"}\n\n'));
+              controller.close();
+            },
+          }),
+          { status: 200 },
+        )
+      ),
+    );
+
+    await new Promise<void>((resolve, reject) => {
+      streamQA(
+        { query: "private question", chat: "wxid_private" },
+        (event) => {
+          if (event.type === "done") resolve();
+        },
+        reject,
+        undefined,
+        {
+          diagnostics: {
+            correlationId: "qa-stream",
+            recoveryHint: "retry",
+          },
+          onDiagnosticEvent: (event) => diagnosticEvents.push(event),
+        },
+      );
+    });
+
+    expect(diagnosticEvents.map((event) => event.category)).toEqual([
+      "http.stream.start",
+      "http.stream.done",
+    ]);
+    expect(diagnosticEvents.map((event) => event.attributes?.endpointFamily)).toEqual([
+      "semantic-qa-stream",
+      "semantic-qa-stream",
+    ]);
+    expect(JSON.stringify(diagnosticEvents)).not.toContain("private question");
+    expect(JSON.stringify(diagnosticEvents)).not.toContain("private token");
+    expect(JSON.stringify(diagnosticEvents)).not.toContain("private answer");
+    expect(JSON.stringify(diagnosticEvents)).not.toContain("wxid_private");
   });
 });
