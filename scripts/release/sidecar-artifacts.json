@@ -7,20 +7,23 @@
       "target": "x86_64-pc-windows-msvc",
       "platformKey": "windows-x86_64",
       "binaryName": "chatlog_alpha-x86_64-pc-windows-msvc.exe",
-      "version": "local-inventory-2026-05-28",
-      "releaseAllowed": false,
+      "version": "github.com/zhoumeng-creater/chatlog_alpha@5b979cc666418c41467b1f9959cfdc6b3abbb86b",
+      "releaseAllowed": true,
       "checkModeAllowed": true,
       "source": {
         "type": "repo",
-        "path": "cmd/chatlog",
-        "releaseAllowed": false
+        "repository": "https://github.com/zhoumeng-creater/chatlog_alpha",
+        "ref": "5b979cc666418c41467b1f9959cfdc6b3abbb86b",
+        "path": "output/sidecar-source/chatlog_alpha/cmd/chatlog",
+        "root": "output/sidecar-source/chatlog_alpha",
+        "releaseAllowed": true
       },
       "artifact": {
         "path": "src-tauri/binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe",
-        "sha256": "c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af",
+        "sha256": "",
         "url": ""
       },
-      "notes": "Local Windows developer inventory only. Do not treat this ignored file as release provenance until releaseAllowed is explicitly changed with reviewed source or artifact evidence."
+      "notes": "Windows x64 release candidate builds chatlog_alpha from the project owner's fork at the pinned commit. The source checkout path is prepared by release CI and local release evidence scripts."
     },
     {
       "target": "x86_64-apple-darwin",

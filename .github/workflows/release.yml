@@ -63,34 +63,31 @@ jobs:
             platform: windows-x86_64
             archive: msi
             ext: msi
-          - target: x86_64-apple-darwin
-            os: macos-13
-            platform: darwin-x86_64
-            archive: dmg
-            ext: dmg
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            platform: darwin-aarch64
-            archive: dmg
-            ext: dmg
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-22.04
-            platform: linux-x86_64
-            archive: appimage
-            ext: AppImage
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout chatlog_alpha sidecar source
+        uses: actions/checkout@v4
+        with:
+          repository: zhoumeng-creater/chatlog_alpha
+          ref: 5b979cc666418c41467b1f9959cfdc6b3abbb86b
+          path: output/sidecar-source/chatlog_alpha
+
       - name: Validate updater signing secrets
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
         run: |
           if [[ -z "${TAURI_SIGNING_PRIVATE_KEY}" ]]; then
             echo "::error::TAURI_SIGNING_PRIVATE_KEY is required for signed updater artifacts"
+            exit 1
+          fi
+          if [[ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD}" ]]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY_PASSWORD is required to unlock the updater signing key"
             exit 1
           fi
           if [[ -z "${TAURI_UPDATER_PUBKEY}" ]]; then
@@ -142,6 +139,8 @@ jobs:
 
       - name: Prepare Sidecar
         shell: bash
+        env:
+          SIDECAR_SOURCE_DIR: output/sidecar-source/chatlog_alpha
         run: bash .github/scripts/prepare-sidecar.sh "${{ matrix.target }}" release
 
       - name: Install Dependencies
@@ -164,11 +163,9 @@ jobs:
           releaseBody: |
             更新内容请参见 CHANGELOG。
             此 workflow 默认创建草稿 release。发布前必须完成 P5-C release evidence、sidecar artifact provenance、updater manifest/signature verification、packaged smoke、and privacy audit.
-            下载适合你平台的安装包：
-            - **macOS (Intel)**: `chatlog_alpha_x64.dmg`
-            - **macOS (Apple Silicon)**: `chatlog_alpha_aarch64.dmg`
-            - **Windows**: `chatlog_alpha_x64.msi`
-            - **Linux**: `chatlog_alpha_x64.AppImage`
+            第一版候选发布仅包含 Windows x64。macOS 和 Linux 仍是 platform caveat，直到 sidecar provenance、签名/公证和平台 smoke 证据补齐。
+            下载 Windows x64 安装包：
+            - **Windows**: `chatlog_alpha_x64.msi` 或 `chatlog_alpha_*_x64-setup.exe`
           releaseDraft: true
           prerelease: false
           args: --target ${{ matrix.target }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
