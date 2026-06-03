@@ -20,8 +20,8 @@ export function QAInput({ onSend, onStop, disabled, currentContact }: QAInputPro
   };
 
   return (
-    <div style={{ padding: '8px 12px', borderTop: '1px solid var(--color-border)' }}>
-      <div style={{ display: 'flex', gap: 8 }}>
+    <div className="qa-input">
+      <div className="qa-input__row">
         <Input
           placeholder={
             scope === 'contact'
@@ -43,27 +43,27 @@ export function QAInput({ onSend, onStop, disabled, currentContact }: QAInputPro
           size="sm"
           onClick={disabled ? onStop : handleSend}
           disabled={!disabled && !query.trim()}
-          style={{ flexShrink: 0 }}
+          className="qa-input__button"
         >
           {disabled ? "停止" : "发送"}
         </Button>
       </div>
-      <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-        <label style={{ fontSize: 12, color: 'var(--color-text-tertiary)', cursor: 'pointer' }}>
+      <div className="qa-input__scope">
+        <label className="qa-input__option">
           <input
             type="radio"
             checked={scope === 'contact'}
             onChange={() => setScope('contact')}
-            style={{ marginRight: 4 }}
+            className="qa-input__radio"
           />
           当前联系人
         </label>
-        <label style={{ fontSize: 12, color: 'var(--color-text-tertiary)', cursor: 'pointer' }}>
+        <label className="qa-input__option">
           <input
             type="radio"
             checked={scope === 'all'}
             onChange={() => setScope('all')}
-            style={{ marginRight: 4 }}
+            className="qa-input__radio"
           />
           全部联系人
         </label>

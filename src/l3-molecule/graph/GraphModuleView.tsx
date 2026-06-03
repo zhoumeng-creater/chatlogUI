@@ -1,7 +1,15 @@
 import { GraphFallbackTable } from "./GraphFallbackTable";
 import { GraphSummaryPanel } from "./GraphSummaryPanel";
 import { GraphVisualizePanel } from "./GraphVisualizePanel";
+import { GraphAdvancedPanel } from "./GraphAdvancedPanel";
 import type { GraphCanvasProps } from "./GraphCanvas";
+import type {
+  GraphBusinessDraft,
+  GraphConfigDraft,
+  GraphEventDraft,
+  GraphQADraft,
+} from "@l4/network";
+import type { GraphResidualView } from "@l2/commander/graphResidualViewModel";
 import type {
   GraphActionResultView,
   GraphLoadStatusView,
@@ -18,6 +26,11 @@ interface GraphModuleViewProps {
   loading: boolean;
   error: string | null;
   actionStatus: GraphActionResultView | null;
+  advancedView: GraphResidualView;
+  graphConfigDraft: GraphConfigDraft;
+  businessDraft: GraphBusinessDraft;
+  eventDraft: GraphEventDraft;
+  qaDraft: GraphQADraft;
   privacyOn: boolean;
   canvasProps: GraphCanvasProps;
   onRefresh: () => void;
@@ -27,6 +40,16 @@ interface GraphModuleViewProps {
   onPause: () => void;
   onResume: () => void;
   onLoadVisualization: () => void;
+  onLoadGraphConfig: () => void;
+  onSaveGraphConfig: () => void;
+  onGraphConfigDraftChange: (draft: Partial<GraphConfigDraft>) => void;
+  onBusinessDraftChange: (draft: Partial<GraphBusinessDraft>) => void;
+  onEventDraftChange: (draft: Partial<GraphEventDraft>) => void;
+  onQADraftChange: (draft: Partial<GraphQADraft>) => void;
+  onBusinessIngest: () => void;
+  onEventIngest: () => void;
+  onGraphQA: () => void;
+  onCancelAdvancedConfirmation: () => void;
 }
 
 export function GraphModuleView({
@@ -37,6 +60,11 @@ export function GraphModuleView({
   loading,
   error,
   actionStatus,
+  advancedView,
+  graphConfigDraft,
+  businessDraft,
+  eventDraft,
+  qaDraft,
   privacyOn,
   canvasProps,
   onRefresh,
@@ -46,6 +74,16 @@ export function GraphModuleView({
   onPause,
   onResume,
   onLoadVisualization,
+  onLoadGraphConfig,
+  onSaveGraphConfig,
+  onGraphConfigDraftChange,
+  onBusinessDraftChange,
+  onEventDraftChange,
+  onQADraftChange,
+  onBusinessIngest,
+  onEventIngest,
+  onGraphQA,
+  onCancelAdvancedConfirmation,
 }: GraphModuleViewProps) {
   return (
     <div className="graph-module-view">
@@ -72,6 +110,24 @@ export function GraphModuleView({
           onRetry={onRetry}
         />
       </div>
+      <GraphAdvancedPanel
+        view={advancedView}
+        configDraft={graphConfigDraft}
+        businessDraft={businessDraft}
+        eventDraft={eventDraft}
+        qaDraft={qaDraft}
+        privacyOn={privacyOn}
+        onLoadConfig={onLoadGraphConfig}
+        onSaveConfig={onSaveGraphConfig}
+        onConfigDraftChange={onGraphConfigDraftChange}
+        onBusinessDraftChange={onBusinessDraftChange}
+        onEventDraftChange={onEventDraftChange}
+        onQADraftChange={onQADraftChange}
+        onBusinessIngest={onBusinessIngest}
+        onEventIngest={onEventIngest}
+        onGraphQA={onGraphQA}
+        onCancelConfirmation={onCancelAdvancedConfirmation}
+      />
     </div>
   );
 }

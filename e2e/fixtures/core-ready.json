@@ -1,82 +1,321 @@
 {
   "synthetic": true,
-  "fixturePurpose": "Core ready-state endpoint shapes for workbench and release-quality tests.",
+  "fixturePurpose": "Core ready-state endpoint shapes for workbench, fixture contract, and browser E2E tests.",
   "privacyNotes": "All names, IDs, message text, and timestamps are synthetic. No real chat data is included.",
-  "generatedAt": "2026-06-01T00:00:00.000Z",
+  "generatedAt": "2026-06-03T00:00:00.000Z",
   "routes": {
     "/health": {
       "status": "ok"
     },
     "/api/v1/db": {
-      "ready": true,
-      "status": "ready",
-      "message_count": 42,
-      "session_count": 3
+      "groups": [
+        {
+          "name": "MicroMsg",
+          "count": 2
+        }
+      ],
+      "message": "synthetic database ready"
     },
     "/api/v1/sessions": {
-      "items": [
+      "sessions": [
         {
           "username": "session_synthetic_001",
-          "display_name": "Synthetic Session Alpha",
-          "last_message": "Synthetic message for UI state only",
-          "last_time": "2026-01-01T08:00:00Z",
-          "unread_count": 0
+          "chat": "Synthetic Session Alpha",
+          "is_group": false,
+          "chat_type": "private",
+          "summary": "Synthetic message for UI state only",
+          "timestamp": 1767254400,
+          "time": "2026-01-01 08:00"
+        },
+        {
+          "username": "chatroom_synthetic_001@chatroom",
+          "chat": "Synthetic Chatroom",
+          "is_group": true,
+          "chat_type": "group",
+          "summary": "Synthetic group summary",
+          "timestamp": 1767258000,
+          "time": "2026-01-01 09:00"
         }
-      ],
-      "total": 1
+      ]
     },
     "/api/v1/contacts": {
-      "items": [
+      "count": 1,
+      "contacts": [
         {
-          "username": "contact_synthetic_001",
-          "display_name": "Synthetic Contact Alpha",
-          "remark": "Synthetic Remark"
+          "username": "session_synthetic_001",
+          "alias": "synthetic_alpha",
+          "remark": "Synthetic Contact Alpha",
+          "nickname": "Synthetic Nickname Alpha",
+          "is_friend": true
         }
-      ],
-      "total": 1
+      ]
     },
     "/api/v1/chatrooms": {
-      "items": [
+      "count": 1,
+      "chatrooms": [
         {
-          "username": "chatroom_synthetic_001",
-          "display_name": "Synthetic Chatroom",
-          "member_count": 4
+          "name": "chatroom_synthetic_001@chatroom",
+          "display": "Synthetic Chatroom",
+          "owner": "owner_synthetic_001",
+          "user_count": 4
         }
-      ],
-      "total": 1
+      ]
     },
     "/api/v1/history": {
-      "items": [
+      "chat": "session_synthetic_001",
+      "username": "session_synthetic_001",
+      "is_group": false,
+      "chat_type": "private",
+      "total_count": 3,
+      "count": 3,
+      "limit": 50,
+      "offset": 0,
+      "messages": [
         {
-          "id": "message_synthetic_001",
-          "chat": "session_synthetic_001",
+          "local_id": 1001,
+          "timestamp": 1767254400,
+          "time": "2026-01-01 08:00",
           "sender": "contact_synthetic_001",
-          "content": "Synthetic message for UI state only",
           "type": "text",
-          "timestamp": "2026-01-01T08:00:00Z"
+          "content": "Synthetic message for UI state only"
+        },
+        {
+          "local_id": 1002,
+          "timestamp": 1767254460,
+          "time": "2026-01-01 08:01",
+          "sender": "self_synthetic",
+          "type": "image",
+          "content": "Synthetic image attachment summary",
+          "media_type": "image",
+          "media_key": "media_synthetic_image_key"
+        },
+        {
+          "local_id": 1003,
+          "timestamp": 1767254520,
+          "time": "2026-01-01 08:02",
+          "sender": "contact_synthetic_001",
+          "type": "text",
+          "content": "Synthetic long transcript row for stable browser checks"
         }
-      ],
-      "total_count": 1
+      ]
     },
     "/api/v1/search": {
-      "items": [
+      "total_count": 1,
+      "count": 1,
+      "limit": 20,
+      "offset": 0,
+      "messages": [
         {
-          "id": "search_synthetic_001",
+          "local_id": 2001,
+          "timestamp": 1767254400,
+          "time": "2026-01-01 08:00",
           "chat": "session_synthetic_001",
-          "snippet": "Synthetic search result for UI state only",
-          "timestamp": "2026-01-01T08:00:00Z"
+          "username": "session_synthetic_001",
+          "sender": "contact_synthetic_001",
+          "type": "text",
+          "content": "Synthetic search result for UI state only"
         }
-      ],
-      "total": 1
+      ]
     },
     "/api/v1/stats": {
-      "message_count": 42,
+      "chat": "session_synthetic_001",
+      "username": "session_synthetic_001",
+      "is_group": false,
+      "chat_type": "private",
+      "total": 42,
+      "sent_count": 18,
+      "received_count": 24,
       "active_senders": 3,
+      "active_days": 2,
+      "first_message_time": 1767254400,
+      "last_message_time": 1767340800,
       "query_range_label": "Synthetic fixed range",
       "by_type": [
         {
           "type": "text",
-          "count": 42
+          "count": 38
+        },
+        {
+          "type": "image",
+          "count": 4
+        }
+      ],
+      "top_senders": [
+        {
+          "sender": "contact_synthetic_001",
+          "display": "Synthetic Contact Alpha",
+          "count": 24
+        }
+      ],
+      "by_hour": [
+        {
+          "hour": 8,
+          "count": 12
+        },
+        {
+          "hour": 9,
+          "count": 10
+        }
+      ]
+    },
+    "/api/v1/dashboard/trend": {
+      "chat": "session_synthetic_001",
+      "window": "7d",
+      "window_label": "Synthetic 7 days",
+      "from": 1767254400,
+      "to": 1767859200,
+      "count": 42,
+      "truncated": false,
+      "daily": [
+        {
+          "date": "2026-01-01",
+          "count": 18
+        },
+        {
+          "date": "2026-01-02",
+          "count": 24
+        }
+      ],
+      "summary": "Synthetic trend summary",
+      "source": "synthetic"
+    },
+    "/api/v1/semantic/config": {
+      "enabled": true,
+      "base_url": "http://127.0.0.1:11434",
+      "embedding_provider": "ollama",
+      "embedding_model": "synthetic-embedding-model",
+      "embedding_dimension": 768,
+      "rerank_provider": "synthetic-rerank-provider",
+      "rerank_model": "synthetic-rerank-model",
+      "chat_provider": "ollama",
+      "chat_model": "synthetic-chat-model",
+      "chat_thinking": false,
+      "chat_max_tokens": 512,
+      "chat_temperature": 0.2,
+      "has_api_key": false,
+      "has_deepseek_api_key": false,
+      "recall_k": 20,
+      "top_n": 5,
+      "similarity_threshold": 0.3,
+      "enable_rerank": true,
+      "enable_qa": true,
+      "enable_topics": true,
+      "enable_profiles": true,
+      "enable_llm_chunk": false,
+      "realtime_index": true,
+      "index_workers": 2
+    },
+    "/api/v1/semantic/index/status": {
+      "ready": true,
+      "running": false,
+      "paused": false,
+      "processed": 42,
+      "pending": 0,
+      "failed": 0,
+      "progress_pct": 100,
+      "last_error": ""
+    },
+    "/api/v1/semantic/search": {
+      "query": "synthetic",
+      "chat": "session_synthetic_001",
+      "source_count": 2,
+      "window": "7d",
+      "depth": "standard",
+      "count": 1,
+      "rerank": true,
+      "rerank_provider": "synthetic-rerank-provider",
+      "rerank_tried": true,
+      "rerank_applied": true,
+      "rerank_error": "",
+      "results": [
+        {
+          "talker": "session_synthetic_001",
+          "talker_name": "Synthetic Session Alpha",
+          "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "time": "2026-01-01 08:00",
+          "content": "Synthetic semantic search result",
+          "score": 0.91,
+          "seq": 1001
+        }
+      ]
+    },
+    "/api/v1/semantic/topics": {
+      "window": "7d",
+      "window_label": "Synthetic 7 days",
+      "from": 1767254400,
+      "to": 1767859200,
+      "count": 2,
+      "truncated": false,
+      "topics": [
+        {
+          "topic": "synthetic topic",
+          "count": 2,
+          "keywords": ["synthetic", "topic"]
+        }
+      ],
+      "daily": [
+        {
+          "date": "2026-01-01",
+          "count": 2
+        }
+      ],
+      "summary": "Synthetic topics summary",
+      "summary_error": ""
+    },
+    "/api/v1/semantic/profiles": {
+      "window": "7d",
+      "window_label": "Synthetic 7 days",
+      "from": 1767254400,
+      "to": 1767859200,
+      "count": 1,
+      "truncated": false,
+      "profiles": [
+        {
+          "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "messages": 24,
+          "top_keywords": [
+            {
+              "topic": "synthetic topic",
+              "count": 2
+            }
+          ]
+        }
+      ],
+      "type_distribution": [
+        {
+          "type": "text",
+          "count": 24
+        }
+      ],
+      "summary": "Synthetic profiles summary",
+      "summary_error": ""
+    },
+    "/api/v1/semantic/qa/stream": {
+      "events": [
+        {
+          "event": "delta",
+          "data": {
+            "text": "Synthetic "
+          }
+        },
+        {
+          "event": "delta",
+          "data": {
+            "text": "answer"
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "answer": "Synthetic answer",
+            "evidence": [],
+            "reason": "complete",
+            "metadata": {
+              "source": "synthetic"
+            }
+          }
         }
       ]
     }

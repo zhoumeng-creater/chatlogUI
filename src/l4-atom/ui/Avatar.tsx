@@ -43,7 +43,7 @@ export function Avatar({
           style={{
             width: size,
             height: size,
-            backgroundColor: "#007AFF",
+            backgroundColor: "var(--accent)",
             fontSize: size * 0.35,
           }}
         >

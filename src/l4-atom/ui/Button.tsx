@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { classNames } from "@/utils/classNames";
 import { Spinner } from "./Spinner";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -24,12 +25,12 @@ export function Button({
   return (
     <button
       type={type}
-      className={[
+      className={classNames(
         "ui-button",
         `ui-button--${variant}`,
         `ui-button--${size}`,
         className,
-      ].filter(Boolean).join(" ")}
+      )}
       disabled={disabled || loading}
       {...props}
     >

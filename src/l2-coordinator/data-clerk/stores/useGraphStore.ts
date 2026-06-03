@@ -7,6 +7,18 @@ import type {
   GraphTimelineView,
   GraphVisualizeView,
 } from "@/l4-atom/network/graphAdapters";
+import type {
+  GraphBusinessDraft,
+  GraphConfigDraft,
+  GraphConfigView,
+  GraphEventDraft,
+  GraphIngestResult,
+  GraphQADraft,
+  GraphQAResponseView,
+} from "@l4/network";
+import type { GraphResidualLoadStatus } from "@/l2-coordinator/commander/graphResidualViewModel";
+
+export type GraphAdvancedConfirmation = "business" | "event" | "qa";
 
 interface GraphState {
   data: VisualizeResult | null;
@@ -31,6 +43,20 @@ interface GraphState {
   layoutMode: "force" | "radial";
   timelineVisible: boolean;
   highlightedTimelineId: string | null;
+  advancedConfigStatus: GraphResidualLoadStatus;
+  ingestStatus: GraphResidualLoadStatus;
+  qaStatus: GraphResidualLoadStatus;
+  advancedConfig: GraphConfigView | null;
+  graphConfigDraft: GraphConfigDraft;
+  businessDraft: GraphBusinessDraft;
+  eventDraft: GraphEventDraft;
+  qaDraft: GraphQADraft;
+  ingestResult: GraphIngestResult | null;
+  qaResult: GraphQAResponseView | null;
+  advancedConfirmationPending: GraphAdvancedConfirmation | null;
+  advancedConfigError: string | null;
+  ingestError: string | null;
+  qaError: string | null;
 }
 
 interface GraphActions {
@@ -55,6 +81,21 @@ interface GraphActions {
   setLayoutMode: (mode: "force" | "radial") => void;
   setTimelineVisible: (visible: boolean) => void;
   setHighlightedTimeline: (id: string | null) => void;
+  setAdvancedConfigLoading: () => void;
+  setAdvancedConfig: (config: GraphConfigView) => void;
+  setAdvancedConfigError: (error: string) => void;
+  updateGraphConfigDraft: (draft: Partial<GraphConfigDraft>) => void;
+  updateBusinessDraft: (draft: Partial<GraphBusinessDraft>) => void;
+  updateEventDraft: (draft: Partial<GraphEventDraft>) => void;
+  updateQADraft: (draft: Partial<GraphQADraft>) => void;
+  setIngestLoading: () => void;
+  setIngestResult: (result: GraphIngestResult) => void;
+  setIngestError: (error: string) => void;
+  setQALoading: () => void;
+  setQAResult: (result: GraphQAResponseView) => void;
+  setQAError: (error: string) => void;
+  requestAdvancedConfirmation: (action: GraphAdvancedConfirmation) => void;
+  cancelAdvancedConfirmation: () => void;
   reset: () => void;
 }
 
@@ -83,6 +124,38 @@ const initialState: GraphState = {
   layoutMode: "force",
   timelineVisible: false,
   highlightedTimelineId: null,
+  advancedConfigStatus: "idle",
+  ingestStatus: "idle",
+  qaStatus: "idle",
+  advancedConfig: null,
+  graphConfigDraft: { workers: 1, enqueueWorkers: 1 },
+  businessDraft: {
+    source: "",
+    type: "business",
+    time: "",
+    title: "",
+    content: "",
+    entities: "",
+  },
+  eventDraft: {
+    eventType: "event",
+    time: "",
+    actors: "",
+    targets: "",
+    content: "",
+  },
+  qaDraft: {
+    query: "",
+    window: "",
+    start: "",
+    end: "",
+  },
+  ingestResult: null,
+  qaResult: null,
+  advancedConfirmationPending: null,
+  advancedConfigError: null,
+  ingestError: null,
+  qaError: null,
 };
 
 export const useGraphStore = create<GraphStore>((set) => ({
@@ -142,6 +215,39 @@ export const useGraphStore = create<GraphStore>((set) => ({
   setLayoutMode: (layoutMode: "force" | "radial") => set({ layoutMode }),
   setTimelineVisible: (timelineVisible: boolean) => set({ timelineVisible }),
   setHighlightedTimeline: (highlightedTimelineId: string | null) => set({ highlightedTimelineId }),
+  setAdvancedConfigLoading: () => set({ advancedConfigStatus: "loading", advancedConfigError: null }),
+  setAdvancedConfig: (advancedConfig) =>
+    set({
+      advancedConfig,
+      advancedConfigStatus: "ready",
+      graphConfigDraft: {
+        workers: advancedConfig.workers,
+        enqueueWorkers: advancedConfig.enqueueWorkers,
+      },
+      advancedConfigError: null,
+    }),
+  setAdvancedConfigError: (advancedConfigError) =>
+    set({ advancedConfigStatus: "error", advancedConfigError }),
+  updateGraphConfigDraft: (draft) =>
+    set((state) => ({ graphConfigDraft: { ...state.graphConfigDraft, ...draft } })),
+  updateBusinessDraft: (draft) =>
+    set((state) => ({ businessDraft: { ...state.businessDraft, ...draft } })),
+  updateEventDraft: (draft) =>
+    set((state) => ({ eventDraft: { ...state.eventDraft, ...draft } })),
+  updateQADraft: (draft) =>
+    set((state) => ({ qaDraft: { ...state.qaDraft, ...draft } })),
+  setIngestLoading: () =>
+    set({ ingestStatus: "loading", ingestError: null, advancedConfirmationPending: null }),
+  setIngestResult: (ingestResult) =>
+    set({ ingestResult, ingestStatus: "ready", ingestError: null, advancedConfirmationPending: null }),
+  setIngestError: (ingestError) =>
+    set({ ingestStatus: "error", ingestError, advancedConfirmationPending: null }),
+  setQALoading: () => set({ qaStatus: "loading", qaError: null, advancedConfirmationPending: null }),
+  setQAResult: (qaResult) => set({ qaResult, qaStatus: "ready", qaError: null, advancedConfirmationPending: null }),
+  setQAError: (qaError) => set({ qaStatus: "error", qaError, advancedConfirmationPending: null }),
+  requestAdvancedConfirmation: (advancedConfirmationPending) =>
+    set({ advancedConfirmationPending, ingestError: null, qaError: null }),
+  cancelAdvancedConfirmation: () => set({ advancedConfirmationPending: null }),
 
   reset: () => set(initialState),
 }));

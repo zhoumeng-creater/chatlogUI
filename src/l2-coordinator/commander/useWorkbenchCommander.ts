@@ -7,13 +7,17 @@ import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { useAiCommander } from "./useAiCommander";
 import { useChatCommander } from "./useChatCommander";
 import { useGraphCommander } from "./useGraphCommander";
+import { useMediaCommander } from "./useMediaCommander";
+import { useDeveloperToolsCommander } from "./useDeveloperToolsCommander";
 import { useSearchCommander } from "./useSearchCommander";
+import { useSnsCommander } from "./useSnsCommander";
 import { useStatsCommander } from "./useStatsCommander";
 import { getWorkbenchLayout } from "./workbenchLayout";
 import {
   getInspectorTitle,
   isInspectorModule,
   resolveSinglePaneView,
+  resolveWorkbenchLayoutForModule,
   shouldRenderConversationListAsMain,
   buildWorkbenchModuleBadges,
   buildWorkbenchRailItems,
@@ -47,6 +51,13 @@ export function useWorkbenchCommander() {
   const chat = useChatCommander();
   const search = useSearchCommander();
   const stats = useStatsCommander();
+  const media = useMediaCommander();
+  const { loadMediaModule } = media;
+  const sns = useSnsCommander();
+  const { loadSnsModule } = sns;
+  const developer = useDeveloperToolsCommander();
+  const { loadDeveloperTools } = developer;
+  const stopHookStream = developer.hook.stopStream;
   const ai = useAiCommander();
   const graph = useGraphCommander();
   const {
@@ -69,7 +80,8 @@ export function useWorkbenchCommander() {
   const [singlePaneView, setSinglePaneView] = useState<SinglePaneView>("detail");
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const viewportWidth = useViewportWidth();
-  const layout = getWorkbenchLayout(viewportWidth);
+  const baseLayout = getWorkbenchLayout(viewportWidth);
+  const layout = resolveWorkbenchLayoutForModule(baseLayout, activeModule);
 
   const currentConversation = conversations.find(
     (conversation) => conversation.id === selectedConversationId,
@@ -85,7 +97,7 @@ export function useWorkbenchCommander() {
     selectedConversationId,
     singlePaneView,
   );
-  const inspectorModule = activeModule === "chat" || activeModule === "settings"
+  const inspectorModule = activeModule === "chat" || activeModule === "settings" || activeModule === "graph"
     ? "stats"
     : activeModule;
 
@@ -98,6 +110,24 @@ export function useWorkbenchCommander() {
       loadAll(currentChat);
     }
   }, [currentChat, loadAll]);
+
+  useEffect(() => {
+    if (activeModule === "media" && currentChat) {
+      void loadMediaModule(currentChat, currentConversation?.isGroup ?? false);
+    }
+  }, [activeModule, currentChat, currentConversation?.isGroup, loadMediaModule]);
+
+  useEffect(() => {
+    if (activeModule === "sns") {
+      void loadSnsModule();
+    }
+  }, [activeModule, loadSnsModule]);
+
+  useEffect(() => {
+    if (activeModule === "developer") {
+      void loadDeveloperTools();
+    }
+  }, [activeModule, loadDeveloperTools]);
 
   useEffect(() => {
     if (layout.mode === "single" && !selectedConversationId) {
@@ -156,6 +186,9 @@ export function useWorkbenchCommander() {
       if (module !== "graph" && graph.loading) {
         graph.cancelGraphLoad();
       }
+      if (module !== "developer") {
+        stopHookStream();
+      }
 
       setActiveModule(module);
 
@@ -171,18 +204,35 @@ export function useWorkbenchCommander() {
 
       if (module === "graph") {
         void openGraph();
+        setInspectorOpen(false);
+        return;
       }
 
       if (isInspectorModule(module)) {
         setInspectorOpen(true);
       }
     },
-    [ai, graph, openGraph, navigate],
+    [ai, graph, openGraph, navigate, stopHookStream],
   );
 
   const moduleBadges = buildWorkbenchModuleBadges({
     semanticStatus: ai.compactStatus,
     graphView: graph.moduleView,
+    media: {
+      status: media.status,
+      unreadTotal: media.unread.total,
+      attachmentCount: media.attachments.length + media.favorites.length + media.newMessages.length,
+    },
+    sns: {
+      status: sns.status,
+      feedCount: sns.feed.length,
+      notificationCount: sns.notifications.length,
+    },
+    developer: {
+      status: developer.dbFilesStatus,
+      dbFileCount: developer.dbFiles.length,
+      runnerHistoryCount: developer.runnerHistory.length,
+    },
   });
   const railItems = buildWorkbenchRailItems(activeModule, moduleBadges);
 
@@ -199,6 +249,9 @@ export function useWorkbenchCommander() {
     chat,
     search,
     stats,
+    media,
+    sns,
+    developer,
     ai,
     graph,
     layout,
@@ -224,6 +277,9 @@ export function useWorkbenchCommander() {
       }
       if (activeModule === "graph" && graph.loading) {
         graph.cancelGraphLoad();
+      }
+      if (activeModule === "developer") {
+        stopHookStream();
       }
       setInspectorOpen(false);
     },

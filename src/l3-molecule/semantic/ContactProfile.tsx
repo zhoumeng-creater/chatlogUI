@@ -47,7 +47,7 @@ export function ContactProfile({ profile, loading, error, privacyOn, onRetry }: 
         <Typography variant="label" weight={700}>
           联系人画像
         </Typography>
-        <Typography variant="body" color="var(--danger)" style={{ marginBottom: 8 }}>
+        <Typography variant="body" color="var(--danger)" className="semantic-error-copy">
           {error}
         </Typography>
         {onRetry && (

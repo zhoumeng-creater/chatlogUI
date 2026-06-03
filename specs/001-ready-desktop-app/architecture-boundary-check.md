@@ -83,7 +83,7 @@ rg "@l3/|@/l3-molecule|l3-molecule" src/l2-coordinator src/l4-atom -n
 - `UpdateNotificationView.tsx` is now presentational; `useUpdateNotificationCommander()` owns updater state/actions and `updateNotificationViewModel.ts` is in L2. The dialog focus-restore path no longer refocuses during status transitions.
 - Focused L1/common-shell token scan passed for the remediated files: `SetupCenterView.tsx`, `SettingsView.tsx`, `WorkbenchShellView.tsx`, `WorkbenchView.tsx`, and `UpdateNotificationView.tsx` have no `style={{ ... }}` usages.
 
-Remaining L3 commander/store exceptions are explicit staged debt rather than a clean global pass:
+Historical L3 commander/store exceptions from this P2-E scan were explicit staged debt rather than a clean global pass. This table is superseded by the 2026-06-03 P5-C/D remediation scan below, which removed runtime L3-to-L2 imports from chat, search, setup, semantic, and graph module roots.
 
 | Scope | Files | Current status | Exit criterion |
 | --- | --- | --- | --- |
@@ -101,3 +101,21 @@ Remaining L3 commander/store exceptions are explicit staged debt rather than a c
 - `rg -n "@l2|l2-coordinator|useDiagnosticEventStore|useDevConsoleStore" src\l3-molecule\common\DevConsole.tsx`: no matches. DevConsole 2.0 remains a props-driven L3 view.
 - P4-A records diagnostic events through `src/l2-coordinator/commander/diagnosticEventBridge.ts` and constructs diagnostics export manifest lines through `src/l2-coordinator/commander/diagnosticsManifest.ts`.
 - P4-A did not broaden Tauri CSP/capabilities, did not alter sidecar launch/bind-address behavior, and did not change the Rust diagnostics export payload shape.
+
+## 2026-06-03 P5-C/D Remaining Blockers Remediation Scan
+
+- Added `scripts/architecture-boundary.test.mjs`. It fails on runtime L3 imports from `@l2` or `@/l2-coordinator`; the current runtime allowlist is empty.
+- Setup workflow cleanup completed for `SetupStepper`, `SetupModeChooser`, `ConfigImportPanel`, `ManualAdvancedConfigPanel`, `ServiceControlPanel`, `ReadinessChecklist`, and setup `DiagnosticPanel`: these now receive props from `SetupCenterView`, with state/actions supplied by `useSetupCenterCommander`.
+- Chat/search runtime cleanup completed for `ContactList`, `ConversationList`, `ChatView`, `MessageList`, `ConversationRow`, `MessageBubble`, `MessageMeta`, `TranscriptHeader`, `GlobalSearch`, `SearchResults`, and `SearchResultsPane`: state/actions and privacy mode now come from `WorkbenchView` / `useWorkbenchCommander` props instead of L3 store/commander reads.
+- Semantic/graph module root cleanup completed for `AiPanel` and `GraphModule`: `WorkbenchView` now passes the AI and graph commander objects plus current chat/privacy props into lazy L3 modules.
+- `ReadinessStatePanel` now uses a local display contract and local tone mapping instead of importing runtime readiness helpers from L2.
+- `DiagnosticsPanel` no longer imports runtime diagnostics formatting from L2. It still accepts the structural diagnostics report through props.
+- Targeted architecture guard passed: `pnpm exec vitest run scripts/architecture-boundary.test.mjs --pool=threads --no-file-parallelism --maxWorkers=1 --exclude "**/.worktrees/**" --exclude "e2e/specs/**"`.
+
+Current explicit runtime L3 orchestration allowlist:
+
+| Scope | Files | Exit criterion |
+| --- | --- | --- |
+| None | none | New runtime L3 imports from L2 must be rejected by `scripts/architecture-boundary.test.mjs`. |
+
+L3 UI style debt is now tracked by `scripts/ui-governance.test.mjs`. Setup stepper/mode chooser, chat/search row class composition, and high-visibility semantic/search panels were migrated to CSS classes or native progress elements; remaining tracked debt is 11 entries across chat virtualization/media, common shell, graph, stats, and workbench layout files. The test fails if new untracked `style={{...}}`, `.filter(Boolean).join`, or template `className` usage appears.

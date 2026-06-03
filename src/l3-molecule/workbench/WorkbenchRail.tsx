@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
-import { BarChart3, Bot, MessageSquare, Network, Settings } from "lucide-react";
+import { BarChart3, Bot, DatabaseZap, Images, MessageCircle, MessageSquare, Network, Settings } from "lucide-react";
+import { classNames } from "@/utils/classNames";
+import { getWorkbenchRailButtonLabel } from "./workbenchAccessibility";
 
-export type WorkbenchRailModule = "chat" | "stats" | "ai" | "graph" | "settings";
+export type WorkbenchRailModule = "chat" | "stats" | "media" | "sns" | "developer" | "ai" | "graph" | "settings";
 
 export interface WorkbenchRailItemState {
   module: WorkbenchRailModule;
@@ -44,6 +46,12 @@ function getModuleIcon(module: WorkbenchRailModule): ReactNode {
       return <BarChart3 size={17} />;
     case "ai":
       return <Bot size={17} />;
+    case "media":
+      return <Images size={17} />;
+    case "sns":
+      return <MessageCircle size={17} />;
+    case "developer":
+      return <DatabaseZap size={17} />;
     case "graph":
       return <Network size={17} />;
     case "settings":
@@ -63,15 +71,13 @@ interface RailItemProps {
 }
 
 function RailItem({ icon, label, badge, showLabel, active = false, onClick }: RailItemProps) {
+  const accessibleLabel = getWorkbenchRailButtonLabel(label);
   return (
     <button
       type="button"
-      className={[
-        "workbench-rail-item",
-        active ? "workbench-rail-item--active" : "",
-      ].filter(Boolean).join(" ")}
-      title={label}
-      aria-label={label}
+      className={classNames("workbench-rail-item", active && "workbench-rail-item--active")}
+      title={accessibleLabel}
+      aria-label={accessibleLabel}
       aria-current={active ? "page" : undefined}
       onClick={onClick}
     >

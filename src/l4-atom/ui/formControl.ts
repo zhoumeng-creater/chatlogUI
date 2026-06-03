@@ -1,3 +1,5 @@
+import { classNames } from "@/utils/classNames";
+
 export type ControlKind = "input" | "select";
 export type ControlSize = "sm" | "md";
 
@@ -6,19 +8,19 @@ export function getControlClassName(
   size: ControlSize = "md",
   className = "",
 ): string {
-  return [
+  return classNames(
     "ui-control",
     `ui-control--${kind}`,
     `ui-control--${size}`,
     className,
-  ].filter(Boolean).join(" ");
+  );
 }
 
 export function getSegmentedItemClassName(active: boolean): string {
-  return [
+  return classNames(
     "ui-segmented__item",
-    active ? "ui-segmented__item--active" : "",
-  ].filter(Boolean).join(" ");
+    active && "ui-segmented__item--active",
+  );
 }
 
 export function getFieldDescriptionId(id: string | undefined, suffix: "hint" | "error"): string | undefined {

@@ -24,7 +24,7 @@ export function SetupCenterView() {
             <Typography variant="caption" color="var(--text-tertiary)">chatlog_alpha</Typography>
           </div>
         </div>
-        <SetupStepper />
+        <SetupStepper currentStep={setup.currentStep} />
       </aside>
 
       <main className="setup-shell__main">
@@ -38,20 +38,42 @@ export function SetupCenterView() {
 
           {setup.currentStep === "mode" && (
             <Surface variant="raised" className="setup-card">
-              <SetupModeChooser />
+              <SetupModeChooser mode={setup.mode} onChooseMode={setup.actions.chooseMode} />
             </Surface>
           )}
           {setup.currentStep === "config" && (
             <Surface variant="raised" className="setup-card">
-              <ConfigImportPanel />
+              <ConfigImportPanel
+                loading={setup.loading}
+                error={setup.error}
+                profile={setup.profile}
+                onChooseDataDirectory={setup.actions.chooseAndImportDataDirectory}
+              />
               <div className="setup-section-divider">
-                <ManualAdvancedConfigPanel />
+                <ManualAdvancedConfigPanel
+                  loading={setup.loading}
+                  error={setup.error}
+                  onSaveManualConfig={setup.actions.saveManualConfig}
+                />
               </div>
             </Surface>
           )}
           {(setup.currentStep === "service" || setup.currentStep === "database") && (
             <Surface variant="raised" className="setup-card">
-              <ServiceControlPanel />
+              <ServiceControlPanel
+                mode={setup.mode}
+                portState={setup.portState}
+                httpReady={setup.httpReady}
+                dbReady={setup.dbReady}
+                loading={setup.loading}
+                error={setup.error}
+                externalBaseUrl={setup.profile?.httpAddr ?? "http://127.0.0.1:5030"}
+                onInspectServicePort={setup.actions.inspectServicePort}
+                onStartManagedService={setup.actions.startManagedService}
+                onConnectExternalService={setup.actions.connectExternalService}
+                onStopManagedService={setup.actions.stopManagedService}
+                onCheckReadiness={setup.actions.checkReadiness}
+              />
             </Surface>
           )}
           {setup.currentStep === "ready" && (
@@ -67,9 +89,9 @@ export function SetupCenterView() {
                   </Typography>
                 </div>
               </div>
-              <Button type="button" onClick={setup.openWorkbench}>
-                打开工作台
-              </Button>
+            <Button type="button" onClick={setup.actions.openWorkbench}>
+              打开工作台
+            </Button>
             </Surface>
           )}
         </div>
@@ -87,18 +109,26 @@ export function SetupCenterView() {
             </div>
             <div className="setup-status-stack">
               <StatusIndicator label={setup.view.dbStatusLabel} tone={setup.view.dbStatusTone} />
-              <ReadinessChecklist />
+              <ReadinessChecklist
+                profile={setup.profile}
+                httpReady={setup.httpReady}
+                dbReady={setup.dbReady}
+              />
             </div>
           </Surface>
 
           <Surface variant="base" className="setup-card--compact">
             <Typography variant="label" weight={700}>诊断信息</Typography>
             <div className="setup-diagnostics-body">
-              <DiagnosticPanel />
+              <DiagnosticPanel
+                report={setup.diagnostics.report}
+                copyText={setup.diagnostics.copyText}
+                onExport={setup.diagnostics.exportReport}
+              />
             </div>
           </Surface>
 
-          <Button type="button" variant={setup.view.workbenchButtonVariant} onClick={setup.openWorkbench}>
+          <Button type="button" variant={setup.view.workbenchButtonVariant} onClick={setup.actions.openWorkbench}>
             {setup.view.workbenchButtonLabel}
           </Button>
         </div>

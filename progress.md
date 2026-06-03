@@ -625,3 +625,248 @@
 - A10 final verification：`pnpm typecheck` PASS；`pnpm test` PASS（47 files / 241 tests）；`pnpm build` PASS（2912 modules，GraphCanvas 12.93 kB，3D vendor lazy chunk 1,170.60 kB/gzip 336.01 kB）；`pnpm verify` PASS（lint/typecheck/test/build 全部通过）。
 - A10 final scans：`git diff --check` 无 whitespace error，仅 CRLF normalization warnings；L1/L3 raw network scan 无输出；L4-to-L2/Zustand scan 无输出；runtime console scan 无输出；排除 tests 和 `maskSecrets.ts` 后 synthetic marker scan 无输出；`onDiagnosticEvent` 只见 L4 opt-in callback 和 L2 bridge，未见 L3 wiring。
 - A10 Rust/Tauri scope：未运行 `cargo test` / `pnpm tauri build`，因为本轮未修改 Rust/Tauri 源码、CSP、capabilities、sidecar startup、sidecar bind address 或 Rust diagnostics payload shape。
+
+## 2026-06-02 P4-B Comprehensive Review
+
+- 本轮按用户要求执行全面审查，不做功能修复。采用 skills：`using-superpowers`、`planning-with-files`、`frontend-code-review`、`ui-acceptance`、`chatlog-debug`、`frontend-design`、`playwright`、`browser`、`verification-before-completion`。
+- 审查范围包括当前主工作区源码、P4/P5 总路线图、`specs/002-advanced-capabilities`、`AGENTS.md`、`开发指南.md`、`docs/总体开发规划.md`、Workbench rail、网络原子、聊天消息渲染、Tauri CSP、测试和 UI smoke。
+- 搜索确认 P4-B 计划列出的主要文件均不存在或未导出：mediaResources/fetchFavorites/fetchMembers/fetchUnread/fetchNewMessages/mediaAdapters/useMediaStore/useMediaCommander/useFavoritesCommander/MediaLibrary/MediaPreviewSheet/ConversationInspector。
+- 代码证据：`src/l4-atom/network/index.ts` 未导出 P4-B fetcher；`src/l2-coordinator/commander/workbenchViewModel.ts` rail 只有 chat/stats/ai/graph/settings；`MessageBubble` 仍显示 `[媒体可用]`；`Conversation.unread` 由 adapter 固定为 0；`tauri.conf.json` 无 `media-src`。
+- 运行 `pnpm verify` 通过：lint、typecheck、47 个测试文件 / 241 个测试、build 均通过。该结果只证明现有基线健康，不证明 P4-B 完成，因为缺少 P4-B targeted tests。
+- UI smoke：Codex in-app browser 连接超时，改用 headless Chrome DevTools Protocol。`/workbench?codex-smoke=workbench-ready` 在 1440x900 和 390x820 无页面级横向溢出、无过小按钮；可见导航未出现媒体、收藏、成员、未读、新消息或增量入口。
+- 结论记录：当前代码不满足 P4-B 阶段验收，也不满足项目对该阶段的功能覆盖、隐私媒体处理、CSP gate、状态覆盖和 UI 模块化要求。
+
+## 2026-06-02 P4-B Suggested Fix Implementation
+
+- 用户要求“按 Suggested fix 先处理这些问题”；本轮从 review 转入实现，并创建分支 `codex/p4b-media-chat-extensions`，避免在 `master` 上做非平凡实现。
+- TDD RED/GREEN：新增 `mediaAdapters.test.ts`、`fetchChatExtensions.test.ts`、`mediaDisplay.test.ts`，并扩展 `workbenchViewModel.test.ts` 与 `transcriptDisplay.test.ts`。初始缺失模块/导出失败后，补齐实现并让 targeted suite PASS（5 files / 24 tests）。
+- L4 实现：`chatlogRawTypes.ts` 增加 favorites/members/unread/new_messages raw types；`mediaAdapters.ts` 适配 typed attachments、favorites、members、unread、新消息；`fetchFavorites.ts`、`fetchMembers.ts`、`fetchUnread.ts`、`fetchNewMessages.ts` 默认追加 `format=json` 并接入 opt-in diagnostics；`mediaResources.ts`/`index.ts` 导出媒体资源能力。
+- 隐私修正：adapter 优先使用 media/image key；没有 key 时不会把 `media_path`/`image_path` 放入 `resourceKey`，`buildMediaResourceUrl()` 对空 key 返回空字符串；direct preview 仅接受 `127.0.0.1:5030` 或 `localhost:5030`，避免引入远程媒体请求。
+- L2 实现：新增 `useMediaStore.ts` 与 `useMediaCommander.ts`，由 commander 并发加载 favorites/unread/members/new_messages，基于当前聊天历史汇总 attachments，并生成 preview URL。`useWorkbenchCommander.ts` 只在媒体模块激活且有当前会话时加载媒体扩展。
+- L3/L1 实现：新增 `src/l3-molecule/media/MediaLibrary.tsx`、`MediaPreviewSheet.tsx`、`mediaDisplay.ts`；Workbench rail/toolbar 增加“媒体”模块；Inspector 渲染媒体面板；`MessageBubble` 使用 `getMessageAttachmentSummary()` 显示 typed attachment summary，不再只显示泛化 `[媒体可用]`。
+- UI/CSP：`workbench-content.css` 增加媒体面板、summary strip、chips、列表、预览 sheet 和聊天附件卡片样式，复用现有 token；`tauri.conf.json` 增加 `media-src 'self' data: blob: http://127.0.0.1:5030;`，未放宽 connect/frame/object/script。
+- 验证：targeted P4-B suite PASS（5 files / 24 tests）；`pnpm lint` PASS；`pnpm typecheck` PASS；`pnpm test` PASS（50 files / 251 tests）；`pnpm build` PASS；`pnpm verify` PASS；`cd src-tauri && cargo test` PASS（20 tests）；`pnpm tauri build` PASS，生成 MSI/NSIS artifacts。
+- UI acceptance：启动 Vite 并用 bundled Playwright 在 1440x900 与 390x844 访问 `/workbench?codex-smoke=workbench-ready`。首次无 mock sidecar 时媒体入口/面板可见且无横向 overflow，但有预期的 5030 connection refused；第二次拦截本地 API 合成群聊/图片/收藏/成员/未读/增量数据后，媒体面板和附件摘要可见、无横向 overflow、无 console error、可见文本不包含 `image-secret-key`、`favorite-secret-key` 或本地路径。
+- Cleanup：停止本轮启动的 Vite/pnpm 进程，删除 `tmp/p4b-smoke` 临时截图目录。`src-tauri/Cargo.toml` 状态显示 modified 但 blob hash 与 HEAD 一致且 diff 为空，视为无内容 stat/行尾异常，不计入本轮实现 diff。
+
+## 2026-06-02 P4-C SNS / Moments Module Planning
+
+- 按用户要求开始 P4-C：SNS/朋友圈阶段规划撰写，本轮只做规划和文档同步，不执行源码功能实现。
+- 已采用/读取本轮需要的 skills：`using-superpowers`、`brainstorming`、`planning-with-files`、`writing-plans`、`app-productization`、`sidecar-integration`、`ui-acceptance`、`frontend-design`、`verification-before-completion`。`using-git-worktrees` 已评估；当前不在 `master`，且 P4-B dirty branch 是 P4-C 必须参考的现行进度，因此本轮不新建 worktree。
+- 已读取核心上下文：`AGENTS.md`、`开发指南.md`、`docs/总体开发规划.md`、`docs/ui-functional-audit-and-redesign-plan.md`、`task_plan.md`、`findings.md`、`progress.md`、P4/P5 总路线图、P4/P5-0、P4-A、`specs/002-advanced-capabilities`、当前 P4-B 源码。
+- 当前源码审计结论：P4-B media/chat extension 模式已存在；SNS 文件和 Workbench `sns` module 尚不存在。`src/l4-atom/network/index.ts` 无 SNS exports，`WorkbenchModule` 还没有 `sns`。
+- 已对照本地 `E:\OneDrive - Default Directory\chatlog_alpha` 的 SNS model/handler/media proxy/README，确认 P4-C 真实接口和字段：feed/search/notifications 均为 JSON REST；feed/search rows 包含 raw XML 和 media proxy 相关敏感字段；media proxy URL query 含 `url` 和可能的 `key`，只能作为敏感本机 media src，不得进入可见文本、诊断或导出。
+- 已新增 P4-C 专项计划：`docs/superpowers/plans/2026-06-02-p4-c-sns-moments-module.md`。计划拆为 C0-C9，覆盖 backend-shaped fixture、L4 raw types/adapters/fetchers、L2 store/commander/view model、Workbench module 集成、L3 timeline/search/notifications/media/detail UI、隐私诊断、文档同步、UI acceptance 和最终验证。
+- 已更新 P4/P5 总路线图 P4-C 段，加入专项计划链接和关键纠偏：后端当前无 offset pagination，SNS proxy URL/key 是敏感实现细节，执行时以专项计划为准。
+
+## 2026-06-02 P4-C SNS / Moments Module Implementation
+
+- 用户明确要求按已撰写的 P4-C SNS/朋友圈修复规划执行代码撰写，并要求参考当前开发进度、历史开发文档和当前源码，执行计划时不遗漏。
+- 已加载并采用本轮需要的技能：`using-superpowers`、`brainstorming`（以既有 P4-C 计划作为已批准设计基线）、`planning-with-files`、`using-git-worktrees`（评估后因当前 P4-B dirty branch 是必要基线，不新建会丢失上下文的 worktree）、`executing-plans`、`test-driven-development`、`chatlog-debug`、`app-productization`、`frontend-design`、`ui-acceptance`、`sidecar-integration`、`verification-before-completion`。`systematic-debugging` 将在遇到测试、构建、API、UI 或 sidecar 失败时启用。
+- 当前分支为 `codex/p4b-media-chat-extensions`，不是 `master`。工作区包含 P4-B media/chat extension 实现和 P4-C 计划文档的未提交改动；P4-C 按计划继续在该基线上执行，不回滚或覆盖既有 P4-B 改动。
+- 已读取当前 `task_plan.md`、`findings.md`、`progress.md` 和 `docs/superpowers/plans/2026-06-02-p4-c-sns-moments-module.md`。执行入口为 C0-C9，重点是 backend-shaped SNS fixture、L4 adapter/fetcher、L2 store/commander/view model、Workbench `sns` module、L3 timeline/search/notifications/detail/media UI、隐私诊断和最终验证。
+- C0 文档/fixture 基线：已补读 `开发指南.md`、`AGENTS.md`、constitution、P4/P5 总路线图、P4/P5-0、P4-A、`specs/001-ready-desktop-app`、`specs/002-advanced-capabilities` 和本地 `chatlog_alpha` SNS model/route/media proxy handler。已将 `advanced-capabilities.json` 的 SNS fixture 扩展为后端形状：`{notifications,total}`、`{count,items}` feed/search、location/media/article/finder 字段；已更新 capability matrix SNS 行到 P4-C 文件所有权。JSON 解析通过；明显真实 secret/query/path 扫描无命中；`raw_content` 仅作为合成 adapter 测试输入保留。
+- C1 TDD：新增 `src/l4-atom/network/snsAdapters.test.ts`，先确认 RED 失败于缺少 `snsAdapters`；随后新增 `chatlogRawTypes` SNS raw DTO 和 `snsAdapters.ts`。Adapter 归一化 feed/search/notifications，丢弃 raw XML、raw URL、token/key、外部 article/finder URL；本机 SNS proxy URL 仅作为 non-enumerable `sensitiveSrc`/`sensitiveThumbSrc` 暴露给媒体渲染。目标测试通过：`pnpm test src\l4-atom\network\snsAdapters.test.ts`，4 tests passed。
+- C2 TDD：新增 `src/l4-atom/network/fetchSnsEndpoints.test.ts`，先确认 RED 失败于缺少 SNS fetchers；随后实现 `fetchSnsFeed.ts`、`fetchSnsSearch.ts`、`fetchSnsNotifications.ts` 并从 L4 index 导出。Fetchers 默认 `format=json`、feed/search 默认 `media=1&replace=1`、search 空关键词不触发 backend 请求，diagnostic events 只保留 endpoint family。目标测试通过：`pnpm test src\l4-atom\network\fetchSnsEndpoints.test.ts`，3 tests passed；C1+C2 combined suite 2 files / 7 tests passed；L4 SNS 文件 L2/Zustand/Tauri/L3 import scan 无输出。
+- C3 TDD：新增 `useSnsStore.test.ts` 与 `snsViewModel.test.ts`，先确认缺失模块 RED；随后实现 `useSnsStore.ts`、`snsViewModel.ts`、`useSnsCommander.ts`，并从 L2 index 导出。Store 覆盖 loading/ready/empty/error/search/filter/select/reset；view model 覆盖 privacy masking、selected post、badge、load-more-by-limit。目标测试通过（2 files / 6 tests），`pnpm typecheck` 通过。
+- C4 TDD：扩展 `workbenchViewModel.test.ts`，确认缺少 `sns` module RED；随后将 Workbench module order 扩展为 `chat/stats/media/sns/ai/graph/settings`，增加 SNS rail badge、inspector title 和 inspector module 判断。目标测试通过（9 tests）。
+- C5 TDD/UI：新增 `snsDisplay.test.ts`，先 RED 于缺少 helper；随后实现 `snsDisplay.ts`、`SnsModule.tsx`、`SnsTimeline.tsx`、`SnsSearchPanel.tsx`、`SnsMediaGrid.tsx`、`SnsDetailInspector.tsx` 和 CSS。后续发现 search highlight 细节缺口，补 `buildSnsHighlightedSegments()` 和 `<mark>` 纯文本高亮；`snsDisplay.test.ts` 4 tests passed。
+- Workbench 集成：`useWorkbenchCommander.ts` 接入 `useSnsCommander()`，active `sns` 时加载 SNS；`WorkbenchView.tsx` 添加 “朋友圈” toolbar entry 并把 L2 props/callbacks 传给 `SnsModule`；`WorkbenchRail.tsx` 本地 module union 增加 `sns` 和 lucide icon。`pnpm typecheck` 与 `pnpm lint` 均通过。
+- C8 UI acceptance：启动 Vite 5173，临时使用 Playwright route interception mock 本地 sidecar API。桌面首次截图发现 inspector 双栏挤压 timeline，已将 SNS body 改为单列滚动并复测。最终 mocked smoke PASS：SNS feed、search、notifications、desktop 和 390px narrow viewport 均通过；visible text 不含 `/api/v1/sns/media/proxy` 或 `sns-secret-key`；验收后停止 Vite 并删除 `output/playwright` 临时 artifacts。
+- C7 文档同步：已更新 `specs/002-advanced-capabilities/capability-matrix.md`、`e2e-matrix.md`、README、`specs/001-ready-desktop-app/release-evidence.md`、P4/P5 总路线图、P4-C 专项计划、`task_plan.md` 和 `findings.md`，明确本轮是 source/UI evidence，不替代 packaged release gate 或 P5-B persistent E2E。
+- C9 final verification：targeted P4-C suite PASS（6 files / 26 tests）；`pnpm lint` PASS；`pnpm typecheck` PASS；`pnpm test` PASS（55 files / 268 tests）；`pnpm build` PASS；`pnpm verify` PASS；`cargo test` PASS（20 tests）；`pnpm tauri build` PASS，生成 MSI/NSIS bundle。
+- C9 scans：L1/L3 raw network scan 无输出；L4-to-L2/Zustand scan 无输出；L3 SNS-to-L2/store scan 无输出。Runtime console scan 只有既有 `semanticDisplay.test.ts` 的 synthetic `<script>alert(1)</script>` 测试输入。SNS/privacy 宽口径扫描命中 synthetic fixtures、redaction tests、旧计划文档代码样例、JSX `key=` 属性、SNS raw DTO 字段和 adapter tests，均为预期测试/文档/类型输入，不是生产 UI 可见泄漏。
+- C9 cleanup：最终 UI smoke 后确认 `output/playwright` 已删除，5173 无 Vite listener。`git diff --check` 无 whitespace error，仅 LF/CRLF normalization warnings。当前工作树仍包含 P4-B 既有未提交改动与本轮 P4-C 新增/修改文件；未执行 stage/commit。
+
+## 2026-06-02 P4-D DB Explorer / wx-cli API Debugger Planning
+
+- 按用户要求开始 P4-D：DB Explorer 与 wx-cli/API 调试器阶段规划撰写。本轮只做规划和文档同步，不执行源码功能实现。
+- 已加载并采用本轮需要的 skills：`using-superpowers`、`brainstorming`、`planning-with-files`、`writing-plans`、`app-productization`、`verification-before-completion`。`using-git-worktrees` 已评估；当前 `codex/p4b-media-chat-extensions` dirty branch 包含 P4-B/P4-C 最新未提交进度，是 P4-D 必须参考的基线，因此本轮不新建会丢失上下文的普通 worktree。
+- 当前分支为 `codex/p4b-media-chat-extensions`，不是 `master`；工作树包含 P4-B media/chat-extension 和 P4-C SNS implementation 的源码、测试、文档改动。本轮只追加 P4-D 规划相关文档与工作记忆，不回滚、不覆盖既有实现。
+- 初始检索确认 P4/P5 总路线图已有 P4-D 占位：DB status/search/tables/data/query/cache clear 与 local endpoint runner；`specs/002-advanced-capabilities` 已把 DB explorer 和 API runner 标为 P4-D，但当前仍是 future/documented 状态。
+- 已补读现有前端源码边界：当前 Workbench module 为 `chat/stats/media/sns/ai/graph/settings`，没有 `developer` module；前端无 DB Explorer、endpoint catalog、API runner、DB fetcher、DB store 或 DeveloperTools L3 模块。P4-D 应新增 Developer module，位置建议在 SNS 后、AI 前。
+- 已对照本地 `chatlog_alpha` DB handler 与 HTTP CLI 源码确认真实契约：`/api/v1/db` 返回 group-to-files map，`/api/v1/db/tables` 返回 string array，`/api/v1/db/data` 和 `/api/v1/db/query` JSON 返回 row map array，`/api/v1/db/search` 返回 `{keyword,mode,total,items}`，`POST /api/v1/cache/clear` 返回 `{message,deletedCount}`。`/api/v1/db/query` 后端不限制 read-only，P4-D 必须在前端阻止非只读 SQL。
+- 已新增 P4-D 专项规划文档：`docs/superpowers/plans/2026-06-02-p4-d-db-explorer-wx-cli-api-debugger.md`。计划拆为 D0-D10，覆盖 backend-shaped fixtures、L4 DB adapter/fetcher、SQL guard、endpoint allowlist runner、L2 Developer Tools store/commander/view model、Workbench `developer` module、L3 DB/API/cache UI、隐私诊断、UI acceptance 和最终验证。
+- 已同步 P4/P5 总路线图 P4-D 段、`specs/002-advanced-capabilities/capability-matrix.md`、`e2e-matrix.md`、`privacy-diagnostics-contract.md` 和 README。该规划轮只记录设计阶段状态，不声称源码实现。
+- 自审结果：P4-D 计划未发现待填占位；状态措辞在当时保持设计阶段口径；`git diff --check` 仅返回 LF/CRLF 提示；新 P4-D 计划尾随空白扫描无输出。本轮未运行源码测试，因为只修改规划、规格和工作记忆。
+
+## 2026-06-02 P4-D DB Explorer / wx-cli API Debugger Implementation
+
+- 用户明确要求参考 P4-D 修复规划、当前开发进度、历史开发文档和当前代码进行代码撰写，并要求执行计划时不遗漏。
+- 已加载并采用本轮需要的技能：`using-superpowers`、`brainstorming`（以既有 P4-D 计划作为已批准设计基线）、`planning-with-files`、`using-git-worktrees`（评估后因当前 dirty branch 是必要基线而不创建新 worktree）、`executing-plans`、`test-driven-development`、`chatlog-debug`、`app-productization`、`frontend-design`、`ui-acceptance`、`sidecar-integration`、`verification-before-completion`、`requesting-code-review`、`code-simplifier`。
+- 当前分支为 `codex/p4b-media-chat-extensions`，不是 `master`；工作树含 P4-B/P4-C/P4-D 相关未提交改动。本轮只在该连续开发基线上追加 P4-D 实现，不回滚既有改动。
+- 已读取 P4-D 专项计划、`task_plan.md`、`findings.md`、`progress.md`、`开发指南.md`、`docs/总体开发规划.md`、`.specify/memory/constitution.md`、`specs/001-ready-desktop-app`、`specs/002-advanced-capabilities`、P4/P5 总路线图和当前 P4-B/P4-C 源码模式。`specs/000-productization/*` 在当前仓库不存在，已记录并按实际存在的 001/002 合同继续。
+- 已对照本地 `E:\OneDrive - Default Directory\chatlog_alpha` 的 README、`cmd/chatlog/cmd_http.go`、`internal/chatlog/http/route.go`、DB service 和 WCDB datasource/client，确认 DB/search/tables/data/query/cache clear 真实契约，以及 `chatlog http list/call` alias catalog 与 raw call 能力边界。
+- Workbench/L2/L3 基线扫描完成：当前模块序列为 `chat/stats/media/sns/ai/graph/settings`；P4-D 将新增 `developer` module，复用 P4-B/P4-C 的 L4 fetcher/adapter、L2 store/commander/view model、L3 props-driven module、Workbench inspector 和 mocked UI acceptance 模式。
+- D0 fixture：已把 `e2e/fixtures/advanced-capabilities.json` 的 DB 段调整为后端形状，新增 `/api/v1/db` group-to-files map、`/api/v1/db/search` `{keyword,mode,total,items}`、`/api/v1/cache/clear` 和 `apiRunner` allowlist 元数据；JSON parse 通过。
+- D1 TDD/GREEN：新增 `dbExplorerAdapters.test.ts` 并实现 `dbExplorerAdapters.ts`，覆盖 DB 文件适配、row map table view、search hit 摘要、privacy cell masking、只允许 SELECT/WITH SELECT/PRAGMA/EXPLAIN 的保守 SQL guard，阻止 mutation/multi-statement/unsupported SQL。
+- D2-D3 TDD/GREEN：新增 `fetchDbExplorer.test.ts`、`endpointRunner.test.ts`，实现 `fetchDbExplorer.ts` 和 `endpointRunner.ts`。DB fetchers 默认 `format=json`、支持 P4-A diagnostics、`DbQueryBlockedError` 在网络前阻断危险 SQL；API runner 只从 fixed catalog 构造 local sidecar request，拒绝 unknown endpoint/parameter，cache clear 需要 confirmation，response preview 递归脱敏。
+- D4-D5 TDD/GREEN：新增 `useDeveloperToolsStore.test.ts`、`dbExplorerViewModel.test.ts`、`endpointRunnerViewModel.test.ts`，实现 Developer Tools Zustand store、DB/endpoint view models 和 `useDeveloperToolsCommander.ts`。runner history 只保存 method/endpointFamily/status/duration/parameterKeys/redacted，不保存 SQL、参数值或 response preview。
+- Workbench 接入：`WorkbenchModule` 扩展为 `chat/stats/media/sns/developer/ai/graph/settings`，新增 developer badge、inspector title、rail icon、按需加载、toolbar entry 和 `WorkbenchView` inspector placement。
+- D6-D7 UI：新增 `src/l3-molecule/developer/` 下的 `DeveloperToolsModule`、`DbExplorer`、`DbSearchPanel`、`SqlQueryPanel`、`EndpointRunner`、`RawResponsePreview`、`ResultTable` 和 `developerDisplay`。SQL editor 在 privacy mode 下隐藏并禁用；API runner 不提供 raw URL/header/body 控件；response preview 始终使用 redacted preview。
+- 当前验证：targeted P4-D suite PASS（8 files / 32 tests）；`pnpm lint` PASS；`pnpm typecheck` PASS。L4-to-L2/Zustand/Tauri scan 无输出；L3 developer scan 仅见类型导入，没有 `fetch()` 或 `requestJson()`。
+- UI acceptance：复用当前 Vite 5173 服务，临时启动 mocked `127.0.0.1:5030` sidecar。Chrome/Playwright 检查 `/workbench?codex-smoke=workbench-ready`，四种组合均通过：1440x900 privacy off/on、390x820 privacy off/on。Developer rail 打开、DB Explorer 可见、DB table data 加载、privacy-on 隐藏 DB 文件和值、unsafe SQL 显示 `已阻止 · mutation`、API Runner redacted preview 可见、无 page-level horizontal overflow、无 console/page errors。
+- UI acceptance cleanup：Playwright runtime 临时安装在 `output/playwright-runtime`，验收结束后已删除；mock sidecar 与浏览器进程随脚本退出关闭。未杀未知 5173 Vite 进程。
+- D8 docs/spec sync：已更新 `specs/002-advanced-capabilities` README/capability matrix/e2e matrix/privacy diagnostics contract、`specs/001-ready-desktop-app/release-evidence.md`、P4/P5 总路线图和 P4-D 专项计划，将 P4-D 标记为 source/UI evidence passed，并明确 P5-B persistent E2E 与 P5-C packaged release 仍是后续门禁。
+- D10 full verification：`pnpm test` PASS（63 files / 294 tests）；`pnpm build` PASS（2952 modules，GraphCanvas 12.93 kB，3D vendor lazy chunk 1,170.60 kB/gzip 336.01 kB，无 chunk warning）；`pnpm verify` PASS（lint/typecheck/test/build 全部通过）。
+- Tauri/package verification：虽然 P4-D 未修改 Rust/Tauri/CSP/capabilities/sidecar contract，但当前连续开发工作树包含既有 Tauri config 改动；已补跑 `cd src-tauri && cargo test` PASS（20 tests）和 `pnpm tauri build` PASS，生成 MSI 与 NSIS artifacts。
+- Final scans：L4 P4-D 文件无 L2/Zustand/Tauri/L3 import；L3 developer 文件只有类型导入，没有 `fetch()` 或 `requestJson()` 调用；P4-D privacy keyword scan 无输出；stale implementation-status scan 无输出；`git diff --check` 无 whitespace error，仅 LF/CRLF normalization warnings；5030 mock sidecar 已退出，无 listener。
+- Final status：P4-D DB Explorer 与 wx-cli/API Debugger source/UI implementation complete。当前仍未 stage/commit，工作树保留 P4-B/P4-C/P4-D 连续阶段的未提交改动。
+
+## 2026-06-03 P4-E Hook/MCP/Semantic Preview/Graph Residuals Planning
+
+- 按用户要求开始 P4-E 规划撰写，本轮只做规划和文档同步，不执行源码功能实现，不把完整代码放入规划文档。
+- 已采用/读取本轮需要的 skills：`using-superpowers`、`planning-with-files`、`brainstorming`、`writing-plans`、`app-productization`、`sidecar-integration`、`ui-acceptance`、`frontend-design`、`verification-before-completion`。`using-git-worktrees` 已评估；当前 `codex/p4b-media-chat-extensions` dirty branch 是 P4-B/C/D 连续开发上下文，因此本轮不创建会丢失上下文的普通 worktree。
+- 已读取核心上下文：`AGENTS.md`、`开发指南.md`、`docs/总体开发规划.md`、`.specify/memory/constitution.md`、ready desktop contracts/evidence、`specs/002-advanced-capabilities`、P4/P5 总路线图、P4/P5-0、P4-A、P4-C、P4-D 专项计划、`task_plan.md`、`findings.md`、`progress.md` 和当前相关前端源码。
+- 已审计当前前端：Developer Tools 只有 DB/API tabs；AI module 尚无 semantic index preview；Graph module 尚无 config/ingest/QA residuals；`endpointRunner.ts` 只有 MCP aliases，不是 MCP status/help surface。P4-E 规划据此指定扩展现有 Developer Tools、AI 和 Graph 模块，不另起架构。
+- 已对照本地 `E:\OneDrive - Default Directory\chatlog_alpha` 的 route、Hook/Hermes、MCP、semantic store/manager、graph handler/types 源码，确认 endpoints、字段、SSE event names、敏感字段和后端行为边界。
+- 新增 P4-E 专项规划文档：`docs/superpowers/plans/2026-06-03-p4-e-hook-mcp-semantic-preview-graph-residuals.md`。计划拆为 E0-E10，覆盖 backend-shaped fixtures、Hook/Hermes REST + SSE、MCP status/help、semantic index preview、graph config/ingest/QA residuals、privacy diagnostics、Workbench integration、UI acceptance 和最终验证。
+- 已同步 P4/P5 总路线图、`specs/002-advanced-capabilities/README.md`、`capability-matrix.md`、`e2e-matrix.md`、`privacy-diagnostics-contract.md`、`task_plan.md`、`findings.md` 和本文件。同步状态保持为 planning/documented，不声称 source/UI evidence 或 packaged release readiness。
+- 本轮计划中的实现红线：不改 `chatlog_alpha` sidecar contract；不拓宽 Tauri CSP/capabilities，除非实现证明必要；不增加 generic MCP client、raw Hook export、raw semantic vector export、raw graph evidence export 或 raw JSON private-message ingest editor；P5-B/P5-C 仍分别拥有 persistent E2E 和 packaged release gates。
+
+## 2026-06-03 P4-E Hook/MCP/Semantic Preview/Graph Residuals Implementation
+
+- 用户明确要求按 P4-E 专项修复规划执行代码撰写，参考当前开发进度、既有开发文档和当前代码，不遗漏计划项。
+- 已采用并复核本轮需要的 skills：`using-superpowers`、`planning-with-files`、`brainstorming`（以既有 P4-E 计划作为已批准设计基线）、`using-git-worktrees`（当前 dirty branch 是 P4-B/C/D/E 连续上下文，不新建会丢失上下文的普通 worktree）、`executing-plans`、`test-driven-development`、`chatlog-debug`、`systematic-debugging`、`app-productization`、`frontend-design`、`ui-acceptance`、`sidecar-integration`、`verification-before-completion`、`requesting-code-review`、`code-simplifier`。
+- 当前分支为 `codex/p4b-media-chat-extensions`，不是 `master`；工作树包含 P4-B/P4-C/P4-D/P4-E 规划与源码上下文，本轮继续在该连续开发分支上实施，不回滚既有改动。
+- 已复读 `docs/superpowers/plans/2026-06-03-p4-e-hook-mcp-semantic-preview-graph-residuals.md`、`task_plan.md`、`findings.md`、`progress.md`、`开发指南.md`、`docs/总体开发规划.md`、`.specify/memory/constitution.md`、`specs/001-ready-desktop-app/contracts/local-backend.md` 和 `specs/002-advanced-capabilities/README.md`。
+- 已对照本地 `chatlog_alpha` 源码确认 P4-E contract：Hook/Hermes/stream、MCP、semantic index preview、graph config/ingest/QA 均为既有 sidecar endpoints；本轮不需要改 Go sidecar、Tauri sidecar launch、CSP 或 capabilities。
+- E0/E1/E2/E6/E7 L4 foundation：已扩展 `advanced-capabilities.json` 为 backend-shaped P4-E synthetic fixture；新增 Hook/Hermes adapters/fetchers、Hook SSE parser、MCP inventory adapter、semantic index preview adapter/fetcher、graph residual adapters/fetchers，并从 L4 network index 导出。
+- TDD evidence：P4-E L4 targeted suite 通过（7 files / 17 tests），`pnpm typecheck` 通过。Hook/Hermes adapters 不把 `post_url`、token/client secret/path/channel、event trigger/context content 传入 view；semantic preview adapter 不输出 `store_path`、identity 或 raw content；graph QA/ingest summaries 不保留 query/answer/evidence/content。
+- E3-E5 L2/Developer Tools：新增 `useHookStore`、`useMcpStore`、`hookViewModel`、`mcpViewModel`、`useHookCommander`、`useMcpCommander`，并把 Developer Tools 扩展为 `db/api/hook/mcp` tabs。Hook stream 持有 AbortController，切换 tab/module 或关闭 inspector 时停止；clear events 需要 confirmation；MCP 只显示本地 route/tool/prompt inventory。
+- E4/E5 L3 UI：新增 Hook config/status/event stream/Hermes panels 与 MCP panel，接入既有 Developer Tools module。UI 保持 dense operational layout，不提供 raw event JSON、raw POST URL、credential/path/channel 文本、remote host、raw path/header/body 或 arbitrary tool invocation 控件。
+- E6 Semantic Preview：新增 semantic preview adapter/fetcher、AI store/commander preview state、`semanticPreviewViewModel`、`SemanticIndexPreview.tsx` 和 display tests。AI Preview tab 显示 total/group/model/dim/sample dims/coordinate/outlier metadata，privacy mode 下保持身份和内容 masked。
+- E7 Graph Residuals：新增 graph residual adapter/fetcher、graph store/commander advanced state、`graphResidualViewModel` 和 `GraphAdvancedPanel.tsx`。Graph Advanced 支持 worker config、structured business/event ingest、QA summary；visible message ingest UI 按计划 deferred。
+- Targeted verification：P4-E combined targeted suite PASS（16 files / 29 tests）。后续全量验证中 `pnpm lint` 起初发现 `fetchHook.ts` 的 constant loop condition，按 systematic-debugging 修复为显式 `reading` flag 后通过。
+- UI acceptance：复用当前 Vite 5173 服务，临时安装 Playwright 到 `output/playwright-p4e` 并通过 route interception mock synthetic local sidecar。最终 desktop/narrow source/UI checks PASS：1440x900 privacy off 和 390x820 privacy on 无 page-level horizontal overflow、无 app-owned console/page errors、无 forbidden synthetic secret/private visible text；Hook stream listen/stop、MCP inventory、AI Preview、Graph Advanced 均打开并渲染。验收后已删除 `output/playwright-p4e`，未停止未知 5173 服务。
+- Full frontend verification before final docs update：`pnpm lint` PASS；`pnpm typecheck` PASS；`pnpm test` PASS（81 files / 330 tests）；`pnpm build` PASS（2978 modules，GraphCanvas 12.93 kB，GraphModule 14.39 kB，AiPanel 29.27 kB，main index 441.72 kB，vendor-graph-3d 1,170.60 kB，无 chunk warning）。
+- Docs/spec sync：已更新 `specs/002-advanced-capabilities` README/capability matrix/e2e matrix/privacy diagnostics contract、`specs/001-ready-desktop-app/release-evidence.md`、P4/P5 总路线图、P4-E 专项计划、`task_plan.md` 和 `findings.md`，将 P4-E 标记为 source/UI evidence complete，同时明确 P5-B persistent E2E 与 P5-C packaged release 仍是后续门禁。
+- Final verification after docs update：`pnpm lint` PASS；`pnpm typecheck` PASS；`pnpm test` PASS（81 files / 330 tests）；`pnpm build` PASS；`pnpm verify` PASS。因连续工作树仍含早先 Tauri/CSP 改动，补跑 `cd src-tauri && cargo test` PASS（20 tests）和 `pnpm tauri build` PASS，产出 MSI/NSIS bundle；这不是 packaged smoke rerun。
+
+## 2026-06-03 P5-A/B Contract Fixtures, E2E, Visual Regression, A11y Planning
+
+- 按用户要求开始 P5-A/B 阶段规划撰写；本轮限定为规划/文档，不执行源码功能实现，不把完整代码放入规划文档。
+- 已采用/评估本轮需要的 skills：`using-superpowers`、`planning-with-files`、`brainstorming`、`writing-plans`、`app-productization`、`release-gate`、`ui-acceptance`、`sidecar-integration`、`verification-before-completion`、`using-git-worktrees`。当前分支为 `codex/p4b-media-chat-extensions`，不是 `master`；工作树包含 P4-B/C/D/E 连续开发上下文，因此本轮不创建会丢失当前进度的普通 worktree。
+- 初始工作记忆复核确认：P4-E 已记录为 source/UI evidence complete；P5-B persistent E2E 与 P5-C packaged release gate 仍是独立后续门禁。P5-A/B 规划应承接 `specs/002-advanced-capabilities`、P4/P5 总路线图和现有 mocked UI acceptance 经验，把一次性 smoke 升级为可重复、可审计的 contract fixtures、E2E、视觉回归和 a11y 体系。
+- 已审计当前可执行缺口：`package.json` 没有 `pnpm e2e`、`pnpm e2e:visual`、`pnpm e2e:a11y` 或 fixture validation script；仓库没有 `playwright.config.ts`；`e2e/` 只有 `core-ready.json`、`advanced-capabilities.json`、`diagnostics-redaction.json` 和 mock server README。
+- 已审计当前可复用入口：Vite 固定 5173，DEV-only `/workbench?codex-smoke=workbench-ready` 可复用为 synthetic browser gate；Workbench module 已扩展到 `chat/stats/media/sns/developer/ai/graph/settings`，P5-B 应覆盖这些模块但不新建第二套架构。
+- 新增 P5-A/B 专项规划：`docs/superpowers/plans/2026-06-03-p5-a-b-contract-fixtures-e2e-visual-a11y.md`。规划拆分为 P5-A fixture validator/manifest/route map/adapter/fetcher/privacy scanner/docs sync 与 P5-B mock backend/Playwright config/core routes/advanced modules/privacy leak checks/visual regression/a11y keyboard/CI artifact policy/docs closeout。
+- 已同步 P4/P5 总路线图中的 P5-A/P5-B 段和 recommended session 7，明确新专项计划是后续执行 source of truth。
+- 已同步 `specs/002-advanced-capabilities/README.md`、`e2e-fixture-plan.md` 和 `e2e-matrix.md`，状态保持为 `planning-documented`，不声称 runnable P5-A/B harness 已实现。
+- 本轮尚未添加依赖、脚本、Playwright config、mock server 或测试实现；后续实现需要按计划运行 `pnpm fixtures:check`、`pnpm e2e`、`pnpm e2e:visual`、`pnpm e2e:a11y`、`pnpm verify` 和 `git diff --check`。
+
+## 2026-06-03 P5-A/B Implementation
+
+- 用户明确要求按 P5-A/B 专项修复规划执行代码撰写，参考当前开发进度、既有开发文档和当前代码，不遗漏计划项。
+- 已采用并复核本轮需要的 skills：`using-superpowers`、`brainstorming`（以既有 P5-A/B 计划作为已批准设计基线）、`planning-with-files`、`using-git-worktrees`（当前 dirty branch 是 P4-B/C/D/E/P5 连续上下文，不新建会丢失上下文的普通 worktree）、`executing-plans`（内联执行，当前工具约束不派生 subagent）、`test-driven-development`、`chatlog-debug`、`app-productization`、`frontend-design`、`ui-acceptance`、`release-gate`、`verification-before-completion`、`requesting-code-review`。
+- 当前分支为 `codex/p4b-media-chat-extensions`，不是 `master`；工作树包含 P4-B/C/D/E 连续源码和文档上下文，本轮继续在该分支实施，不回滚既有改动。
+- P5-A RED/GREEN：新增 `scripts/validate-e2e-fixtures.test.mjs`，先确认缺少 validator 导致失败；随后实现 `scripts/validate-e2e-fixtures.mjs`、`e2e/fixtures/fixture-manifest.json` 和 `e2e/mock-chatlog-server/route-map.json`。
+- Fixture contract hardening：`core-ready.json` 已从旧 `items` 包装改为当前 L4 raw DTO 接受的 backend-shaped `sessions/contacts/chatrooms/history/search/stats/dashboard trend/semantic` 字段；`advanced-capabilities.json` 修正 unread/members/new_messages/favorites 为当前 adapters 消费的 raw 字段，并补 graph query/visualize/timeline fixture。
+- 当前 P5-A 验证：`pnpm test scripts/validate-e2e-fixtures.test.mjs` PASS（3 tests）；`pnpm fixtures:check` PASS（48 route entries checked）。
+- P5-B mock backend RED/GREEN：新增 `e2e/mock-chatlog-server/server.test.mjs`，先确认缺少 server 导致失败；随后实现 `fixture-loader.mjs` 和 `server.mjs`。Targeted verification PASS（3 tests）：REST JSON、Hook SSE 和 generated media placeholder 均由 synthetic route-map/fixtures 提供。
+
+## 2026-06-03 P5-A/B Implementation Closeout
+
+- P5-A contract hardening follow-up：在 E2E 调试中发现 `/api/v1/db/tables` fixture 曾返回 `{items}`，而当前 L4 fetcher 需要 string array。已补 validator shape test 和 validator rule，并把 fixture 改为数组，`pnpm fixtures:check` 继续通过。
+- P5-B harness：新增 project-owned `@playwright/test`、`@axe-core/playwright`、`axe-core`，新增 `playwright.config.ts`、`pnpm e2e`、`pnpm e2e:visual`、`pnpm e2e:update-snapshots`、`pnpm e2e:a11y` 和 `pnpm mock:chatlog`。Playwright webServer 串行启动 Vite 5173 与 mock backend 5030；若 5030 被占用则失败，不杀未知 listener。
+- Browser specs：新增 core/advanced/privacy/visual/a11y specs 和 viewport/privacy/a11y/graph/workbench helpers。覆盖 Workbench desktop/narrow、dashboard alias、settings、media/SNS、Developer DB/API/Hook/MCP、AI preview、Graph explicit visualization、privacy-on leak scan、visual screenshots、axe/keyboard/a11y privacy scan。
+- UI fixes from P5-B failures：Graph visualization panel 原先在 inspector 内被 flex/grid 高度压缩，按钮可见但 pointer hit 被父容器截获；已调整 Graph content/panel min-height 与 scroll behavior。GraphCanvas 在 `codex-smoke` URL 下启用 `preserveDrawingBuffer`，用于 E2E 非空 canvas readback，不改变普通路径。浅色主题 accent/muted/success/warning token 与 Avatar fallback 改为满足 axe contrast。
+- P5-B gates：`pnpm e2e` PASS（9 tests）；`pnpm e2e:update-snapshots` generated/updated synthetic visual baselines；`pnpm e2e:visual` PASS（2 tests）；`pnpm e2e:a11y` PASS（3 tests）。一次并行执行 visual+e2e 时因两个 webServer 抢 5030 导致 EADDRINUSE，串行复跑 `pnpm e2e` PASS，记录为工具运行方式约束。
+- Docs/evidence：已更新 `e2e/README.md`、`e2e/mock-chatlog-server/README.md`、P5-A/B 专项计划、`specs/002-advanced-capabilities/e2e-fixture-plan.md`、`e2e-matrix.md`、`specs/001-ready-desktop-app/release-evidence.md` 和 `task_plan.md`。P5-C packaged release gate 仍未声明完成。
+- Final verification：`pnpm test` PASS（84 files / 346 tests）after excluding Playwright specs from Vitest collection；`pnpm verify` PASS（lint/typecheck/test/build）；`cd src-tauri && cargo test` PASS（20 tests）；`pnpm tauri build` PASS and produced MSI/NSIS bundles. `git diff --check` had no whitespace errors, only LF/CRLF normalization warnings. P5-specific gates were re-run serially after docs updates: fixtures check PASS, mock/validator tests 7 PASS, E2E 9 PASS, visual 2 PASS, a11y 3 PASS.
+- Self-review scans：L1/L3/E2E specs have no `fetch()` or `requestJson()` calls. L3 `@l4/network` hits are type-only props or unit-test catalog helper usage, not runtime network calls. Secret-pattern scan hits are redaction tests, fixture sentinel allowlists, test-data policy, or historical evidence text; committed P5 fixtures are covered by `pnpm fixtures:check`.
+
+## 2026-06-03 P5-C/D Sidecar Artifact, Updater, CI/CD, Release Governance Planning
+
+- 按用户要求开始 P5-C/D 阶段规划撰写；本轮限定为规划/文档，不执行源码功能实现，不把完整代码放进规划文档。
+- 已采用/评估本轮需要的 skills：`using-superpowers`、`planning-with-files`、`brainstorming`、`writing-plans`、`app-productization`、`sidecar-integration`、`release-gate`、`verification-before-completion`、`using-git-worktrees`。当前分支为 `codex/p4b-media-chat-extensions`，不是 `master`；工作树包含 P4-B/C/D/E 和 P5-A/B 连续上下文，因此本轮不创建会丢失当前进度的普通 worktree。
+- 已读取当前工作记忆、`AGENTS.md`、P5-A/B planning/implementation closeout，并确认 P5-C/D 不重复 fixture/E2E/visual/a11y harness。下一步继续读取总体开发规划、开发指南、ready desktop specs、P4/P5 总路线图、当前 Tauri/CI/updater/sidecar 配置和 Tauri 官方 updater/release 文档。
+- 已读取 `docs/总体开发规划.md`、`开发指南.md`、P4/P5 总路线图、P5-A/B 专项计划和早期 Sprint 6 发布计划。当前结论：P5-C/D 应以 P4/P5 总路线图和当前代码为准，早期 Sprint 6 计划中的旧端口、手写 updater manifest、空签名和完整代码式计划只能作为历史参考。
+- 已审计当前 CI/Tauri/updater/sidecar 配置：release/build-check workflows、`prepare-sidecar.sh`、`tauri.conf.json`、`Cargo.toml`、capabilities、package scripts、`useUpdateCommander`、update view model、Rust sidecar runtime path和本地 binaries 状态。P5-C 的主要 blockers 初步定位为真实 sidecar artifact 来源/校验、release workflow dry-run/evidence、updater signed artifact 验证、CI 是否接入 P5-A/B gates、跨平台 caveat/governance 文档。
+- 已复核 Tauri v2 sidecar/updater 与 tauri-action 官方文档，并把 target triple sidecar artifact、signed updater artifact、generated update JSON、release artifact evidence 作为 P5-C gate 写入专项规划。
+- 新增 P5-C/D 专项规划文档：`docs/superpowers/plans/2026-06-03-p5-c-d-sidecar-artifact-updater-ci-release-governance.md`。规划拆分为 C0-C10 和 D0-D7，覆盖 sidecar artifact strategy、manifest/checksum verifier、`prepare-sidecar.sh` release hardening、updater signing/latest.json verification、CI/CD gate ordering、platform packaged smoke、release evidence bundle、release notes/versioning、advanced acceptance checklist、privacy audit、regression dashboard、deprecated guidance cleanup 和 maintenance ownership。
+- 已同步 P4/P5 总路线图、`specs/002-advanced-capabilities/README.md`、`e2e-matrix.md`、`task_plan.md` 和 `findings.md`，状态保持为 `planning completed; implementation pending`。本轮没有修改 sidecar/updater/CI implementation 文件，也没有声明 P5-C/D release-ready。
+## 2026-06-03 P5-C/D Release Guardrail Implementation
+
+- Entered implementation using the existing P5-C/D plan as the approved execution baseline. Confirmed the current branch is `codex/p4b-media-chat-extensions` and kept all existing P4/P5 dirty work intact.
+- Wrote RED tests for sidecar artifact verification and updater manifest verification. Initial run failed because `verify-sidecar-artifacts.mjs` and `verify-updater-manifest.mjs` did not exist.
+- Implemented `scripts/verify-sidecar-artifacts.mjs`, `scripts/verify-updater-manifest.mjs`, `scripts/release/sidecar-artifacts.json`, and package scripts for release sidecar/updater checks.
+- Targeted verifier tests passed: `pnpm test scripts/verify-sidecar-artifacts.test.mjs scripts/verify-updater-manifest.test.mjs` -> 2 files / 10 tests passed.
+- Hardened `.github/scripts/prepare-sidecar.sh` to invoke sidecar provenance verification before and after preparation, label check-mode placeholders, print checksum evidence, and fail release mode without approved provenance.
+- Debugged local bash execution: CRLF line endings caused `pipefail` failure; normalized script to LF. WSL lacked `node`; added `node.exe` fallback. Final Windows check-mode sidecar preparation passed and printed SHA-256 evidence.
+- Verified sidecar guardrails: `pnpm release:check:sidecar` passed for check mode with placeholder warnings; release-mode Windows verifier failed as expected because the manifest does not allow release.
+- Updated `.github/workflows/build-check.yml` and `.github/workflows/release.yml` with source/UI quality gates, release sidecar provenance checks, draft release behavior, updater manifest verification, and release evidence artifact upload.
+- Added failure-only source/UI Playwright artifact upload to both workflows so CI failures retain browser traces/screenshots/reports without uploading anything during passing runs.
+- Added governance docs: `docs/release/sidecar-artifacts.md`, `docs/release/release-governance.md`, `docs/release/privacy-audit.md`, `specs/002-advanced-capabilities/acceptance-checklist.md`, and `CHANGELOG.md`.
+- Updated release docs/evidence/status: `docs/release/ready-desktop-app.md`, `specs/001-ready-desktop-app/release-evidence.md`, `specs/002-advanced-capabilities/README.md`, `specs/002-advanced-capabilities/e2e-matrix.md`, P5-C/D plan, and `task_plan.md`.
+- Narrow verification after docs/workflow updates:
+  - `pnpm test scripts/verify-sidecar-artifacts.test.mjs scripts/verify-updater-manifest.test.mjs` passed: 2 files / 10 tests.
+  - `pnpm release:check:sidecar` passed in check mode with placeholder warnings for macOS/Linux targets.
+  - `pnpm release:check:sidecar:release` failed as expected because every target remains `releaseAllowed: false`.
+  - `pnpm release:check:updater` failed as expected because `src-tauri/target/release/bundle/latest.json` has not been generated for a release candidate.
+  - `node` JSON parse passed for `package.json` and `scripts/release/sidecar-artifacts.json`.
+  - `ruby` YAML parse was unavailable locally; Python YAML parse first failed due default GBK decoding, then passed with explicit UTF-8 for `.github/workflows/build-check.yml` and `.github/workflows/release.yml`.
+  - Added `.gitattributes` with `*.sh text eol=lf` after the local bash run proved CRLF breaks `prepare-sidecar.sh`.
+- Full verification before closeout:
+  - `pnpm fixtures:check` passed: 48 route entries.
+  - `pnpm e2e` passed: 10 tests.
+  - `pnpm e2e:visual` passed: 2 tests.
+  - `pnpm e2e:a11y` passed: 4 tests.
+  - `pnpm verify` passed: 86 test files / 358 tests and production build success.
+  - `cargo test` in `src-tauri` passed: 20 tests.
+  - `pnpm tauri build` passed and produced MSI/NSIS bundles.
+- Remaining blocker: this implementation supplies guardrails only. P5-C cannot be called release-ready until a real release candidate supplies sidecar provenance, generated updater metadata, packaged smoke refresh, artifact checksums, and privacy audit signoff.
+
+## 2026-06-03 P3 AI Semantic, SSE QA, Knowledge Graph Productization Planning
+
+- 按用户要求开始 P3 阶段规划撰写，目标是补齐 AI 语义索引、SSE 问答和知识图谱模块。当前任务限定为规划和文档，不执行源码实现。
+- 已采用并复核本轮需要的 skills：`using-superpowers`、`planning-with-files`、`writing-plans`、`brainstorming`、`frontend-design`、`ui-acceptance`、`sidecar-integration`、`app-productization`、`release-gate`、`verification-before-completion`、`ui-ux-pro-max`、`frontend-code-review`。
+- 已确认当前分支仍为 `codex/p4b-media-chat-extensions`，工作区包含 P4/P5 连续开发上下文。本轮只追加 P3 规划和工作记忆，不回滚、不清理、不重排既有 P4/P5 改动。
+- 已读取并参考：`task_plan.md`、`findings.md`、`progress.md`、P2-D/P4-E/P5-A/B/P5-C/D 专项计划、`docs/ui-functional-audit-and-redesign-plan.md`、`docs/总体开发规划.md`、`开发指南.md`、`.specify/memory/constitution.md`、`specs/000-productization/*`、`specs/001-ready-desktop-app/*`、`specs/002-advanced-capabilities/*`。
+- 已审计当前 semantic/graph 源码：`useAiCommander.ts`、`useAiStore.ts`、`semanticAdapters.ts`、`streamQA.ts`、`semanticStreamParser.ts`、`AiPanel.tsx`、`SetupWizard.tsx`、`QAPanel.tsx`、`SemanticSearch.tsx`、`TopicView.tsx`、`ContactProfile.tsx`、`useGraphCommander.ts`、`useGraphStore.ts`、`graphAdapters.ts`、`graphResidualAdapters.ts`、`GraphModule.tsx`、`GraphModuleView.tsx`、`GraphAdvancedPanel.tsx` 和相关 E2E specs/fixtures。
+- 已对照本地 `E:\OneDrive - Default Directory\chatlog_alpha`：`README.md`、`internal/chatlog/http/route.go`、`semantic_qa.go`、`graph.go` 和原始 static page。确认真实 SSE 是 `event: delta/done/error`；semantic status 和 graph status 均含 ETA/rate/coverage/worker 等当前 UI 未完整消费字段。
+- `ui-ux-pro-max` 定向检索结论已纳入规划：P3 应采用 analytics/dashboard、data-dense、minimal/accessibility 风格；network graph 不应作为唯一表达，必须保留 list/timeline/detail 等可访问替代。
+- 新增 P3 专项规划文档：`docs/superpowers/plans/2026-06-03-p3-ai-semantic-sse-knowledge-graph-productization.md`。规划明确 P3 不是 greenfield，而是承接 P2-D/P4-E/P5-A/B 的产品化整合。
+- P3 规划拆分为 P3-0 contract/state foundation、P3-A semantic setup/index center、P3-B SSE QA with evidence、P3-C semantic discovery/preview、P3-D graph workbench、P3-E privacy/diagnostics/E2E evidence。建议第一张实施票为 P3-0。
+
+## 2026-06-03 P5-C/D Review Remediation
+
+- 用户要求彻底修复 P5-C/D 审查中发现的 release guardrail、updater、CI/CD、发布治理、UI 一致性和基础项目要求问题。本轮继续在 `codex/p4b-media-chat-extensions` dirty branch 上实施，不回滚连续 P4/P5 改动。
+- TDD RED/GREEN：新增 `scripts/release-workflows.test.mjs`，先确认 `build-check.yml` 缺少 `master` 触发、release matrix 缺少 updater platform、updater verifier 调用错误、`tauri-action@v0` 未固定；随后修复 workflow 并使测试通过。
+- TDD RED/GREEN：扩展 `scripts/verify-updater-manifest.test.mjs`，要求 bundle-root discovery、target-specific artifact evidence、manifest/artifact SHA-256；随后修复 `scripts/verify-updater-manifest.mjs` 并使测试通过。
+- TDD RED/GREEN：扩展 `scripts/verify-sidecar-artifacts.test.mjs`，要求 HTTPS URL + SHA-256 staging 和 checksum mismatch rejection；随后修复 verifier，并让 `prepare-sidecar.sh` 在 release mode 传入 `--stage-dir src-tauri/binaries`。
+- CI 修复：`build-check.yml` 监听 `[master, main]`；`release.yml` matrix 增加 `platform`，per-target 运行 updater manifest checker，release evidence 上传覆盖 target-specific bundle 目录，Tauri action 固定为 `tauri-apps/tauri-action@action-v0.6.2`。
+- UI governance 修复：删除废弃 `src/l4-atom/ui/AppleButton.tsx` 和 `GlassPanel.tsx`；核心 L4 UI atoms 改用 `classNames()`；新增 `scripts/ui-governance.test.mjs`；`pnpm typecheck` 已通过。
+- Targeted verification 当前通过：`pnpm test scripts/verify-sidecar-artifacts.test.mjs scripts/verify-updater-manifest.test.mjs scripts/release-workflows.test.mjs scripts/ui-governance.test.mjs`（4 files / 20 tests），`pnpm typecheck`。
+- Release gate behavior confirmed：`pnpm release:check:sidecar` passes in check mode; `pnpm release:check:sidecar:release` fails as expected because every target is still `releaseAllowed:false`; `pnpm release:check:updater` fails as expected with only `no latest.json was found under src-tauri/target`.
+- Source/UI verification rerun passed：`pnpm fixtures:check` 48 routes；`pnpm e2e` 10 tests；`pnpm e2e:visual` 2 tests；`pnpm e2e:a11y` 4 tests。
+- `pnpm verify` initially hit a Vitest fork-pool `spawn UNKNOWN` runner error after 335 passing assertions. Re-running with `--pool=threads` passed 88 files / 368 tests, so `package.json` test script now uses `vitest run --pool=threads`; final `pnpm verify` passed lint/typecheck/test/build.
+- Rust/Tauri verification passed：`cargo test` in `src-tauri` 20 tests；`pnpm tauri build` produced Windows MSI and NSIS bundles.
+- Release readiness 仍然阻断：没有 approved cross-platform sidecar source/artifact、没有 generated updater metadata/signature evidence、没有 P4/P5 packaged smoke refresh、没有 candidate-specific privacy audit。本轮没有把这些缺失伪造为通过。
+
+## 2026-06-03 P5-C/D Remaining Blockers Review And Plan
+
+- 用户追问“是否还有非常多问题”后，本轮明确回答口径：不是 source/UI 已经大面积坏掉，而是 P5-C/D 不能被称为 release-ready，因为若干真实发布证据和 staged architecture/UI debt 仍未关闭。
+- 已采用/复核相关 skills：using-superpowers、planning-with-files、writing-plans、release-gate、app-productization、sidecar-integration、ui-acceptance、frontend-code-review。
+- 已读取/复核：AGENTS、constitution、总体规划、开发指南、ready desktop spec/evidence、P4/P5 计划、P5-C/D plan、release docs、sidecar/updater/workflow guardrail scripts 与当前 release evidence。
+- 已运行剩余问题扫描：sidecar manifest 全目标 `releaseAllowed:false`；release sidecar check 按预期阻断；updater check 因缺 generated `latest.json` 阻断；L3 仍有 commander/store imports；L3 仍有较多 inline style/tokenization debt；release docs 仍处于 blocked/caveat 状态。
+- 新增审查文件：`docs/reviews/2026-06-03-p5-c-d-remaining-blockers-review.md`，记录 P0/P1/P2 问题清单和 release gate 判定。
+- 新增修复计划：`docs/superpowers/plans/2026-06-03-p5-c-d-remaining-blockers-remediation.md`，拆分 Phase 0-9，给出完整执行顺序、验收命令和边界。
+- 本轮为记录和计划，不执行剩余 blocker 的实现；下一步应按新 remediation plan 从 Phase 0 baseline lock 和 Phase 1 sidecar provenance strategy 开始。
+
+## 2026-06-03 P5-C/D Remaining Blockers Remediation Implementation
+
+- 按用户要求继续执行 P5-C/D remaining blockers remediation；当前分支仍为 `codex/p4b-media-chat-extensions`，工作树包含连续 P4/P5 上下文，本轮没有回滚或清理既有改动。
+- 已采用/复核本轮需要的 skills：`using-superpowers`、`planning-with-files`、`app-productization`、`sidecar-integration`、`release-gate`、`chatlog-debug`、`systematic-debugging`、`test-driven-development`、`using-git-worktrees`、`verification-before-completion`、`requesting-code-review`。既有 remediation plan 作为已批准设计基线；未派生 subagent，因为用户没有明确要求并行代理执行。
+- Architecture boundary TDD：新增 `scripts/architecture-boundary.test.mjs`，初始 RED 暴露 setup/common/diagnostics L3 仍有运行时 L2 依赖；随后把 Setup Center orchestration 留在 L2/L1，setup L3 组件改为 props-driven，Readiness/Diagnostics display logic 本地化。追加修复 chat/search/semantic/graph module roots 后，L3 runtime L2 allowlist 已收紧为空，targeted guard 通过。
+- UI governance：扩展 `scripts/ui-governance.test.mjs`，新增 L3 inline style/manual class composition ledger。清理 setup stepper/mode chooser、chat/search row、search panel 和 high-visibility semantic panel 后，当前已知 L3 style debt 固定为 11 个文件级 tracked entries，新增未登记债务会失败。
+- Historical docs cleanup：`docs/总体开发规划.md` 与 `开发指南.md` 标注为 historical guidance，移除或修正旧 AppleButton/GlassPanel、自动 kill port、默认假 macOS traffic-light、heavy glass 方向，避免后续按过时文档回退。
+- Release governance/evidence：`docs/release/sidecar-artifacts.md` 新增 release candidate provenance strategy，明确当前 `Strategy: pending-owner-decision` 且全 target 不允许 release；`docs/release/ready-desktop-app.md` 增加 Windows release-blocked 与 macOS/Linux platform-caveat 行；`specs/001-ready-desktop-app/release-evidence.md`、`architecture-boundary-check.md` 和 `specs/002-advanced-capabilities/acceptance-checklist.md` 已同步。
+- Targeted governance verification passed：`pnpm exec vitest run scripts/architecture-boundary.test.mjs scripts/ui-governance.test.mjs scripts/release-workflows.test.mjs scripts/verify-sidecar-artifacts.test.mjs scripts/verify-updater-manifest.test.mjs --pool=threads --no-file-parallelism --maxWorkers=1 --exclude "**/.worktrees/**" --exclude "e2e/specs/**"` -> 5 files / 22 tests passed.
+- Release gate behavior confirmed：`pnpm release:check:sidecar` passed in check mode with expected placeholder warnings；`pnpm release:check:sidecar:release` failed as expected because all targets are `releaseAllowed:false`；`pnpm release:check:updater` failed as expected because no `latest.json` exists under `src-tauri/target`.
+- P5 source/UI verification passed serially：`pnpm fixtures:check` 48 route entries；`pnpm e2e` 10 tests；`pnpm e2e:visual` 2 tests；`pnpm e2e:a11y` 4 tests。
+- Full local verification passed：`pnpm verify` passed lint/typecheck/test/build with 89 files / 370 tests；`cd src-tauri && cargo test` passed 20 tests；`pnpm tauri build` passed and produced `src-tauri/target/release/bundle/msi/chatlog_alpha_0.1.0_x64_zh-CN.msi` and `src-tauri/target/release/bundle/nsis/chatlog_alpha_0.1.0_x64-setup.exe`。
+- `git diff --check` reported only LF/CRLF normalization warnings, not whitespace errors. During verification, parallel Node/Vitest execution triggered native `Realloc` assertion / process launch failures; final verification used sequential execution and Vitest `--no-file-parallelism --maxWorkers=1` where needed.
+- Follow-up architecture/UI cleanup：chat/search/semantic/graph module roots also now receive runtime state/actions/privacy via `WorkbenchView` props, so `scripts/architecture-boundary.test.mjs` has an empty L3 runtime L2 allowlist. High-visibility semantic/search/setup styling was migrated to CSS classes/native progress elements, reducing the L3 UI governance ledger to 11 file-level staged entries.
+- Final verification after the follow-up cleanup passed：targeted governance/release tests 5 files / 22 tests；`pnpm fixtures:check` 48 route entries；`pnpm e2e` 10 tests；`pnpm e2e:visual` 2 tests；`pnpm e2e:a11y` 4 tests；`pnpm verify` 89 files / 370 tests；`cd src-tauri && cargo test` 20 tests；`pnpm tauri build` produced the Windows MSI/NSIS bundles；`pnpm release:check:sidecar` passed in check mode；`pnpm release:check:sidecar:release` and `pnpm release:check:updater` failed for the expected release-candidate blockers.
+- Remaining release blockers are external/candidate-evidence dependent: approved sidecar provenance or artifact source, generated signed updater metadata, installed-app P4/P5 Windows smoke refresh, release-candidate privacy audit, and real CI/draft-release evidence. 本轮没有把这些缺失伪造成完成。

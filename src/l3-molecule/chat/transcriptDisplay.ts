@@ -37,6 +37,20 @@ export function getMessageKindLabel(message: Pick<ChatMessage, "mediaType" | "ty
   return MESSAGE_TYPE_LABELS[message.type] ?? "";
 }
 
+export function getMessageAttachmentSummary(
+  message: Pick<ChatMessage, "attachments">,
+  privacyOn: boolean,
+): string {
+  const attachments = message.attachments ?? [];
+  if (attachments.length === 0) return "";
+
+  const labels = privacyOn
+    ? ["已隐藏媒体"]
+    : Array.from(new Set(attachments.map((attachment) => attachment.label || "媒体")));
+
+  return `${attachments.length.toLocaleString()} 个附件：${labels.join("、")}`;
+}
+
 export function shouldShowSender(message: Pick<ChatMessage, "isGroup" | "direction">): boolean {
   return message.isGroup && message.direction !== "self";
 }

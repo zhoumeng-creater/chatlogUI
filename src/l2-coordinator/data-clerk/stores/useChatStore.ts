@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { MediaAttachment } from "./useMediaStore";
 
 export interface Conversation {
   id: string;
@@ -31,6 +32,7 @@ export interface ChatMessage {
   mediaType?: string;
   mediaUrl?: string;
   imageUrl?: string;
+  attachments?: MediaAttachment[];
   direction: "self" | "other" | "unknown";
 }
 

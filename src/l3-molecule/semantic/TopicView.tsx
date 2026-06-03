@@ -77,12 +77,12 @@ export function TopicView({ topics, loading, error, privacyOn, onRetry }: TopicV
               {topic.count} 条
             </Typography>
           </div>
-          <div className="semantic-topic-row__track">
-            <div
-              className="semantic-topic-row__bar"
-              style={{ width: `${(topic.count / maxCount) * 100}%` }}
-            />
-          </div>
+          <progress
+            className="semantic-topic-row__meter"
+            value={(topic.count / maxCount) * 100}
+            max={100}
+            aria-label={`${getSemanticDisplayText(topic.topic, privacyOn)} 占比`}
+          />
         </div>
       ))}
     </Surface>

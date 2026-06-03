@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, SkeletonLoader, Typography } from "@l4/ui";
-import { useChatCommander } from "@l2/commander/";
-import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
+import type { Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
 import { ConversationListToolbar } from "./ConversationListToolbar";
 import { ConversationRow } from "./ConversationRow";
 import {
@@ -11,18 +10,26 @@ import {
 } from "./conversationDisplay";
 
 interface ConversationListProps {
+  conversations: Conversation[];
+  conversationsStatus: LoadStatus;
+  conversationsError: string | null;
+  selectedConversationId: string | null;
+  privacyOn: boolean;
+  onLoadConversations: () => void;
+  onOpenConversation: (conversation: Conversation) => void;
   onConversationOpened?: () => void;
 }
 
-export function ConversationList({ onConversationOpened }: ConversationListProps) {
-  const {
+export function ConversationList({
     conversations,
     conversationsStatus,
     conversationsError,
     selectedConversationId,
-    loadConversations,
-    selectAndLoad,
-  } = useChatCommander();
+  privacyOn,
+  onLoadConversations,
+  onOpenConversation,
+  onConversationOpened,
+}: ConversationListProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ConversationFilter>("recent");
 
@@ -32,7 +39,7 @@ export function ConversationList({ onConversationOpened }: ConversationListProps
   );
 
   const openConversation = (conversation: Conversation) => {
-    void selectAndLoad(conversation.id, conversation.username);
+    onOpenConversation(conversation);
     onConversationOpened?.();
   };
 
@@ -55,7 +62,7 @@ export function ConversationList({ onConversationOpened }: ConversationListProps
             <Typography variant="body" color="var(--text-secondary)">
               {conversationsError ?? "无法读取最近会话。"}
             </Typography>
-            <Button variant="secondary" size="sm" onClick={() => void loadConversations()}>
+            <Button variant="secondary" size="sm" onClick={onLoadConversations}>
               重试
             </Button>
           </div>
@@ -76,6 +83,7 @@ export function ConversationList({ onConversationOpened }: ConversationListProps
               <ConversationRow
                 conversation={conversation}
                 selected={conversation.id === selectedConversationId}
+                privacyOn={privacyOn}
                 onOpen={openConversation}
               />
             </div>

@@ -1,5 +1,6 @@
 import { Typography } from '@l4/ui/Typography';
 import { CodeBlock } from '@l4/ui/CodeBlock';
+import { classNames } from '@/utils/classNames';
 import { getSemanticAnswerSegments, getSemanticDisplayText } from './semanticDisplay';
 
 interface QAMessageType {
@@ -24,26 +25,8 @@ export function QAMessage({ message, privacyOn }: QAMessageProps) {
   });
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: isUser ? 'flex-end' : 'flex-start',
-        padding: '6px 12px',
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '90%',
-          padding: '10px 14px',
-          borderRadius: isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-          background: isUser
-            ? 'var(--color-bubble-self, var(--accent))'
-            : 'var(--color-bubble-other, rgba(255,255,255,0.9))',
-          color: isUser ? '#fff' : 'var(--color-text-primary)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-        }}
-      >
+    <div className={classNames("qa-message", isUser ? "qa-message--user" : "qa-message--assistant")}>
+      <div className="qa-message__bubble">
         {isUser ? (
           <Typography variant="body">{displayContent}</Typography>
         ) : (
@@ -67,34 +50,25 @@ export function QAMessage({ message, privacyOn }: QAMessageProps) {
               }
               if (segment.type === "bullet") {
                 return (
-                  <div key={`${segment.type}-${index}`} style={{ display: "flex", gap: 6, lineHeight: 1.6 }}>
+                  <div key={`${segment.type}-${index}`} className="qa-message__bullet">
                     <span aria-hidden="true">-</span>
                     <span>{segment.text}</span>
                   </div>
                 );
               }
               return (
-                <div key={`${segment.type}-${index}`} style={{ lineHeight: 1.6, wordBreak: 'break-word' }}>
+                <div key={`${segment.type}-${index}`} className="qa-message__text">
                   {segment.text}
                 </div>
               );
             })}
             {message.isStreaming && (
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 2,
-                  height: 16,
-                  background: 'var(--color-text-primary)',
-                  marginLeft: 2,
-                  verticalAlign: 'text-bottom',
-                }}
-              />
+              <span className="qa-message__cursor" />
             )}
           </div>
         )}
       </div>
-      <Typography variant="caption" color="var(--color-text-quaternary)" style={{ marginTop: 2, padding: '0 4px' }}>
+      <Typography variant="caption" color="var(--color-text-quaternary)" className="qa-message__time">
         {timeStr}
       </Typography>
     </div>

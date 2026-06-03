@@ -5,6 +5,7 @@ import { Button } from '@l4/ui/Button';
 import { Input } from '@l4/ui/Input';
 import { Spinner } from '@l4/ui/Spinner';
 import { ProgressBar } from '@l4/ui/ProgressBar';
+import { classNames } from '@/utils/classNames';
 
 type LLMProvider = "ollama" | "glm" | "deepseek" | string;
 
@@ -137,28 +138,28 @@ export function SetupWizard({
   return (
     <SpringModal onClose={onClose}>
       <form
-        style={{ width: 480, maxWidth: '90vw' }}
+        className="semantic-modal-form"
         autoComplete="off"
         onSubmit={(event) => event.preventDefault()}
       >
-        <Typography variant="h3" style={{ marginBottom: 8 }}>
+        <Typography variant="h3" className="semantic-modal-heading">
           配置 AI 功能
         </Typography>
         <div className="semantic-step-meter" aria-label={`AI 配置步骤 ${step} / 3`}>
           {([1, 2, 3] as WizardStep[]).map((s) => (
             <div
               key={s}
-              className={[
+              className={classNames(
                 "semantic-step-meter__bar",
-                s <= step ? "semantic-step-meter__bar--active" : "",
-              ].filter(Boolean).join(" ")}
+                s <= step && "semantic-step-meter__bar--active",
+              )}
             />
           ))}
         </div>
 
         {step === 1 && (
           <div>
-            <Typography variant="body" color="var(--color-text-secondary)" style={{ marginBottom: 16 }}>
+            <Typography variant="body" color="var(--color-text-secondary)" className="semantic-modal-copy">
               选择 AI 服务提供商
             </Typography>
             {[
@@ -184,10 +185,10 @@ export function SetupWizard({
               <Button
                 key={opt.key}
                 variant="ghost"
-                className={[
+                className={classNames(
                   "semantic-provider-card",
-                  provider === opt.key ? "semantic-provider-card--selected" : "",
-                ].filter(Boolean).join(" ")}
+                  provider === opt.key && "semantic-provider-card--selected",
+                )}
                 onClick={() => setProvider(opt.key)}
               >
                 <Typography variant="body" weight={600}>
@@ -201,7 +202,7 @@ export function SetupWizard({
                 </Typography>
               </Button>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, gap: 8 }}>
+            <div className="semantic-actions-row">
               <Button variant="ghost" onClick={onClose}>
                 取消
               </Button>
@@ -214,12 +215,12 @@ export function SetupWizard({
 
         {step === 2 && (
           <div>
-            <Typography variant="body" color="var(--color-text-secondary)" style={{ marginBottom: 16 }}>
+            <Typography variant="body" color="var(--color-text-secondary)" className="semantic-modal-copy">
               填写连接配置
             </Typography>
             {provider === 'ollama' && (
-              <div style={{ marginBottom: 12 }}>
-                <Typography variant="caption" style={{ marginBottom: 4 }}>
+              <div className="semantic-field">
+                <Typography variant="caption" className="semantic-field-label">
                   Ollama 服务地址
                 </Typography>
                 <Input
@@ -231,8 +232,8 @@ export function SetupWizard({
             )}
             {(provider === 'glm' || provider === 'deepseek') && (
               <>
-                <div style={{ marginBottom: 12 }}>
-                  <Typography variant="caption" style={{ marginBottom: 4 }}>
+                <div className="semantic-field">
+                  <Typography variant="caption" className="semantic-field-label">
                     API Key
                   </Typography>
                   <Input
@@ -244,8 +245,8 @@ export function SetupWizard({
                   />
                 </div>
                 {provider === 'glm' && (
-                  <div style={{ marginBottom: 12 }}>
-                    <Typography variant="caption" style={{ marginBottom: 4 }}>
+                  <div className="semantic-field">
+                    <Typography variant="caption" className="semantic-field-label">
                       Base URL (可选)
                     </Typography>
                     <Input
@@ -257,11 +258,11 @@ export function SetupWizard({
                 )}
               </>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+            <div className="semantic-actions-row semantic-actions-row--split">
               <Button variant="ghost" onClick={() => setStep(1)}>
                 上一步
               </Button>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="semantic-actions-row__group">
                 <Button variant="secondary" onClick={handleTest} disabled={testing}>
                   {testing ? <Spinner size={14} /> : '测试连接'}
                 </Button>
@@ -279,12 +280,12 @@ export function SetupWizard({
             </div>
             {testResult && (
               <div
-                style={{
-                  marginTop: 12,
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  background: (testResult.ok ?? testResult.success) ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
-                }}
+                className={classNames(
+                  "semantic-test-result",
+                  (testResult.ok ?? testResult.success)
+                    ? "semantic-test-result--success"
+                    : "semantic-test-result--error",
+                )}
               >
                 <Typography variant="caption" color={(testResult.ok ?? testResult.success) ? 'var(--success)' : 'var(--danger)'}>
                   {(testResult.ok ?? testResult.success) ? '\u2713 ' : '\u2717 '}
@@ -298,15 +299,15 @@ export function SetupWizard({
 
         {step === 3 && (
           <div>
-            <Typography variant="body" color="var(--color-text-secondary)" style={{ marginBottom: 16 }}>
+            <Typography variant="body" color="var(--color-text-secondary)" className="semantic-modal-copy">
               配置已完成，是否立即构建语义索引？
             </Typography>
-            <Typography variant="caption" color="var(--color-text-tertiary)" style={{ marginBottom: 16 }}>
+            <Typography variant="caption" color="var(--color-text-tertiary)" className="semantic-modal-copy">
               索引构建可能需要几分钟时间，构建期间将无法使用 AI 问答和搜索功能。
             </Typography>
 
             {buildingIndex && (
-              <div style={{ marginBottom: 16 }}>
+              <div className="semantic-index-block">
                 <ProgressBar
                   progress={indexProgress}
                   label="正在构建索引..."
@@ -315,7 +316,7 @@ export function SetupWizard({
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+            <div className="semantic-actions-row semantic-actions-row--final">
               <Button variant="ghost" onClick={onClose}>
                 稍后再说
               </Button>

@@ -445,3 +445,218 @@
 - A9 操作发现：`apply_patch` 在当前桌面线程默认锚定主工作区路径，而 shell 命令可以通过 `workdir` 指向 P4-A worktree。后续所有补丁必须显式使用 `.worktrees/p4a-diagnostics-privacy-plan/...` 路径，避免误改主工作区。
 - A10 验证发现：把 worktree 放在仓库子目录时，ESLint 会向上查找父目录配置；没有 `root: true` 时会同时加载父仓库和 worktree 的 `.eslintrc.cjs`，造成插件重复解析。分支内加入 `root: true` 后 lint/verify 均通过。
 - A10 final leak-scan 解释：`src/utils/maskSecrets.ts` 中的 synthetic marker 命中是有意的 redaction denylist，不是泄漏。排除测试和该 redaction helper 后，生产 UI/业务源码没有 synthetic private marker 命中。
+
+## 2026-06-02 P4-B Comprehensive Review Findings
+
+- 当前审查的主工作区为 `E:\OneDrive - Default Directory\chatlogUI`，分支 `master`，审查开始时 `git status --short` 为空；本轮检查的是当前代码基线，不是某个局部 patch。
+- P4-B 计划要求覆盖 `/image/*key`、`/video/*key`、`/file/*key`、`/voice/*key`、`/data/*path`、`/api/v1/favorites`、`/api/v1/members`、`/api/v1/unread`、`/api/v1/new_messages`，并新增 media/favorites/members/unread/new message 的 L4/L2/L3 surface、状态和测试。
+- 当前源码未实现这些 P4-B 文件或同等能力：未发现 `mediaResources.ts`、`fetchFavorites.ts`、`fetchMembers.ts`、`fetchUnread.ts`、`fetchNewMessages.ts`、`useMediaStore.ts`、`useMediaCommander.ts`、`useFavoritesCommander.ts`、`src/l3-molecule/media/*` 或 `ConversationInspector.tsx`。
+- `src/l4-atom/network/index.ts` 仍只导出 core、semantic、graph、update 和 diagnostics 相关能力，没有 media resource 或 chat extension fetcher。
+- `src/l2-coordinator/commander/workbenchViewModel.ts` 的 `WorkbenchModule` 仍为 `chat | stats | ai | graph | settings`，Workbench rail 没有媒体、收藏、成员、未读或新消息入口。
+- 当前 `MessageBubble` 仍在有 `mediaUrl/imageUrl` 时显示 `[媒体可用]` 占位；`MediaPreview.tsx` 是旧的 image-only modal，未接入当前 `ChatMessage` 模型，也未提供 video/audio/file/download/loading/error/retry/privacy-safe preview。
+- `chatlogAdapters.ts` 只把 raw `media_url`/`image_url` 映射到消息，丢弃 `media_key`、`media_keys`、`media_path`、`image_key`、`image_keys`、`image_path` 等字段；没有 typed attachment model。
+- `Conversation.unread` 当前由 adapter 固定为 `0`，没有调用 `/api/v1/unread` 或 `/api/v1/new_messages`；未读 UI 只是在已有会话行上显示本地字段，不能代表 P4-B 实现。
+- `src-tauri/tauri.conf.json` 仍只有 `img-src` 允许 `127.0.0.1:5030`，没有显式 `media-src`；因此 P4-B 视频/语音播放的 CSP/security gate 未执行。
+- UI smoke：`/workbench?codex-smoke=workbench-ready` 在 1440x900 和 390x820 均无页面级横向溢出；可见导航只有会话、统计、AI、图谱、设置，搜索类型按钮有图片/视频/文件，但没有 P4-B 模块入口。
+- 基础验证：`pnpm verify` 通过（47 files / 241 tests，build 通过），但没有 P4-B targeted tests，例如 `mediaAdapters.test.ts`、`mediaDisplay.test.ts` 或 fetchFavorites/members/unread/newMessages tests。
+- 结论：当前代码不能被判定为 P4-B 修复完成；它满足 P4-A/P4/P5-0 基线的一部分，但 P4-B 仍处于 documented/planned 缺口状态。
+
+## 2026-06-02 P4-B Suggested Fix Implementation Findings
+
+- P4-B 最小可接受形态需要覆盖两类能力：历史消息中的 media attachments，以及聊天扩展 endpoints（favorites/members/unread/new_messages）。本轮选择把历史附件嵌入 `ChatMessage.attachments`，把扩展 endpoint 数据放入独立 `useMediaStore`，避免让消息 store 承担跨模块扩展状态。
+- L4 media adapter 不能把 raw local path 当成 UI resource key。路径可能暴露 WeChat 文件目录或用户名；最终规则是：优先使用 key；本机 sidecar direct URL 可作为 preview；只有 raw path 而无 key/URL 时保留不可预览附件元数据但不携带 path。
+- `format=json` 必须由每个 chat extension fetcher 主动设置，而不是交给 UI 或 caller。这样能保持 L4 原子对后端契约负责，也避免 L2/L3 猜测响应格式。
+- P4-A diagnostic event foundation 与 P4-B fetchers 可以低耦合复用：fetcher 接受可选 `RequestDiagnosticsOptions`，L2 commander 传入 `createDiagnosticHttpOptions()`；L4 仍不导入 store。
+- `media-src` 是 P4-B 的必要 CSP gate。只添加 `media-src 'self' data: blob: http://127.0.0.1:5030`，没有扩展 `connect-src`、`frame-src`、`object-src` 或远程媒体域，符合 local-private-data 和最小放宽原则。
+- Workbench media 模块应作为 inspector module，而不是把收藏/成员/未读塞进聊天主面板。这样保持 L1 layout delegation、L2 orchestration、L3 props-driven display，并与 stats/AI/graph 的现有 inspector 模式一致。
+- UI smoke 的正确做法是 mock 本地 sidecar API 后再判断 console errors。未启动 sidecar 时，resource connection refused 属于环境噪音；mocked sidecar smoke 才能证明 P4-B UI 自身无错误、无 overflow、无可见 key/path 泄漏。
+
+## 2026-06-02 P4-C SNS / Moments Planning Findings
+
+- 当前分支为 `codex/p4b-media-chat-extensions`，工作区已有 P4-B 媒体/聊天扩展未提交改动。P4-C 规划应把这些作为当前进度输入，但后续实施前必须确认 P4-B 是否已经合并或继续在该分支上执行。
+- 前端源码确认没有 SNS 实现：无 `fetchSnsFeed.ts`、`fetchSnsSearch.ts`、`fetchSnsNotifications.ts`、`snsAdapters.ts`、`useSnsStore.ts`、`useSnsCommander.ts` 或 `src/l3-molecule/sns/*`。
+- 当前 P4-B 已提供可复用模式：L4 fetcher + adapter、可选 P4-A diagnostics、L2 store/commander、L3 props-driven module、Workbench inspector 集成和 mocked UI smoke。P4-C 应沿用该模式并新增独立 `sns` module，而不是把 SNS 塞进媒体面板或开发者工具。
+- 本地 `chatlog_alpha` handler 确认：`sns_notifications` 支持 `format/limit/time/since/until/include_read`，返回 `{notifications,total}`；`sns_feed` 支持 `format/limit/user/time/since/until/media/replace`，返回 `{count,items}`；`sns_search` 要求 `keyword`，支持 `format/limit/user/time/since/until/media/replace`，返回 `{count,items}`。
+- Feed/search row 的真实字段包括 `id/timestamp/time/username/display/content/raw_content/content_type/location/media_list/article/finder_feed`。P4-C adapter 必须默认丢弃 `raw_content`，不能把 raw XML 带入 UI、诊断、copy/export 或截图。
+- SNS media item 可能包含 `url/thumb/token/key/md5/enc_idx/raw_url/raw_thumb/proxy_url/proxy_thumb_url/resolved_url/resolved_thumb_url/live_photo`。`url`/`key`/`token`/raw query 属于极高风险字段；前端只能把本机 proxy URL 当作敏感 media src 使用，不能作为可见文本、诊断属性、aria/title/tooltip、fixture raw string 或导出内容。
+- 当前后端 SNS handler 没有 offset 参数；P4-C 不应承诺传统分页或无限滚动。可实现 refresh 和增加 limit 的“加载更多”，并在计划中记录 true offset pagination 需以后端契约变更为前提。
+- `advanced-capabilities.json` 的 SNS fixture 只有浅层 summary/count，不足以写 adapter tests。P4-C 第一任务应补 backend-shaped synthetic SNS fixture，覆盖 feed/search/notifications/media/article/finder/location，但不得包含真实 URL、真实 wxid、真实媒体或原始 query。
+- P4-C 专项计划已落地到 `docs/superpowers/plans/2026-06-02-p4-c-sns-moments-module.md`，并同步 P4/P5 总路线图入口。
+
+## 2026-06-02 P4-C Implementation Findings
+
+- P4-C 实施继续沿用当前 `codex/p4b-media-chat-extensions` dirty branch，因为 P4-B media/chat-extension、local `media-src` CSP、diagnostic bridge 和 workbench media module 是 P4-C 计划明确要求参考的当前开发进度；新建干净 worktree 会丢失这些未提交上下文。
+- `AGENTS.md`、constitution、P4/P5 总计划、P4/P5-0、P4-A 和 P4-C 计划共同约束本轮：不改变 `chatlog_alpha` sidecar contract，不拓宽 CSP/capabilities，SNS 后端通信必须 L4 raw HTTP/fetcher -> L2 commander/store/view model -> L3 props-driven UI，且 L1 只负责 placement/delegation。
+- SNS proxy `url/key/token/raw_url/raw_thumb/raw_content` 是本轮最高风险字段。P4-C 必须把 proxy URL 当作敏感 media `src`，不能作为可见文本、alt/title/tooltip、诊断属性、copy/export 文本、fixture raw query 或截图证据。
+- 早期开发文档中关于 heavy glass/fake macOS/force-kill unknown port 的内容已被 P0/P2/P2-E/P4 计划修正；P4-C UI 按当前 workbench data-dense、local-private、四层架构和 screenshot-safe privacy 方向实现。
+- L4 adapter 采用 non-enumerable `sensitiveSrc` / `sensitiveThumbSrc`，让 L3 可以渲染本机 proxy 媒体，但 `JSON.stringify()`、copy/export 和普通状态检查不会携带 proxy query 或 key。
+- 当前 `chatlog_alpha` SNS handler 没有 offset；P4-C 实现只做 refresh 和增加 `limit` 的 load-more-by-limit，不承诺真实分页。
+- Workbench inspector 的实际宽度约 360px。最初按 viewport 做 SNS 双栏导致桌面截图中 timeline 被挤压；修复为 inspector 内单列滚动布局后，桌面和 390px drawer 均可读。
+- 搜索高亮不能使用 raw HTML。最终实现为 `buildSnsHighlightedSegments()` 纯文本分段和 `<mark>` 渲染，避免 `dangerouslySetInnerHTML`。
+- Playwright UI 验收需要 route interception，所以临时把 Playwright runtime 安装到 `output/playwright`，完成后删除该目录。验收使用合成本地 sidecar responses，不依赖真实 SNS 数据。
+
+## 2026-06-02 P4-D Planning Findings
+
+- 当前 P4-D 规划基线是 `codex/p4b-media-chat-extensions` dirty branch：P4-B 已提供 media/chat extension 的 L4 fetcher + adapter + optional diagnostics + L2 commander/store + L3 props-driven module + Workbench inspector + mocked UI smoke 模式；P4-C 已沿用该模式实现 SNS。P4-D 应复用这些边界和验证方式，而不是另起架构。
+- P4/P5 总路线图将 P4-D 定义为 Developer 区域能力：`/api/v1/db`、`/api/v1/db/search`、`/api/v1/db/tables`、`/api/v1/db/data`、`/api/v1/db/query`、`/api/v1/cache/clear` 和 `chatlog http list/call` 风格的本机 endpoint runner。普通用户路径不应暴露 SQL/raw response 工具。
+- `specs/002-advanced-capabilities/capability-matrix.md` 已把 DB explorer/query/cache 标记为 Critical、API runner/wx-cli 标记为 High，并要求 query action summary、table name category、endpoint family/method/status/duration 这类安全元数据；禁止 raw SQL/result body 进入诊断。
+- `specs/002-advanced-capabilities/e2e-matrix.md` 要求 P4-D 后续覆盖 DB/developer entry 和 API runner entry，在 1440/390、privacy off/on 下验证只读默认、危险操作确认、local-only allowlist、safe request summaries 和无 raw SQL/result diagnostics。
+- 当前前端源码没有 DB Explorer 或 endpoint runner 实现。检索只命中 DevConsole 诊断面板和 P4/P5 规划引用；`src/l4-atom/network/index.ts` 没有 DB/API runner atoms。
+- Workbench 现在的模块为 `chat | stats | media | sns | ai | graph | settings`，rail 只有这些图标。P4-D 应新增 `developer` 模块，位置建议在 SNS 后、AI 前，避免 SQL/raw response 工具进入普通聊天、媒体或朋友圈路径。
+- 本地 `chatlog_alpha` 的 DB handler 确认：`/api/v1/db` 返回 `group -> files[]` map；`/api/v1/db/tables` 返回表名数组；`/api/v1/db/data` 与 `/api/v1/db/query` JSON 返回 row map 数组；`/api/v1/db/search` 返回 `{keyword, mode, total, items}`；`POST /api/v1/cache/clear` 返回 `{message, deletedCount}`。
+- `/api/v1/db/query` 当前把 raw SQL 直接交给 WCDB client 执行，后端没有 read-only guard。P4-D 前端必须在 L4/L2 出口前阻止非只读 SQL，默认只允许 `SELECT`、`PRAGMA`、`EXPLAIN` 这类语句。
+- `chatlog http list/call` 的 alias catalog 在本地 `chatlog_alpha/cmd/chatlog/cmd_http.go` 中定义，覆盖 health/core/media/SNS/DB/MCP 等本机 endpoint。P4-D UI runner 必须从显式 allowlist 和参数 schema 构造请求，不暴露任意 host、raw path override、raw headers、body file 或泛 HTTP 客户端能力。
+
+## 2026-06-02 P4-D Implementation Findings
+
+- 当前实现继续使用 `codex/p4b-media-chat-extensions` dirty branch。该分支已经包含 P4-B media、P4-C SNS、P4-D 规划文档和工作记忆，是用户要求“参考当前开发进度”的实际基线；另建干净 worktree 会丢失当前阶段上下文。
+- 本轮重新评估并采用必要 skills：using-superpowers、brainstorming、planning-with-files、using-git-worktrees、executing-plans、test-driven-development、chatlog-debug、app-productization、frontend-design、ui-acceptance、sidecar-integration、verification-before-completion、requesting-code-review、code-simplifier。受当前工具约束，requesting-code-review 后续以本地审查和扫描替代 subagent。
+- `specs/000-productization/{constitution,spec,plan,tasks}.md` 在当前仓库不存在；当前产品化和隐私诊断依据来自 `.specify/memory/constitution.md`、`specs/001-ready-desktop-app`、`specs/002-advanced-capabilities`、P4/P5 总路线图和 P4-D 专项计划。
+- 本地 `chatlog_alpha` DB path 复核确认：`/api/v1/db/query` 最终通过 WCDB client 执行 query，虽然 SQLite DSN 含 read-only/query-only 参数，但前端仍必须按 P4-D 计划阻止非只读 SQL，避免 UX、诊断、错误提示和未来后端变化暴露危险操作入口。
+- P4-D endpoint runner 不能复用 CLI `http call` 的 raw `--path`/headers/body/body-file 能力。桌面 UI 只允许从固定 catalog 选择本机 endpoint，并从参数 schema 生成 query/path；history、diagnostics 和 response preview 只保留 endpoint family、method、status/duration、parameter keys、row/count 等安全元数据。
+- Workbench 真实接入点是 `src/l2-coordinator/commander/workbenchViewModel.ts`、`useWorkbenchCommander.ts`、`src/l1-entry/pages/WorkbenchView.tsx` 和 `src/l3-molecule/workbench/WorkbenchRail.tsx`。P4-D 应新增 `developer` module，排序在 `sns` 后、`ai` 前，保持 L1 只做 placement/delegation。
+- SQL guard 采用保守前端 allowlist：去除注释和尾部分号后，只允许 `SELECT`、含 `SELECT` 的 `WITH`、`PRAGMA`、`EXPLAIN`；字符串 literal 先剔除再扫描 mutation/unsupported keywords，降低误判但仍以 fail-closed 为主。危险 SQL 在 L4 dispatch 前抛出 `DbQueryBlockedError` 或 `EndpointRunnerBlockedError`，不会产生网络请求。
+- API runner 的最小安全实现是 fixed catalog + schema params + local sidecar base URL。即使 `chatlog http call` 支持 raw path/header/body，桌面 P4-D 只暴露 health、core chat、media extension、SNS、DB 和 cache clear 这些 schema entries；未知 endpoint 和未知参数均被阻断。
+- Runner preview 选择递归 redaction，而不是展示 raw response body。这样对 DB rows、history/search results、SNS items 等可能携带私密内容的响应都保持一致：UI 只证明 shape/status，可用于调试 endpoint 连通和参数，不作为私密数据浏览器。
+- Developer Tools 的 Workbench 入口应作为 inspector module，不进入普通聊天主视图。这样 DB/API 调试器不会污染普通用户路径，并且能与 media/SNS/AI/graph 一样继承 drawer/inline inspector 布局。
+- 本轮未修改 Rust/Tauri、CSP、capabilities、sidecar startup 或 `chatlog_alpha` contract。DB query 的安全约束全部在前端 L4/L2 出口实现；后续如后端新增 read-only enforcement，可保留前端 guard 作为 UX 和 defense-in-depth。
+- Final verification confirmed P4-D is source/UI complete, not a packaged release claim. `pnpm verify`, `cargo test`, and `pnpm tauri build` all passed, and mocked browser acceptance covered Developer DB/API flows at 1440x900 and 390x820 with privacy off/on. P5-B persistent E2E and P5-C release gate remain separate future phases.
+
+## 2026-06-03 P4-E Planning Findings
+
+- 当前 P4-E 规划继续使用 `codex/p4b-media-chat-extensions` dirty branch 作为基线。该分支已经包含 P4-B media/chat extensions、P4-C SNS、P4-D Developer Tools 的连续开发上下文；本轮只追加规划与规格文档，不回滚、不覆盖既有源码改动。
+- 前端源码审计确认：`DeveloperToolsModule.tsx` 目前只有 `db` 和 `api` tabs；`useDeveloperToolsCommander.ts`/`useDeveloperToolsStore.ts` 只覆盖 DB/API runner；P4-E 应在这个 Developer Tools surface 内新增 Hook/MCP，而不是创建第二套 developer 架构。
+- `endpointRunner.ts` 已有 MCP aliases（`mcp`、`mcp_sse`、`mcp_message`），但这只是 P4-D allowlisted runner 能力；P4-E 仍需要 MCP status/help/tool inventory 视图，并且不能变成 generic MCP client、remote host editor、raw path/header/body editor 或任意 tool invocation 调试器。
+- AI 模块当前覆盖 semantic config/status/actions/search/topics/profiles/QA/SSE，但没有 `/api/v1/semantic/index/preview`。P4-E 应把 preview 放入 AI module，显示 groups/totals/dim/outlier metadata，并屏蔽 `store_path`、identity 和 raw `content`。
+- Graph 模块当前覆盖 status/query/timeline/visualize/rebuild/pause/resume，但没有 `/api/v1/graph/config`、ingest message/business/event 或 `/api/v1/graph/qa`。P4-E 应在 Graph Advanced 内放置 config、guarded ingest、QA summary，保持 3D canvas explicit-load，不自动 mount heavy UI。
+- 本地 `chatlog_alpha` route evidence 确认 Hook endpoints 包括 config/status/events/events clear/stream 和 Hermes Weixin/QQ GET/POST；Hook stream 会发送 `snapshot`、`hook_event` 和 keepalive。P4-E 必须实现可取消 stream，并在离开 Hook tab/module/inspector 时清理。
+- Hook/Hermes 的高风险字段包括 talker/sender IDs、names、keywords、trigger content、context message bodies、deliveries、POST URL、Hermes token/client secret/account/app id/home channel/base URLs/config/env paths。规划要求这些字段不得进入 diagnostics、aria/title/tooltip、copy/export、截图或持久 state。
+- MCP backend 基于 streamable HTTP 与 `/sse`/`/message`，工具覆盖 sessions/history/search/unread/members/new messages/stats/favorites/SNS/profile/shared files/webhook/time 等本地能力。P4-E 只显示本地 route status、tool/prompt inventory 和安全说明。
+- Semantic preview backend 返回 `model/dim/kind/limit/offset/total/groups/items/store_path/sample_dims/outliers`，preview item 可能含 talker/sender/username/display/content/vector metadata/coordinates。规划要求 UI 保留聚合和向量元信息，但默认不显示 store path、身份和正文。
+- Graph residual backend config 只含 `workers`/`enqueue_workers`；ingest 返回 `{ok,count,ids,status}`；QA 返回 `answer/evidence`。规划要求 diagnostics 只记录 type/count/status/window，不记录 query、answer、evidence、submitted content、metadata 或 participants。
+- P4-E 专项规划已写入 `docs/superpowers/plans/2026-06-03-p4-e-hook-mcp-semantic-preview-graph-residuals.md`，并同步总路线图、advanced capability README、capability matrix、E2E matrix、privacy diagnostics contract、`task_plan.md` 和本工作记忆。
+
+## 2026-06-03 P4-E Implementation Findings
+
+- P4-E 实施继续沿用 `codex/p4b-media-chat-extensions` dirty branch，因为用户要求参考当前 P4-B/C/D 连续开发进度；本轮没有回滚已有未提交改动，也没有新建会丢失上下文的普通 worktree。
+- Hook/Hermes 的安全边界落在 L4 adapter：config/status/events/Hermes raw response 会被转换为 presence/status/count/time 等安全字段，`post_url`、token、client secret、Hermes home/config/env path、account/app id、home channel、talker/sender id、trigger content、context body 和 delivery payload 不进入 L2 store 或 L3 view。
+- Hook SSE 需要与 semantic QA stream 分开处理。`hookStreamParser.ts` 识别 snapshot、hook_event、keepalive、error、unknown 和 abort 生命周期；`useHookCommander` 持有 AbortController，并在切换 Hook tab、离开 Developer module 或关闭 inspector 时停止 stream。
+- MCP 没有安全的“轻量 status endpoint”，而 `/mcp`、`/sse`、`/message` 本身是协议入口。P4-E 因此选择 static local inventory + local route summary，不实现 `fetchMcpStatus.ts`、远程 host 输入、raw path/header/body 编辑器、任意 tool invocation 或 SSE message composer。
+- Semantic index preview 可以显示 index health、kind、total、group、model/dim、sample dims、coordinate/outlier metadata，但不能显示 `store_path`、raw display、talker/sender/username 或 raw content。Adapter/view model/display helper 共同执行这个裁剪。
+- Graph residual UI 采用 `GraphAdvancedPanel.tsx` 合并 config、business ingest、event ingest 和 QA summary。message ingest visible UI 保持 deferred，因为 message payload 含 source/talker/sender/content/metadata/context/participants，当前没有单独证明安全的结构化表单。
+- Graph QA 输出不显示 raw answer/evidence；view model 保留“已隐藏回答”和 evidence count 这类可验证摘要。Diagnostics 和 store 不保存 query、answer、evidence text 或 submitted content。
+- L3 新组件只接收 props/callbacks；Developer Hook/MCP、Semantic Preview、Graph Advanced 没有直接调用 L4 fetchers 或 `requestJson()`。少量 `@l4/network` import 是现有项目模式下的 type-only draft/view 类型输入，不是网络调用。
+- Mocked browser acceptance 使用 synthetic local sidecar responses 验证 Developer Hook/MCP、AI Preview、Graph Advanced。检查覆盖 1440x900 privacy off 和 390x820 privacy on；无 page-level horizontal overflow、无 app-owned console/page errors、无 synthetic secret/private marker visible text。
+- P4-E 没有修改 Go sidecar、Rust/Tauri sidecar launch、CSP、capabilities 或 bundle config。当前连续工作树仍包含 P4-B 时代的 Tauri/CSP 改动，因此最终收口仍应补跑 `cargo test` 和 `pnpm tauri build`。
+
+## 2026-06-03 P5-A/B Planning Findings
+
+- 当前 P5-A/B 规划基线是 `codex/p4b-media-chat-extensions` dirty branch；该分支包含 P4-B media、P4-C SNS、P4-D Developer Tools、P4-E Hook/MCP/Semantic Preview/Graph residual source/UI 证据。P5-A/B 应把这些连续成果升级为 persistent contract/E2E/visual/a11y gates，而不是重复实现 P4 功能。
+- `package.json` 目前没有 `pnpm e2e`、`pnpm e2e:visual` 或 a11y 脚本；仓库也没有 `playwright.config.ts`。`e2e/` 只有 synthetic fixtures 和 mock server 说明，因此 P5-B 第一类工作是建立可执行 harness。
+- `e2e/fixtures/core-ready.json`、`advanced-capabilities.json`、`diagnostics-redaction.json` 已满足 synthetic-only 基础，但还没有统一 contract fixture runner、schema drift check、mock route map implementation 或 fixture privacy scanner 脚本。
+- `specs/002-advanced-capabilities/e2e-matrix.md` 已列出 P5-B 所需 route/state/viewport/privacy rows，并把 P4-C/D/E 标记为 source/UI evidence，明确 persistent P5-B suite 尚未添加。
+- P2-E visual QA matrix 提供了可复用验收口径：1440px 与 390px、privacy on/off、无 page-level overflow、drawer focus restore、update dialog semantics、graph explicit nonblank canvas、redaction-safe screenshots。P5-B 应把这些从一次性证据转成 stable specs/artifacts。
+- `vite.config.ts` 的 canonical dev server 是 `5173`，`/workbench?codex-smoke=workbench-ready` 是 DEV-only readiness bypass。P5-B 可复用该入口，但必须显式绑定 local-only mock server 或 route interception，避免测试依赖真实本地微信数据。
+- `.github/workflows/build-check.yml` 当前只跑 typecheck/lint/unit/Rust check/Tauri build；release workflow 只跑 `pnpm verify` 和 Tauri release build。P5-A/B 可以先新增本地脚本，CI artifact upload 和 job 接入可作为后续任务或 P5-C 前置，不应把 real sidecar artifact release blocker 混入 P5-A/B。
+- 当前 Workbench module 已包含 `chat | stats | media | sns | developer | ai | graph | settings`。P5-B 的核心价值不是增加导航入口，而是证明这些现有入口在 synthetic backend states、privacy on/off、desktop/narrow、视觉截图和 keyboard/a11y 下持续可用。
+- `chatlog_alpha` 的 CLI/http 能力包含 raw-ish aliases 和默认格式行为；桌面 UI 仍应由 L4 fetcher 主动请求 JSON，P5-A 只在 fixture/contract 层覆盖 default-format drift，不能把默认文本/YAML-ish 响应作为正常前端 runtime 行为。
+- Mock backend 最安全的实现边界是 local-only route map：服务 `/health`、core REST、advanced REST、deterministic SSE、media placeholders、errors、unavailable 和 latency states，不读取本机数据、不代理远程 URL、不杀未知 `5030` listener。
+- P5-A/B 的隐私扫描必须同时覆盖 fixture source、adapter outputs、diagnostic event/export text、DOM visible text、accessible names、tooltips/titles、screenshots/traces 和 console output；只扫描 DOM text 不足以证明隐私模式安全。
+- Visual regression 应先选择少量稳定 synthetic states。P4 source/UI 验收中的临时 Playwright runtime 和截图实践不能直接等同于可维护的 baseline policy；P5-B 需要明确默认只产出 artifacts，snapshot 更新必须是显式命令。
+- P5-A/B 专项计划已写入 `docs/superpowers/plans/2026-06-03-p5-a-b-contract-fixtures-e2e-visual-a11y.md`，并同步总路线图与 002 specs。当前仍是 planning-documented，不是 runnable harness complete。
+
+## 2026-06-03 P5-A/B Implementation Findings
+
+- P5-A validator 必须把 manifest 与 route-map 分成两个职责：manifest 证明 fixture ownership 和 route state 声明，route-map 才是 mock server 的 runnable route list。将两者都输出为 runtime routes 会产生重复条目。
+- `core-ready.json` 规划时期的 `items` 包装不符合当前 L4 raw DTO：sessions 需要 `{sessions}`，contacts 需要 `{count, contacts}`，chatrooms 需要 `{count, chatrooms}`，history/search 需要 `{total_count,count,limit,offset,messages}`。P5-A implementation 已把 core fixture 调整为 backend-shaped。
+- `/api/v1/db` 同时被 readiness 和 DB Explorer 使用；mock route map 只能返回一种 shape。DB Explorer 需要 group-to-files map，readiness 只需要请求成功，因此 route-map 的 `/api/v1/db` 使用 advanced DB shape，core DB fixture 仍保留为 contract state。
+- Fixture scanner 需要允许 `diagnostics-redaction.json` 的合成 sentinel 和 expected `mustNotContain` 字符串，但仍应拒绝非 synthetic `Bearer`、`sk-*`、raw dataKey、非 synthetic Windows user path 和 SNS proxy query。
+- `/api/v1/db/tables` 是当前 L4 fetcher 的 shape-sensitive route：它直接期望 string array，不读取 `{items}`。P5-A validator 已添加专门 contract shape check，避免 fixture 再次漂移为 wrapper object。
+- Graph visualization 在 inspector 内不能依赖 flex 剩余高度。`graph-module-view__content` 如果 `flex: 1` 且 `min-height: 0`，可视化按钮会被父容器命中区域截获；使用明确 min-height 和自滚动层后 pointer/keyboard 路径稳定。
+- Three.js/WebGL 视觉回归不能在 Suspense/数据加载过渡帧截图。P5-B specs 现在等待 canvas 可见并做非空 readback；GraphCanvas 仅在 `codex-smoke` URL 下启用 `preserveDrawingBuffer` 以支持测试像素读取，普通运行路径不受影响。
+- Axe serious color contrast exposed existing shallow theme token issue：浅色 `--accent: #0a84ff` 对白底和浅蓝底不足 4.5:1，`--text-muted`、`--success`、`--warning` 作为小字颜色也不足。P5-B 将这些 token 调整为可读对比度，并让 Avatar fallback 使用 `--accent`。
+- Playwright webServer 会为每个 test command 启动 mock backend；`pnpm e2e`、`pnpm e2e:visual`、`pnpm e2e:a11y` 应串行运行，不能并行抢同一个 `127.0.0.1:5030`。端口冲突是预期 fail-closed 行为，不应自动杀进程。
+- P5-A/B 当前证明 source/UI deterministic gates，不证明 packaged release。DevConsole diagnostics export、packaged install/open/quit/reopen、unknown-port packaged smoke、updater signing 和 artifact reproducibility 仍属于 P5-C/release-gate。
+
+## 2026-06-03 P5-C/D Planning Findings
+
+- 当前 P5-C/D 规划基线是 `codex/p4b-media-chat-extensions` dirty branch；该分支已经记录 P4-B/C/D/E source/UI evidence 和 P5-A/B persistent fixtures/E2E/visual/a11y gates complete。本轮应承接 packaged release、sidecar artifact、updater、CI/CD 和发布治理，不重复实现 P4 功能或 P5-A/B harness。
+- 当前工作区已有大量未提交/未跟踪改动，属于连续阶段上下文。P5-C/D 规划只应追加/同步阶段文档，不回滚既有 P4/P5 源码、测试、fixture、Tauri 配置或 e2e artifact 改动。
+- 初始技能复核：本轮使用 `using-superpowers`、`planning-with-files`、`brainstorming`、`writing-plans`、`app-productization`、`sidecar-integration`、`release-gate`、`verification-before-completion`；`using-git-worktrees` 已评估，当前 dirty branch 是连续开发上下文，不创建会丢失上下文的普通 worktree。
+- P5-A/B findings 明确指出 DevConsole diagnostics export、packaged install/open/quit/reopen、unknown-port packaged smoke、updater signing 和 artifact reproducibility 仍属于 P5-C/release-gate。P5-C/D 规划必须把这些变成可执行任务与治理门禁。
+- `docs/superpowers/plans/2026-06-01-p4-p5-advanced-capabilities-diagnostics-release-quality.md` 已明确 P5-C/D 的总目标：release pipeline hardening 需要关闭 sidecar artifact reproducibility、updater signing/public key、platform packaging、release notes evidence；release governance 需要维护 evidence/checklist/versioning/privacy audit/regression dashboard。
+- 早期 `docs/superpowers/plans/2026-05-28-sprint6-release.md` 仍包含旧基线内容：`devUrl` 1420、`CHANGEME_OWNER` updater endpoint、空 signature、手写 `update.json`、前端直接 `fetch()` 下载安装包、较宽 shell permissions 和把完整代码块放入计划。这些内容只能作为历史意图参考，不能作为 P5-C/D 的实施蓝本。
+- `开发指南.md` 和 `docs/总体开发规划.md` 的高层发布目标仍有效：真实跨平台 sidecar artifact、Tauri bundle、签名/公证、GitHub Release、updater、平台 smoke、隐私本地边界。但其中早期“强制 kill unknown port”“假 macOS 交通灯/重 glass”等内容已被后续 P0/P2/P5 证据修正，P5-C/D 应按当前 release-safe 合同执行。
+- 当前 CI 已有 `.github/workflows/build-check.yml` 与 `.github/workflows/release.yml`。build-check 在 matrix 中跑 typecheck/lint/unit/Rust check/Tauri build，并调用 `prepare-sidecar.sh <target> check`；check 模式在没有 `cmd/chatlog` 和真实 sidecar binary 时会创建 CI-only placeholder。P5-C 需要保留这种非发布占位行为，但必须让它在文档和 artifact 命名中不可被误认为真实发布证据。
+- 当前 release workflow 已要求 `TAURI_SIGNING_PRIVATE_KEY` 和 `TAURI_UPDATER_PUBKEY`，会注入 updater pubkey，并用 `tauri-action@v0` 加 `--config '{"bundle":{"createUpdaterArtifacts":true}}'` 生成 updater artifacts。P5-C 不需要重建 updater 基础，而需要验证 signed artifacts、`latest.json`、pubkey 注入、release body、sidecar checksum 和 dry-run 行为。
+- `src-tauri/tauri.conf.json` 当前默认 `createUpdaterArtifacts=false`，release workflow 覆盖为 true；updater endpoint 是 `https://github.com/zhoumeng-creater/chatlogUI/releases/latest/download/latest.json`，pubkey 是占位字符串。CSP 已允许 `https://github.com`/`https://api.github.com` 作为 documented update checks，并保留 local-only sidecar/media connect/img/media scope。
+- `src-tauri/src/lib.rs` 已注册 `tauri-plugin-updater`，并允许通过编译期 `TAURI_UPDATER_PUBKEY` 覆盖 pubkey。`useUpdateCommander.ts` 只在 production 且 `VITE_ENABLE_UPDATER=true` 时启用自动更新，使用 `@tauri-apps/plugin-updater` 的 `check/download/install/downloadAndInstall`，并把 update events 作为脱敏 `updater` diagnostics 记录。
+- `src-tauri/src/sidecar.rs` 已把运行时 sidecar program 固定为 `chatlog_alpha`，与 P2-E packaged smoke 中发现的安装根目录 basename 规则一致；`tauri.conf.json` bundle externalBin 仍为 `binaries/chatlog_alpha`，CI `prepare-sidecar.sh` 产出 target-suffixed binaries。P5-C 需要证明每个平台 target 的 sidecar binary 命名、checksum、可执行权限和打包后运行时路径都一致。
+- 当前 `src-tauri/binaries/` 只看到本地 Windows x64 sidecar：`chatlog_alpha-x86_64-pc-windows-msvc.exe`。release workflow 对 macOS/Linux target 若没有 `cmd/chatlog` 或对应 binary 会在 release mode 失败；这正是 P5-C sidecar artifact reproducibility 的主要 blocker。
+- 官方 Tauri v2 sidecar/updater/action 文档复核后，P5-C 规划把以下内容列为 release gates：target triple sidecar 命名与 `externalBin` basename 一致、updater artifact 必须签名、`latest.json` 使用生成签名内容、release workflow 记录 sidecar 来源/checksum 和 updater artifact evidence。旧 Sprint 6 的手写 manifest 或空 signature 路径不能沿用。
+- P5-C/D 专项规划已写入 `docs/superpowers/plans/2026-06-03-p5-c-d-sidecar-artifact-updater-ci-release-governance.md`，并同步 P4/P5 总路线图、advanced capability README、E2E matrix、`task_plan.md` 和本工作记忆。
+- 当前唯一需要项目层决策的实施分歧是 `chatlog_alpha` release artifact 来源：优先从可审计 source/submodule 在 CI 构建；若不可行，则采用 pinned upstream/private artifact + SHA-256 manifest。无论选择哪条路径，P5-C 都不能继续依赖开发者本地 ignored binary 作为 release source。
+- P5-D 规划明确需要新增 advanced acceptance checklist、release governance runbook、privacy audit checklist、regression dashboard、logging constraints、deprecated guidance cleanup 和 maintenance ownership。它是治理闭环，不是单次 release note。
+
+## 2026-06-03 P3 Planning Baseline Findings
+
+- `task_plan.md` 和 `progress.md` 显示 P2-D 已交付 contract-contained semantic/graph 覆盖：semantic config/status/actions/search/topics/profiles/QA/SSE，以及 graph status/query/timeline/visualize/rebuild/pause/resume。
+- `docs/superpowers/plans/2026-06-03-p4-e-hook-mcp-semantic-preview-graph-residuals.md` 与 `specs/002-advanced-capabilities/capability-matrix.md` 显示 P4-E 后续补齐 semantic index preview、graph config、business ingest、event ingest 和 graph QA 残余能力。
+- `specs/001-ready-desktop-app/release-evidence.md` 显示 P5-A/B 已补齐包含 AI preview 和 graph visualization 的 browser/E2E/visual/a11y 证据。
+- 因此 P3 不能写成从零实现计划，而应写成 AI/Graph 的整合产品化阶段：在保留现有 sidecar 契约的前提下，补齐设置中心、索引工作流、SSE 问答体验、语义发现、知识图谱交互、隐私诊断和测试证据。
+- `src/l2-coordinator/commander/useAiCommander.ts` 已经集中语义配置、索引、搜索、主题、画像、预览和 SSE QA 编排，但 P3 仍需要处理配置保存后的 credential flag 回读、pause/resume/rebuild 状态表达、QA abort 语义、citation/evidence 展示、overload/retry 状态和 answer copy。
+- `src/l2-coordinator/data-clerk/stores/useAiStore.ts` 的 `setError` 在清空错误时可能把 `phase` 置为 `undefined`。P3 应先硬化 store 状态机，再做大规模语义 UI 抛光。
+- `src/l3-molecule/semantic/AiPanel.tsx`、`SetupWizard.tsx`、`QAPanel.tsx` 仍有大量 inline style 与模块根部 commander/store 耦合。P3 可以把模块根作为过渡 shell，但 leaf view 应改成 props/view-model 驱动，避免继续扩散 L3 直接编排。
+- `SetupWizard.tsx` 仍偏旧式 provider card 表单（`ollama`、`glm`、`deepseek`）和固定默认模型，没有形成现代设置中心需要的 provider 能力分组、credential status、索引 readiness、safe save/test 和动态错误反馈。
+- `src/l2-coordinator/commander/useGraphCommander.ts` 已经覆盖 graph status/query/timeline/visualize/config/ingest/QA/filter/focus，但跨模块导航仍偏浅：search/chat 与 graph 之间主要是 pulse/focus，缺少可靠的 graph-to-chat、chat-to-graph、node detail、edge explanation、timeline drill-down 工作流。
+- `src/l3-molecule/graph/GraphAdvancedPanel.tsx` 已暴露 graph residual features，但 UI 仍偏 developer/debug 面板且部分标签为英文。P3 需要把高级图谱操作本地化、风险分层，并补齐隐私模式下的禁用原因与可恢复路径。
+- 原始 `chatlog_alpha` handler/README 明确语义配置字段包含 `ollama_base_url`、`base_url`、`deepseek_base_url`、embedding/rerank/chat provider+model、`chat_thinking`、`chat_max_tokens`、`chat_temperature`、`embedding_dimension`、`index_workers`、`recall_k`、`top_n`、`similarity_threshold`、`enable_llm_chunk`，并且 `GET /semantic/config` 只回显 `has_api_key` / `has_deepseek_api_key`。P3 规划必须以这些真实字段为源，不应继续依赖旧 `provider` 单字段模型。
+- 原始 semantic/graph status 都包含更丰富的进度信息：语义索引包含 `started_at`、`processing_rate_per_minute`、`estimated_seconds_left`、`last_incremental_*`、`last_rerank_*`、`entity_count`、`chunk_count`；图谱状态包含 `started_at`、`processing_rate_per_minute`、`estimated_seconds_left`、`source_count`。当前 L4/L3 只消费了其中一部分，P3 需要补齐进度/ETA/覆盖度展示。
+- 原始 `semantic_qa.go` SSE 确认为 `event: delta` + `{text}`、`event: done` + 完整 payload、`event: error` + `{error}`。当前 parser 已按此接入，但 UI message model 没有保存/展示 `evidence`、`reason`、`debug`、rerank metadata 或候选实体消歧信息。
+- 原始静态页虽然提供了更完整的语义/图谱工作流参照，但 `semantic index preview` 会在 tooltip 中展示内容摘要。当前 chatlogUI 的 preview adapter 默认隐藏内容和身份更符合隐私要求；P3 应吸收工作流而不是复制隐私风险。
+- `ui-ux-pro-max` 定向检索建议 P3 采用 analytics/dashboard、data-dense、minimal/accessible 风格；network graph 适合关系探索但可访问性等级低，必须提供列表/邻接表/时间线替代，不得把 3D/网络图作为唯一信息载体。
+- `ui-ux-pro-max` 的泛化 design-system 输出把任务误判为 FAQ landing / exaggerated minimalism，和本地桌面工具不匹配。P3 设计基线应明确排除 landing/hero/大字留白式结构，采用系统化、紧凑、可扫描的 macOS 工具界面。
+## 2026-06-03 P5-C/D Release Guardrail Implementation Findings
+
+- Current branch remains `codex/p4b-media-chat-extensions`; this is the continuous P4-B/C/D/E/P5-A/B dirty branch and is not `master`.
+- The repository does not contain `cmd/chatlog`, so release CI cannot currently build `chatlog_alpha` from source inside this repo. A sibling local source checkout exists outside this repository, but that local path is not release provenance for CI.
+- Local sidecar inventory: `src-tauri/binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe` exists and has SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`. No local macOS or Linux sidecar binaries were found.
+- `scripts/release/sidecar-artifacts.json` now records target-specific binary names and check-mode allowance. All targets remain `releaseAllowed: false`, so release-mode verification intentionally blocks publishing until a source or checksum artifact strategy is approved.
+- `pnpm release:check:sidecar` passes in check mode. macOS/Linux targets are explicitly reported as check-mode placeholders, not release evidence.
+- `node scripts/verify-sidecar-artifacts.mjs --mode release --target x86_64-pc-windows-msvc` fails as expected with `target is not allowed for release`.
+- `bash .github/scripts/prepare-sidecar.sh "x86_64-pc-windows-msvc" check` initially failed under local WSL bash because the shell script had CRLF line endings. Normalizing the script to LF fixed `set -euo pipefail`.
+- The same local bash run then failed because WSL lacked `node`; `prepare-sidecar.sh` now resolves `node`, then `node.exe`, then fails with a clear CI annotation if neither exists.
+- Final local `prepare-sidecar.sh` check-mode run passed for Windows x64 and printed target, mode, destination, and checksum evidence. WSL still prints an environment warning unrelated to the script exit status.
+- `scripts/verify-updater-manifest.mjs` validates Tauri updater `latest.json` shape at the release evidence layer: required platform entries, non-empty embedded signatures, no `.sig` file references, and platform URL artifact names matching local evidence files.
+- CI changes intentionally separate source/UI quality gates from cross-platform package compile checks. Release workflow now gates target builds on source/UI quality, release-mode sidecar provenance, draft release behavior, updater manifest verification, and release evidence upload.
+- P5-C/D guardrails are implemented, but release readiness remains blocked until concrete sidecar provenance, generated updater metadata/signatures, packaged smoke refresh, and release privacy audit are completed.
+
+## 2026-06-03 P5-C/D Review Remediation Findings
+
+- The previous `build-check.yml` trigger only watched `main`, while this repository uses `master`/`origin/master`. The workflow now watches both `master` and `main`, and `scripts/release-workflows.test.mjs` locks that behavior.
+- The updater verifier previously assumed a single fixed `src-tauri/target/release/bundle/latest.json` containing all platforms. It now discovers generated `latest.json` files under `src-tauri/target`, records manifest/artifact SHA-256 evidence, and lets the release matrix verify only the current target platform while still checking all manifest entries for shape/signature sanity.
+- Release CI now adds explicit platform keys (`windows-x86_64`, `darwin-x86_64`, `darwin-aarch64`, `linux-x86_64`) and runs `node scripts/verify-updater-manifest.mjs --bundle-root src-tauri/target --required-platforms "${{ matrix.platform }}"`.
+- `tauri-apps/tauri-action` is pinned to `action-v0.6.2`. GitHub network lookup was unavailable from the local shell, but the tag was confirmed via GitHub release metadata before changing the workflow.
+- The sidecar verifier now supports the pinned URL artifact strategy described in the P5-C plan: release mode may stage an HTTPS artifact only when `releaseAllowed=true`, the URL basename matches `binaryName`, the artifact is non-empty, and SHA-256 matches the manifest. Check-only targets are not downloaded.
+- Current sidecar release status remains intentionally blocked because all manifest targets still have `releaseAllowed:false`; no real cross-platform sidecar provenance was invented.
+- UI governance remediation removed the deprecated `AppleButton` and `GlassPanel` primitives from source/barrel exports, migrated core L4 UI class composition to the shared `classNames()` helper, and added `scripts/ui-governance.test.mjs` to prevent recurrence.
+- Full `pnpm verify` exposed a Vitest fork-pool `spawn UNKNOWN` runner failure in the Windows/OneDrive workspace after assertions had passed. Switching the project test script to `vitest run --pool=threads` made the same suite pass reliably with 88 files / 368 tests.
+
+## 2026-06-03 P5-C/D Remaining Blockers Review Findings
+
+- 用户追问后，本轮将“已修复的自动化守卫”和“仍不能称为 release-ready 的真实问题”分开记录。结论：当前不是 source/UI 大面积失败；当前 blockers 集中在发布证据、provenance、updater、packaged smoke、privacy audit、跨平台 caveat 和 staged 架构/UI debt。
+- P0 release blockers 已写入 `docs/reviews/2026-06-03-p5-c-d-remaining-blockers-review.md`：没有 approved release sidecar provenance、没有 generated signed updater metadata、没有当前 P4/P5 packaged smoke refresh、没有 candidate-specific privacy audit、macOS/Linux 尚非 release-ready、release workflow 未被真实 CI run 证明、release evidence bundle 尚不完整。
+- P1 architecture/product debt 已明确：L3 props-only 全局未清、L3 仍依赖 L2 display/store types、semantic/setup/search/graph/chat 等 L3 inline style/tokenization debt、历史规划文档仍含旧 `AppleButton`/`GlassPanel`/端口猎杀等 superseded 指南、advanced features 主要是 synthetic-fixture evidence 而非真实数据验收。
+- P2 warnings 已记录：explicit graph vendor chunk 仍大但 lazy、Vitest fork pool 在 Windows/OneDrive 下不稳定且已通过 threads pool 规避。
+- 完整修复计划已写入 `docs/superpowers/plans/2026-06-03-p5-c-d-remaining-blockers-remediation.md`，按 Phase 0-9 执行：baseline lock、sidecar provenance、updater metadata、Windows packaged smoke、privacy/evidence、macOS/Linux decision、architecture cleanup、UI tokenization、historical docs cleanup、final release gate。
+
+## 2026-06-03 P5-C/D Remaining Blockers Remediation Findings
+
+- 本轮完成的是 local remediation，不是 release-candidate publish readiness。仍没有 approved sidecar provenance、generated signed updater metadata、P4/P5 installed-app smoke refresh、candidate privacy audit 或真实 CI draft release evidence。
+- `scripts/architecture-boundary.test.mjs` 现在将 L3 runtime L2 imports 约束为零例外。Setup、chat、search、semantic 和 graph module roots 已改为由 L1/L2 传入 state/actions/privacy props，不再运行时 import L2 store/commander。
+- Setup L3 组件现在通过 `SetupCenterView` 接收 `useSetupCenterCommander()` 输出的 props；mode change 走 L2 `chooseMode()` 而不是直接改 Zustand store。
+- `ReadinessStatePanel` 改为本地 display contract；`DiagnosticsPanel` 保留 props-driven report，导出错误格式化迁入 L3 并继续使用 redaction helper。
+- `scripts/ui-governance.test.mjs` 新增 L3 style debt ledger。Setup stepper/mode chooser、chat/search row、search panel 和 high-visibility semantic panel 的 inline/class debt 已清理；其余 11 个文件级 inline-style/manual-class debt 项保留为显式 staged debt，测试会阻止新增未记录项。
+- `docs/总体开发规划.md` 和 `开发指南.md` 已加 supersession note，并把当前示例替换为 `Button`/`IconButton`/`Surface`/`StatusIndicator`、safe port inspection 和当前 release governance，避免继续把 `AppleButton`/`GlassPanel`/端口猎杀/手写 updater manifest 当作当前做法。
+- Platform decision 已记录：macOS Intel、macOS Apple Silicon、Linux x64 当前为 `platform-caveat`，不包含在第一版 release-ready 声明中，除非后续补 sidecar provenance 和 smoke/signing evidence。
+- 验证注意事项：并行执行多个 Vitest/pnpm Node 命令会触发 Windows/OneDrive 下的 Node native `Realloc` assertion 或 process launch failure；顺序执行或 Vitest `--no-file-parallelism --maxWorkers=1` 可以稳定跑 targeted script tests。

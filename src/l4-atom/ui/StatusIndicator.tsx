@@ -1,4 +1,5 @@
 import { Spinner } from "./Spinner";
+import { classNames } from "@/utils/classNames";
 
 export type StatusTone = "neutral" | "info" | "success" | "warning" | "danger" | "ai";
 
@@ -16,7 +17,7 @@ export function StatusIndicator({
   title,
 }: StatusIndicatorProps) {
   return (
-    <span className={`ui-status-indicator ui-status-indicator--${tone}`} title={title ?? label}>
+    <span className={classNames("ui-status-indicator", `ui-status-indicator--${tone}`)} title={title ?? label}>
       <span className="ui-status-indicator__dot" aria-hidden="true" />
       <span>{label}</span>
       {busy && <Spinner size={12} color="currentColor" />}

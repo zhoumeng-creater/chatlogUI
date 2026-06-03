@@ -1,24 +1,35 @@
-import { useSetupCommander } from "@l2/commander";
-import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
+import type { PortState, SetupMode } from "@l2/data-clerk/types/setup";
 import { Button, StatusIndicator, Surface, Typography } from "@l4/ui";
 
-export function ServiceControlPanel() {
-  const {
-    inspectServicePort,
-    startManagedService,
-    connectExternalService,
-    stopManagedService,
-    checkReadiness,
-  } = useSetupCommander();
+interface ServiceControlPanelProps {
+  mode: SetupMode;
+  portState: PortState;
+  httpReady: boolean;
+  dbReady: boolean;
+  loading: boolean;
+  error: string | null;
+  externalBaseUrl: string;
+  onInspectServicePort: () => Promise<void>;
+  onStartManagedService: () => Promise<void>;
+  onConnectExternalService: (baseUrl: string) => Promise<void>;
+  onStopManagedService: () => Promise<void>;
+  onCheckReadiness: () => Promise<void>;
+}
 
-  const mode = useSetupStore((s) => s.mode);
-  const portState = useSetupStore((s) => s.portState);
-  const httpReady = useSetupStore((s) => s.httpReady);
-  const dbReady = useSetupStore((s) => s.dbReady);
-  const loading = useSetupStore((s) => s.loading);
-  const error = useSetupStore((s) => s.error);
-  const profile = useSetupStore((s) => s.profile);
-
+export function ServiceControlPanel({
+  mode,
+  portState,
+  httpReady,
+  dbReady,
+  loading,
+  error,
+  externalBaseUrl,
+  onInspectServicePort,
+  onStartManagedService,
+  onConnectExternalService,
+  onStopManagedService,
+  onCheckReadiness,
+}: ServiceControlPanelProps) {
   return (
     <div className="settings-stack">
       <Typography variant="h2">服务控制</Typography>
@@ -27,7 +38,7 @@ export function ServiceControlPanel() {
         <Button
           variant="secondary"
           size="sm"
-          onClick={inspectServicePort}
+          onClick={onInspectServicePort}
           disabled={loading}
         >
           检查端口
@@ -37,7 +48,7 @@ export function ServiceControlPanel() {
             <Button
               variant="primary"
               size="sm"
-              onClick={startManagedService}
+              onClick={onStartManagedService}
               disabled={loading || httpReady}
             >
               启动服务
@@ -45,7 +56,7 @@ export function ServiceControlPanel() {
             <Button
               variant="danger"
               size="sm"
-              onClick={stopManagedService}
+              onClick={onStopManagedService}
               disabled={loading || !httpReady}
             >
               停止服务
@@ -56,7 +67,7 @@ export function ServiceControlPanel() {
           <Button
             variant="primary"
             size="sm"
-            onClick={() => connectExternalService(profile?.httpAddr ?? "http://127.0.0.1:5030")}
+            onClick={() => onConnectExternalService(externalBaseUrl)}
             disabled={loading}
           >
             连接外部服务
@@ -65,7 +76,7 @@ export function ServiceControlPanel() {
         <Button
           variant="secondary"
           size="sm"
-          onClick={checkReadiness}
+          onClick={onCheckReadiness}
           disabled={loading}
         >
           刷新状态

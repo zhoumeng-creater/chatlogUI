@@ -1,5 +1,4 @@
 import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { maskDisplayText } from "./conversationDisplay";
 import {
   formatMessageClock,
@@ -9,10 +8,10 @@ import {
 
 interface MessageMetaProps {
   message: ChatMessage;
+  privacyOn: boolean;
 }
 
-export function MessageMeta({ message }: MessageMetaProps) {
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+export function MessageMeta({ message, privacyOn }: MessageMetaProps) {
   const sender = privacyOn ? maskDisplayText(message.sender) : message.sender;
   const kindLabel = getMessageKindLabel(message);
   const time = formatMessageClock(message.time);

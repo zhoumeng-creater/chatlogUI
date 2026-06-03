@@ -1,23 +1,35 @@
-import { useSearchCommander } from "@l2/commander/";
-import { useChatCommander } from "@l2/commander/";
-import { useSearchStore } from "@l2/data-clerk/stores/useSearchStore";
+import type { SearchResults as SearchResultsData, SearchStatus } from "@l2/data-clerk/stores/useSearchStore";
 import { SearchResultsPane } from "./SearchResultsPane";
 
-export function SearchResults() {
-  const {
-    query,
-    results,
-    status,
-    loading,
-    error,
-    executeSearch,
-    clearSearch,
-    loadMoreResults,
-  } = useSearchCommander();
-  const { selectAndLoad } = useChatCommander();
-  const activeResultId = useSearchStore((state) => state.activeResultId);
-  const setActiveResultId = useSearchStore((state) => state.setActiveResultId);
+interface SearchResultsProps {
+  query: string;
+  results: SearchResultsData | null;
+  status: SearchStatus;
+  loading: boolean;
+  error: string | null;
+  activeResultId: string | null;
+  privacyOn: boolean;
+  onSetActiveResultId: (id: string | null) => void;
+  onSelectAndLoad: (conversationId: string, chat: string) => void;
+  onLoadMoreResults: () => void;
+  onExecuteSearch: (query: string) => void;
+  onClearSearch: () => void;
+}
 
+export function SearchResults({
+  query,
+  results,
+  status,
+  loading,
+  error,
+  activeResultId,
+  privacyOn,
+  onSetActiveResultId,
+  onSelectAndLoad,
+  onLoadMoreResults,
+  onExecuteSearch,
+  onClearSearch,
+}: SearchResultsProps) {
   return (
     <SearchResultsPane
       query={query}
@@ -26,15 +38,16 @@ export function SearchResults() {
       loading={loading}
       error={error}
       activeResultId={activeResultId}
+      privacyOn={privacyOn}
       onOpenResult={(message) => {
         const chat = message.username || message.chat;
         if (!chat) return;
-        setActiveResultId(message.id);
-        void selectAndLoad(chat, chat);
+        onSetActiveResultId(message.id);
+        onSelectAndLoad(chat, chat);
       }}
-      onLoadMore={() => void loadMoreResults()}
-      onRetry={() => executeSearch(query)}
-      onClear={clearSearch}
+      onLoadMore={onLoadMoreResults}
+      onRetry={() => onExecuteSearch(query)}
+      onClear={onClearSearch}
     />
   );
 }

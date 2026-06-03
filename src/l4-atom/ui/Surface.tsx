@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { classNames } from "@/utils/classNames";
 
 type SurfaceVariant = "base" | "subtle" | "raised";
 
@@ -15,11 +16,11 @@ export function Surface({
 }: SurfaceProps) {
   return (
     <div
-      className={[
+      className={classNames(
         "ui-surface",
-        variant !== "base" ? `ui-surface--${variant}` : "",
+        variant !== "base" && `ui-surface--${variant}`,
         className,
-      ].filter(Boolean).join(" ")}
+      )}
       {...props}
     >
       {children}

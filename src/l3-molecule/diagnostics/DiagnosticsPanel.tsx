@@ -1,14 +1,35 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
-import { formatDiagnosticsExportError } from "@l2/commander/diagnostics";
 import { Button, StatusIndicator, Surface, Typography } from "@l4/ui";
+import { maskDiagnosticText } from "@/utils/maskSecrets";
 import { DiagnosticCopyButton } from "./DiagnosticCopyButton";
 
 interface DiagnosticsPanelProps {
   report: DiagnosticsReport;
   copyText: string;
   onExport: () => Promise<string>;
+}
+
+function formatDiagnosticsExportError(error: unknown): string {
+  const safeMessage = maskDiagnosticText(
+    error instanceof Error ? error.message : String(error),
+    { privacyMode: true },
+  );
+
+  if (/敏感信息|阻止导出|redaction|sensitive/i.test(safeMessage)) {
+    return `诊断导出被隐私保护阻止：${safeMessage}`;
+  }
+
+  if (/write|file|filesystem|permission|denied|保存|写入|文件|目录|磁盘/i.test(safeMessage)) {
+    return `诊断导出写入失败：${safeMessage}`;
+  }
+
+  if (/sidecar|service|health|5030|服务/i.test(safeMessage)) {
+    return `诊断导出受服务状态影响：${safeMessage}`;
+  }
+
+  return `诊断导出失败：${safeMessage}`;
 }
 
 export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPanelProps) {
@@ -52,8 +73,8 @@ export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPane
       </div>
 
       <dl className="diagnostics-grid">
-        {report.lines.map((line) => (
-          <div key={line.label} className="diagnostics-line">
+        {report.lines.map((line, index) => (
+          <div key={`${line.label}-${index}`} className="diagnostics-line">
             <dt>{line.label}</dt>
             <dd>{line.value}</dd>
           </div>

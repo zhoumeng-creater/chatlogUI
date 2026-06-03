@@ -1,26 +1,34 @@
 import { useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button, Spinner, Typography } from "@l4/ui";
-import { useChatCommander } from "@l2/commander/";
-import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
+import type { ChatMessage, Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
 import { MessageBubble } from "./MessageBubble";
 import { buildTranscriptRows, estimateTranscriptRowHeight } from "./transcriptRows";
 
-export function MessageList() {
-  const {
-    selectedConversationId,
-    messages,
-    messagesLoading,
-    messagesHasMore,
-    messagesStatus,
-    messagesError,
-    loadHistory,
-    loadMoreHistory,
-  } = useChatCommander();
+interface MessageListProps {
+  conversation: Conversation | undefined;
+  messages: ChatMessage[];
+  messagesLoading: boolean;
+  messagesHasMore: boolean;
+  messagesStatus: LoadStatus;
+  messagesError: string | null;
+  privacyOn: boolean;
+  onLoadHistory: (chat: string) => void;
+  onLoadMoreHistory: (chat: string) => void;
+}
 
-  const conversations = useChatStore((state) => state.conversations);
-  const currentConv = conversations.find((conversation) => conversation.id === selectedConversationId);
-  const activeChat = currentConv?.username || "";
+export function MessageList({
+  conversation,
+  messages,
+  messagesLoading,
+  messagesHasMore,
+  messagesStatus,
+  messagesError,
+  privacyOn,
+  onLoadHistory,
+  onLoadMoreHistory,
+}: MessageListProps) {
+  const activeChat = conversation?.username || "";
   const containerRef = useRef<HTMLDivElement>(null);
   const rows = useMemo(() => buildTranscriptRows(messages), [messages]);
   const rowVirtualizer = useVirtualizer({
@@ -31,7 +39,7 @@ export function MessageList() {
     overscan: 8,
   });
 
-  if (!currentConv) {
+  if (!conversation) {
     return (
       <div className="workbench-empty-state">
         <Typography variant="label" weight={700}>
@@ -53,7 +61,7 @@ export function MessageList() {
         <Typography variant="body" color="var(--text-secondary)">
           {messagesError ?? "无法读取该会话的历史消息。"}
         </Typography>
-        <Button variant="secondary" size="sm" onClick={() => void loadHistory(activeChat)}>
+        <Button variant="secondary" size="sm" onClick={() => onLoadHistory(activeChat)}>
           重试
         </Button>
       </div>
@@ -81,7 +89,7 @@ export function MessageList() {
             variant="secondary"
             size="sm"
             loading={messagesLoading}
-            onClick={() => activeChat && void loadMoreHistory(activeChat)}
+            onClick={() => activeChat && onLoadMoreHistory(activeChat)}
           >
             加载更早消息
           </Button>
@@ -114,7 +122,7 @@ export function MessageList() {
                 {row.kind === "date" ? (
                   <div className="message-date-divider">{row.dateLabel}</div>
                 ) : (
-                  <MessageBubble message={row.message} />
+                  <MessageBubble message={row.message} privacyOn={privacyOn} />
                 )}
               </div>
             );

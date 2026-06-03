@@ -10,25 +10,72 @@ permissions:
   contents: write
 
 jobs:
+  source-ui-quality:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Fixture Contract Check
+        run: pnpm fixtures:check
+
+      - name: Browser E2E
+        run: pnpm e2e
+
+      - name: Visual Regression
+        run: pnpm e2e:visual
+
+      - name: Accessibility Gate
+        run: pnpm e2e:a11y
+
+      - name: Frontend Verify
+        run: pnpm verify
+
+      - name: Upload Source UI Artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-ui-quality-artifacts
+          path: output/playwright/**
+
   build:
+    needs: source-ui-quality
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows-2022
+            platform: windows-x86_64
             archive: msi
             ext: msi
           - target: x86_64-apple-darwin
             os: macos-13
+            platform: darwin-x86_64
             archive: dmg
             ext: dmg
           - target: aarch64-apple-darwin
             os: macos-latest
+            platform: darwin-aarch64
             archive: dmg
             ext: dmg
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-22.04
+            platform: linux-x86_64
             archive: appimage
             ext: AppImage
 
@@ -90,6 +137,9 @@ jobs:
           update: true
           install: mingw-w64-x86_64-gcc mingw-w64-x86_64-pkg-config
 
+      - name: Verify Release Sidecar Provenance
+        run: node scripts/verify-sidecar-artifacts.mjs --target "${{ matrix.target }}" --mode release
+
       - name: Prepare Sidecar
         shell: bash
         run: bash .github/scripts/prepare-sidecar.sh "${{ matrix.target }}" release
@@ -101,7 +151,7 @@ jobs:
         run: pnpm verify
 
       - name: Tauri Build
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@action-v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -113,11 +163,25 @@ jobs:
           releaseName: "chatlog_alpha v__VERSION__"
           releaseBody: |
             更新内容请参见 CHANGELOG。
+            此 workflow 默认创建草稿 release。发布前必须完成 P5-C release evidence、sidecar artifact provenance、updater manifest/signature verification、packaged smoke、and privacy audit.
             下载适合你平台的安装包：
             - **macOS (Intel)**: `chatlog_alpha_x64.dmg`
             - **macOS (Apple Silicon)**: `chatlog_alpha_aarch64.dmg`
             - **Windows**: `chatlog_alpha_x64.msi`
             - **Linux**: `chatlog_alpha_x64.AppImage`
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           args: --target ${{ matrix.target }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
+
+      - name: Verify Generated Updater Manifest
+        run: node scripts/verify-updater-manifest.mjs --bundle-root src-tauri/target --required-platforms "${{ matrix.platform }}"
+
+      - name: Upload Release Evidence Bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ matrix.target }}
+          path: |
+            scripts/release/sidecar-artifacts.json
+            src-tauri/target/**/release/bundle/**
+            src-tauri/target/release/bundle/**
