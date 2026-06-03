@@ -37,8 +37,8 @@ describe("workbenchViewModel", () => {
     expect(shouldRenderConversationListAsMain(layout("single"), null, "list")).toBe(true);
   });
 
-  it("marks exactly one rail item active and includes graph and settings entries", () => {
-    const modules: WorkbenchModule[] = ["chat", "stats", "ai", "graph", "settings"];
+  it("marks exactly one rail item active and includes library, graph, and settings entries", () => {
+    const modules: WorkbenchModule[] = ["chat", "library", "stats", "ai", "graph", "settings"];
 
     for (const module of modules) {
       const items = buildWorkbenchRailItems(module);
@@ -63,7 +63,7 @@ describe("workbenchViewModel", () => {
 
     const items = buildWorkbenchRailItems("ai", badges);
 
-    expect(items.map((item) => item.module)).toEqual(["chat", "stats", "ai", "graph", "settings"]);
+    expect(items.map((item) => item.module)).toEqual(["chat", "library", "stats", "ai", "graph", "settings"]);
     expect(items.find((item) => item.module === "ai")?.badge).toBe("就绪");
     expect(items.find((item) => item.module === "graph")?.badge).toBe("过大");
   });

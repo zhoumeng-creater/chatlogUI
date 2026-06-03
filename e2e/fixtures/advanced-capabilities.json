@@ -5,37 +5,71 @@
   "generatedAt": "2026-06-01T00:00:00.000Z",
   "routes": {
     "/api/v1/unread": {
-      "items": [
+      "total": 1,
+      "sessions": [
         {
-          "chat": "session_synthetic_001",
-          "count": 2
+          "chat": "Synthetic Product Group",
+          "username": "group_synthetic_001@chatroom",
+          "is_group": true,
+          "chat_type": "group",
+          "unread": 2,
+          "last_msg_type": "text",
+          "last_sender": "member_synthetic_001",
+          "summary": "Synthetic unread summary",
+          "timestamp": 1800000000,
+          "time": "2026-06-02 12:00"
         }
       ]
     },
     "/api/v1/members": {
-      "chat": "chatroom_synthetic_001",
-      "items": [
+      "chat": "Synthetic Product Group",
+      "username": "group_synthetic_001@chatroom",
+      "count": 2,
+      "members": [
         {
-          "username": "member_synthetic_001",
-          "display_name": "Synthetic Member Alpha"
+          "username": "member_synthetic_owner",
+          "display": "Synthetic Owner",
+          "is_owner": true
+        },
+        {
+          "username": "member_synthetic_guest",
+          "display": "Synthetic Guest",
+          "is_owner": false
         }
       ]
     },
     "/api/v1/new_messages": {
-      "items": [
+      "count": 1,
+      "new_state": {
+        "group_synthetic_001@chatroom": 1800000001
+      },
+      "messages": [
         {
-          "id": "new_message_synthetic_001",
-          "chat": "session_synthetic_001",
-          "summary": "Synthetic new-message summary"
+          "chat": "Synthetic Product Group",
+          "username": "group_synthetic_001@chatroom",
+          "is_group": true,
+          "chat_type": "group",
+          "local_id": 42,
+          "timestamp": 1800000001,
+          "time": "2026-06-02 12:01",
+          "sender": "member_synthetic_guest",
+          "type": "text",
+          "content": "Synthetic incremental message"
         }
       ]
     },
     "/api/v1/favorites": {
+      "count": 1,
       "items": [
         {
           "id": "favorite_synthetic_001",
           "type": "text",
-          "summary": "Synthetic favorite summary"
+          "type_num": 1,
+          "time": "2026-06-02 12:02",
+          "timestamp": 1800000002,
+          "preview": "Synthetic favorite preview",
+          "from": "member_synthetic_guest",
+          "chat": "Synthetic Product Group"
         }
       ]
     },

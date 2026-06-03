@@ -69,4 +69,27 @@ describe("diagnostic redaction", () => {
     expect(containsSensitiveDiagnosticText("keyword=private chat text")).toBe(true);
     expect(containsSensitiveDiagnosticText("durationMs: 12")).toBe(false);
   });
+
+  it("masks P4-B favorite, member, unread, and incremental message fields", () => {
+    const redacted = maskDiagnosticText(
+      [
+        "favoritePreview=Synthetic favorite preview",
+        "memberUsername=member_synthetic_owner",
+        "memberDisplay=Synthetic Owner",
+        "unreadSummary=Synthetic unread summary",
+        "newMessageBody=Synthetic incremental message",
+        "newMessagesState={\"group_synthetic_001@chatroom\":1800000001}",
+      ].join("\n"),
+      { privacyMode: true },
+    );
+
+    expect(redacted).not.toContain("Synthetic favorite preview");
+    expect(redacted).not.toContain("member_synthetic_owner");
+    expect(redacted).not.toContain("Synthetic Owner");
+    expect(redacted).not.toContain("Synthetic unread summary");
+    expect(redacted).not.toContain("Synthetic incremental message");
+    expect(redacted).not.toContain("group_synthetic_001");
+    expect(redacted).toContain("favoritePreview=[redacted]");
+    expect(redacted).toContain("newMessagesState=[redacted]");
+  });
 });

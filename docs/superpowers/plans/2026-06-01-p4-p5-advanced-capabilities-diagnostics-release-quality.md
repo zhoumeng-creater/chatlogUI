@@ -439,6 +439,10 @@ Final 2026-06-02 source verification passed: `pnpm lint`, `pnpm typecheck`, `pnp
 
 **Goal:** Make original chat records usable beyond plain text.
 
+**Dedicated plan:** `docs/superpowers/plans/2026-06-02-p4-b-media-favorites-members-unread-incremental.md`.
+
+**Implementation status 2026-06-02:** source/UI implementation is complete and verified for media attachments, image preview/download placeholders, favorites, members, unread badges, and explicit incremental-message refresh. Persistent P5-B E2E and P5-C packaged release reruns have not started. P4-B did not change Tauri CSP/capabilities, sidecar startup, bind address, Rust diagnostics payload shape, or the sidecar contract.
+
 **Primary endpoints:**
 
 - `GET /image/*key`
@@ -451,35 +455,38 @@ Final 2026-06-02 source verification passed: `pnpm lint`, `pnpm typecheck`, `pnp
 - `GET /api/v1/unread`
 - `GET /api/v1/new_messages`
 
-**Primary files likely to change or create:**
+**Primary files changed or created:**
 
 - `src/l4-atom/network/mediaResources.ts`
-- `src/l4-atom/network/fetchFavorites.ts`
-- `src/l4-atom/network/fetchMembers.ts`
-- `src/l4-atom/network/fetchUnread.ts`
-- `src/l4-atom/network/fetchNewMessages.ts`
 - `src/l4-atom/network/mediaAdapters.ts`
+- `src/l4-atom/network/chatExtensionFetchers.ts`
+- `src/l4-atom/network/chatExtensionsAdapters.ts`
 - `src/l2-coordinator/data-clerk/stores/useMediaStore.ts`
+- `src/l2-coordinator/data-clerk/stores/useFavoritesStore.ts`
 - `src/l2-coordinator/commander/useMediaCommander.ts`
 - `src/l2-coordinator/commander/useFavoritesCommander.ts`
+- `src/l2-coordinator/commander/useChatExtensionsCommander.ts`
 - `src/l3-molecule/media/MediaLibrary.tsx`
 - `src/l3-molecule/media/MediaPreviewSheet.tsx`
+- `src/l3-molecule/media/MessageAttachment.tsx`
 - `src/l3-molecule/chat/MessageBubble.tsx`
 - `src/l3-molecule/chat/MessageList.tsx`
 - `src/l3-molecule/chat/ConversationInspector.tsx`
-- `src-tauri/tauri.conf.json`
+
+No `src-tauri` files changed in the implemented P4-B slice. Video/voice native playback remains deferred; current video/voice/file surfaces use download/placeholder states.
 
 Tasks:
 
-- [ ] Add backend-shaped media metadata extraction from history/search/favorites responses.
-- [ ] Add typed attachment model: image, video, voice, file, sticker, unknown.
-- [ ] Render message attachments with stable dimensions and privacy-safe placeholders.
-- [ ] Add preview sheet for images/video/audio with loading/error/retry states.
-- [ ] Add file download/save action; defer "open containing folder" until permission review.
-- [ ] Add favorites module with filters and detail preview.
-- [ ] Add chatroom members inspector.
-- [ ] Add unread/new_messages status surfaces without disrupting session list.
-- [ ] Add explicit CSP update and packaged smoke for video/audio if needed.
+- [x] Create the dedicated P4-B plan from current backend/source/document evidence.
+- [x] Add backend-shaped media metadata extraction from history/search/favorites responses.
+- [x] Add typed attachment model: image, video, voice, file, sticker, unknown.
+- [x] Render message attachments with stable dimensions and privacy-safe placeholders.
+- [x] Add preview sheet for images with loading/error/retry states; keep video/audio as download/placeholder until CSP/package evidence exists.
+- [x] Add file download placeholder; defer native save/open-folder until permission review.
+- [x] Add favorites module with filters and detail preview.
+- [x] Add chatroom members inspector.
+- [x] Add unread/new_messages status surfaces without disrupting session list.
+- [x] Review CSP/package impact; no CSP update was required because native video/audio playback was not introduced.
 
 Acceptance:
 
@@ -501,6 +508,8 @@ If CSP or Tauri permissions change:
 ```powershell
 pnpm tauri build
 ```
+
+P4-B final 2026-06-02 source/UI verification passed: `pnpm lint`, `pnpm typecheck`, `pnpm test` (60 files / 282 tests), `pnpm build`, `pnpm verify`, Playwright CLI UI evidence at `1440x900` privacy off and `390x820` privacy on, L4 independence scan, L1/L3 raw network scan, runtime console scan, sensitive field scan, and `git diff --check` with only CRLF normalization warnings.
 
 ---
 

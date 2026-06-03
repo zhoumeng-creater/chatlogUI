@@ -1,14 +1,28 @@
-import { StatusIndicator, Typography } from "@l4/ui";
-import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
+import { Button, StatusIndicator, Typography } from "@l4/ui";
+import type { Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { maskDisplayText } from "./conversationDisplay";
+import { formatNewMessagesStatus } from "./chatExtensionsDisplay";
 
 interface TranscriptHeaderProps {
   conversation: Conversation;
   totalCount: number;
+  membersOpen?: boolean;
+  newMessagesStatus?: LoadStatus;
+  newMessagesCount?: number;
+  onToggleMembers?: () => void;
+  onRefreshNewMessages?: () => void;
 }
 
-export function TranscriptHeader({ conversation, totalCount }: TranscriptHeaderProps) {
+export function TranscriptHeader({
+  conversation,
+  totalCount,
+  membersOpen = false,
+  newMessagesStatus = "idle",
+  newMessagesCount = 0,
+  onToggleMembers,
+  onRefreshNewMessages,
+}: TranscriptHeaderProps) {
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
   const displayName = privacyOn
     ? maskDisplayText(conversation.displayName)
@@ -30,10 +44,32 @@ export function TranscriptHeader({ conversation, totalCount }: TranscriptHeaderP
           {username}
         </Typography>
       </div>
-      <StatusIndicator
-        tone={conversation.isGroup ? "success" : "neutral"}
-        label={`${conversation.isGroup ? "群聊" : "私聊"}${countLabel}`}
-      />
+      <div className="transcript-header__actions">
+        <StatusIndicator
+          tone={conversation.isGroup ? "success" : "neutral"}
+          label={`${conversation.isGroup ? "群聊" : "私聊"}${countLabel}`}
+        />
+        {conversation.isGroup && onToggleMembers && (
+          <Button
+            variant={membersOpen ? "secondary" : "ghost"}
+            size="sm"
+            onClick={onToggleMembers}
+          >
+            成员
+          </Button>
+        )}
+        {onRefreshNewMessages && (
+          <Button
+            variant="ghost"
+            size="sm"
+            loading={newMessagesStatus === "loading"}
+            title={formatNewMessagesStatus(newMessagesStatus, newMessagesCount)}
+            onClick={onRefreshNewMessages}
+          >
+            新消息
+          </Button>
+        )}
+      </div>
     </header>
   );
 }

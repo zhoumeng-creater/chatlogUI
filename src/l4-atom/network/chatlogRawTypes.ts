@@ -26,6 +26,9 @@ export interface RawSession {
   summary?: string;
   timestamp?: number;
   time?: string;
+  unread?: number;
+  last_sender?: string;
+  last_msg_type?: string;
 }
 
 export interface RawSessionsResponse {
@@ -71,6 +74,62 @@ export interface RawHistoryMessage {
   username?: string;
   is_group?: boolean;
   chat_type?: string;
+}
+
+export interface RawMediaInfo {
+  type?: string;
+  key?: string;
+  path?: string;
+  name?: string;
+  size?: number;
+  data?: string;
+  modifyTime?: number;
+}
+
+export interface RawUnreadSession extends RawSession {
+  unread: number;
+  last_msg_type?: string;
+  last_sender?: string;
+}
+
+export interface RawUnreadResponse {
+  sessions: RawUnreadSession[];
+  total: number;
+}
+
+export interface RawMember {
+  username: string;
+  display?: string;
+  is_owner?: boolean;
+}
+
+export interface RawMembersResponse {
+  chat: string;
+  username: string;
+  count: number;
+  members: RawMember[];
+}
+
+export interface RawNewMessagesResponse {
+  count: number;
+  messages: RawHistoryMessage[];
+  new_state: Record<string, number>;
+}
+
+export interface RawFavoriteItem {
+  id: string;
+  type: string;
+  type_num?: number;
+  time?: string;
+  timestamp?: number;
+  preview?: string;
+  from?: string;
+  chat?: string;
+}
+
+export interface RawFavoritesResponse {
+  count: number;
+  items: RawFavoriteItem[];
 }
 
 export interface RawHistoryResponse {

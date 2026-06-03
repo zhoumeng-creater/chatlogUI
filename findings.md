@@ -445,3 +445,31 @@
 - A9 操作发现：`apply_patch` 在当前桌面线程默认锚定主工作区路径，而 shell 命令可以通过 `workdir` 指向 P4-A worktree。后续所有补丁必须显式使用 `.worktrees/p4a-diagnostics-privacy-plan/...` 路径，避免误改主工作区。
 - A10 验证发现：把 worktree 放在仓库子目录时，ESLint 会向上查找父目录配置；没有 `root: true` 时会同时加载父仓库和 worktree 的 `.eslintrc.cjs`，造成插件重复解析。分支内加入 `root: true` 后 lint/verify 均通过。
 - A10 final leak-scan 解释：`src/utils/maskSecrets.ts` 中的 synthetic marker 命中是有意的 redaction denylist，不是泄漏。排除测试和该 redaction helper 后，生产 UI/业务源码没有 synthetic private marker 命中。
+
+## 2026-06-02 P4-B Planning Findings
+
+- P4/P5 总路线图已把 P4-B 定义为 “Media, Favorites, Members, Unread, And Incremental Messages”，但当前只是高层任务清单；缺少 backend shape 核验、L2/L3 状态拆分、媒体安全/CSP 决策、UI 验收矩阵和 staged TDD 任务。
+- 当前源码仍只具备 P2 级媒体占位：`MessageBubble` 在 `mediaUrl/imageUrl` 存在时显示 `[媒体可用]`，`MediaPreview` 只支持简单图片 URL；尚无 typed media resource fetcher、blob/object URL 生命周期、视频/语音/文件下载、媒体库、收藏模块、成员 inspector、未读/new_messages 同步模块。
+- `useChatStore` 已有 `Conversation.unread` 和历史消息分页状态，但这不等价于后端 `/api/v1/unread` 与 `/api/v1/new_messages` 的增量同步；P4-B 规划需要明确二者如何进入 L2 state、如何去重、如何避免扰动现有 session list 和 transcript pagination。
+- P4-A 已完成 redaction/diagnostic bridge，因此 P4-B 网络原子和 commanders 必须复用 `onDiagnosticEvent` opt-in 路径，只记录 endpoint family/status/duration/error kind/recovery hint，不记录媒体 key、收藏内容、群成员身份、new message body 或完整 query/path。
+- 本地 `chatlog_alpha` route 核验后，P4-B fixture 必须先按真实后端 shape 修正：`/api/v1/unread` 返回 `{ sessions, total }`，每项含 `chat/username/is_group/chat_type/unread/last_msg_type/last_sender/summary/timestamp/time`；当前 `advanced-capabilities.json` 的 `items` shape 与后端不一致。
+- `/api/v1/members` 要求 `chat` 参数，返回 `{ chat, username, count, members }`，member 字段是 `username/display/is_owner`；当前 fixture 的 display name shape 需要重写为合成但后端一致的字段。
+- `/api/v1/new_messages` 接收可选 `state` JSON map，返回 `{ count, messages, new_state }`；无 state 时后端从约 24 小时窗口开始。规划应避免后台常驻轮询，先采用显式刷新/进入视图刷新，并把 `new_state` 作为 L2 内存态。
+- `/api/v1/favorites` 返回 `{ count, items }`，item 字段为 `id/type/type_num/time/timestamp/preview/from/chat`；`preview/from/chat` 都属于隐私敏感展示内容，privacy-on、aria、tooltip、copy/export 必须遮蔽。
+- `historyMessageOut` 已暴露 `media_key/media_keys/media_path/media_url/image_key/image_keys/image_path/image_url` 等字段，但当前 `adaptHistoryMessage()` 只保留 `mediaType/mediaUrl/imageUrl`，未形成 typed attachment model，也没有把 raw key/path 约束在 L4/L2 内部。
+- 媒体 endpoint 的 `info` 查询会返回 media metadata；无 `info` 时 `/image` 直接 serve，`/voice` 走音频，`/video`/`/file` 可能 redirect 到 `/data/*path`。P4-B 不能把 `/data/*path` 或 key 显示、日志化、写入诊断导出。
+- `src-tauri/tauri.conf.json` 当前只有 `img-src` 允许 `http://127.0.0.1:5030`，没有显式 `media-src`。如果 P4-B 真正播放 `<video>` 或 `<audio>`，必须把 CSP 修改、packaged smoke 和 release evidence 作为本阶段任务，而不是只做源码 UI 验收。
+- 当前聊天相关 L3 仍有历史债务：`MessageList`、`MessageBubble`、`ConversationList` 等存在直接 store/commander 依赖。P4-B 不应扩大该债务；新建媒体、收藏、成员 leaf 组件应 props-driven，必要时通过 L2 view model 给现有聊天入口注入回调。
+
+## 2026-06-02 P4-B Implementation Findings
+
+- 后端-shaped fixture 必须在实现前修正。旧 `advanced-capabilities.json` 的 chat extension `items` shape 会让 UI/adapter 测试偏离真实 sidecar；本轮把 unread/members/new_messages/favorites 改为 `/api/v1/*` 实际 response shape，并用 contract tests 固定。
+- Raw media key/path 的安全边界应停在 L4/L2 内部。最终 UI attachment 只渲染 `图片/视频/语音/文件/表情/媒体` 标签和 blob object URL；raw `image_key/media_key` 不进入 visible text、alt、tooltip 或 diagnostic attributes。
+- 视频/语音播放不应在没有 CSP/package 证据时上线。本轮实现保留图片 blob preview；视频、语音和文件只显示下载/占位说明，不渲染 `<video>`/`<audio>`，所以没有修改 `src-tauri/tauri.conf.json` 或 capabilities。
+- `useMediaStore` 必须拥有 object URL revoke 生命周期。预览替换、关闭和 reset 都需要 revoke 旧 URL；这比让 L3 组件自行清理更符合 L2 state ownership，也避免隐私/内存风险。
+- Media preview commander 还需要响应级 stale guard。单靠 store 在打开新预览时 revoke 旧 URL 不够；如果旧请求晚于新请求返回，它仍可能覆盖当前预览。最终实现按 attachment id 检查当前预览，过期响应生成的 blob URL 会立即 revoke。
+- `new_messages` 的 `new_state` 适合先作为 L2 内存态，不做持久化或后台轮询。显式刷新/进入视图刷新能降低意外性能和隐私面；后续若加轮询应作为独立 P5/P4 polish 决策。
+- 窄屏模块可达性需要跟随 Workbench rail 隐藏规则。P4-B 初版进入媒体模块后，单栏模式没有返回会话列表的按钮；复测后在单栏非 chat 模块按钮组加入 `会话` 入口，避免移动宽度下被困在媒体/统计/AI/图谱模块。
+- Privacy-on 验收不能只查核心聊天。P4-B 需要同时查收藏预览/来源、成员 display/username、会话 raw id、增量消息正文、媒体 key 和附件 preview dialog；本轮 390px privacy-on Playwright scan 对这些 synthetic markers 返回空泄漏列表。
+- Playwright CLI route mock 足以做 source/UI evidence，但不等同于持久 P5-B E2E suite。Browser plugin 当前不可用；`npx --package playwright node -` 在本机 PowerShell/npm 环境下无法 resolve `playwright` 包，`@playwright/cli playwright-cli` 可用并已记录为工具选择。
+- P4-B 最终验证未要求 Rust/Tauri/package 路径，因为本轮未修改 Rust、Tauri CSP/capabilities、sidecar startup、bind address 或 Rust diagnostics payload shape。若后续启用 video/audio playback 或 native save/open-folder，再进入 `cargo test`、`pnpm tauri build` 和 packaged smoke。

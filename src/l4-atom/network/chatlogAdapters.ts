@@ -11,6 +11,7 @@ import type {
   RawStatsResponse,
   RawDashboardTrendResponse,
 } from "./chatlogRawTypes";
+import { adaptMediaAttachments, type MediaAttachmentSource } from "./mediaAdapters";
 
 export function displayName(
   raw: Pick<RawContact, "display" | "remark" | "nickname" | "username">,
@@ -53,6 +54,7 @@ interface HistoryMessageContext {
   username?: string;
   isGroup?: boolean;
   chatType?: string;
+  source?: MediaAttachmentSource;
 }
 
 export function adaptHistoryMessage(raw: RawHistoryMessage, context: HistoryMessageContext = {}) {
@@ -83,6 +85,7 @@ export function adaptHistoryMessage(raw: RawHistoryMessage, context: HistoryMess
     mediaType: raw.media_type,
     mediaUrl: raw.media_url,
     imageUrl: raw.image_url,
+    mediaAttachments: adaptMediaAttachments(raw, context.source ?? "history"),
     direction: "unknown" as "self" | "other" | "unknown",
   };
 }
@@ -114,7 +117,9 @@ export function adaptSearchResponse(raw: RawSearchResponse) {
     count: raw.count,
     limit: raw.limit,
     offset: raw.offset,
-    messages: (raw.messages ?? []).map((message) => adaptHistoryMessage(message)),
+    messages: (raw.messages ?? []).map((message) =>
+      adaptHistoryMessage(message, { source: "search" }),
+    ),
   };
 }
 

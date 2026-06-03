@@ -9,7 +9,7 @@ The executable route/state/viewport/privacy coverage is tracked in `e2e-matrix.m
 ## Fixture Set
 
 - `e2e/fixtures/core-ready.json`: healthy sidecar, DB ready, sessions, contacts, chatrooms, history, search, and stats.
-- `e2e/fixtures/advanced-capabilities.json`: endpoint shapes for P4 advanced modules with synthetic rows only.
+- `e2e/fixtures/advanced-capabilities.json`: endpoint shapes for P4 advanced modules with synthetic rows only. As of P4-B, unread, members, new messages, and favorites use backend-shaped response fields for contract tests and future mock-server mapping.
 - `e2e/fixtures/diagnostics-redaction.json`: synthetic redaction cases used to prove diagnostics do not leak secrets or private content.
 
 ## Mock Server Direction

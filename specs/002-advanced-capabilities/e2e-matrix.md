@@ -33,8 +33,8 @@ Every runnable row in later P5 phases must keep these checks:
 | `/settings` | update notification available/downloading/ready/error | 1440, 390 | off/on | synthetic update state | dialog semantics, focus restore, progressbar aria, safe error text | P5-B a11y | foundation-ready |
 | Workbench Dev Console | sidecar logs plus HTTP/UI/Tauri/update/release events | 1440, 390 | off/on | `diagnostics-redaction.json` | source/level/privacy/endpoint/time/failed-only filters work, no raw secret markers, counts match events, safe detail panel visible | P5-B browser E2E | P4-A source/UI evidence passed 2026-06-02; persistent P5-B suite not yet added |
 | Diagnostics export | explicit export success and redaction failure | 1440, 390 | off/on | `diagnostics-redaction.json` | export is user-triggered, blocked values are redacted or export fails closed; manifest 2.0 lines explain app/sidecar/readiness/update/event state | P5-A contract + P5-C release | P4-A manifest/source/UI evidence passed 2026-06-02; packaged P5-C export rerun not yet added |
-| Advanced media entry | image/video/file/voice/data placeholders | 1440, 390 | off/on | `advanced-capabilities.json` | media keys and paths never render raw; load/error/retry states fit | P4-B + P5-B | documented |
-| Chat extension entry | unread, members, new messages, favorites | 1440, 390 | off/on | `advanced-capabilities.json` | count/list/empty/error states; identities masked in privacy mode | P4-B + P5-B | documented |
+| Advanced media entry | image/video/file/voice/data placeholders | 1440, 390 | off/on | `advanced-capabilities.json` | media keys and paths never render raw; load/error/retry states fit | P4-B + P5-B | P4-B source/UI evidence passed 2026-06-02; persistent P5-B suite not yet added |
+| Chat extension entry | unread, members, new messages, favorites | 1440, 390 | off/on | `advanced-capabilities.json` | count/list/empty/error states; identities masked in privacy mode | P4-B + P5-B | P4-B source/UI evidence passed 2026-06-02; persistent P5-B suite not yet added |
 | SNS entry | notifications, feed, search, media proxy placeholder | 1440, 390 | off/on | `advanced-capabilities.json` | feed/search states; proxy `url` and `key` never visible or logged | P4-C + P5-B | documented |
 | DB/developer entry | table list, data page, search, query, cache clear | 1440, 390 | off/on | `advanced-capabilities.json` | read-only default, destructive confirmation, no raw SQL/result diagnostics | P4-D + P5-B | documented |
 | API runner entry | local allowlisted endpoint catalog | 1440, 390 | off/on | `advanced-capabilities.json` | local-only allowlist, no arbitrary remote URL input, safe request summaries | P4-D + P5-B | documented |
@@ -72,3 +72,13 @@ P4-A upgraded the existing foundation rows for Workbench Dev Console and Diagnos
 - Diagnostics evidence: shared DiagnosticsPanel visible, `Export manifest version 2.0` visible, redaction state visible, no page-level horizontal overflow, and no visible synthetic/private marker strings.
 - Hit target check: event row buttons and visible UI buttons were at least 28px high after the DevConsole row min-height fix.
 - Tooling caveat: headless Chromium user-data-dir must stay outside the Vite project tree; a worktree-local profile caused Vite watcher reload churn and was replaced by a system temp profile.
+
+## P4-B Evidence 2026-06-02
+
+P4-B implemented source/UI coverage for the Advanced media entry and Chat extension entry without starting the persistent P5-B browser suite or P5-C packaged release rerun.
+
+- Workbench route checked with Vite plus Playwright CLI at `/workbench?codex-smoke=workbench-ready`, with synthetic local route mocks for health/db/sessions/contacts/chatrooms/history/stats/trend/unread/members/new_messages/favorites/image.
+- Desktop evidence at `1440x900`, privacy off: media/library module reachable, favorites success state visible, chat members panel visible, explicit new-message refresh merges one new message, attachment button visible, preview dialog opens, no page-level horizontal overflow, no console errors after complete route mocking, and raw media key not visible.
+- Narrow evidence at `390x820`, privacy on: media/library module reachable, conversation list reachable through the single-column `会话` button, favorites preview/source, group name, member names/usernames, message bodies, chat raw id, and media key are masked; no horizontal overflow and no visible sub-28px button targets.
+- CSP/release evidence: no `src-tauri` file, CSP, capability, sidecar startup, bind address, or Rust diagnostics payload changed. Video/voice native playback remains deferred; the current UI presents download/placeholder states instead.
+- Tooling caveat: the in-app Browser tool was unavailable in this session, and `npx --package playwright node -` could not resolve the package in PowerShell. `@playwright/cli playwright-cli` was used successfully.

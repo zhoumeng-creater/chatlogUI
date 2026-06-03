@@ -3,7 +3,7 @@ import type { GraphModuleView } from "./graphViewModel";
 import type { WorkbenchLayout, WorkbenchMode } from "./workbenchLayout";
 import type { CompactSemanticStatus } from "./semanticViewModel";
 
-export type WorkbenchModule = "chat" | "stats" | "ai" | "graph" | "settings";
+export type WorkbenchModule = "chat" | "library" | "stats" | "ai" | "graph" | "settings";
 export type SinglePaneView = "list" | "detail";
 
 export interface WorkbenchRailItemState {
@@ -39,6 +39,7 @@ export interface WorkbenchConversationTitleInput {
 
 const RAIL_MODULES: { module: WorkbenchModule; label: string }[] = [
   { module: "chat", label: "会话" },
+  { module: "library", label: "媒体" },
   { module: "stats", label: "统计" },
   { module: "ai", label: "AI" },
   { module: "graph", label: "图谱" },
@@ -124,6 +125,8 @@ export function getInspectorTitle(module: WorkbenchModule): string {
       return "知识图谱";
     case "settings":
       return "设置";
+    case "library":
+      return "媒体与收藏";
     case "chat":
     case "stats":
       return "统计数据";

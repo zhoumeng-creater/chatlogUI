@@ -34,6 +34,7 @@ pnpm tauri build
 - The release contract uses `http://127.0.0.1:5030`; `AGENTS.md`, productization contracts, and `sidecar_args.rs` now agree on the local-only default bind address.
 - Windows x64 packaged-app smoke passed on 2026-06-01 with synthetic local data: install/open, clean profile, saved config reopen, app-managed sidecar health, diagnostics export review, quit cleanup, and unknown `5030` conflict.
 - P4-A source/UI work on 2026-06-02 upgrades developer diagnostics and privacy mode with production-safe event wiring, DevConsole 2.0 filters/detail, manifest 2.0 diagnostics export lines, expanded redaction helpers, and settings/about diagnostics reuse. `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm verify` passed for this slice. This source/UI evidence did not change Tauri CSP/capabilities, sidecar startup, Rust export payload shape, or the packaged Windows x64 artifact.
+- P4-B source/UI work on 2026-06-02 adds media attachments, image preview/download placeholders, favorites/library, group members, unread badges, and explicit incremental-message refresh. `pnpm lint`, `pnpm typecheck`, `pnpm test` (60 files / 282 tests), `pnpm build`, and `pnpm verify` passed for this slice; Playwright CLI checked `1440x900` privacy off and `390x820` privacy on with synthetic local mocks. This source/UI evidence did not change Tauri CSP/capabilities, sidecar startup, Rust export payload shape, or the packaged Windows x64 artifact.
 
 ## P2-E Manual Gate
 

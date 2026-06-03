@@ -1,8 +1,10 @@
 import { useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button, Spinner, Typography } from "@l4/ui";
-import { useChatCommander } from "@l2/commander/";
+import { useChatCommander, useMediaCommander } from "@l2/commander/";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
+import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import { MediaPreviewSheet } from "@l3/media/MediaPreviewSheet";
 import { MessageBubble } from "./MessageBubble";
 import { buildTranscriptRows, estimateTranscriptRowHeight } from "./transcriptRows";
 
@@ -17,6 +19,8 @@ export function MessageList() {
     loadHistory,
     loadMoreHistory,
   } = useChatCommander();
+  const media = useMediaCommander();
+  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
 
   const conversations = useChatStore((state) => state.conversations);
   const currentConv = conversations.find((conversation) => conversation.id === selectedConversationId);
@@ -114,7 +118,7 @@ export function MessageList() {
                 {row.kind === "date" ? (
                   <div className="message-date-divider">{row.dateLabel}</div>
                 ) : (
-                  <MessageBubble message={row.message} />
+                  <MessageBubble message={row.message} onOpenAttachment={media.openPreview} />
                 )}
               </div>
             );
@@ -127,6 +131,11 @@ export function MessageList() {
           已加载全部 {messages.length.toLocaleString()} 条消息
         </div>
       )}
+      <MediaPreviewSheet
+        preview={media.preview}
+        privacyOn={privacyOn}
+        onClose={media.closePreview}
+      />
     </div>
   );
 }

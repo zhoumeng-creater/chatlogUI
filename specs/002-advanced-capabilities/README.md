@@ -12,6 +12,8 @@ P4/P5-0 is a foundation stage. It does not implement complete media, SNS, DB, ho
 
 P4-A has now implemented the developer diagnostics and privacy-mode upgrade on top of that foundation: production-safe diagnostic event wiring, DevConsole 2.0 filters/detail, manifest 2.0 diagnostics export lines, expanded redaction helpers, settings/about diagnostics reuse, and browser evidence for the diagnostics surfaces. This does not implement P4-B media, P4-C SNS, P4-D DB/API runner, P4-E hook/MCP/residual modules, or the persistent P5 E2E/release-quality suites.
 
+P4-B source/UI implementation is now in place for media attachments, image preview/download placeholders, favorites, members, unread badges, and explicit incremental-message refresh. The implementation keeps P4-B under the existing sidecar contract and does not broaden Tauri CSP or capabilities. Browser evidence used Playwright CLI with synthetic local route mocks at `1440x900` and `390x820`; persistent P5-B E2E and packaged P5-C reruns have not started.
+
 ## Files
 
 - `capability-matrix.md`: endpoint family ownership, privacy level, product batch, diagnostic needs, fixture strategy, and verification status.

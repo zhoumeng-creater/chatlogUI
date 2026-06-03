@@ -28,6 +28,13 @@ export { fetchSessions, fetchContactsApi, fetchChatRoomsApi, fetchConversations 
 export { fetchHistory } from "./fetchHistory";
 export { fetchSearch } from "./fetchSearch";
 export { fetchStats, fetchDashboardTrend } from "./fetchStats";
+export {
+  fetchFavorites,
+  fetchMembers,
+  fetchNewMessages,
+  fetchUnread,
+} from "./chatExtensionFetchers";
+export { fetchMediaBlob, fetchMediaInfo } from "./mediaResources";
 export { streamQA } from "./streamQA";
 export { fetchSemanticQA } from "./fetchSemanticQA";
 export { fetchSemanticSearch } from "./fetchSemanticSearch";

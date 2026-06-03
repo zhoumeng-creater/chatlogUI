@@ -287,6 +287,27 @@ describe("adaptHistoryMessage", () => {
     expect(result.mediaUrl).toBeUndefined();
     expect(result.direction).toBe("unknown");
   });
+
+  it("attaches safe typed media descriptors without exposing raw paths as labels", () => {
+    const result = adaptHistoryMessage({
+      chat: "Synthetic Group",
+      username: "group_synthetic_001@chatroom",
+      local_id: 500,
+      type: "image",
+      media_type: "image",
+      image_key: "synthetic-image-key",
+      image_path: "C:/Synthetic/WeChat Files/image.dat",
+    });
+
+    expect(result.mediaAttachments).toEqual([
+      expect.objectContaining({
+        kind: "image",
+        endpointFamily: "image",
+        label: "图片",
+      }),
+    ]);
+    expect(JSON.stringify(result.mediaAttachments)).not.toContain("WeChat Files");
+  });
 });
 
 // ── adaptHistoryResponse ───────────────────────────────────────

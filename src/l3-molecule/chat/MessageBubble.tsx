@@ -3,9 +3,12 @@ import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { maskDisplayText } from "./conversationDisplay";
 import { MessageMeta } from "./MessageMeta";
 import { getMessageKindLabel, getTranscriptTone } from "./transcriptDisplay";
+import { MessageAttachment } from "@l3/media/MessageAttachment";
+import type { MediaAttachment } from "@l4/network/mediaAdapters";
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  onOpenAttachment?: (attachment: MediaAttachment) => void;
 }
 
 function getContent(message: ChatMessage): string {
@@ -15,23 +18,31 @@ function getContent(message: ChatMessage): string {
   return "";
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onOpenAttachment }: MessageBubbleProps) {
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
   const tone = getTranscriptTone(message);
   const rawContent = getContent(message);
   const content = privacyOn ? maskDisplayText(rawContent) : rawContent;
+  const attachments = message.mediaAttachments ?? [];
 
-  if (!content) return null;
+  if (!content && attachments.length === 0) return null;
 
   return (
     <div className={`message-row message-row--${tone}`}>
       <article className="message-bubble">
         <MessageMeta message={message} />
-        <span>{content}</span>
-        {(message.mediaUrl || message.imageUrl) && (
-          <span className="message-attachment" aria-label="媒体占位">
-            {privacyOn ? "[媒体]" : "[媒体可用]"}
-          </span>
+        {content && <span>{content}</span>}
+        {attachments.length > 0 && (
+          <div className="message-attachments" aria-label="消息媒体">
+            {attachments.map((attachment) => (
+              <MessageAttachment
+                key={attachment.id}
+                attachment={attachment}
+                privacyOn={privacyOn}
+                onOpen={onOpenAttachment}
+              />
+            ))}
+          </div>
         )}
       </article>
     </div>

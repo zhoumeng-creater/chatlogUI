@@ -625,3 +625,44 @@
 - A10 final verification：`pnpm typecheck` PASS；`pnpm test` PASS（47 files / 241 tests）；`pnpm build` PASS（2912 modules，GraphCanvas 12.93 kB，3D vendor lazy chunk 1,170.60 kB/gzip 336.01 kB）；`pnpm verify` PASS（lint/typecheck/test/build 全部通过）。
 - A10 final scans：`git diff --check` 无 whitespace error，仅 CRLF normalization warnings；L1/L3 raw network scan 无输出；L4-to-L2/Zustand scan 无输出；runtime console scan 无输出；排除 tests 和 `maskSecrets.ts` 后 synthetic marker scan 无输出；`onDiagnosticEvent` 只见 L4 opt-in callback 和 L2 bridge，未见 L3 wiring。
 - A10 Rust/Tauri scope：未运行 `cargo test` / `pnpm tauri build`，因为本轮未修改 Rust/Tauri 源码、CSP、capabilities、sidecar startup、sidecar bind address 或 Rust diagnostics payload shape。
+
+## 2026-06-02 P4-B Media Favorites Members Unread Incremental Planning
+
+- 用户要求开始 P4-B「媒体、收藏、成员、未读、增量消息」阶段规划撰写；本轮范围限定为规划/文档，不执行源码功能实现，不把完整代码块塞入规划文档。
+- 已加载并采用本轮相关技能：`using-superpowers`、`planning-with-files`、`brainstorming`、`writing-plans`、`app-productization`、`using-git-worktrees`、`verification-before-completion`。`writing-plans` 的“完整代码”要求与用户明确要求冲突，本轮改为写清文件路径、接口、测试点、验收和风险，不嵌入完整实现代码。
+- 主工作区当前在 `master...origin/master [ahead 17]` 且干净；已创建隔离 worktree `E:/OneDrive - Default Directory/chatlogUI/.worktrees/p4-b-planning`，分支 `codex/p4-b-planning`。
+- Worktree setup 已完成：`pnpm install --frozen-lockfile` 成功；baseline `pnpm test` PASS（47 files / 241 tests）。
+- 初始进度读取结论：P4/P5-0 已完成 advanced capability docs、fixture policy、capability matrix 和 diagnostic foundation；P4-A 已完成 developer diagnostics/privacy mode 2.0，并通过 `pnpm verify`。P4-B 规划必须继承这些隐私、诊断、E2E fixture 和架构边界成果。
+- 已补读/复核 P4-B 相关材料：`开发指南.md`、`docs/总体开发规划.md`、`docs/ui-functional-audit-and-redesign-plan.md`、constitution、`specs/001-ready-desktop-app`、`specs/002-advanced-capabilities`、P4/P5 总路线图、P4/P5-0 计划、P4-A 计划和 release evidence。
+- 已对照本地 `chatlog_alpha` 的 README、HTTP command aliases、route handlers 和 media model，确认 P4-B 后端真实 contract；现有 `e2e/fixtures/advanced-capabilities.json` 的 unread/members/new_messages/favorites shape 需要在实施第一步修正。
+- 已审计当前前端源码：core history fetch/adapters 已有部分 media 字段但没有 typed attachment model；L4 network exports 未包含 media/favorites/members/unread/new_messages；L2 chat store 只有分页和 conversation unread 字段；L3 chat UI 只有媒体占位。
+- 设计约束已确定：P4-B 规划按 data-dense desktop workbench 处理，不做 landing/hero；媒体 keys、`/data/*path`、收藏内容、成员身份和增量消息正文在 diagnostics/export/visible privacy-on 路径里都按敏感数据处理。
+- 已新增 P4-B 专项规划：`docs/superpowers/plans/2026-06-02-p4-b-media-favorites-members-unread-incremental.md`。计划拆分 P4-B-0 到 P4-B-12，覆盖 fixture correction、L4 fetchers/adapters、L2 stores/commanders、chat media rendering、favorites/library、members inspector、unread/new_messages、privacy diagnostics、CSP/release、UI acceptance 和 final verification。
+- 已同步 `task_plan.md` Phase 39、P4/P5 总路线图 P4-B 段和 `specs/002-advanced-capabilities/README.md`，明确该条记录属于 planning 阶段；后续 implementation 结果见下方 P4-B Implementation 记录。
+- 文档自查：新增 P4-B 计划文件无尾随空白；针对本轮规划文件的 `TODO|TBD|fill in|待补|待定` 扫描无命中；针对本轮规划文件的 secret/真实数据扫描无命中。
+- Verification：`pnpm test` PASS（47 files / 241 tests）；`git diff --check` 无 whitespace error，仅既有 LF/CRLF normalization warnings。本轮未修改源码、Rust、Tauri、CSP 或 capabilities，因此未运行 `pnpm build`、`pnpm tauri build` 或 `cargo test`。
+
+## 2026-06-02 P4-B Implementation
+
+- 用户要求按 P4-B 专项规划执行代码撰写，并要求参考当前开发进度、历史开发文档和当前源码，不遗漏计划内容。
+- 已加载并采用执行所需技能：`using-superpowers`、`executing-plans`、`planning-with-files`、`test-driven-development`、`chatlog-debug`、`app-productization`、`frontend-design`、`ui-acceptance`、`sidecar-integration`、`release-gate`、`using-git-worktrees`、`verification-before-completion`、`requesting-code-review`、`code-simplifier`。`subagent-driven-development` 已评估，但当前工具规则只允许用户明确要求 subagents 时使用 `spawn_agent`，因此本轮在本地执行并以 scans/tests 做 review checkpoint。
+- 初始执行上下文：当前工作区为 `E:/OneDrive - Default Directory/chatlogUI/.worktrees/p4-b-planning`，分支 `codex/p4-b-planning`；既有未提交改动是上一轮 P4-B 规划文档和工作记忆同步。
+- 计划复核：P4-B 开放决策按保守默认执行。增量消息先做显式/进入视图刷新；视频/语音不先扩大 CSP；文件保存先用 WebView blob 下载，不启用 shell/open-folder 权限。
+- P4-B-0/P4-B-1 TDD RED：新增 `advancedCapabilitiesFixture.test.ts`、`mediaAdapters.test.ts`、`chatExtensionsAdapters.test.ts`，首次运行失败于旧 fixture shape 与缺失 adapter 模块；新增 `chatlogAdapters.test.ts` 断言 `mediaAttachments` 后失败于 `adaptHistoryMessage()` 未输出 attachment。
+- P4-B-0/P4-B-1 GREEN：修正 `e2e/fixtures/advanced-capabilities.json` 的 unread/members/new_messages/favorites 后端 shape；新增 `RawMediaInfo`、Unread/Members/NewMessages/Favorites raw types；新增 `mediaAdapters.ts` 和 `chatExtensionsAdapters.ts`；`adaptHistoryMessage()` 接入安全 `mediaAttachments`。
+- P4-B-0/P4-B-1 verification：`pnpm test src\l4-atom\network\advancedCapabilitiesFixture.test.ts src\l4-atom\network\mediaAdapters.test.ts src\l4-atom\network\chatExtensionsAdapters.test.ts` PASS（3 files / 13 tests）；`pnpm test src\l4-atom\network\chatlogAdapters.test.ts src\l4-atom\network\mediaAdapters.test.ts` PASS（2 files / 60 tests）。
+- P4-B-2 TDD RED/GREEN：新增 `chatExtensionFetchers.test.ts` 和 `mediaResources.test.ts`，RED 阶段失败于缺失 fetcher 模块；GREEN 后新增 `chatExtensionFetchers.ts`、`mediaResources.ts` 并导出到 L4 network index。fetchers 使用 `requestJson`/`withRequestDiagnostics` 或安全 blob diagnostic event，只记录 endpoint family/status/duration/error/recovery。
+- P4-B-2 verification：`pnpm test src\l4-atom\network\chatExtensionFetchers.test.ts src\l4-atom\network\mediaResources.test.ts` PASS（2 files / 6 tests）。
+- P4-B-3 TDD/GREEN：新增 `useMediaStore`、`useFavoritesStore`，并扩展 `useChatStore` 的 unread/members/new_messages 状态与 action。`useMediaStore` 拥有 object URL revoke 生命周期；`useFavoritesStore` 拥有 filters/selection/status；`useChatStore` 负责 unread merge、member cache、new_state、增量消息 dedupe/sort。验证：`pnpm test src\l2-coordinator\data-clerk\stores\useMediaStore.test.ts src\l2-coordinator\data-clerk\stores\useFavoritesStore.test.ts src\l2-coordinator\data-clerk\stores\useChatStore.test.ts` PASS。
+- P4-B L2 commanders：新增 `useFavoritesCommander`、`useChatExtensionsCommander`、`useMediaCommander`，用 P4-A 的 diagnostic bridge 接入安全 HTTP/media 事件；L4 仍不导入 L2/store。验证：`pnpm test src\l2-coordinator\commander\useFavoritesCommander.test.ts src\l2-coordinator\commander\useChatExtensionsCommander.test.ts src\l2-coordinator\commander\useMediaCommander.test.ts` PASS。
+- P4-B-4/P4-B-5 TDD/GREEN：新增 `mediaDisplay.ts`、`MessageAttachment.tsx`、`MediaPreviewSheet.tsx`，替换聊天气泡中的 `[媒体可用]` 占位。图片通过 blob object URL 预览；视频、语音和文件保持下载/占位说明，不渲染 `<video>` 或 `<audio>`，因此本轮不需要扩大 Tauri `media-src`。验证：`pnpm test src\l3-molecule\media\mediaDisplay.test.ts src\l4-atom\network\chatlogAdapters.test.ts src\l2-coordinator\data-clerk\stores\useMediaStore.test.ts src\l2-coordinator\commander\useMediaCommander.test.ts` PASS。
+- P4-B media lifecycle review 修复：新增 stale preview RED test，覆盖连续打开两个附件时较慢请求不能覆盖当前预览；GREEN 后 `openMediaPreview()` 会在响应返回时检查当前 attachment id，过期 blob URL 立即 revoke，过期错误不覆盖当前预览。验证：`pnpm test src\l2-coordinator\commander\useMediaCommander.test.ts` PASS（2 tests）。
+- P4-B-6/P4-B-8 TDD/GREEN：Workbench 增加 `library` 模块；新增 `MediaLibrary`、`ConversationInspector`、`favoritesDisplay.ts`、`chatExtensionsDisplay.ts`；`ChatView` 接入成员/新消息按钮，`useWorkbenchCommander` 在启动时刷新 unread，在进入媒体模块时加载收藏。验证：P4-B display/workbench/commander targeted suite PASS（5 files / 16 tests）。
+- P4-B-9 隐私 hardening：`maskSecrets.ts` 增加 `favoritePreview/favPreview/memberUsername/memberDisplay/unreadSummary/newMessageBody/newMessagesState` 等 P4-B forbidden fields；`maskSecrets.test.ts` 覆盖这些字段，最终 PASS。
+- P4-B UI acceptance：使用 Vite `http://127.0.0.1:5173/` 和 Playwright CLI session `p4b`，在浏览器会话内 mock `127.0.0.1:5030` 的 health/db/sessions/contacts/chatrooms/history/stats/trend/unread/members/new_messages/favorites/image routes。Browser plugin 不可用，Playwright CLI 可用；`npx --package playwright node -` 的 module resolution 失败，因此改用 `@playwright/cli playwright-cli`。
+- Desktop UI evidence：`1440x900` privacy-off 下，媒体与收藏模块可达，收藏成功态可见，无横向 overflow；聊天页成员、增量消息、附件入口可见，原始 `synthetic-image-key` 不在页面文本中；打开附件 preview dialog 后仍无 raw key、无 overflow、无 console errors。
+- Narrow privacy evidence：`390x820` privacy-on 下，媒体模块可达，收藏预览、来源、群名、成员、消息正文和 raw id/key 均被遮罩；聊天页成员 panel、增量消息和附件标签可见，`leakedMarkers=[]`，无横向 overflow，visible buttons 无 sub-28px hit target。
+- UI acceptance 发现并修复：窄屏进入媒体模块后，“选择会话”只是标题文本，不能返回会话列表。已在 `WorkbenchView` 单栏非 chat 模块按钮组中加入 `会话` 按钮，调用现有 `openConversationList`；复测可返回隐私遮罩后的会话列表并打开会话。
+- Final verification：`pnpm lint` PASS；`pnpm typecheck` PASS；`pnpm test` PASS（60 files / 282 tests）；`pnpm build` PASS；`pnpm verify` PASS（lint/typecheck/test/build 全部通过，60 files / 282 tests，build PASS）。
+- Final scans：`git diff --check` 无 whitespace error，仅 LF/CRLF normalization warnings；`rg -n "@l2|l2-coordinator|zustand" src\l4-atom` 无输出；`rg -n "fetch\(|XMLHttpRequest|EventSource" src\l1-entry src\l3-molecule` 无输出；runtime console scan 无输出；P4-B 非测试 raw marker scan 只命中 L4 raw types 和 redaction/store 内部字段。
+- Rust/Tauri scope：本轮未修改 `src-tauri`、CSP、capabilities、sidecar startup、sidecar bind address 或 Rust diagnostics payload shape；未运行 `cargo test` / `pnpm tauri build`，不声明新的 packaged artifact。

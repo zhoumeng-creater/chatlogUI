@@ -10,6 +10,7 @@ import { GlobalSearch } from "@l3/search/GlobalSearch";
 import { SearchResults } from "@l3/search/SearchResults";
 import { FilterBar } from "@l3/search/FilterBar";
 import { StatsInspector } from "@l3/stats/StatsInspector";
+import { MediaLibrary } from "@l3/media/MediaLibrary";
 import { WorkbenchFrame } from "@l3/workbench/WorkbenchFrame";
 import { WorkbenchRail } from "@l3/workbench/WorkbenchRail";
 import { Typography } from "@l4/ui/Typography";
@@ -58,7 +59,24 @@ export function WorkbenchView() {
   const conversationList = (
     <ContactList onConversationOpened={workbench.handleConversationOpened} />
   );
-  const mainContent = workbench.conversationListAsMain ? conversationList : <ChatView />;
+  const mainContent = workbench.activeModule === "library"
+    ? (
+      <MediaLibrary
+        status={workbench.favorites.status}
+        error={workbench.favorites.error}
+        filters={workbench.favorites.filters}
+        count={workbench.favorites.count}
+        items={workbench.favorites.items}
+        selectedFavoriteId={workbench.favorites.selectedFavoriteId}
+        selectedFavorite={workbench.favorites.selectedFavorite}
+        privacyOn={workbench.privacyOn}
+        onRefresh={() => void workbench.favorites.loadFavorites()}
+        onQueryChange={(query) => void workbench.favorites.loadFavorites({ query })}
+        onTypeChange={(favType) => void workbench.favorites.loadFavorites({ favType })}
+        onSelectFavorite={workbench.favorites.selectFavorite}
+      />
+    )
+    : workbench.conversationListAsMain ? conversationList : <ChatView />;
 
   return (
     <AppLayout shell={appShell.view} actions={appShell.actions}>
@@ -88,6 +106,18 @@ export function WorkbenchView() {
                     )}
                     {workbench.layout.inspectorMode !== "inline" && (
                       <>
+                        {workbench.layout.mode === "single" && workbench.activeModule !== "chat" && (
+                          <Button variant="ghost" size="sm" onClick={workbench.openConversationList}>
+                            会话
+                          </Button>
+                        )}
+                        <Button
+                          variant={workbench.activeModule === "library" ? "secondary" : "ghost"}
+                          size="sm"
+                          onClick={() => workbench.selectModule("library")}
+                        >
+                          媒体
+                        </Button>
                         <Button
                           variant={workbench.activeModule === "stats" ? "secondary" : "ghost"}
                           size="sm"
@@ -113,14 +143,22 @@ export function WorkbenchView() {
                     )}
                   </div>
                 </div>
-                <div className="search-panel">
-                  <GlobalSearch />
-                  <FilterBar
-                    activeFilter={workbench.search.activeFilter}
-                    onFilterChange={workbench.search.changeFilter}
-                  />
-                  <SearchResults />
-                </div>
+                {workbench.activeModule === "library" ? (
+                  <div className="workbench-module-summary">
+                    <Typography variant="caption" color="var(--text-secondary)">
+                      收藏、已加载媒体和后续媒体库入口。
+                    </Typography>
+                  </div>
+                ) : (
+                  <div className="search-panel">
+                    <GlobalSearch />
+                    <FilterBar
+                      activeFilter={workbench.search.activeFilter}
+                      onFilterChange={workbench.search.changeFilter}
+                    />
+                    <SearchResults />
+                  </div>
+                )}
               </>
             )}
             inspectorTitle={workbench.inspectorTitle}

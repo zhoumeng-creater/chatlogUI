@@ -7,6 +7,8 @@ import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { useAiCommander } from "./useAiCommander";
 import { useChatCommander } from "./useChatCommander";
 import { useGraphCommander } from "./useGraphCommander";
+import { useFavoritesCommander } from "./useFavoritesCommander";
+import { useChatExtensionsCommander } from "./useChatExtensionsCommander";
 import { useSearchCommander } from "./useSearchCommander";
 import { useStatsCommander } from "./useStatsCommander";
 import { getWorkbenchLayout } from "./workbenchLayout";
@@ -49,6 +51,10 @@ export function useWorkbenchCommander() {
   const stats = useStatsCommander();
   const ai = useAiCommander();
   const graph = useGraphCommander();
+  const favorites = useFavoritesCommander();
+  const chatExtensions = useChatExtensionsCommander();
+  const { loadFavorites } = favorites;
+  const { refreshUnread } = chatExtensions;
   const {
     conversations,
     loadConversations,
@@ -91,7 +97,8 @@ export function useWorkbenchCommander() {
 
   useEffect(() => {
     loadConversations();
-  }, [loadConversations]);
+    void refreshUnread();
+  }, [loadConversations, refreshUnread]);
 
   useEffect(() => {
     if (currentChat) {
@@ -169,6 +176,12 @@ export function useWorkbenchCommander() {
         return;
       }
 
+      if (module === "library") {
+        setInspectorOpen(false);
+        void loadFavorites();
+        return;
+      }
+
       if (module === "graph") {
         void openGraph();
       }
@@ -177,7 +190,7 @@ export function useWorkbenchCommander() {
         setInspectorOpen(true);
       }
     },
-    [ai, graph, openGraph, navigate],
+    [ai, graph, loadFavorites, openGraph, navigate],
   );
 
   const moduleBadges = buildWorkbenchModuleBadges({
@@ -201,6 +214,8 @@ export function useWorkbenchCommander() {
     stats,
     ai,
     graph,
+    favorites,
+    chatExtensions,
     layout,
     activeModule,
     inspectorModule,

@@ -4,7 +4,7 @@
 将开源项目 chatlog_alpha 封装为 Tauri v2 + Mediator 四层架构的跨平台桌面应用。
 
 ## Current Phase
-**UI/功能审计与重构规划** → 分析当前 UI 与 chatlog_alpha 功能边界，产出问题清单和修改路线图
+**P4-B 媒体、收藏、成员、未读、增量消息规划** → 基于当前开发进度、历史文档、后端 contract 和现有源码，产出可执行的 P4-B 专项实施规划
 
 ## Phases
 
@@ -445,4 +445,32 @@
 - [x] A9: 文档和证据收口。
 - [x] A10: final verification。
 - **规划文档:** docs/superpowers/plans/2026-06-02-p4-a-developer-diagnostics-privacy-mode-2.md
+- **Status:** complete
+
+### Phase 39: P4-B Media, Favorites, Members, Unread, And Incremental Messages Planning
+- [x] 按用户要求开始 P4-B「媒体、收藏、成员、未读、增量消息」专项规划撰写，本轮限定为规划/文档，不执行源码功能实现，不把完整代码放入规划文档。
+- [x] 创建隔离 worktree/分支 `codex/p4-b-planning`，避免直接在 `master` 上做非平凡规划。
+- [x] 加载并采用本轮所需技能：using-superpowers、planning-with-files、brainstorming、writing-plans、app-productization、using-git-worktrees、frontend-design、ui-acceptance、sidecar-integration、release-gate、test-driven-development、verification-before-completion。
+- [x] 复读当前开发进度、P4/P5 总路线图、P4/P5-0 foundation、P4-A 诊断/隐私实现证据、ready desktop release evidence、advanced capability specs、开发指南、总体规划和 UI 功能审计计划。
+- [x] 对照本地 `chatlog_alpha` README、HTTP aliases、route handlers 和 media model，核验 P4-B 后端真实 response shape。
+- [x] 审计当前 `chatlogUI` 源码中 media placeholder、history adapter、chat store、workbench module、Tauri CSP 和 L3 架构债务。
+- [x] 记录 P4-B 规划发现到 `findings.md`，包括 fixture shape mismatch、media key/path privacy、object URL lifecycle、CSP `media-src` 风险、unread/new_messages 状态拆分和 L3 props-driven 要求。
+- [x] 新建 P4-B 专项规划文档，拆分 P4-B-0 到 P4-B-12，覆盖 fixture correction、L4 fetchers/adapters、L2 stores/commanders、chat media rendering、favorites/library、members inspector、unread/new_messages、privacy diagnostics、CSP/release、UI acceptance 和 final verification。
+- [x] 同步 P4/P5 总路线图和 `specs/002-advanced-capabilities/README.md`，明确 P4-B 规划已完成但实现未开始。
+- **规划文档:** docs/superpowers/plans/2026-06-02-p4-b-media-favorites-members-unread-incremental.md
+- **Status:** planning complete
+
+### Phase 40: P4-B Media, Favorites, Members, Unread, And Incremental Messages Implementation
+- [x] 恢复 planning-with-files 上下文，确认当前分支为 `codex/p4-b-planning`，不是 `master`。
+- [x] 将 P4-B 专项计划作为用户已批准执行基线；按 P4-B-0 到 P4-B-12 执行。
+- [x] P4-B-0: 修正 synthetic fixture shape，并用 TDD 固定后端契约。
+- [x] P4-B-1: 扩展 L4 raw types/adapters，形成 typed attachment 与 chat extension adapters。
+- [x] P4-B-2: 新增 media/favorites/members/unread/new_messages L4 fetchers，接入安全诊断事件。
+- [x] P4-B-3: 新增 L2 media/favorites/chat extension stores/commanders。
+- [x] P4-B-4/P4-B-5: 实现聊天媒体 attachment rendering、preview sheet 和 object URL 生命周期；视频/语音/文件保持下载占位，不启用原生播放。
+- [x] P4-B-6/P4-B-7: 实现 favorites/library surface 与 group members inspector。
+- [x] P4-B-8: 实现 unread/new_messages refresh、merge、dedupe 和状态展示。
+- [x] P4-B-9/P4-B-10: 完成隐私/诊断/CSP/权限审查，不扩大 sidecar contract、CSP 或 capabilities。
+- [x] P4-B-11/P4-B-12: 完成 UI acceptance、文档证据、final verification 和本地 review。
+- **规划文档:** docs/superpowers/plans/2026-06-02-p4-b-media-favorites-members-unread-incremental.md
 - **Status:** complete

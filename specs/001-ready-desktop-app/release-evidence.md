@@ -43,6 +43,20 @@ This section records source/UI evidence for the advanced diagnostics/privacy upg
 | Final frontend verification | Passed | `pnpm lint`, `pnpm typecheck`, `pnpm test` (47 files / 241 tests), `pnpm build`, and `pnpm verify` passed on 2026-06-02. `git diff --check` returned no whitespace errors, only CRLF normalization warnings. |
 | Rust/Tauri scope | Not changed | P4-A did not change Rust export payload shape, Tauri CSP, Tauri capabilities, sidecar startup, sidecar bind address, or backend contract; no new packaged artifact was produced for this source/UI evidence slice. |
 
+## 2026-06-02 P4-B Media And Chat Extension Source Evidence
+
+This section records source/UI evidence for P4-B media, favorites, members, unread, and incremental messages. It does not replace the 2026-06-01 packaged Windows x64 release gate and does not claim a new packaged artifact was built or rerun for P4-B.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Media attachments | Passed | History/search messages now adapt typed attachments; message bubbles render attachment actions instead of the old `[媒体可用]` terminal placeholder. Raw media keys/paths remain inside L4/L2 fetch references and are not rendered. |
+| Media preview/download | Passed | Image preview uses blob object URLs with L2-owned revoke lifecycle. Video, voice, and file paths render download/placeholder states rather than native playback, avoiding CSP/capability expansion. |
+| Favorites/library | Passed | Workbench includes a media/library module with favorites loading/error/empty/success states, filters, list/detail selection, refresh, and privacy-on masking for preview/source/chat. |
+| Members/unread/new messages | Passed | Unread sessions merge into conversation badges, group members load on demand in a transcript inspector, and explicit new-message refresh merges/dedupes transcript rows while preserving `new_state` in memory. |
+| Browser UI evidence | Passed | Vite plus Playwright CLI checked `/workbench?codex-smoke=workbench-ready` with synthetic local route mocks at `1440x900` privacy off and `390x820` privacy on: no horizontal overflow, no visible raw media key, privacy-on masked favorites/members/messages/chat ids, and no sub-28px visible button targets. |
+| Final frontend verification | Passed | `pnpm lint`, `pnpm typecheck`, `pnpm test` (60 files / 282 tests), `pnpm build`, and `pnpm verify` passed on 2026-06-02. `git diff --check` returned no whitespace errors, only CRLF normalization warnings. |
+| Rust/Tauri scope | Not changed | P4-B did not change Rust/Tauri source, Tauri CSP, capabilities, sidecar startup, sidecar bind address, Rust diagnostics payload shape, or backend contract; no new packaged artifact was produced for this source/UI evidence slice. |
+
 ## No-Terminal Launch Cases
 
 | Case | Expected Result | Evidence |

@@ -108,6 +108,13 @@ function redactPrivateDiagnosticFields(input: string): string {
     "responseBody",
     "rawResponse",
     "url",
+    "favoritePreview",
+    "favPreview",
+    "memberUsername",
+    "memberDisplay",
+    "unreadSummary",
+    "newMessageBody",
+    "newMessagesState",
   ];
 
   return privateKeys.reduce((text, key) => {

@@ -12,4 +12,7 @@ export { useAppShellCommander } from "./useAppShellCommander";
 export { useUpdateNotificationCommander } from "./useUpdateNotificationCommander";
 export { useWorkbenchCommander } from "./useWorkbenchCommander";
 export { useWorkbenchShellCommander } from "./useWorkbenchShellCommander";
+export { useChatExtensionsCommander } from "./useChatExtensionsCommander";
+export { useFavoritesCommander } from "./useFavoritesCommander";
+export { useMediaCommander } from "./useMediaCommander";
 export type { WorkbenchModule } from "./workbenchViewModel";

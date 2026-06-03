@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { BarChart3, Bot, MessageSquare, Network, Settings } from "lucide-react";
+import { BarChart3, Bot, Images, MessageSquare, Network, Settings } from "lucide-react";
 
-export type WorkbenchRailModule = "chat" | "stats" | "ai" | "graph" | "settings";
+export type WorkbenchRailModule = "chat" | "library" | "stats" | "ai" | "graph" | "settings";
 
 export interface WorkbenchRailItemState {
   module: WorkbenchRailModule;
@@ -40,6 +40,8 @@ export function WorkbenchRail({
 
 function getModuleIcon(module: WorkbenchRailModule): ReactNode {
   switch (module) {
+    case "library":
+      return <Images size={17} />;
     case "stats":
       return <BarChart3 size={17} />;
     case "ai":
