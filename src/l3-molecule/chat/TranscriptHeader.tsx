@@ -1,15 +1,14 @@
 import { StatusIndicator, Typography } from "@l4/ui";
 import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { maskDisplayText } from "./conversationDisplay";
 
 interface TranscriptHeaderProps {
   conversation: Conversation;
   totalCount: number;
+  privacyOn: boolean;
 }
 
-export function TranscriptHeader({ conversation, totalCount }: TranscriptHeaderProps) {
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+export function TranscriptHeader({ conversation, totalCount, privacyOn }: TranscriptHeaderProps) {
   const displayName = privacyOn
     ? maskDisplayText(conversation.displayName)
     : conversation.displayName;

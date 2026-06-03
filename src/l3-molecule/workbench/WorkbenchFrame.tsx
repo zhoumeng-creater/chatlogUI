@@ -6,6 +6,7 @@ import {
   getWorkbenchDrawerDialogProps,
   restoreFocusTarget,
   shouldCloseWorkbenchDrawerOnKey,
+  trapWorkbenchDrawerFocus,
   type FocusTarget,
 } from "./workbenchAccessibility";
 
@@ -52,6 +53,7 @@ export function WorkbenchFrame({
   }, [drawerIsOpen]);
 
   function handleDrawerKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (trapWorkbenchDrawerFocus(event.currentTarget, document.activeElement, event)) return;
     if (!shouldCloseWorkbenchDrawerOnKey(event.key)) return;
     event.stopPropagation();
     onCloseInspector();

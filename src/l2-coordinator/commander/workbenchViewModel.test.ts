@@ -5,7 +5,9 @@ import {
   deriveWorkbenchShellView,
   formatWorkbenchConversationTitle,
   getInspectorTitle,
+  isInspectorModule,
   resolveSinglePaneView,
+  resolveWorkbenchLayoutForModule,
   shouldRenderConversationListAsMain,
   type WorkbenchModule,
 } from "./workbenchViewModel";
@@ -37,15 +39,31 @@ describe("workbenchViewModel", () => {
     expect(shouldRenderConversationListAsMain(layout("single"), null, "list")).toBe(true);
   });
 
-  it("marks exactly one rail item active and includes graph and settings entries", () => {
-    const modules: WorkbenchModule[] = ["chat", "stats", "ai", "graph", "settings"];
+  it("focuses graph in the primary workspace without list or inline inspector columns", () => {
+    expect(resolveWorkbenchLayoutForModule(layout("wide"), "stats")).toEqual(layout("wide"));
+
+    expect(resolveWorkbenchLayoutForModule(layout("wide"), "graph")).toMatchObject({
+      showConversationList: false,
+      inspectorMode: "hidden",
+      gridTemplateColumns: "var(--sidebar-expanded) minmax(0, 1fr)",
+    });
+
+    expect(resolveWorkbenchLayoutForModule(layout("single"), "graph")).toMatchObject({
+      showConversationList: false,
+      inspectorMode: "hidden",
+      gridTemplateColumns: "minmax(0, 1fr)",
+    });
+  });
+
+  it("marks exactly one rail item active and includes P4-D Developer entry after SNS", () => {
+    const modules: WorkbenchModule[] = ["chat", "stats", "media", "sns", "developer", "ai", "graph", "settings"];
 
     for (const module of modules) {
       const items = buildWorkbenchRailItems(module);
       expect(items.filter((item) => item.active).map((item) => item.module)).toEqual([module]);
     }
 
-    expect(buildWorkbenchRailItems("graph").map((item) => item.module)).toEqual(modules);
+    expect(buildWorkbenchRailItems("developer").map((item) => item.module)).toEqual(modules);
   });
 
   it("adds compact semantic and graph module badges without changing rail order", () => {
@@ -59,19 +77,40 @@ describe("workbenchViewModel", () => {
         message: "",
         tableRows: [],
       },
+      sns: {
+        status: "ready",
+        feedCount: 2,
+        notificationCount: 1,
+      },
+      developer: {
+        status: "ready",
+        dbFileCount: 3,
+        runnerHistoryCount: 1,
+      },
     });
 
     const items = buildWorkbenchRailItems("ai", badges);
 
-    expect(items.map((item) => item.module)).toEqual(["chat", "stats", "ai", "graph", "settings"]);
+    expect(items.map((item) => item.module)).toEqual(["chat", "stats", "media", "sns", "developer", "ai", "graph", "settings"]);
+    expect(items.find((item) => item.module === "sns")?.badge).toBe("1通知");
+    expect(items.find((item) => item.module === "developer")?.badge).toBe("3库");
     expect(items.find((item) => item.module === "ai")?.badge).toBe("就绪");
     expect(items.find((item) => item.module === "graph")?.badge).toBe("过大");
   });
 
-  it("uses graph as a real inspector module instead of a floating overlay label", () => {
+  it("keeps graph as a primary workspace module instead of an inspector module", () => {
     expect(getInspectorTitle("stats")).toBe("统计数据");
+    expect(getInspectorTitle("media")).toBe("媒体与扩展");
+    expect(getInspectorTitle("sns")).toBe("朋友圈");
+    expect(getInspectorTitle("developer")).toBe("开发者工具");
     expect(getInspectorTitle("ai")).toBe("AI 分析");
-    expect(getInspectorTitle("graph")).toBe("知识图谱");
+
+    expect(isInspectorModule("stats")).toBe(true);
+    expect(isInspectorModule("media")).toBe(true);
+    expect(isInspectorModule("sns")).toBe(true);
+    expect(isInspectorModule("developer")).toBe(true);
+    expect(isInspectorModule("ai")).toBe(true);
+    expect(isInspectorModule("graph")).toBe(false);
   });
 
   it("moves the workbench gate copy and status decision into the L2 view model", () => {

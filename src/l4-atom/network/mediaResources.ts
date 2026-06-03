@@ -1,0 +1,1 @@
+export { buildMediaResourceUrl } from "./mediaAdapters";

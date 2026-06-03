@@ -51,9 +51,11 @@
 
 7. **P5-A: Contract fixture tests and adapter hardening.**
    Backfill real backend-shaped JSON/default-format fixtures for all P4 endpoints.
+   Dedicated implementation plan: `docs/superpowers/plans/2026-06-03-p5-a-b-contract-fixtures-e2e-visual-a11y.md`.
 
 8. **P5-B: Browser E2E, visual regression, and accessibility gate.**
    Convert current manual evidence into stable scripts and CI artifacts.
+   Dedicated implementation plan: `docs/superpowers/plans/2026-06-03-p5-a-b-contract-fixtures-e2e-visual-a11y.md`.
 
 9. **P5-C: Release pipeline hardening.**
    Close sidecar artifact reproducibility, updater signing/public key, platform packaging, and release notes evidence.
@@ -98,10 +100,10 @@ Recommended workbench module grouping:
 | Chat extensions | `/api/v1/unread`, `/api/v1/members`, `/api/v1/new_messages`, `/api/v1/favorites` | Sessions have local unread field fallback; no members/new/favorites module. | Members inspector, unread/new messages surfaces, favorites browser. |
 | SNS | `/api/v1/sns_notifications`, `/api/v1/sns_feed`, `/api/v1/sns_search`, `/api/v1/sns/media/proxy` | Not implemented. | SNS timeline/search with media proxy and privacy-safe media detail. |
 | DB explorer | `/api/v1/db`, `/api/v1/db/search`, `/api/v1/db/tables`, `/api/v1/db/data`, `/api/v1/db/query`, `/api/v1/cache/clear` | `/api/v1/db` only used for readiness. | Developer DB explorer with read-only SQL guardrails, table paging, search, export preview, cache clear confirmation. |
-| Hook/push | `/api/v1/hook/config`, `/api/v1/hook/status`, `/api/v1/hook/events`, `/api/v1/hook/events/clear`, `/api/v1/hook/stream`, Hermes Weixin/QQ endpoints | Not implemented. | Developer hook configuration, event stream, event replay/test surfaces if backend supports it. |
-| MCP/wx-cli compatibility | `/mcp`, `/sse`, `/message`, `chatlog http list/call` endpoint aliases | Not implemented. | Local-only endpoint runner and MCP status/help view, not arbitrary remote HTTP client. |
-| Semantic residuals | `/api/v1/semantic/index/preview` | Semantic config/status/search/QA/topics/profiles exist. | Index preview with privacy-safe rows. |
-| Graph residuals | `/api/v1/graph/ingest/message`, `/api/v1/graph/ingest/business`, `/api/v1/graph/ingest/event`, `/api/v1/graph/qa` | Graph status/query/timeline/visualize/rebuild/pause/resume exist. | Controlled ingest forms and graph QA inside Graph/Developer advanced area. |
+| Hook/push | `/api/v1/hook/config`, `/api/v1/hook/status`, `/api/v1/hook/events`, `/api/v1/hook/events/clear`, `/api/v1/hook/stream`, Hermes Weixin/QQ endpoints | P4-E Developer Hook tab implemented with config/status/events/stream controls and Hermes status panels. | Maintain source/UI evidence; persistent P5-B E2E remains future work. |
+| MCP/wx-cli compatibility | `/mcp`, `/sse`, `/message`, `chatlog http list/call` endpoint aliases | P4-D local endpoint runner and P4-E MCP inventory/status tab implemented. | Keep MCP local-only and avoid arbitrary remote HTTP or tool invocation controls. |
+| Semantic residuals | `/api/v1/semantic/index/preview` | P4-E AI Preview tab implemented. | Preserve privacy-safe preview rows; persistent P5-B E2E remains future work. |
+| Graph residuals | `/api/v1/graph/ingest/message`, `/api/v1/graph/ingest/business`, `/api/v1/graph/ingest/event`, `/api/v1/graph/qa` | P4-E Graph Advanced config, business/event ingest, and QA summaries implemented; message ingest visible UI deferred. | Keep graph residual actions explicit, guarded, and summary/redaction-first. |
 
 ---
 
@@ -508,6 +510,10 @@ pnpm tauri build
 
 **Goal:** Bring `chatlog_alpha` SNS/朋友圈 browsing and search into the desktop UI with media/privacy support.
 
+**Dedicated implementation plan:** `docs/superpowers/plans/2026-06-02-p4-c-sns-moments-module.md`
+
+**Implementation status 2026-06-02:** P4-C has source/UI evidence on the current `codex/p4b-media-chat-extensions` development branch. The implementation follows the dedicated plan, uses current P4-B media/CSP work and P4-A diagnostics/privacy, and keeps SNS proxy URLs and keys as sensitive implementation details. It adds backend-shaped SNS fixtures, L4 adapters/fetchers, L2 store/commander/view-model, Workbench `sns` navigation, and L3 timeline/search/notifications/media/detail UI. It still does not claim packaged release readiness or persistent P5-B E2E coverage.
+
 **Primary endpoints:**
 
 - `GET /api/v1/sns_notifications`
@@ -515,7 +521,7 @@ pnpm tauri build
 - `GET /api/v1/sns_search`
 - `GET /api/v1/sns/media/proxy`
 
-**Primary files likely to change or create:**
+**Primary files changed or created:**
 
 - `src/l4-atom/network/fetchSnsFeed.ts`
 - `src/l4-atom/network/fetchSnsSearch.ts`
@@ -529,15 +535,18 @@ pnpm tauri build
 - `src/l3-molecule/sns/SnsMediaGrid.tsx`
 - `src/l3-molecule/sns/SnsDetailInspector.tsx`
 
+For execution, use the dedicated plan above as the source of truth. The checklist below remains a high-level route-map summary.
+
 Tasks:
 
-- [ ] Build adapters from real backend-shaped SNS fixtures.
-- [ ] Add timeline list with date/user/media filters.
-- [ ] Add search with highlighted results, safe no-results state, and pagination.
-- [ ] Add SNS media grid/detail using media proxy URLs.
-- [ ] Add notification list or badge if backend data is available.
-- [ ] Add privacy-on masking for authors, content, media, URLs, aria labels, and export/copy.
-- [ ] Add recoverable errors for missing media keys, proxy failure, and empty SNS database.
+- [x] Build adapters from real backend-shaped SNS fixtures.
+- [x] Add timeline list with date/user/media filters.
+- [x] Add search with plain text highlighted results and safe no-results state.
+- [x] Add refresh/load-more-by-limit instead of fake offset pagination.
+- [x] Add SNS media grid/detail using sensitive local proxy `src` values only.
+- [x] Add notification list and badge support.
+- [x] Add privacy-on masking for authors, content, media labels, locations, article/finder summaries, notifications, and search snippets.
+- [x] Add recoverable errors for SNS module loading, search errors, empty states, and media proxy failure.
 
 Acceptance:
 
@@ -549,6 +558,7 @@ Verification:
 
 ```powershell
 pnpm test src\l4-atom\network\snsAdapters.test.ts src\l3-molecule\sns\snsDisplay.test.ts
+pnpm test src\l4-atom\network\snsAdapters.test.ts src\l4-atom\network\fetchSnsEndpoints.test.ts src\l2-coordinator\data-clerk\stores\useSnsStore.test.ts src\l2-coordinator\commander\snsViewModel.test.ts src\l2-coordinator\commander\workbenchViewModel.test.ts src\l3-molecule\sns\snsDisplay.test.ts
 pnpm typecheck
 ```
 
@@ -557,6 +567,10 @@ pnpm typecheck
 ## Phase P4-D: DB Explorer And wx-cli/API Endpoint Runner
 
 **Goal:** Provide controlled access to raw database and endpoint debugging without exposing ordinary users to dangerous tools.
+
+**Dedicated plan:** `docs/superpowers/plans/2026-06-02-p4-d-db-explorer-wx-cli-api-debugger.md`
+
+**Implementation status 2026-06-02:** P4-D source/UI implementation is complete on the current P4-B/P4-C development branch. It adds a Workbench Developer module, DB Explorer, read-only SQL guard, cache clear confirmation, and a local allowlisted API runner. Targeted tests, lint, typecheck, and mocked UI acceptance at desktop/narrow widths with privacy off/on passed. This does not replace P5-B persistent E2E or P5-C packaged release gates.
 
 **Primary endpoints:**
 
@@ -571,11 +585,12 @@ pnpm typecheck
 **Primary files likely to change or create:**
 
 - `src/l4-atom/network/fetchDbExplorer.ts`
-- `src/l4-atom/network/runEndpoint.ts`
+- `src/l4-atom/network/endpointRunner.ts`
 - `src/l4-atom/network/dbExplorerAdapters.ts`
-- `src/l2-coordinator/data-clerk/stores/useDbExplorerStore.ts`
-- `src/l2-coordinator/commander/useDbExplorerCommander.ts`
-- `src/l2-coordinator/commander/useEndpointRunnerCommander.ts`
+- `src/l2-coordinator/data-clerk/stores/useDeveloperToolsStore.ts`
+- `src/l2-coordinator/commander/useDeveloperToolsCommander.ts`
+- `src/l2-coordinator/commander/dbExplorerViewModel.ts`
+- `src/l2-coordinator/commander/endpointRunnerViewModel.ts`
 - `src/l3-molecule/developer/DeveloperToolsModule.tsx`
 - `src/l3-molecule/developer/DbExplorer.tsx`
 - `src/l3-molecule/developer/EndpointRunner.tsx`
@@ -583,14 +598,16 @@ pnpm typecheck
 
 Tasks:
 
-- [ ] Add DB groups/files/tables/data adapters with paging.
-- [ ] Add deep DB search UI with mode/limit filters.
-- [ ] Add table data grid with column sizing, overflow-safe cells, keyboard navigation, and privacy-safe rendering.
-- [ ] Add SQL query panel restricted by default to read-only statements such as `SELECT`, `PRAGMA`, and `EXPLAIN`.
-- [ ] Add explicit confirmation for cache clear.
-- [ ] Add endpoint runner with allowlisted local endpoints only.
-- [ ] Add raw response preview with redacted default, copy redacted JSON/YAML, and raw reveal only if privacy is off and user confirms.
-- [ ] Record all requests in the diagnostic event store without raw query/body leakage.
+- [x] Expand backend-shaped DB/API fixtures in `advanced-capabilities.json`.
+- [x] Add DB groups/files/tables/data/search/query/cache adapters with paging and row-map normalization.
+- [x] Add SQL classifier and guard that blocks mutations, multi-statements, and unknown statements before any network request.
+- [x] Add DB fetchers that use local sidecar URLs, JSON defaults, existing diagnostics options, and no raw SQL/keyword diagnostic attributes.
+- [x] Add endpoint catalog and runner based on `chatlog http list/call` aliases, with no arbitrary remote URL/path/header/body editor.
+- [x] Add L2 Developer Tools store/commander/view models for DB explorer, SQL guard, cache clear confirmation, endpoint runner, and safe request history.
+- [x] Add Workbench `developer` module after SNS and before AI.
+- [x] Add L3 Developer Tools UI for DB table/search/query/cache and API runner with privacy-safe redacted response previews.
+- [x] Record all requests in the diagnostic event store without raw SQL, result cells, query values, request bodies, or response bodies.
+- [x] Run mocked UI acceptance at desktop and narrow widths with privacy off/on.
 
 Acceptance:
 
@@ -603,7 +620,7 @@ Verification:
 ```powershell
 pnpm test src\l4-atom\network\dbExplorerAdapters.test.ts
 pnpm test src\l2-coordinator\commander\dbExplorerViewModel.test.ts
-pnpm test src\l3-molecule\developer\dbExplorerDisplay.test.ts
+pnpm test src\l3-molecule\developer\developerDisplay.test.ts
 ```
 
 ---
@@ -611,6 +628,10 @@ pnpm test src\l3-molecule\developer\dbExplorerDisplay.test.ts
 ## Phase P4-E: Hook/Push, MCP, Semantic Preview, Graph Residuals
 
 **Goal:** Cover specialized original Web UI and CLI-compatible capabilities in a controlled Developer/Intelligence area.
+
+**Dedicated plan:** `docs/superpowers/plans/2026-06-03-p4-e-hook-mcp-semantic-preview-graph-residuals.md`
+
+**Source/UI status 2026-06-03:** P4-E implementation now has targeted test evidence and mocked browser acceptance against synthetic fixtures. It extends Developer Tools with Hook and MCP tabs, AI with semantic index preview, and Graph with an Advanced config/ingest/QA panel. This is source/UI evidence only; P5-B persistent E2E and P5-C packaged release gates remain future work.
 
 **Primary endpoints:**
 
@@ -631,34 +652,75 @@ pnpm test src\l3-molecule\developer\dbExplorerDisplay.test.ts
 - `POST /api/v1/graph/ingest/event`
 - `POST /api/v1/graph/qa`
 
+**Primary files likely to change or create:**
+
+- `src/l4-atom/network/hookAdapters.ts`
+- `src/l4-atom/network/fetchHook.ts`
+- `src/l4-atom/network/hookStreamParser.ts`
+- `src/l4-atom/network/mcpAdapters.ts`
+- MCP status/help is implemented through `src/l4-atom/network/mcpAdapters.ts` static local inventory; no live generic MCP client or raw protocol debugger was added.
+- `src/l4-atom/network/fetchSemanticIndexPreview.ts`
+- `src/l4-atom/network/graphResidualAdapters.ts`
+- `src/l4-atom/network/fetchGraphResiduals.ts`
+- `src/l2-coordinator/data-clerk/stores/useHookStore.ts`
+- `src/l2-coordinator/data-clerk/stores/useMcpStore.ts`
+- `src/l2-coordinator/commander/useHookCommander.ts`
+- `src/l2-coordinator/commander/useMcpCommander.ts`
+- `src/l2-coordinator/commander/hookViewModel.ts`
+- `src/l2-coordinator/commander/mcpViewModel.ts`
+- `src/l2-coordinator/commander/semanticPreviewViewModel.ts`
+- `src/l2-coordinator/commander/graphResidualViewModel.ts`
+- `src/l3-molecule/developer/HookConsole.tsx`
+- `src/l3-molecule/developer/McpPanel.tsx`
+- `src/l3-molecule/semantic/SemanticIndexPreview.tsx`
+- `src/l3-molecule/graph/GraphAdvancedPanel.tsx`
+- `src/l3-molecule/graph/GraphAdvancedPanel.tsx` consolidates graph config, structured business/event ingest, and QA summary UI; visible message ingest remains deferred.
+
 Tasks:
 
-- [ ] Add hook config/status/event adapters and store.
-- [ ] Add hook event stream parser with cancellation and retry.
-- [ ] Add Hermes Weixin/QQ config forms with credential masking and validation.
-- [ ] Add event clear confirmation and redacted diagnostics.
-- [ ] Add MCP status/help view and endpoint runner compatibility, but do not implement a full remote MCP client unless explicitly required.
-- [ ] Add semantic index preview rows with privacy-safe content.
-- [ ] Add graph ingest forms and graph QA only after fixtures confirm backend shapes.
+- [x] E0: Expand backend-shaped P4-E fixtures and freeze contract assumptions.
+- [x] E1: Add Hook/Hermes config, status, event, clear, and Hermes adapters/fetchers.
+- [x] E2: Add Hook-specific SSE parser and stream atom with cancellation.
+- [x] E3: Add Hook L2 store, commander, view model, diagnostics, and privacy-safe state.
+- [x] E4: Add Developer Tools Hook tab with config, status, events, stream controls, Hermes panels, and clear confirmation.
+- [x] E5: Add MCP status/help/tool inventory tab without arbitrary tool invocation, remote host, raw body, or raw path controls.
+- [x] E6: Add semantic index preview fetcher, adapter, AI state/view model, and preview UI.
+- [x] E7: Add graph config, guarded business/event ingest, and graph QA residuals under Graph Advanced; visible message ingest UI remains deferred.
+- [x] E8: Add privacy and diagnostics hardening for Hook, Hermes, MCP, semantic preview, and graph residuals.
+- [x] E9: Run mocked desktop/narrow UI acceptance with privacy off/on and existing P4-B/C/D regression checks.
+- [x] E10: Update docs/evidence only after implementation evidence exists.
 
 Acceptance:
 
 - Hook tools are isolated to Developer and default to disabled/explicit activation.
 - SSE streams are cancellable.
 - Credentials and event payloads do not leak through diagnostics, aria labels, or screenshots.
+- MCP remains a local compatibility/status surface, not a generic MCP client.
+- Semantic preview omits vector store paths and masks identities/content.
+- Graph ingest and QA are explicit, guarded, and summary/redaction-first.
 
 Verification:
 
 ```powershell
-pnpm test src\l2-coordinator\diplomat\sseParser.test.ts
-pnpm test src\l4-atom\network\hookAdapters.test.ts src\l4-atom\network\semanticAdapters.test.ts src\l4-atom\network\graphAdapters.test.ts
+pnpm test src\l4-atom\network\hookAdapters.test.ts src\l4-atom\network\fetchHook.test.ts src\l4-atom\network\hookStreamParser.test.ts
+pnpm test src\l4-atom\network\mcpAdapters.test.ts src\l4-atom\network\graphResidualAdapters.test.ts
+pnpm test src\l2-coordinator\commander\hookViewModel.test.ts src\l2-coordinator\commander\mcpViewModel.test.ts src\l2-coordinator\commander\semanticPreviewViewModel.test.ts src\l2-coordinator\commander\graphResidualViewModel.test.ts
+pnpm lint
+pnpm typecheck
+pnpm test
 ```
+
+Use the dedicated plan as the source of truth for implementation sequence, file ownership, privacy scans, UI acceptance, and release-evidence boundaries.
+
+Evidence note 2026-06-03: targeted P4-E tests and mocked UI acceptance have passed for source/UI scope. Full final verification is recorded in the current implementation progress notes; packaged release readiness is still owned by P5-C.
 
 ---
 
 ## Phase P5-A: API Contract Tests And Adapter Fixtures
 
 **Goal:** Stop relying on frontend-shaped guesses.
+
+**Planning status 2026-06-03:** Dedicated plan written at `docs/superpowers/plans/2026-06-03-p5-a-b-contract-fixtures-e2e-visual-a11y.md`. P5-A should now be implemented from that plan, using the current P4-B/C/D/E source/UI evidence as the fixture-contract baseline. This status does not mean the contract runner or fixture validation scripts already exist.
 
 Tasks:
 
@@ -687,6 +749,8 @@ pnpm test src\utils\maskSecrets.test.ts
 ## Phase P5-B: Browser E2E, Visual Regression, And Accessibility Gate
 
 **Goal:** Make "product opens and remains usable" repeatable.
+
+**Planning status 2026-06-03:** Dedicated plan written at `docs/superpowers/plans/2026-06-03-p5-a-b-contract-fixtures-e2e-visual-a11y.md`. P5-B should now add a persistent local synthetic E2E harness, visual regression target set, and accessibility/keyboard gate. This status does not mean `playwright.config.ts`, `pnpm e2e`, visual baselines, or a11y dependencies already exist.
 
 Recommended structure:
 
@@ -730,6 +794,8 @@ If persistent Playwright specs are deferred, keep using the CLI wrapper for manu
 ## Phase P5-C: CI/CD, Sidecar Artifact, Updater, And Platform Release Hardening
 
 **Goal:** Make GitHub release output reproducible, signed, updateable, and evidence-backed.
+
+**Planning status 2026-06-03:** Dedicated P5-C/D planning is documented in `docs/superpowers/plans/2026-06-03-p5-c-d-sidecar-artifact-updater-ci-release-governance.md`. Implementation remains pending. Current known blockers include sidecar artifact provenance for all release targets, updater signature/manifest evidence, CI gate ordering, and refreshed packaged smoke after P4/P5 advanced changes.
 
 Tasks:
 
@@ -778,6 +844,8 @@ release dry run: signed updater artifacts or intentionally blocked before publis
 
 **Goal:** Keep the project shippable after P4/P5 lands.
 
+**Planning status 2026-06-03:** Governance planning is documented in `docs/superpowers/plans/2026-06-03-p5-c-d-sidecar-artifact-updater-ci-release-governance.md`. Implementation remains pending. This phase should add durable release checklists, privacy audit records, regression dashboards, evidence taxonomy, and maintenance ownership records.
+
 Tasks:
 
 - [ ] Update `specs/001-ready-desktop-app/release-evidence.md` or create a P4/P5 release evidence appendix.
@@ -806,7 +874,7 @@ Because the full P4/P5 scope is large, do not attempt it in one implementation s
 4. **Session 4:** P4-C SNS.
 5. **Session 5:** P4-D DB explorer/API runner.
 6. **Session 6:** P4-E hook/MCP/semantic-preview/graph residuals.
-7. **Session 7:** P5-A/P5-B contract fixtures and E2E/visual harness.
+7. **Session 7:** P5-A/P5-B contract fixtures and E2E/visual/a11y harness, using `docs/superpowers/plans/2026-06-03-p5-a-b-contract-fixtures-e2e-visual-a11y.md`.
 8. **Session 8:** P5-C/P5-D release pipeline and governance.
 
 If time is limited, the highest-value first implementation is **Session 1**. It gives later workers the matrix, privacy contract, diagnostic event pipeline, and synthetic fixtures needed to implement the rest without guessing.

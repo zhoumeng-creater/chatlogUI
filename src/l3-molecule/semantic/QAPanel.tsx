@@ -38,19 +38,19 @@ export function QAPanel({
   }, [qaMessages]);
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, overflow: 'auto', paddingTop: 8 }}>
+    <div className="qa-panel">
+      <div className="qa-panel__messages">
         {qaMessages.map((msg) => (
           <QAMessage key={msg.id} message={msg} privacyOn={privacyOn} />
         ))}
         {qaStatus === "stopped" && (
-          <div style={{ padding: "4px 12px", color: "var(--warning)" }}>已停止生成</div>
+          <div className="qa-panel__status qa-panel__status--stopped">已停止生成</div>
         )}
         {qaStatus === "empty" && (
-          <div style={{ padding: "4px 12px", color: "var(--text-secondary)" }}>未返回可显示答案</div>
+          <div className="qa-panel__status qa-panel__status--empty">未返回可显示答案</div>
         )}
         {qaStatus === "failed" && (
-          <div style={{ padding: "4px 12px", color: "var(--danger)" }}>{qaError || "生成失败"}</div>
+          <div className="qa-panel__status qa-panel__status--failed">{qaError || "生成失败"}</div>
         )}
         <div ref={messagesEndRef} />
       </div>

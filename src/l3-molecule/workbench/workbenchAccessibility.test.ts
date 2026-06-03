@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   getWorkbenchDrawerDialogProps,
+  getWorkbenchRailButtonLabel,
   isRestorableFocusTarget,
   restoreFocusTarget,
   shouldCloseWorkbenchDrawerOnKey,
@@ -31,5 +32,10 @@ describe("workbenchAccessibility", () => {
 
     expect(isRestorableFocusTarget({ isConnected: false, focus })).toBe(false);
     expect(restoreFocusTarget({ isConnected: false, focus })).toBe(false);
+  });
+
+  it("uses action-oriented labels for repeated rail buttons", () => {
+    expect(getWorkbenchRailButtonLabel("AI")).toBe("打开AI模块");
+    expect(getWorkbenchRailButtonLabel("图谱")).toBe("打开图谱模块");
   });
 });

@@ -43,6 +43,18 @@ This section records source/UI evidence for the advanced diagnostics/privacy upg
 | Final frontend verification | Passed | `pnpm lint`, `pnpm typecheck`, `pnpm test` (47 files / 241 tests), `pnpm build`, and `pnpm verify` passed on 2026-06-02. `git diff --check` returned no whitespace errors, only CRLF normalization warnings. |
 | Rust/Tauri scope | Not changed | P4-A did not change Rust export payload shape, Tauri CSP, Tauri capabilities, sidecar startup, sidecar bind address, or backend contract; no new packaged artifact was produced for this source/UI evidence slice. |
 
+## 2026-06-02 P4-C SNS Source/UI Evidence
+
+This section records source and mocked-browser evidence only. It does not replace the 2026-06-01 packaged Windows x64 release gate, and it does not claim persistent P5-B E2E coverage.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| SNS L4 contract | Passed | `snsAdapters.test.ts` and `fetchSnsEndpoints.test.ts` cover backend-shaped feed/search/notification rows, `format=json`, `media=1`, `replace=1`, blank search rejection, local proxy validation, and diagnostics without raw query/key leakage. |
+| SNS L2 orchestration | Passed | `useSnsStore.test.ts`, `snsViewModel.test.ts`, and Workbench view-model tests cover load/search/error/filter/reset state, selected post lookup, privacy-aware view model, module order, inspector title, and badge behavior. |
+| SNS L3 UI privacy | Passed | `snsDisplay.test.ts` covers privacy masking and plain text search highlight segments; media proxy URLs/keys are never returned by display helpers. |
+| Mocked browser acceptance | Passed | Vite `/workbench?codex-smoke=workbench-ready` was checked with synthetic local SNS feed/search/notifications/proxy responses at desktop and `390x780`. The initial desktop two-column compression was fixed to a single-column inspector layout and rechecked. |
+| Tauri/sidecar scope | Not changed | P4-C did not modify Rust, Tauri capabilities, sidecar startup, diagnostics export payload shape, or CSP. It reuses the P4-B local `media-src` gate. |
+
 ## No-Terminal Launch Cases
 
 | Case | Expected Result | Evidence |
@@ -126,6 +138,93 @@ This section records source/UI evidence for the advanced diagnostics/privacy upg
 | Browser plugin attempt | Blocked | Browser plugin connection to the local app timed out, so P2-E UI evidence used Playwright CLI fallback against local Vite. |
 | Manual Windows x64 smoke | Passed | Latest NSIS installer smoke covered install/open, clean profile, synthetic saved config reopen, app-managed sidecar health, packaged diagnostics export, quit cleanup, and unknown `5030` conflict. T042 is checked. |
 
+## 2026-06-02 P4-D DB Explorer And API Runner Source/UI Evidence
+
+This evidence is source/UI validation only. It does not replace the 2026-06-01 packaged Windows x64 release gate, P5-B persistent E2E, or P5-C packaged release rerun.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Developer module entry | Passed | Workbench rail order now includes `developer` after SNS and before AI; mocked UI smoke opened the Developer Tools inspector at 1440x900 and 390x820. |
+| DB Explorer | Passed | Mocked local sidecar returned DB files, tables, and table data. UI rendered DB Explorer, loaded table rows, and masked DB file names/values in privacy mode. |
+| SQL guard | Passed | Targeted L4 tests prove mutation, multi-statement, empty, and unsupported SQL are blocked before network dispatch. UI smoke displayed the blocked mutation guard for `delete from MSG`. |
+| Cache clear | Passed | Store and UI require explicit cache clear confirmation before calling `/api/v1/cache/clear`; no DB export surface was added. |
+| API runner | Passed | Runner uses a fixed local-sidecar catalog and schema params; unknown endpoint and unknown parameter tests pass. UI smoke rendered redacted response preview and no raw path/header/body controls. |
+| Privacy/diagnostics | Passed | Runner history stores only method, endpoint family, status, duration, parameter keys, and redaction flag. Diagnostic tests assert no raw SQL or response body enters HTTP diagnostic events. |
+| UI acceptance | Passed | Vite + temporary mock `127.0.0.1:5030` checked privacy off/on at 1440x900 and 390x820. All four cases had no page-level horizontal overflow and no console/page errors. |
+| Rust/Tauri scope | Not changed | P4-D did not modify Rust/Tauri code, CSP, capabilities, sidecar launch args, bundle config, or `chatlog_alpha` backend behavior. |
+
+## 2026-06-03 P4-E Hook/MCP/Semantic Preview/Graph Residuals Source/UI Evidence
+
+This evidence is source/UI validation only. It does not replace the 2026-06-01 packaged Windows x64 release gate, P5-B persistent E2E, or P5-C packaged release rerun.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Hook/Hermes L4 contract | Passed | `hookAdapters.test.ts`, `fetchHook.test.ts`, and `hookStreamParser.test.ts` cover backend-shaped config/status/events/clear/Hermes responses, stream snapshot/event parsing, cancellation, and omission of post URLs, credentials, paths, raw identities, trigger content, and context bodies. |
+| Hook/MCP L2 orchestration | Passed | `useHookStore.test.ts`, `useMcpStore.test.ts`, `hookViewModel.test.ts`, and `mcpViewModel.test.ts` cover bounded safe state, stream/clear lifecycle, privacy-safe labels, static local MCP route/tool/prompt inventory, and forbidden generic-client controls. |
+| Semantic preview | Passed | `semanticPreviewAdapters.test.ts`, `fetchSemanticIndexPreview.test.ts`, `semanticPreviewViewModel.test.ts`, and `semanticPreviewDisplay.test.ts` cover index preview groups/items/outliers, `format=json`, pagination metadata, and masking/omission of `store_path`, identities, display names, and raw content. |
+| Graph residuals | Passed | `graphResidualAdapters.test.ts` and `graphResidualViewModel.test.ts` cover graph config, business/event ingest summaries, QA redaction, and summary-only evidence/count output. Visible message ingest UI remains deferred by the P4-E privacy boundary. |
+| Mocked browser acceptance | Passed | Vite `/workbench?codex-smoke=workbench-ready` was checked with synthetic local sidecar responses. Developer Hook stream listen/stop, Developer MCP inventory, AI Preview, and Graph Advanced passed at `1440x900` privacy off and `390x820` privacy on with no page-level horizontal overflow, no console/page errors, and no visible synthetic secret/private marker strings. |
+| Rust/Tauri scope | Not changed | P4-E did not modify Rust/Tauri code, CSP, capabilities, sidecar launch args, bundle config, or `chatlog_alpha` backend behavior. |
+| Final verification | Passed | After P4-E docs/evidence updates, `pnpm lint`, `pnpm typecheck`, `pnpm test` (81 files / 330 tests), `pnpm build`, and `pnpm verify` passed. Because the continuous working tree still contains earlier Tauri/CSP changes, `cargo test` also passed with 20 tests and `pnpm tauri build` produced MSI/NSIS bundles. This is not a packaged smoke rerun. |
+
+## 2026-06-03 P5-A/B Planning Evidence Boundary
+
+This historical planning boundary was recorded before P5-A/B implementation. At planning time it did not prove a runnable contract fixture runner, persistent browser E2E suite, visual regression suite, accessibility gate, packaged app smoke rerun, real sidecar artifact acquisition, updater signing, or release reproducibility. The later source/UI implementation evidence is recorded in the next section and still does not claim packaged release readiness.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Contract fixture plan | Planning documented | The plan defines fixture validator, manifest, route map, adapter/fetcher contract tests, and privacy scanner requirements for P5-A. |
+| Browser E2E/visual/a11y plan | Planning documented | The plan defines synthetic mock backend, Playwright route coverage, privacy leak checks, visual targets, and axe plus keyboard checks for P5-B. |
+| Release boundary | Not release evidence | P5-C remains responsible for packaged sidecar smoke, real sidecar artifact reproducibility, updater signing, platform packaging, and release evidence automation. |
+
+## 2026-06-03 P5-A/B Contract Fixtures, E2E, Visual, And A11y Source Evidence
+
+This section records source/UI evidence only. It does not replace the 2026-06-01 packaged Windows x64 release gate, and it does not claim P5-C release readiness.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Fixture validator | Passed | `pnpm fixtures:check` validates `fixture-manifest.json`, `route-map.json`, synthetic fixture JSON, route references, `/api/v1/db/tables` response shape, and forbidden private-data markers. |
+| Mock backend | Passed | `e2e/mock-chatlog-server/server.mjs` binds `127.0.0.1`, serves deterministic JSON/SSE/media placeholders from synthetic fixtures, and fails on occupied `5030` rather than killing unknown listeners. |
+| Browser E2E | Passed | `pnpm e2e` passed 9 tests covering workbench ready desktop/narrow, dashboard alias, settings, media/SNS, Developer DB/API/Hook/MCP, AI preview, Graph visualization with nonblank canvas, and privacy-on leak/overflow checks. |
+| Visual regression | Passed | `pnpm e2e:update-snapshots` generated synthetic baselines and `pnpm e2e:visual` passed for desktop workbench, Developer Hook, Graph visualization, and narrow privacy state. |
+| Accessibility | Passed | `pnpm e2e:a11y` passed axe critical/serious checks, keyboard reachability for rail/tabs/Hook stream/Graph explicit-load, and narrow privacy accessible-text scanning. |
+| UI/a11y fixes | Passed | Graph panel layout now preserves a clickable visualization entry; smoke-only GraphCanvas readback enables nonblank canvas verification; light theme accent/muted/success/warning contrast tokens and Avatar fallback color were adjusted to satisfy a11y. |
+| Final verification | Passed | `pnpm verify` passed after excluding Playwright specs from Vitest collection; `cargo test` passed 20 tests; `pnpm tauri build` produced MSI and NSIS bundles. This is build/package verification only, not install/open/quit/reopen packaged smoke. |
+| Release boundary | Not release evidence | P5-C remains responsible for packaged install/open/quit/reopen, unknown-port packaged smoke, real sidecar artifact reproducibility, updater signing, and release evidence automation. |
+
+## 2026-06-03 P5-C/D Release Guardrail Evidence
+
+This section records implementation guardrails only. It does not claim a publish-ready release candidate.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Sidecar artifact manifest | Guardrail passed | `scripts/release/sidecar-artifacts.json` declares target-specific binary names, current local Windows inventory checksum, check-mode allowance, and release-blocking status for every release target. |
+| Sidecar verifier | Guardrail passed | `scripts/verify-sidecar-artifacts.test.mjs` covers check-mode placeholder allowance, release-mode check-only rejection, approved source acceptance, checksum mismatch rejection, checksum evidence, HTTPS URL staging, and URL checksum mismatch rejection. Targeted tests passed: 7 tests. |
+| `prepare-sidecar.sh` release hardening | Guardrail passed | The script invokes sidecar verifier before and after preparation, labels mode/target/destination/checksum, can stage pinned URL artifacts only in release mode after checksum verification, keeps check-mode placeholder scoped to non-release, and fails release mode when provenance is not approved. Local check-mode Windows run passed and recorded SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`; release-mode check fails as expected with `target is not allowed for release`. |
+| Updater manifest checker | Guardrail passed | `scripts/verify-updater-manifest.test.mjs` covers signed manifest acceptance, bundle-root `latest.json` discovery, manifest/artifact SHA-256 evidence, target-specific artifact requirements, missing generated `latest.json` messaging, missing platform rejection, empty signature rejection, `.sig` file-reference rejection, and artifact-name mismatch rejection. Targeted tests passed: 8 tests. |
+| CI/CD gate ordering | Guardrail passed | `scripts/release-workflows.test.mjs` verifies `build-check.yml` listens to `master`, release matrix entries carry updater platform keys, updater manifest verification uses `--bundle-root src-tauri/target --required-platforms "${{ matrix.platform }}"`, and `release.yml` pins `tauri-apps/tauri-action@action-v0.6.2`. |
+| Governance docs | Guardrail documented | `docs/release/sidecar-artifacts.md`, `docs/release/release-governance.md`, `docs/release/privacy-audit.md`, `specs/002-advanced-capabilities/acceptance-checklist.md`, and `CHANGELOG.md` now define release states, privacy audit, sidecar/updater gates, dashboard status, and versioning notes. |
+| UI governance | Guardrail passed | Deprecated `AppleButton` and `GlassPanel` primitives were removed from the L4 UI barrel and source tree. Core L4 UI class composition now uses `classNames()`, and `scripts/ui-governance.test.mjs` prevents these legacy primitives and hand-built class joins from returning. |
+| Source/UI gates rerun | Passed | `pnpm fixtures:check` passed for 48 route entries; `pnpm e2e` passed 10 tests; `pnpm e2e:visual` passed 2 tests; `pnpm e2e:a11y` passed 4 tests. |
+| Full local verification | Passed | `pnpm verify` passed with 88 test files / 368 tests after switching Vitest to `--pool=threads` to avoid Windows fork-pool `spawn UNKNOWN`; production build succeeded. `cargo test` passed 20 Rust tests; `pnpm tauri build` produced MSI and NSIS bundles. |
+| Release readiness | Blocked | No approved cross-platform sidecar source/artifact provenance, generated updater `latest.json` evidence, P4/P5 packaged smoke refresh, macOS/Linux smoke, or concrete release privacy audit has been completed. |
+
+## 2026-06-03 P5-C/D Remaining Blockers Remediation Evidence
+
+This section records local governance remediation only. It does not claim a publish-ready release candidate.
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Setup L3 boundary cleanup | Passed | Setup workflow molecules now receive state/actions through `SetupCenterView` from `useSetupCenterCommander`; they no longer import setup stores or commanders at runtime. |
+| Architecture guard | Passed | `scripts/architecture-boundary.test.mjs` now has an empty runtime allowlist and fails on new runtime L3 imports from L2. Chat/search/setup/semantic/graph module roots now receive state/actions/privacy through L1/L2 props. Targeted run passed on 2026-06-03. |
+| UI debt ledger | Passed with staged debt | `scripts/ui-governance.test.mjs` now tracks L3 `style={{...}}`, `.filter(Boolean).join`, and template `className` debt. Setup, search, and high-visibility semantic class composition/inline styling were migrated to CSS classes or native progress elements. Remaining 11 older debt entries are explicitly enumerated in the test and architecture checklist. |
+| Historical guidance cleanup | Passed | `docs/总体开发规划.md` and `开发指南.md` now carry supersession notes and current examples for `Button`, `IconButton`, `Surface`, `StatusIndicator`, safe port inspection, and current release governance. |
+| Platform decision | Passed with caveat | `docs/release/ready-desktop-app.md` marks macOS Intel, macOS Apple Silicon, and Linux x64 as `platform-caveat` for the first release until sidecar provenance and smoke/signing evidence exist. |
+| Sidecar provenance decision | Blocked | `docs/release/sidecar-artifacts.md` records `pending-owner-decision`; all manifest targets remain `releaseAllowed:false`. |
+| Updater metadata | Blocked | No generated signed `latest.json` exists under `src-tauri/target`; `pnpm release:check:updater` remains a release-candidate blocker until signing inputs and updater artifacts are generated. |
+| Windows P4/P5 packaged smoke | Blocked | No current installed-app smoke refresh was performed during this remediation pass. |
+| Privacy audit | Blocked | `docs/release/privacy-audit.md` remains a release-candidate template until a concrete candidate is reviewed. |
+
 ## 2026-05-31 P2-D AI And Graph Evidence
 
 | Area | Status | Evidence |
@@ -147,9 +246,9 @@ This section records source/UI evidence for the advanced diagnostics/privacy upg
 | --- | --- | --- |
 | Real semantic contract fixtures | Passed | `semanticAdapters.test.ts` and `semanticFetchers.test.ts` now use backend-shaped `talker/talker_name/sender/sender_name/seq/time`, `rerank_*`, `profiles`, and array `type_distribution` fixtures. |
 | Semantic UI state and privacy | Passed | `semanticDisplay.test.ts`; search, topics, profile, QA leaf components receive props from `AiPanel`, expose empty/error/retry states, and mask display text in privacy mode. |
-| Graph L3 boundary | Passed | `GraphModule.tsx` is the only graph L3 file importing L2. Canvas/control/engine/timeline/tooltip/node/label/edge leaves receive props and use tokenized 32px+ controls. |
+| Graph L3 boundary | Superseded | Historical P2-D evidence: `GraphModule.tsx` was the only graph L3 file importing L2. Later P5-C/D remediation moved graph commander access out of L3 runtime imports; `GraphModule` now receives graph state/actions through props. |
 | L4 independence | Passed | `rg -n "@l2|l2-coordinator" src/l4-atom` returned no matches after moving system raw types and semantic SSE parsing/types into L4. |
-| Architecture audit | Passed | `architecture-boundary-check.md` records no L1/L3 raw network calls, no L4-to-L2 imports, and only `AiPanel.tsx`/`GraphModule.tsx` module-root L2 exceptions. |
+| Architecture audit | Superseded | Historical P2-D evidence recorded only `AiPanel.tsx`/`GraphModule.tsx` module-root L2 exceptions. Later P5-C/D remediation made the runtime L3-to-L2 allowlist empty; see `architecture-boundary-check.md`. |
 | Privacy/diagnostics scan | Passed with caveats | `dangerouslySetInnerHTML|AppleButton|AnimatePresence|motion.div` scan returned no semantic/graph hits; secret-pattern scan hits are synthetic tests, placeholder `wxid_xxx`, form field names, adapter field names, or redaction denylist/test cases. No generated diagnostic package was produced in this run. |
 | Targeted tests | Passed | 13 P2-D target test files passed; 57 tests covered semantic adapters/fetchers/SSE/view-model/display, graph adapters/fetchers/view-model/display/layout, and workbench view-model. |
 | Full frontend verification | Passed | `pnpm verify` passed; 56 test files and 318 tests passed; production build completed. |

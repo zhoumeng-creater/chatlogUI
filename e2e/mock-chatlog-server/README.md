@@ -1,8 +1,8 @@
-# Mock Chatlog Server Notes
+# Mock Chatlog Server
 
 ## Purpose
 
-This folder reserves the future local mock server used by P5 browser E2E and contract tests. P4/P5-0 establishes the route mapping and safety rules but does not require a runnable server.
+This folder contains the local-only mock server used by P5-A/B browser E2E, visual, accessibility, and route contract checks. It serves synthetic fixture sections from `e2e/fixtures/` and never reads real local chat data.
 
 ## Safety Rules
 
@@ -14,7 +14,21 @@ This folder reserves the future local mock server used by P5 browser E2E and con
 - Do not serve binary media unless a later spec adds generated public-domain test assets.
 - Do not replace packaged sidecar smoke tests.
 
-## Initial Route Mapping
+## Commands
+
+Run from the repository root:
+
+```powershell
+pnpm fixtures:check
+pnpm mock:chatlog
+pnpm e2e
+pnpm e2e:visual
+pnpm e2e:a11y
+```
+
+The Playwright config starts this server as a webServer dependency for E2E suites. If `127.0.0.1:5030` is already occupied, startup fails instead of killing or replacing the unknown listener.
+
+## Route Mapping
 
 | Fixture | Endpoint families |
 | --- | --- |
@@ -22,6 +36,8 @@ This folder reserves the future local mock server used by P5 browser E2E and con
 | `advanced-capabilities.json` | unread, members, new messages, favorites, media metadata, SNS, DB explorer, hook, MCP, semantic preview, graph residuals |
 | `diagnostics-redaction.json` | redaction-only diagnostic assertions |
 
-## Future Commands
+`route-map.json` owns the runnable REST/SSE endpoint list. Media routes return generated placeholders and do not read or proxy real files.
 
-Do not add `pnpm e2e` until the repository has a runnable E2E harness. When added, the command should start this mock server as an explicit test dependency and shut it down cleanly.
+## Release Boundary
+
+This mock backend proves deterministic source/UI behavior only. P5-C remains responsible for packaged sidecar smoke, real sidecar artifact reproducibility, updater signing, install/open/quit/reopen, and unknown-port packaged-app evidence.

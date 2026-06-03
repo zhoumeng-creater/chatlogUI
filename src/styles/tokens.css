@@ -11,18 +11,18 @@
   --text-primary: #1f2328;
   --text-secondary: #5b6472;
   --text-tertiary: #7d8794;
-  --text-muted: #a0a8b3;
+  --text-muted: #667085;
   --text-inverse: #ffffff;
 
   --border-subtle: rgba(20, 26, 34, 0.08);
   --border-strong: rgba(20, 26, 34, 0.14);
   --focus-ring: rgba(10, 132, 255, 0.28);
 
-  --accent: #0a84ff;
-  --accent-strong: #006edb;
-  --accent-soft: rgba(10, 132, 255, 0.12);
-  --success: #2f9e44;
-  --warning: #b7791f;
+  --accent: #005fcc;
+  --accent-strong: #004c9f;
+  --accent-soft: rgba(0, 95, 204, 0.12);
+  --success: #16743a;
+  --warning: #8a4b0f;
   --danger: #d92d20;
   --neutral: #7d8794;
 

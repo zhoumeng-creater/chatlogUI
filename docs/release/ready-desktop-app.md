@@ -2,12 +2,21 @@
 
 Canonical evidence lives in `specs/001-ready-desktop-app/release-evidence.md`.
 
+Related P5-C/D governance:
+
+- `docs/release/sidecar-artifacts.md`
+- `docs/release/release-governance.md`
+- `docs/release/privacy-audit.md`
+- `specs/002-advanced-capabilities/acceptance-checklist.md`
+
 ## Required Commands
 
 ```powershell
 pnpm verify
 Push-Location src-tauri; cargo test; Pop-Location
 pnpm tauri build
+pnpm release:check:sidecar:release
+pnpm release:check:updater
 ```
 
 ## Manual Smoke
@@ -34,6 +43,27 @@ pnpm tauri build
 - The release contract uses `http://127.0.0.1:5030`; `AGENTS.md`, productization contracts, and `sidecar_args.rs` now agree on the local-only default bind address.
 - Windows x64 packaged-app smoke passed on 2026-06-01 with synthetic local data: install/open, clean profile, saved config reopen, app-managed sidecar health, diagnostics export review, quit cleanup, and unknown `5030` conflict.
 - P4-A source/UI work on 2026-06-02 upgrades developer diagnostics and privacy mode with production-safe event wiring, DevConsole 2.0 filters/detail, manifest 2.0 diagnostics export lines, expanded redaction helpers, and settings/about diagnostics reuse. `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm verify` passed for this slice. This source/UI evidence did not change Tauri CSP/capabilities, sidecar startup, Rust export payload shape, or the packaged Windows x64 artifact.
+- P5-C/D release guardrails are implemented and hardened: sidecar manifest/checker including HTTPS URL + SHA-256 staging, updater manifest checker with bundle-root discovery and target-specific platform evidence, CI branch trigger correction, pinned release action, draft release behavior, release governance, privacy audit, and advanced acceptance checklist. Release publish remains blocked until concrete sidecar provenance, generated updater metadata, packaged smoke refresh, and privacy audit evidence are supplied.
+
+## Release Dashboard
+
+| Area | Status | Last evidence | Caveat |
+| --- | --- | --- | --- |
+| Ready desktop baseline | `packaged-smoke-verified` | `specs/001-ready-desktop-app/release-evidence.md` on 2026-06-01 | Windows x64 synthetic data only |
+| P4 diagnostics/privacy | `source-ui-verified` | P4-A evidence on 2026-06-02 | Not packaged smoke |
+| P4 media/chat extensions | `source-ui-verified` | P4-B implementation notes | Not packaged smoke |
+| P4 SNS | `source-ui-verified` | P4-C evidence on 2026-06-02 | Not packaged smoke |
+| P4 DB/API runner | `source-ui-verified` | P4-D evidence on 2026-06-02 | Not packaged smoke |
+| P4 Hook/MCP/semantic/graph residuals | `source-ui-verified` | P4-E evidence on 2026-06-03 | Not packaged smoke |
+| P5-A/B fixtures/E2E/visual/a11y | `source-ui-verified` | P5-A/B evidence on 2026-06-03 | Mock backend only |
+| P5-C sidecar provenance | `release-blocked` | `scripts/verify-sidecar-artifacts.mjs` URL/source/artifact verifier | No approved release provenance yet |
+| P5-C updater signing | `release-blocked` | `scripts/verify-updater-manifest.mjs` target-specific checker | Needs generated release metadata |
+| P5-C platform smoke | `release-blocked` | Historical P2-E Windows smoke | Needs P4/P5 packaged smoke refresh |
+| P5-D privacy audit | `release-blocked` | `docs/release/privacy-audit.md` template | Needs candidate-specific review |
+| Windows x64 release candidate | `release-blocked` | buildable package evidence only | Needs approved sidecar provenance, updater metadata, P4/P5 packaged smoke, and privacy audit |
+| macOS Intel | `platform-caveat` | no smoke | not included in first release until sidecar provenance, signing/notarization, and smoke evidence exist |
+| macOS Apple Silicon | `platform-caveat` | no smoke | not included in first release until sidecar provenance, signing/notarization, and smoke evidence exist |
+| Linux x64 | `platform-caveat` | no smoke | not included in first release until sidecar provenance and runtime smoke evidence exist |
 
 ## P2-E Manual Gate
 

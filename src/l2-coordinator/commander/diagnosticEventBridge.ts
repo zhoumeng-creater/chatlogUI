@@ -24,10 +24,8 @@ interface DiagnosticEventSinkDefaults {
   recoveryHint?: DiagnosticRecoveryHint;
 }
 
-type DiagnosticEventSinkInput = Pick<
-  CreateDiagnosticEventInput,
-  "level" | "summary" | "privacy" | "attributes"
-> & {
+type DiagnosticEventSinkInput = Pick<CreateDiagnosticEventInput, "summary"> &
+  Partial<Pick<CreateDiagnosticEventInput, "level" | "privacy" | "attributes">> & {
   category?: string;
   correlationId?: string;
   recoveryHint?: DiagnosticRecoveryHint;

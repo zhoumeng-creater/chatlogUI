@@ -1,16 +1,20 @@
 import { useState } from "react";
-import { useSetupCommander } from "@l2/commander";
-import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import type { ServerConfigDraft } from "@l4/system";
 import { Button, Field, Input, SegmentedControl, Select, Surface, Typography } from "@l4/ui";
 
 type PlatformOption = "windows" | "darwin" | "linux";
 
-export function ManualAdvancedConfigPanel() {
-  const { saveManualConfig } = useSetupCommander();
-  const loading = useSetupStore((state) => state.loading);
-  const error = useSetupStore((state) => state.error);
+interface ManualAdvancedConfigPanelProps {
+  loading: boolean;
+  error: string | null;
+  onSaveManualConfig: (draft: ServerConfigDraft) => Promise<void>;
+}
 
+export function ManualAdvancedConfigPanel({
+  loading,
+  error,
+  onSaveManualConfig,
+}: ManualAdvancedConfigPanelProps) {
   const [form, setForm] = useState<ServerConfigDraft>({
     dataDir: "",
     workDir: "",
@@ -29,7 +33,7 @@ export function ManualAdvancedConfigPanel() {
   }
 
   async function handleSave() {
-    await saveManualConfig(form);
+    await onSaveManualConfig(form);
   }
 
   return (

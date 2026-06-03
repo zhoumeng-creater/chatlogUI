@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { classNames } from "@/utils/classNames";
 import { getControlClassName, type ControlSize } from "./formControl";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -11,10 +12,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <input
         ref={ref}
-        className={[
+        className={classNames(
           getControlClassName("input", controlSize, className),
-          variant === "search" ? "ui-control--search" : "",
-        ].filter(Boolean).join(" ")}
+          variant === "search" && "ui-control--search",
+        )}
         {...props}
       />
     );

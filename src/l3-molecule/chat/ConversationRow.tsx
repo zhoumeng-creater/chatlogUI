@@ -1,6 +1,6 @@
 import { Avatar, StatusIndicator } from "@l4/ui";
+import { classNames } from "@/utils/classNames";
 import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import {
   formatConversationA11yLabel,
   getConversationBadge,
@@ -10,11 +10,16 @@ import {
 interface ConversationRowProps {
   conversation: Conversation;
   selected: boolean;
+  privacyOn: boolean;
   onOpen: (conversation: Conversation) => void;
 }
 
-export function ConversationRow({ conversation, selected, onOpen }: ConversationRowProps) {
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+export function ConversationRow({
+  conversation,
+  selected,
+  privacyOn,
+  onOpen,
+}: ConversationRowProps) {
   const badge = getConversationBadge(conversation);
   const displayName = privacyOn
     ? maskDisplayText(conversation.displayName)
@@ -27,7 +32,7 @@ export function ConversationRow({ conversation, selected, onOpen }: Conversation
   return (
     <button
       type="button"
-      className={`conversation-row${selected ? " conversation-row--selected" : ""}`}
+      className={classNames("conversation-row", selected && "conversation-row--selected")}
       aria-current={selected ? "true" : undefined}
       aria-label={accessibilityLabel}
       onClick={() => onOpen(conversation)}

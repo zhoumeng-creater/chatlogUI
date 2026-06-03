@@ -446,3 +446,180 @@
 - [x] A10: final verification。
 - **规划文档:** docs/superpowers/plans/2026-06-02-p4-a-developer-diagnostics-privacy-mode-2.md
 - **Status:** complete
+
+### Phase 39: P4-B Comprehensive Review
+- [x] 按用户要求审查当前工作区 P4-B（媒体、收藏、成员、未读、增量消息）是否满足阶段和项目要求。
+- [x] 对照 P4/P5 总路线图、`specs/002-advanced-capabilities`、`AGENTS.md`、`开发指南.md`、`docs/总体开发规划.md` 和当前源码建立检查清单。
+- [x] 扫描源码、测试、路由、Workbench rail、Tauri CSP 和 UI 可见文本，确认当前代码没有 P4-B L4 fetchers、L2 commander/store、L3 media/favorites/members surfaces 或 P4-B tests。
+- [x] 运行 `pnpm verify`，当前基础 lint/typecheck/test/build 通过，但该验证不覆盖 P4-B 功能完成度。
+- [x] 运行 1440x900 与 390x820 headless Chrome smoke，当前工作台无页面级横向溢出，但也没有媒体/收藏/成员/未读/新消息入口。
+- **Status:** review complete; P4-B not implemented / not acceptable for phase completion
+
+### Phase 40: P4-B Suggested Fix Implementation
+- [x] 按用户要求先处理 review Suggested fix，并创建/切换到非 master 分支 `codex/p4b-media-chat-extensions`。
+- [x] TDD 新增 P4-B targeted tests：media adapter/resource URL、favorites/members/unread/new_messages fetchers、media display privacy helpers、Workbench media rail entry、聊天附件摘要。
+- [x] L4 新增 media/chat extension 原子：typed attachment adapter、safe media resource URL、favorites/members/unread/new_messages fetchers，所有扩展 API 默认 `format=json` 并支持 P4-A diagnostic options。
+- [x] L2 新增 `useMediaStore` 与 `useMediaCommander`，由 commander 负责加载收藏、成员、未读、增量消息和媒体预览 URL，不让 L3 直接发网络请求。
+- [x] L3/L1 接入媒体面板：Workbench rail/toolbar 增加“媒体”，Inspector 渲染 `MediaLibrary`，聊天气泡显示 typed attachment summary，媒体预览支持图片/表情/视频/语音/文件链接。
+- [x] 隐私和安全收紧：不把 raw local media path 放入附件状态；只接受本机 sidecar URL 作为 direct preview；privacy mode 下隐藏收藏内容、成员名、附件标签；Tauri CSP 增加最小 `media-src`。
+- [x] UI 样式接入现有 workbench token，覆盖媒体 summary、chips、tabs、列表、预览 sheet、窄屏布局和聊天附件卡片。
+- [x] 验证通过：targeted P4-B tests、`pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build`、`pnpm verify`、`cargo test`、mocked Playwright UI smoke、`pnpm tauri build`。
+- **Status:** complete
+
+### Phase 41: P4-C SNS / Moments Module Planning
+- [x] 按用户要求开始 P4-C：SNS/朋友圈阶段规划撰写；本轮限定为规划/文档，不执行源码功能实现。
+- [x] 采用本轮规划所需技能：using-superpowers、brainstorming、planning-with-files、writing-plans、app-productization、sidecar-integration、ui-acceptance、frontend-design、verification-before-completion；同时评估 worktree、release、TDD 和 debug 技能作为后续实施约束。
+- [x] 读取当前工作记忆、P4/P5 总路线图、P4/P5-0、P4-A、P4-B 进度、`specs/002-advanced-capabilities`、`开发指南.md`、`docs/总体开发规划.md` 和当前源码。
+- [x] 对照本地 `E:\OneDrive - Default Directory\chatlog_alpha` 的 `internal/model/sns.go`、`internal/chatlog/http/route.go`、`internal/chatlog/http/sns_media.go`、`cmd/chatlog/cmd_http.go` 和 README，确认 SNS feed/search/notifications/media proxy 的真实字段、参数和隐私风险。
+- [x] 审计当前前端确认尚无 SNS L4/L2/L3 实现；P4-C 必须在 P4-B media/CSP/diagnostic 基础上新增 `sns` Workbench 模块。
+- [x] 新增 P4-C 专项实施规划，明确 backend-shaped fixture、L4 adapter/fetcher、L2 store/commander/view model、L3 timeline/search/notifications/media/detail、隐私诊断、UI acceptance 和验证命令。
+- [x] 更新 P4/P5 总路线图的 P4-C 段，接入专项计划并纠正原占位中过度笼统的分页和媒体代理描述。
+- **规划文档:** docs/superpowers/plans/2026-06-02-p4-c-sns-moments-module.md
+- **Status:** completed
+
+### Phase 42: P4-C SNS / Moments Module Implementation
+- [x] 按用户要求以 P4-C 专项计划为执行基线，并采用必要技能：using-superpowers、brainstorming、planning-with-files、using-git-worktrees、executing-plans、test-driven-development、chatlog-debug、app-productization、frontend-design、ui-acceptance、sidecar-integration、playwright、verification-before-completion。
+- [x] 保持当前 `codex/p4b-media-chat-extensions` dirty branch 作为实现基线，不回滚 P4-B 媒体/聊天扩展上下文，也不直接在 `master` 上实施。
+- [x] C0: 扩展 `advanced-capabilities.json` SNS fixture 为后端形状，并同步 capability matrix SNS 文件所有权。
+- [x] C1-C2: TDD 实现 SNS raw DTO、adapter、feed/search/notifications fetchers、local proxy URL validation、diagnostic-safe endpoint family。
+- [x] C3-C4: TDD 实现 `useSnsStore`、`snsViewModel`、`useSnsCommander`，并接入 Workbench `sns` rail/toolbar/inspector/badge。
+- [x] C5: 实现 L3 SNS timeline/search/notifications/media/detail UI，补 privacy-safe display helper 和纯文本 search highlight。
+- [x] C6-C7: 确认无 Rust/Tauri/CSP/sidecar contract 变更，更新 P4/P5 总路线图、advanced capability matrix、E2E matrix、README、release evidence、P4-C 专项计划和工作记忆。
+- [x] C8: 使用 mocked local sidecar Playwright 验收桌面与 390px 窄屏；发现并修复 inspector 双栏挤压问题；验收后清理临时 artifacts。
+- [x] C9: 运行 targeted/full verification、architecture/privacy scans，并记录最终结果。
+- **规划文档:** docs/superpowers/plans/2026-06-02-p4-c-sns-moments-module.md
+- **Status:** complete
+
+### Phase 43: P4-D DB Explorer And wx-cli/API Debugger Planning
+- [x] 按用户要求开始 P4-D：DB Explorer 与 wx-cli/API 调试器阶段规划撰写；本轮限定为规划/文档，不执行源码功能实现。
+- [x] 采用本轮规划所需技能：using-superpowers、brainstorming、planning-with-files、writing-plans、app-productization、verification-before-completion；同时评估 worktree、debug、sidecar、UI、release 和 TDD 技能作为后续实施约束。
+- [x] 读取当前工作记忆、P4/P5 总路线图、P4/P5-0、P4-A、P4-B、P4-C、advanced-capabilities specs、ready-desktop-app 证据、开发指南、总体开发规划和当前源码。
+- [x] 对照本地 `chatlog_alpha` DB/query/cache、wx-cli/http list/call/API runner 相关源码和 README，确认真实 endpoint、参数、返回形状、错误形态和隐私风险。
+- [x] 审计当前前端确认 DB Explorer/API runner 尚无 L4/L2/L3 实现，并记录可复用的 P4-B/P4-C 模式。
+- [x] 新增 P4-D 专项实施规划，明确 backend-shaped fixtures、L4 DB/API adapter/fetcher、L2 store/commander/view model、Developer Tools module、DB table/query/search/cache UI、endpoint allowlist runner、raw response redaction、UI acceptance 和验证命令。
+- [x] 更新 P4/P5 总路线图与 `specs/002-advanced-capabilities`，接入 P4-D 专项计划并纠正占位描述。
+- [x] 自审规划文档占位、P4-D 状态措辞、隐私约束和 diff 范围；`git diff --check` 只有 LF/CRLF 提示，没有 whitespace error；新 P4-D 计划尾随空白扫描无输出。
+- **规划文档:** docs/superpowers/plans/2026-06-02-p4-d-db-explorer-wx-cli-api-debugger.md
+- **Status:** completed
+
+### Phase 44: P4-D DB Explorer And wx-cli/API Debugger Implementation
+- [x] 按用户要求进入 P4-D 代码实现阶段，以既有 P4-D 专项规划作为已批准执行基线，不重新发起设计审批。
+- [x] 重新采用本轮需要的 skills：using-superpowers、brainstorming、planning-with-files、using-git-worktrees、executing-plans、test-driven-development、chatlog-debug、app-productization、frontend-design、ui-acceptance、sidecar-integration、verification-before-completion、requesting-code-review、code-simplifier；遇到具体失败时按 systematic-debugging 处理。
+- [x] 执行基线确认：当前分支为 `codex/p4b-media-chat-extensions`，不是 `master`；工作树包含 P4-B/P4-C/P4-D 规划与源码上下文，本轮继续在该 dirty branch 上实施，不回滚既有用户/阶段改动。
+- [x] 复读 P4-D 专项计划、当前工作记忆、开发指南、总体规划、constitution、ready desktop 合同与 `specs/002-advanced-capabilities`；`specs/000-productization/*` 在当前仓库不存在，已记录为文档引用偏差。
+- [x] D0: 扩展 synthetic fixture，覆盖 DB group/files/tables/data/query/search/cache 与 API runner 响应形状。
+- [x] D1-D2: TDD 实现 L4 DB raw DTO、adapter、SQL read-only guard、DB fetchers 与 cache clear fetcher。
+- [x] D3: TDD 实现 wx-cli/API debugger endpoint catalog、参数 schema、local-only allowlist runner 与 redacted preview。
+- [x] D4-D5: TDD 实现 L2 Developer Tools store/view models/commander，并接入 Workbench `developer` rail、toolbar、inspector 和 badge。
+- [x] D6-D7: 实现 L3 Developer Tools UI、DB explorer/search/table/query/cache/API runner/response preview，并补隐私诊断约束。
+- [x] D8-D10: 同步 docs/evidence，运行 targeted/full verification、UI acceptance、自审与收口。
+- **规划文档:** docs/superpowers/plans/2026-06-02-p4-d-db-explorer-wx-cli-api-debugger.md
+- **Status:** complete
+
+### Phase 45: P4-E Hook/MCP/Semantic Preview/Graph Residuals Planning
+- [x] 按用户要求开始 P4-E：Hook/MCP/semantic preview/graph residuals 阶段规划撰写；本轮限定为规划/文档，不执行源码功能实现，也不把完整代码放入规划文档。
+- [x] 采用/评估本轮需要的 skills：using-superpowers、planning-with-files、brainstorming、writing-plans、app-productization、sidecar-integration、ui-acceptance、frontend-design、verification-before-completion；using-git-worktrees 已评估，但当前 `codex/p4b-media-chat-extensions` dirty branch 是 P4-B/C/D 连续进度上下文，因此不新建会丢失上下文的普通 worktree。
+- [x] 读取当前工作记忆、P4/P5 总路线图、P4/P5-0、P4-A、P4-C、P4-D 专项计划、`specs/002-advanced-capabilities`、ready desktop 合同/证据、`AGENTS.md`、`.specify/memory/constitution.md`、`开发指南.md`、`docs/总体开发规划.md` 和当前前端源码。
+- [x] 审计当前前端确认：Developer Tools 已有 DB/API tabs，尚无 Hook/MCP tabs；AI module 尚无 semantic index preview；Graph module 尚无 config/ingest/QA residual UI；`endpointRunner.ts` 已有 MCP aliases 但不是 MCP status/help 面板。
+- [x] 对照本地 `E:\OneDrive - Default Directory\chatlog_alpha` 的 Hook/Hermes/MCP/semantic preview/graph route、handler、store/type 源码，确认真实 endpoint、返回字段、SSE 事件、敏感字段和隐私诊断风险。
+- [x] 新增 P4-E 专项实施规划，明确 backend-shaped fixture、L4 Hook/MCP/Semantic Preview/Graph residual adapters/fetchers/stream parser、L2 store/commander/view model、Developer Tools Hook/MCP tabs、AI preview、Graph Advanced、隐私诊断、UI acceptance 和验证命令。
+- [x] 更新 P4/P5 总路线图与 `specs/002-advanced-capabilities` README、capability matrix、E2E matrix、privacy diagnostics contract，接入 P4-E 专项计划并保持状态为 planning/documented。
+- [x] 同步 `findings.md` 与 `progress.md`，记录 P4-E 后端契约、当前源码缺口、隐私边界和文档验证结果。
+- **规划文档:** docs/superpowers/plans/2026-06-03-p4-e-hook-mcp-semantic-preview-graph-residuals.md
+- **Status:** completed
+
+### Phase 46: P4-E Hook/MCP/Semantic Preview/Graph Residuals Implementation
+- [x] 加载并采用本轮必要技能，确认既有 P4-E 专项计划作为已批准执行基线。
+- [x] 确认当前分支 `codex/p4b-media-chat-extensions` 不是 `master`，并保留 P4-B/C/D dirty branch 连续上下文继续实施。
+- [x] 复读 P4-E 计划、工作记忆、核心开发文档、constitution、ready desktop local-backend contract 和 advanced-capabilities spec。
+- [x] 对照本地 `chatlog_alpha` Hook/Hermes/MCP/semantic preview/graph residual 源码确认 endpoints、字段和隐私红线；本轮不改 sidecar/Tauri/CSP/capabilities。
+- [x] E0: 扩展 synthetic fixture 和规格矩阵。
+- [x] E1-E2: TDD 实现 Hook/Hermes L4 adapters/fetchers 与 Hook stream parser。
+- [x] E3-E5: TDD 实现 Hook/MCP L2 store/view model/commander 与 Developer Tools tabs。
+- [x] E6: TDD 实现 Semantic Index Preview L4/L2/L3。
+- [x] E7: TDD 实现 Graph Config/Ingest/QA residual L4/L2/L3；message ingest 可见 UI 按隐私边界 deferred。
+- [x] E8-E10: 隐私诊断 hardening、UI acceptance、文档证据和最终验证。
+- **规划文档:** docs/superpowers/plans/2026-06-03-p4-e-hook-mcp-semantic-preview-graph-residuals.md
+- **Status:** complete
+
+### Phase 47: P5-A/B Contract Fixtures, E2E, Visual Regression, A11y Planning
+- [x] 按用户要求开始 P5-A/B 阶段规划撰写；本轮限定为规划/文档，不执行源码功能实现，不把完整代码放入规划文档。
+- [x] 采用/评估本轮需要的 skills：`using-superpowers`、`planning-with-files`、`brainstorming`、`writing-plans`、`app-productization`、`release-gate`、`ui-acceptance`、`sidecar-integration`、`verification-before-completion`、`using-git-worktrees`。当前 dirty branch 包含 P4-B/C/D/E 连续上下文，因此不新建会丢失当前进度的普通 worktree。
+- [x] 读取并参考当前工作记忆、P4/P5 总路线图、P4/P5-0、P4-A/P4-C/P4-D/P4-E 专项计划、ready desktop contracts/evidence、`specs/002-advanced-capabilities`、`AGENTS.md`、`开发指南.md`、`docs/总体开发规划.md`、constitution 和当前源码/测试/e2e fixture 状态。
+- [x] 确认当前 P4-B/C/D/E 为 source/UI evidence；P5-A/B 的目标是建立 persistent contract fixtures、browser E2E、visual regression 和 a11y/keyboard gate，不重复实现 P4 功能，也不声明 P5-C packaged release。
+- [x] 审计当前工具缺口：`package.json` 尚无 E2E/visual/a11y/fixture scripts，仓库尚无 `playwright.config.ts`，`e2e/` 只有 synthetic fixtures 和 mock-server 说明，尚无 runnable mock server/specs。
+- [x] 审计当前可复用入口：Vite dev server 固定为 5173，Workbench DEV-only `/workbench?codex-smoke=workbench-ready` 可用于 synthetic browser gate，Workbench module 已覆盖 `chat/stats/media/sns/developer/ai/graph/settings`。
+- [x] 新增 P5-A/B 专项实施规划，拆分 contract fixture validator/manifest/route map/adapter tests/fetcher tests/privacy scanner 与 Playwright E2E/mock server/visual/a11y/CI artifact policy。
+- [x] 同步 P4/P5 总路线图与 `specs/002-advanced-capabilities` README、E2E fixture plan、E2E matrix，明确当前状态为 planning-documented，persistent suite 尚未实现。
+- [x] 同步 `findings.md` 与 `progress.md`，记录 P5-A/B baseline、工具缺口、隐私边界和后续实现验证命令。
+- **规划文档:** docs/superpowers/plans/2026-06-03-p5-a-b-contract-fixtures-e2e-visual-a11y.md
+- **Status:** completed
+
+### Phase 48: P5-A/B Contract Fixtures, E2E, Visual Regression, A11y Implementation
+- [x] 确认当前 `codex/p4b-media-chat-extensions` dirty branch 是 P4-B/C/D/E/P5 连续开发基线，不新建会丢失上下文的普通 worktree。
+- [x] TDD 新增并实现 fixture validator：`scripts/validate-e2e-fixtures.test.mjs`、`scripts/validate-e2e-fixtures.mjs`。
+- [x] 新增 `e2e/fixtures/fixture-manifest.json` 和 `e2e/mock-chatlog-server/route-map.json`，绑定 core/advanced/diagnostics synthetic sections 到 runnable route entries。
+- [x] 修正 core fixture 为当前 L4 raw DTO backend-shaped 字段，并修正 advanced chat-extension/graph fixture 缺口。
+- [x] 当前 P5-A 基础验证通过：`pnpm test scripts/validate-e2e-fixtures.test.mjs`、`pnpm fixtures:check`。
+- [x] TDD 实现 local-only mock chatlog server 和 route map loader，覆盖 REST JSON、SSE、媒体占位。
+- [x] 添加 Playwright config、E2E/visual/a11y scripts 和项目依赖。
+- [x] 添加 core/advanced/privacy/visual/a11y browser specs，并运行 P5-B gates。
+- [x] 同步 docs/evidence、运行 full verification 和最终 review。
+- **规划文档:** docs/superpowers/plans/2026-06-03-p5-a-b-contract-fixtures-e2e-visual-a11y.md
+- **Status:** complete
+
+### Phase 49: P5-C/D Sidecar Artifact, Updater, CI/CD, Release Governance Planning
+- [x] 按用户要求开始 P5-C/D 阶段规划撰写；本轮限定为规划/文档，不执行 sidecar、updater、CI 实现改动，不把完整代码放入规划文档。
+- [x] 采用/评估本轮需要的 skills：`using-superpowers`、`planning-with-files`、`brainstorming`、`writing-plans`、`app-productization`、`sidecar-integration`、`release-gate`、`verification-before-completion`、`using-git-worktrees`、`requesting-code-review`。当前 dirty branch 包含连续 P4/P5 上下文，因此不新建普通 worktree。
+- [x] 阅读并参考当前进度、P4/P5 总路线图、P5-A/B 专项计划、ready desktop specs/contracts/evidence、advanced capability specs、`AGENTS.md`、`开发指南.md`、`docs/总体开发规划.md`、constitution、当前 Tauri/updater/sidecar/CI 配置和官方 Tauri v2 文档。
+- [x] 确认当前 P5-C/D 基线：P5-A/B source/UI gates 已实现；P5-C packaged release、sidecar artifact provenance、updater signature/latest.json evidence、release CI gate ordering 和 governance 仍未实现。
+- [x] 新增 P5-C/D 专项规划，拆分 sidecar artifact strategy、manifest/checksum verifier、`prepare-sidecar.sh` hardening、updater signing checks、CI/CD gate ordering、platform packaged smoke、release evidence bundle、governance checklist、privacy audit、regression dashboard 和 maintenance ownership。
+- [x] 同步 P4/P5 总路线图、advanced capabilities README/E2E matrix、`findings.md`、`progress.md` 和当前 task plan，明确 P5-C/D 仅为 planning-documented。
+- **规划文档:** docs/superpowers/plans/2026-06-03-p5-c-d-sidecar-artifact-updater-ci-release-governance.md
+- **Status:** planning completed; implementation pending
+
+### Phase 50: P5-C/D Release Guardrail Implementation
+- [x] 按用户要求以 P5-C/D 专项规划作为已批准执行基线，继续在 `codex/p4b-media-chat-extensions` dirty branch 上实施，不回滚 P4-B/C/D/E/P5-A/B 改动。
+- [x] 采用本轮需要的 skills：using-superpowers、brainstorming、planning-with-files、using-git-worktrees、executing-plans、test-driven-development、chatlog-debug、systematic-debugging、app-productization、sidecar-integration、release-gate、verification-before-completion、requesting-code-review。
+- [x] C0: 记录当前 release 基线，确认本仓库无 `cmd/chatlog`，同级本机 `chatlog_alpha` source 存在但不能作为仓库内 CI provenance；本地 `src-tauri/binaries` 仅有 Windows x64 binary。
+- [x] C2-C3: TDD 新增并复修 sidecar artifact verifier 与 manifest，接入 `prepare-sidecar.sh`。check-mode 可通过，release-mode 因未批准 provenance 正确阻断；批准后的 HTTPS URL artifact 只能在 SHA-256 校验通过后暂存。
+- [x] C4: TDD 新增并复修 updater manifest/signature checker，覆盖 bundle-root `latest.json` 发现、target-specific 平台校验、manifest/artifact SHA-256 evidence、缺平台、空签名、`.sig` 引用和 artifact mismatch。
+- [x] C5: 更新并复修 build-check/release workflow，加入 source/UI quality gates、default branch trigger、release sidecar provenance gate、draft release、target-specific updater manifest check、pinned Tauri action 和 evidence artifact upload。
+- [x] UI governance follow-up: 删除废弃 `AppleButton` / `GlassPanel` primitive，L4 UI class 组合改用 `classNames()`，并新增 governance test 防止回流。
+- [x] D0-D7: 新增 sidecar provenance 文档、release governance runbook、privacy audit checklist、advanced acceptance checklist、release dashboard 和 changelog baseline。
+- [ ] C6-C10: 刷新真实 P4/P5 packaged smoke、生成 updater metadata、记录 installer/updater checksums、完成具体 release privacy audit。
+- **规划文档:** docs/superpowers/plans/2026-06-03-p5-c-d-sidecar-artifact-updater-ci-release-governance.md
+- **Status:** guardrails remediated; release readiness blocked pending concrete artifact/smoke evidence
+
+### Phase 51: P3 AI Semantic, SSE QA, Knowledge Graph Productization Planning
+- [x] 按用户要求开始 P3：补齐 AI 语义索引、SSE 问答和知识图谱模块的阶段规划撰写；本轮限定为规划/文档，不执行源码功能实现。
+- [x] 采用/评估本轮需要的 skills：`using-superpowers`、`planning-with-files`、`writing-plans`、`brainstorming`、`frontend-design`、`ui-acceptance`、`sidecar-integration`、`app-productization`、`release-gate`、`verification-before-completion`、`ui-ux-pro-max`、`frontend-code-review`。当前任务是规划，不创建 worktree，不派生 subagent。
+- [x] 阅读当前工作记忆、P2-D/P4-E/P5-A/B/P5-C/D 规划与证据、总体开发规划、开发指南、Spec Kit/productization 文档、advanced capability 文档、当前 semantic/graph 源码、E2E/fixture 状态。
+- [x] 对照本地 `E:\OneDrive - Default Directory\chatlog_alpha` 的 README、`route.go`、`semantic_qa.go`、`graph.go` 和原始 static page，确认真实 semantic config/status/preview/search/topics/profiles/QA/SSE 与 graph status/config/query/timeline/visualize/ingest/QA 契约。
+- [x] 确认 P3 当前不是 greenfield：P2-D 已完成 semantic/graph baseline，P4-E 已补 semantic preview 与 graph residuals，P5-A/B 已补 persistent synthetic E2E/visual/a11y baseline。P3 应定位为 AI/Graph 产品化整合和 UI 体验补齐。
+- [x] 新增 P3 专项规划，拆分 P3-0 contract/state foundation、P3-A semantic setup/index center、P3-B SSE QA evidence、P3-C semantic discovery/preview、P3-D graph workbench、P3-E privacy/diagnostics/E2E evidence，并明确第一张实施票 P3-0。
+- [x] 同步 `findings.md` 与 `progress.md`，记录当前代码风险、真实 sidecar 契约、UI/UX 检索结论和后续验证矩阵。
+- **规划文档:** docs/superpowers/plans/2026-06-03-p3-ai-semantic-sse-knowledge-graph-productization.md
+- **Status:** planning completed; implementation pending
+
+### Phase 52: P5-C/D Remaining Blockers Review And Remediation Planning
+- [x] 回答用户追问：明确当前不是 source/UI 大面积崩坏，而是 release-ready 仍被真实发布证据、sidecar provenance、updater metadata、packaged smoke、privacy audit、架构/UI staged debt 阻断。
+- [x] 使用 planning-with-files、writing-plans、release-gate、app-productization、sidecar-integration、ui-acceptance 和 frontend-code-review 检查口径，复核 AGENTS、constitution、总体规划、开发指南、ready desktop spec/evidence 和 release docs。
+- [x] 运行剩余问题扫描：sidecar manifest releaseAllowed、release sidecar/updater check、L3 commander/store imports、L3 inline style/className debt、release-blocked 文档状态。
+- [x] 新增综合审查记录：`docs/reviews/2026-06-03-p5-c-d-remaining-blockers-review.md`。
+- [x] 新增完整修复计划：`docs/superpowers/plans/2026-06-03-p5-c-d-remaining-blockers-remediation.md`。
+- [x] 同步 `findings.md` 与 `progress.md`，记录剩余 blockers 和后续执行路径。
+- **Status:** review and remediation plan completed; implementation pending
+
+### Phase 53: P5-C/D Remaining Blockers Remediation Implementation
+- [x] 继续在 `codex/p4b-media-chat-extensions` dirty branch 上实施，不回滚连续 P4/P5 改动。
+- [x] 新增 `scripts/architecture-boundary.test.mjs`，并在完成 chat/search/setup/semantic/graph runtime cleanup 后把 L3 runtime L2 allowlist 收紧为空。
+- [x] 将 setup workflow L3 组件改为 props-driven：`SetupStepper`、`SetupModeChooser`、`ConfigImportPanel`、`ManualAdvancedConfigPanel`、`ServiceControlPanel`、`ReadinessChecklist`、`DiagnosticPanel` 不再运行时读取 setup commander/store。
+- [x] 将 chat/search/semantic/graph L3 module roots 改为 props-driven runtime boundary：WorkbenchView 负责传入 chat/search/AI/graph commander state/actions 和 privacy mode，L3 不再运行时 import L2 store/commander。
+- [x] 将 `ReadinessStatePanel` 和 `DiagnosticsPanel` 的小型显示/错误格式化逻辑本地化，减少 L3 对 L2 runtime helper 的依赖。
+- [x] 扩展 `scripts/ui-governance.test.mjs`，把 L3 inline style/template class/manual join debt 固化为显式 ledger，并清理 setup stepper/mode chooser、chat/search row、search panel 和 high-visibility semantic panel inline/class debt；剩余 ledger 为 11 个文件级 staged entries。
+- [x] 清理历史广义文档：`docs/总体开发规划.md`、`开发指南.md` 增加 supersession note，并把当前示例改为 `Button`/`IconButton`/`Surface`/`StatusIndicator`、safe port inspection 和 release governance。
+- [x] 更新 release governance/evidence：sidecar provenance strategy 记录为 owner decision pending；macOS/Linux 明确为 `platform-caveat`；release evidence 记录本轮 local remediation，不伪造 release readiness。
+- [x] 验证通过：targeted governance/release tests 5 files / 22 tests；`pnpm fixtures:check`；`pnpm e2e` 10 tests；`pnpm e2e:visual` 2 tests；`pnpm e2e:a11y` 4 tests；`pnpm verify` 89 files / 370 tests；`cargo test` 20 tests；`pnpm tauri build` produced MSI/NSIS；`git diff --check` only LF/CRLF warnings.
+- [ ] 仍需外部 release-candidate 输入：approved sidecar provenance, generated signed updater `latest.json`, refreshed installed-app P4/P5 Windows smoke, candidate privacy audit, real CI/draft release run evidence。
+- **Status:** local remediation complete; release readiness blocked by external candidate evidence

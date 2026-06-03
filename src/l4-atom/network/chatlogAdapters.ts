@@ -11,6 +11,7 @@ import type {
   RawStatsResponse,
   RawDashboardTrendResponse,
 } from "./chatlogRawTypes";
+import { adaptMediaAttachments } from "./mediaAdapters";
 
 export function displayName(
   raw: Pick<RawContact, "display" | "remark" | "nickname" | "username">,
@@ -83,6 +84,7 @@ export function adaptHistoryMessage(raw: RawHistoryMessage, context: HistoryMess
     mediaType: raw.media_type,
     mediaUrl: raw.media_url,
     imageUrl: raw.image_url,
+    attachments: adaptMediaAttachments(raw, "history"),
     direction: "unknown" as "self" | "other" | "unknown",
   };
 }

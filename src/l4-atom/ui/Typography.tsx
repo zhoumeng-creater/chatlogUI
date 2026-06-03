@@ -1,4 +1,5 @@
 import type { ReactNode, HTMLAttributes } from "react";
+import { classNames } from "@/utils/classNames";
 
 const VARIANTS = {
   h1: "text-[32px] leading-[1.2] font-bold tracking-[0]",
@@ -48,7 +49,7 @@ export function Typography({
 
   return (
     <Tag
-      className={`${VARIANTS[variant]} ${ALIGN[align]} ${className}`}
+      className={classNames(VARIANTS[variant], ALIGN[align], className)}
       style={{
         fontWeight: weight,
         color,

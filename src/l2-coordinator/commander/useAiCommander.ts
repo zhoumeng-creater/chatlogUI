@@ -2,6 +2,7 @@ import { useCallback, useRef, useEffect } from "react";
 import { useAiStore } from "@/l2-coordinator/data-clerk/stores/useAiStore";
 import { useChatCommander } from "@/l2-coordinator/commander/useChatCommander";
 import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
+import { useSettingsStore } from "@/l2-coordinator/data-clerk/stores/useSettingsStore";
 import { translateError } from "@/l2-coordinator/diplomat/errorTranslator";
 import { createTokenBuffer } from "@/l2-coordinator/diplomat/sseParser";
 import { withOverloadRetry } from "@/l2-coordinator/diplomat/overloadInterceptor";
@@ -12,10 +13,12 @@ import {
   fetchSemanticTopics,
   fetchSemanticProfiles,
   fetchSemanticConfig,
+  fetchSemanticIndexPreview,
   setSemanticConfig,
   testLLMConnection,
   fetchIndexStatus,
   manageIndex,
+  type SemanticPreviewKind,
 } from "@l4/network";
 import {
   INDEX_POLL_INTERVAL_MS,
@@ -28,6 +31,7 @@ import {
   deriveSemanticModuleView,
   deriveSemanticQaView,
 } from "./semanticViewModel";
+import { buildSemanticPreviewView } from "./semanticPreviewViewModel";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 type IndexAction = "rebuild" | "pause" | "resume" | "clear";
@@ -42,6 +46,7 @@ function semanticDiagnostics(method: "GET" | "POST" = "GET") {
 
 export function useAiCommander() {
   const store = useAiStore();
+  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
   const { selectedConversationId } = useChatCommander();
   const conversations = useChatStore((s) => s.conversations);
   const sseAbortRef = useRef<AbortController | null>(null);
@@ -305,6 +310,58 @@ export function useAiCommander() {
     }
   }, [currentChat, store]);
 
+  const loadPreview = useCallback(async (overrides: {
+    kind?: SemanticPreviewKind;
+    limit?: number;
+    offset?: number;
+  } = {}) => {
+    const aiStore = useAiStore.getState();
+    const kind = overrides.kind ?? aiStore.previewKind;
+    const limit = overrides.limit ?? aiStore.previewLimit;
+    const offset = overrides.offset ?? aiStore.previewOffset;
+
+    aiStore.setPreviewLoading();
+    try {
+      const preview = await fetchSemanticIndexPreview(
+        {
+          kind: kind === "all" ? undefined : kind,
+          limit,
+          offset,
+        },
+        semanticDiagnostics(),
+      );
+      useAiStore.getState().setPreview(preview);
+    } catch (error) {
+      useAiStore.getState().setPreviewError(
+        error instanceof Error ? error.message : "加载语义索引预览失败",
+      );
+    }
+  }, []);
+
+  const setPreviewKind = useCallback((kind: SemanticPreviewKind) => {
+    useAiStore.getState().setPreviewKind(kind);
+    void loadPreview({ kind, offset: 0 });
+  }, [loadPreview]);
+
+  const setPreviewLimit = useCallback((limit: number) => {
+    useAiStore.getState().setPreviewLimit(limit);
+    void loadPreview({ limit, offset: 0 });
+  }, [loadPreview]);
+
+  const loadPreviousPreviewPage = useCallback(() => {
+    const aiStore = useAiStore.getState();
+    const offset = Math.max(0, aiStore.previewOffset - aiStore.previewLimit);
+    aiStore.setPreviewOffset(offset);
+    void loadPreview({ offset });
+  }, [loadPreview]);
+
+  const loadNextPreviewPage = useCallback(() => {
+    const aiStore = useAiStore.getState();
+    const offset = aiStore.previewOffset + aiStore.previewLimit;
+    aiStore.setPreviewOffset(offset);
+    void loadPreview({ offset });
+  }, [loadPreview]);
+
   const previousChatRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!currentChat || previousChatRef.current === currentChat) return;
@@ -336,6 +393,11 @@ export function useAiCommander() {
     indexStatus: store.indexStatus,
     qaStatus: store.qaStatus,
   });
+  const semanticPreviewView = buildSemanticPreviewView({
+    status: store.previewStatus,
+    preview: store.preview,
+    error: store.previewError,
+  }, privacyOn);
 
   return {
     phase: store.phase,
@@ -359,6 +421,13 @@ export function useAiCommander() {
     profile: store.profile,
     profileLoading: store.profileLoading,
     profileError: store.profileError,
+    previewStatus: store.previewStatus,
+    preview: store.preview,
+    previewKind: store.previewKind,
+    previewLimit: store.previewLimit,
+    previewOffset: store.previewOffset,
+    previewError: store.previewError,
+    semanticPreviewView,
     error: store.error,
     initialize,
     saveConfig,
@@ -369,6 +438,11 @@ export function useAiCommander() {
     debouncedSearch,
     semanticSearch,
     loadAnalysis,
+    loadPreview,
+    setPreviewKind,
+    setPreviewLimit,
+    loadPreviousPreviewPage,
+    loadNextPreviewPage,
     clearError: () => store.setError(null),
     clearQAMessages: store.clearQAMessages,
     reset: store.reset,

@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { Settings } from 'lucide-react';
+import { classNames } from '@/utils/classNames';
 import { Typography } from '@l4/ui/Typography';
 import { Button } from '@l4/ui/Button';
 import { IconButton } from '@l4/ui/IconButton';
@@ -9,32 +10,37 @@ import { QAPanel } from './QAPanel';
 import { SemanticSearch } from './SemanticSearch';
 import { TopicView } from './TopicView';
 import { ContactProfile } from './ContactProfile';
+import { SemanticIndexPreview } from './SemanticIndexPreview';
 import { SetupWizard } from './SetupWizard';
-import { useChatCommander } from '@l2/commander/useChatCommander';
-import { useChatStore } from '@l2/data-clerk/stores/useChatStore';
-import { useAiCommander } from '@l2/commander/useAiCommander';
-import { useSettingsStore } from '@l2/data-clerk/stores/useSettingsStore';
+import type { useAiCommander } from '@l2/commander/useAiCommander';
 
 type PanelMode = 'stats' | 'ai';
-type AiTab = 'qa' | 'search' | 'analysis';
+type AiTab = 'qa' | 'search' | 'analysis' | 'preview';
+type AiCommander = ReturnType<typeof useAiCommander>;
 
 interface AiPanelProps {
   mode: PanelMode;
+  ai: AiCommander;
+  currentChat: string;
+  currentContact: string;
+  privacyOn: boolean;
+  onSelectAndLoad: (conversationId: string, chat: string) => void;
   onModeChange: (mode: PanelMode) => void;
 }
 
-export function AiPanel({ mode, onModeChange }: AiPanelProps) {
+export function AiPanel({
+  mode,
+  ai,
+  currentChat,
+  currentContact,
+  privacyOn,
+  onSelectAndLoad,
+  onModeChange,
+}: AiPanelProps) {
   const [activeTab, setActiveTab] = useState<AiTab>('qa');
   const [showWizard, setShowWizard] = useState(false);
-  const ai = useAiCommander();
   const aiRef = useRef(ai);
   const analysisRequestKey = useRef<string | null>(null);
-  const { selectedConversationId, selectAndLoad } = useChatCommander();
-  const conversations = useChatStore((s) => s.conversations);
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const currentConv = conversations.find(c => c.id === selectedConversationId);
-  const currentChat = currentConv?.username;
-  const currentContact = currentConv?.displayName || '';
 
   useEffect(() => {
     aiRef.current = ai;
@@ -54,10 +60,16 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
     aiRef.current.loadAnalysis();
   }, [activeTab, ai.indexStatus?.completed, ai.indexStatus?.status, currentChat, mode]);
 
+  useEffect(() => {
+    if (mode !== 'ai' || activeTab !== 'preview') return;
+    aiRef.current.loadPreview();
+  }, [activeTab, mode]);
+
   const tabs: { key: AiTab; label: string }[] = [
     { key: 'qa', label: '问答' },
     { key: 'search', label: '搜索' },
     { key: 'analysis', label: '分析' },
+    { key: 'preview', label: '预览' },
   ];
 
   const indexProgress =
@@ -66,15 +78,8 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
       : 0;
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div
-        style={{
-          display: 'flex',
-          padding: '8px 12px',
-          borderBottom: '1px solid var(--color-border)',
-          gap: 4,
-        }}
-      >
+    <div className="semantic-panel">
+      <div className="semantic-panel__modebar">
         <Button
           variant={mode === 'stats' ? 'primary' : 'ghost'}
           size="sm"
@@ -90,7 +95,7 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
           AI
         </Button>
         {mode === 'ai' && ai.moduleView.kind !== 'setup_required' && (
-          <div style={{ flex: 1 }} />
+          <div className="semantic-panel__spacer" />
         )}
         {mode === 'ai' && ai.moduleView.kind !== 'setup_required' && (
           <IconButton
@@ -103,20 +108,15 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
       </div>
 
       {mode === 'ai' && ai.moduleView.kind === 'ready' && (
-        <div
-          style={{
-            display: 'flex',
-            borderBottom: '1px solid var(--color-border)',
-          }}
-        >
+        <div className="semantic-panel__tabs">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
-              className={[
+              className={classNames(
                 "semantic-tab",
-                activeTab === tab.key ? "semantic-tab--active" : "",
-              ].filter(Boolean).join(" ")}
+                activeTab === tab.key && "semantic-tab--active",
+              )}
               onClick={() => setActiveTab(tab.key)}
             >
               {tab.label}
@@ -125,21 +125,21 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
         </div>
       )}
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div className="semantic-panel__body">
           {mode === 'ai' && (
-            <div style={{ height: '100%' }}>
+            <div className="semantic-panel__content">
               {ai.moduleView.kind === 'checking_config' && (
-                <div style={{ padding: 40, textAlign: 'center' }}>
+                <div className="semantic-state semantic-state--loose">
                   <Spinner size={24} label="正在检查 AI 配置..." />
                 </div>
               )}
 
               {ai.moduleView.kind === 'setup_required' && (
-                <div style={{ padding: 24, textAlign: 'center' }}>
-                  <Typography variant="h3" style={{ marginBottom: 8 }}>
+                <div className="semantic-state">
+                  <Typography variant="h3" className="semantic-state__title">
                     AI 功能尚未配置
                   </Typography>
-                  <Typography variant="body" color="var(--color-text-secondary)" style={{ marginBottom: 20 }}>
+                  <Typography variant="body" color="var(--color-text-secondary)" className="semantic-state__copy">
                     配置 AI 服务后即可体验智能问答、语义搜索和联系人分析
                   </Typography>
                   <Button variant="primary" onClick={() => setShowWizard(true)}>
@@ -149,16 +149,16 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
               )}
 
               {ai.moduleView.kind === 'index_unavailable' && !currentChat && (
-                <div style={{ padding: 24, textAlign: 'center' }}>
-                  <Typography variant="body" color="var(--color-text-secondary)" style={{ marginBottom: 12 }}>
+                <div className="semantic-state">
+                  <Typography variant="body" color="var(--color-text-secondary)" className="semantic-state__copy">
                     选择左侧联系人后即可使用 AI 功能
                   </Typography>
                 </div>
               )}
 
               {ai.moduleView.kind === 'index_unavailable' && currentChat && (
-                <div style={{ padding: 24 }}>
-                  <Typography variant="body" color="var(--color-text-secondary)" style={{ marginBottom: 12 }}>
+                <div className="semantic-state">
+                  <Typography variant="body" color="var(--color-text-secondary)" className="semantic-state__copy">
                     {ai.moduleView.message}
                   </Typography>
                   <Button variant="primary" size="sm" onClick={() => ai.doIndexAction('rebuild')}>
@@ -168,13 +168,13 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
               )}
 
               {ai.moduleView.kind === 'index_running' && (
-                <div style={{ padding: 24 }}>
+                <div className="semantic-state">
                   <ProgressBar
                     progress={indexProgress}
                     label="正在构建语义索引..."
                     variant={indexProgress === 0 ? 'indeterminate' : 'default'}
                   />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <div className="semantic-actions">
                     <Button variant="secondary" size="sm" onClick={() => ai.doIndexAction('pause')}>
                       暂停
                     </Button>
@@ -183,8 +183,8 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
               )}
 
               {ai.moduleView.kind === 'index_paused' && (
-                <div style={{ padding: 24 }}>
-                  <Typography variant="body" color="var(--color-text-secondary)" style={{ marginBottom: 12 }}>
+                <div className="semantic-state">
+                  <Typography variant="body" color="var(--color-text-secondary)" className="semantic-state__copy">
                     {ai.moduleView.message}
                   </Typography>
                   <Button variant="primary" size="sm" onClick={() => ai.doIndexAction('resume')}>
@@ -208,7 +208,7 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
                     />
                   )}
                   {activeTab === 'qa' && !currentChat && (
-                    <div style={{ padding: 24, textAlign: 'center' }}>
+                    <div className="semantic-state">
                       <Typography variant="body" color="var(--color-text-secondary)">
                         选择左侧联系人后即可开始 AI 问答
                       </Typography>
@@ -222,11 +222,11 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
                       privacyOn={privacyOn}
                       onSearch={ai.debouncedSearch}
                       onRetry={() => ai.semanticSearch(ai.searchQuery)}
-                      onSelectResult={(chat, label) => selectAndLoad(chat, label)}
+                      onSelectResult={onSelectAndLoad}
                     />
                   )}
                   {activeTab === 'analysis' && !!currentChat && (
-                    <div style={{ padding: 12 }}>
+                    <div className="semantic-analysis-stack">
                       <TopicView
                         topics={ai.topics}
                         loading={ai.topicsLoading}
@@ -244,18 +244,31 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
                     </div>
                   )}
                   {activeTab === 'analysis' && !currentChat && (
-                    <div style={{ padding: 24, textAlign: 'center' }}>
+                    <div className="semantic-state">
                       <Typography variant="body" color="var(--color-text-secondary)">
                         选择左侧联系人后即可查看分析
                       </Typography>
                     </div>
                   )}
+                  {activeTab === 'preview' && (
+                    <SemanticIndexPreview
+                      view={ai.semanticPreviewView}
+                      kind={ai.previewKind}
+                      limit={ai.previewLimit}
+                      privacyOn={privacyOn}
+                      onKindChange={ai.setPreviewKind}
+                      onLimitChange={ai.setPreviewLimit}
+                      onRefresh={() => ai.loadPreview()}
+                      onPreviousPage={ai.loadPreviousPreviewPage}
+                      onNextPage={ai.loadNextPreviewPage}
+                    />
+                  )}
                 </>
               )}
 
               {ai.moduleView.kind === 'failed' && (
-                <div style={{ padding: 24, textAlign: 'center' }}>
-                  <Typography variant="body" color="var(--danger)" style={{ marginBottom: 12 }}>
+                <div className="semantic-state">
+                  <Typography variant="body" color="var(--danger)" className="semantic-state__copy">
                     {ai.moduleView.message || ai.error || '发生未知错误'}
                   </Typography>
                   <Button variant="secondary" size="sm" onClick={() => { ai.clearError(); ai.initialize(); }}>
@@ -264,12 +277,12 @@ export function AiPanel({ mode, onModeChange }: AiPanelProps) {
                 </div>
               )}
 
-              {ai.moduleView.kind === 'ready' && activeTab === 'analysis' && (
-                <div style={{ padding: '4px 12px', borderTop: '1px solid var(--color-border)', marginTop: 8 }}>
+              {ai.moduleView.kind === 'ready' && (activeTab === 'analysis' || activeTab === 'preview') && (
+                <div className="semantic-footer">
                   <Typography variant="caption" color="var(--color-text-quaternary)">
                     索引已就绪 · {ai.indexStatus?.completed?.toLocaleString() || 0} 条已索引
                   </Typography>
-                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                  <div className="semantic-footer__actions">
                     <Button variant="ghost" size="sm" onClick={() => ai.doIndexAction('rebuild')}>
                       重建索引
                     </Button>

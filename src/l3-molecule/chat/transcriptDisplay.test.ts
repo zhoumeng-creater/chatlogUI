@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
 import {
+  getMessageAttachmentSummary,
   formatMessageClock,
   getMessageKindLabel,
   getTranscriptTone,
@@ -25,6 +26,7 @@ function message(overrides: Partial<ChatMessage>): ChatMessage {
     mediaType: overrides.mediaType,
     mediaUrl: overrides.mediaUrl,
     imageUrl: overrides.imageUrl,
+    attachments: overrides.attachments,
   };
 }
 
@@ -39,6 +41,33 @@ describe("transcriptDisplay", () => {
     expect(getMessageKindLabel(message({ mediaType: "image" }))).toBe("图片");
     expect(getMessageKindLabel(message({ type: "34" }))).toBe("语音");
     expect(getMessageKindLabel(message({ type: "text" }))).toBe("");
+  });
+
+  it("summarizes typed attachments instead of generic media availability", () => {
+    expect(getMessageAttachmentSummary(message({
+      mediaType: "image",
+      attachments: [{
+        id: "a1",
+        kind: "image",
+        resourceKind: "image",
+        resourceKey: "secret-key",
+        label: "图片",
+        redactedEndpointLabel: "media:image",
+        source: "history",
+      }],
+    }), false)).toBe("1 个附件：图片");
+    expect(getMessageAttachmentSummary(message({
+      mediaType: "image",
+      attachments: [{
+        id: "a1",
+        kind: "image",
+        resourceKind: "image",
+        resourceKey: "secret-key",
+        label: "图片",
+        redactedEndpointLabel: "media:image",
+        source: "history",
+      }],
+    }), true)).toBe("1 个附件：已隐藏媒体");
   });
 
   it("shows sender only for group messages not sent by self", () => {

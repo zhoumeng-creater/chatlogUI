@@ -1,10 +1,31 @@
 import { create } from "zustand";
 import type { AiState, AiActions, AiPhase, SemanticConfig, IndexStatusResponse, QAMessage, TopicsResponse, ContactProfileData, SemanticSearchResponse } from "@/l2-coordinator/api-docs/semantic";
 import { QA_MAX_HISTORY } from "@/utils/constants";
+import type { SemanticIndexPreviewView, SemanticPreviewKind } from "@l4/network";
 
-type AiStore = AiState & AiActions;
+export type SemanticPreviewLoadStatus = "idle" | "loading" | "ready" | "empty" | "error";
 
-const initialState: AiState = {
+interface AiPreviewState {
+  previewStatus: SemanticPreviewLoadStatus;
+  preview: SemanticIndexPreviewView | null;
+  previewKind: SemanticPreviewKind;
+  previewLimit: number;
+  previewOffset: number;
+  previewError: string | null;
+}
+
+interface AiPreviewActions {
+  setPreviewLoading: () => void;
+  setPreview: (preview: SemanticIndexPreviewView) => void;
+  setPreviewError: (error: string | null) => void;
+  setPreviewKind: (kind: SemanticPreviewKind) => void;
+  setPreviewLimit: (limit: number) => void;
+  setPreviewOffset: (offset: number) => void;
+}
+
+type AiStore = AiState & AiActions & AiPreviewState & AiPreviewActions;
+
+const initialState: AiState & AiPreviewState = {
   phase: "idle",
   config: null,
   indexStatus: null,
@@ -23,6 +44,12 @@ const initialState: AiState = {
   profile: null,
   profileLoading: false,
   profileError: null,
+  previewStatus: "idle",
+  preview: null,
+  previewKind: "all",
+  previewLimit: 20,
+  previewOffset: 0,
+  previewError: null,
   error: null,
 };
 
@@ -70,6 +97,25 @@ export const useAiStore = create<AiStore>((set) => ({
   setProfile: (profile: ContactProfileData | null) => set({ profile, profileLoading: false, profileError: null }),
   setProfileLoading: (loading: boolean) => set({ profileLoading: loading }),
   setProfileError: (profileError: string | null) => set({ profileError, profileLoading: false }),
+
+  setPreviewLoading: () => set({ previewStatus: "loading", previewError: null }),
+  setPreview: (preview: SemanticIndexPreviewView) =>
+    set({
+      preview,
+      previewStatus: preview.rows.length > 0 ? "ready" : "empty",
+      previewError: null,
+      previewKind: preview.kind,
+      previewLimit: preview.limit,
+      previewOffset: preview.offset,
+    }),
+  setPreviewError: (previewError: string | null) =>
+    set({ previewError, previewStatus: previewError ? "error" : "idle" }),
+  setPreviewKind: (previewKind: SemanticPreviewKind) =>
+    set({ previewKind, previewOffset: 0, preview: null, previewStatus: "idle", previewError: null }),
+  setPreviewLimit: (previewLimit: number) =>
+    set({ previewLimit: Math.max(1, Math.min(100, Math.round(previewLimit))), previewOffset: 0 }),
+  setPreviewOffset: (previewOffset: number) =>
+    set({ previewOffset: Math.max(0, Math.round(previewOffset)), previewStatus: "idle" }),
 
   setError: (error: string | null) => set({ error, phase: error ? "error" : undefined }),
 

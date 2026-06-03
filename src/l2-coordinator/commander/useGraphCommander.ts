@@ -1,10 +1,20 @@
 import { useCallback } from "react";
 import { useGraphStore } from "@/l2-coordinator/data-clerk/stores/useGraphStore";
+import { useSettingsStore } from "@/l2-coordinator/data-clerk/stores/useSettingsStore";
 import {
+  askGraphQA,
+  fetchGraphConfig,
   fetchGraphStatus,
   fetchGraphTimeline,
   fetchGraphVisualize,
+  ingestGraphBusiness,
+  ingestGraphEvent,
   manageGraph,
+  saveGraphConfig,
+  type GraphBusinessDraft,
+  type GraphConfigDraft,
+  type GraphEventDraft,
+  type GraphQADraft,
 } from "@l4/network";
 import type { EntityKind, VisualizeParams } from "@/l2-coordinator/api-docs/graph";
 import type {
@@ -12,6 +22,11 @@ import type {
   GraphVisualizeView,
 } from "@/l4-atom/network/graphAdapters";
 import { deriveGraphModuleView } from "./graphViewModel";
+import {
+  buildGraphResidualView,
+  hasMeaningfulGraphBusinessDraft,
+  hasMeaningfulGraphEventDraft,
+} from "./graphResidualViewModel";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 function graphDiagnostics(method: "GET" | "POST" = "GET") {
@@ -24,6 +39,7 @@ function graphDiagnostics(method: "GET" | "POST" = "GET") {
 
 export function useGraphCommander() {
   const store = useGraphStore();
+  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
 
   const loadGraph = useCallback(async (params: VisualizeParams = {}) => {
     useGraphStore.setState({ loading: true, error: null });
@@ -106,6 +122,100 @@ export function useGraphCommander() {
       );
     }
   }, [refreshStatus]);
+
+  const loadGraphConfig = useCallback(async () => {
+    useGraphStore.getState().setAdvancedConfigLoading();
+    try {
+      const config = await fetchGraphConfig(graphDiagnostics());
+      useGraphStore.getState().setAdvancedConfig(config);
+    } catch (error) {
+      useGraphStore.getState().setAdvancedConfigError(
+        error instanceof Error ? error.message : "加载图谱高级配置失败",
+      );
+    }
+  }, []);
+
+  const saveGraphAdvancedConfig = useCallback(async (draft?: GraphConfigDraft) => {
+    const nextDraft = draft ?? useGraphStore.getState().graphConfigDraft;
+    useGraphStore.getState().setAdvancedConfigLoading();
+    try {
+      const config = await saveGraphConfig(nextDraft, graphDiagnostics("POST"));
+      useGraphStore.getState().setAdvancedConfig(config);
+      await refreshStatus();
+    } catch (error) {
+      useGraphStore.getState().setAdvancedConfigError(
+        error instanceof Error ? error.message : "保存图谱高级配置失败",
+      );
+    }
+  }, [refreshStatus]);
+
+  const runBusinessIngest = useCallback(async (draft?: GraphBusinessDraft) => {
+    const nextDraft = draft ?? useGraphStore.getState().businessDraft;
+    if (!hasMeaningfulGraphBusinessDraft(nextDraft)) {
+      useGraphStore.getState().setIngestError("请输入业务记录后再写入图谱");
+      return;
+    }
+    if (useGraphStore.getState().advancedConfirmationPending !== "business") {
+      useGraphStore.getState().requestAdvancedConfirmation("business");
+      return;
+    }
+
+    useGraphStore.getState().setIngestLoading();
+    try {
+      const result = await ingestGraphBusiness(nextDraft, graphDiagnostics("POST"));
+      useGraphStore.getState().setIngestResult(result);
+      await refreshStatus();
+    } catch (error) {
+      useGraphStore.getState().setIngestError(
+        error instanceof Error ? error.message : "业务记录写入图谱失败",
+      );
+    }
+  }, [refreshStatus]);
+
+  const runEventIngest = useCallback(async (draft?: GraphEventDraft) => {
+    const nextDraft = draft ?? useGraphStore.getState().eventDraft;
+    if (!hasMeaningfulGraphEventDraft(nextDraft)) {
+      useGraphStore.getState().setIngestError("请输入事件记录后再写入图谱");
+      return;
+    }
+    if (useGraphStore.getState().advancedConfirmationPending !== "event") {
+      useGraphStore.getState().requestAdvancedConfirmation("event");
+      return;
+    }
+
+    useGraphStore.getState().setIngestLoading();
+    try {
+      const result = await ingestGraphEvent(nextDraft, graphDiagnostics("POST"));
+      useGraphStore.getState().setIngestResult(result);
+      await refreshStatus();
+    } catch (error) {
+      useGraphStore.getState().setIngestError(
+        error instanceof Error ? error.message : "事件记录写入图谱失败",
+      );
+    }
+  }, [refreshStatus]);
+
+  const runGraphQA = useCallback(async (draft?: GraphQADraft) => {
+    const nextDraft = draft ?? useGraphStore.getState().qaDraft;
+    if (!nextDraft.query.trim()) {
+      useGraphStore.getState().setQAError("请输入图谱问题");
+      return;
+    }
+    if (useGraphStore.getState().advancedConfirmationPending !== "qa") {
+      useGraphStore.getState().requestAdvancedConfirmation("qa");
+      return;
+    }
+
+    useGraphStore.getState().setQALoading();
+    try {
+      const result = await askGraphQA(nextDraft, graphDiagnostics("POST"));
+      useGraphStore.getState().setQAResult(result);
+    } catch (error) {
+      useGraphStore.getState().setQAError(
+        error instanceof Error ? error.message : "图谱 QA 失败",
+      );
+    }
+  }, []);
 
   const searchGraph = useCallback(async (keyword: string) => {
     useGraphStore.setState({ keyword });
@@ -201,12 +311,38 @@ export function useGraphCommander() {
     visualize: store.visualize,
     timeline: store.timeline,
     actionStatus: store.actionStatus,
+    advancedConfigStatus: store.advancedConfigStatus,
+    ingestStatus: store.ingestStatus,
+    qaStatus: store.qaStatus,
+    advancedConfig: store.advancedConfig,
+    graphConfigDraft: store.graphConfigDraft,
+    businessDraft: store.businessDraft,
+    eventDraft: store.eventDraft,
+    qaDraft: store.qaDraft,
+    ingestResult: store.ingestResult,
+    qaResult: store.qaResult,
+    advancedConfirmationPending: store.advancedConfirmationPending,
+    advancedConfigError: store.advancedConfigError,
+    ingestError: store.ingestError,
+    qaError: store.qaError,
     visualizationRequested: store.visualizationRequested,
     moduleView: deriveGraphModuleView({
       statusSummary: store.statusSummary,
       visualize: store.visualize,
       visualizationRequested: store.visualizationRequested,
     }),
+    advancedView: buildGraphResidualView({
+      configStatus: store.advancedConfigStatus,
+      ingestStatus: store.ingestStatus,
+      qaStatus: store.qaStatus,
+      config: store.advancedConfig,
+      ingestResult: store.ingestResult,
+      qaResult: store.qaResult,
+      confirmationPending: store.advancedConfirmationPending,
+      configError: store.advancedConfigError,
+      ingestError: store.ingestError,
+      qaError: store.qaError,
+    }, privacyOn),
     loading: store.loading,
     error: store.error,
     keyword: store.keyword,
@@ -236,6 +372,16 @@ export function useGraphCommander() {
     rebuildGraph: () => runGraphAction("rebuild"),
     pauseGraph: () => runGraphAction("pause"),
     resumeGraph: () => runGraphAction("resume"),
+    loadGraphConfig,
+    saveGraphAdvancedConfig,
+    runBusinessIngest,
+    runEventIngest,
+    runGraphQA,
+    cancelAdvancedConfirmation: store.cancelAdvancedConfirmation,
+    updateGraphConfigDraft: store.updateGraphConfigDraft,
+    updateBusinessDraft: store.updateBusinessDraft,
+    updateEventDraft: store.updateEventDraft,
+    updateQADraft: store.updateQADraft,
     setGraphFilter,
     clearGraphError: () => store.setError(null),
     loadGraph,

@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { classNames } from "@/utils/classNames";
 import { Tooltip } from "./Tooltip";
 
 type IconButtonSize = "sm" | "md" | "lg";
@@ -25,12 +26,12 @@ export function IconButton({
       type="button"
       aria-label={label}
       title={tooltip ? undefined : label}
-      className={[
+      className={classNames(
         "ui-icon-button",
         `ui-icon-button--${size}`,
-        active ? "ui-icon-button--active" : "",
+        active && "ui-icon-button--active",
         className,
-      ].filter(Boolean).join(" ")}
+      )}
       {...props}
     >
       {icon}

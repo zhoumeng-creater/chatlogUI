@@ -1,8 +1,12 @@
-import { useDiagnosticsCommander } from "@l2/commander/useDiagnosticsCommander";
+import type { DiagnosticsReport } from "@l2/commander/diagnostics";
 import { DiagnosticsPanel } from "@l3/diagnostics/DiagnosticsPanel";
 
-export function DiagnosticPanel() {
-  const { report, copyText, exportReport } = useDiagnosticsCommander();
+interface DiagnosticPanelProps {
+  report: DiagnosticsReport;
+  copyText: string;
+  onExport: () => Promise<string>;
+}
 
-  return <DiagnosticsPanel report={report} copyText={copyText} onExport={exportReport} />;
+export function DiagnosticPanel({ report, copyText, onExport }: DiagnosticPanelProps) {
+  return <DiagnosticsPanel report={report} copyText={copyText} onExport={onExport} />;
 }

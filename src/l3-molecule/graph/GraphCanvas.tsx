@@ -66,6 +66,8 @@ export function GraphCanvas({
   onHighlightTimelineEntry,
 }: GraphCanvasProps) {
   const shouldRenderCanvas = !loading && !error && data && data.nodes.length > 0;
+  const enableCanvasReadback =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("codex-smoke");
 
   if (!visible) {
     return (
@@ -120,7 +122,11 @@ export function GraphCanvas({
         )}
 
         {shouldRenderCanvas && (
-          <Canvas camera={{ position: [0, 0, 8], fov: 50 }} style={{ background: "#0a0a1a" }}>
+          <Canvas
+            camera={{ position: [0, 0, 8], fov: 50 }}
+            gl={enableCanvasReadback ? { preserveDrawingBuffer: true } : undefined}
+            style={{ background: "#0a0a1a" }}
+          >
             <GraphEngine
               data={data}
               autoRotate={autoRotate}

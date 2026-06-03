@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Button, Input, Typography } from "@l4/ui";
-import { useGraphCommander } from "@l2/commander/useGraphCommander";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import type { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { GraphModuleView } from "./GraphModuleView";
 
 const TIME_OPTIONS: Array<{ label: string; value: string }> = [
@@ -12,15 +11,24 @@ const TIME_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "近90天", value: "90d" },
 ];
 
-export function GraphModule() {
-  const graph = useGraphCommander();
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { openGraphModule } = graph;
+type GraphCommander = ReturnType<typeof useGraphCommander>;
+
+interface GraphModuleProps {
+  graph: GraphCommander;
+  privacyOn: boolean;
+}
+
+export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
+  const { loadGraphConfig, openGraphModule } = graph;
   const [keywordDraft, setKeywordDraft] = useState(graph.keyword);
 
   useEffect(() => {
     void openGraphModule();
   }, [openGraphModule]);
+
+  useEffect(() => {
+    void loadGraphConfig();
+  }, [loadGraphConfig]);
 
   useEffect(() => {
     setKeywordDraft(graph.keyword);
@@ -98,6 +106,11 @@ export function GraphModule() {
         loading={graph.loading}
         error={graph.error}
         actionStatus={graph.actionStatus}
+        advancedView={graph.advancedView}
+        graphConfigDraft={graph.graphConfigDraft}
+        businessDraft={graph.businessDraft}
+        eventDraft={graph.eventDraft}
+        qaDraft={graph.qaDraft}
         privacyOn={privacyOn}
         canvasProps={{
           visible: graph.visible,
@@ -132,6 +145,16 @@ export function GraphModule() {
         onPause={graph.pauseGraph}
         onResume={graph.resumeGraph}
         onLoadVisualization={graph.loadVisualization}
+        onLoadGraphConfig={graph.loadGraphConfig}
+        onSaveGraphConfig={graph.saveGraphAdvancedConfig}
+        onGraphConfigDraftChange={graph.updateGraphConfigDraft}
+        onBusinessDraftChange={graph.updateBusinessDraft}
+        onEventDraftChange={graph.updateEventDraft}
+        onQADraftChange={graph.updateQADraft}
+        onBusinessIngest={graph.runBusinessIngest}
+        onEventIngest={graph.runEventIngest}
+        onGraphQA={graph.runGraphQA}
+        onCancelAdvancedConfirmation={graph.cancelAdvancedConfirmation}
       />
     </section>
   );

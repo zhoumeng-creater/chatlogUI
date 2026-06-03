@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { SettingsCategory } from "@/l2-coordinator/api-docs/settings";
+import { classNames } from "@/utils/classNames";
 import { Bot, Database, Info, Palette } from "lucide-react";
 
 const CATEGORIES: { key: SettingsCategory; label: string; icon: ReactNode }[] = [
@@ -24,10 +25,10 @@ export function SettingsLayout({ children, activeCategory, onCategoryChange }: S
             key={cat.key}
             type="button"
             onClick={() => onCategoryChange(cat.key)}
-            className={[
+            className={classNames(
               "settings-category-button",
-              activeCategory === cat.key ? "settings-category-button--active" : "",
-            ].filter(Boolean).join(" ")}
+              activeCategory === cat.key && "settings-category-button--active",
+            )}
           >
             {cat.icon}
             <span>{cat.label}</span>

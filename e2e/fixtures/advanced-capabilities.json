@@ -3,9 +3,76 @@
   "fixturePurpose": "Advanced P4 endpoint shape coverage for future contract and browser E2E tests.",
   "privacyNotes": "Rows are synthetic and contain no real SNS, media, DB, hook, MCP, semantic, or graph content.",
   "generatedAt": "2026-06-01T00:00:00.000Z",
+  "contractStates": {
+    "chatExtensionsEdge": {
+      "total": 0,
+      "chats": [],
+      "edgeCase": "empty-unread"
+    },
+    "mediaEdge": {
+      "items": [
+        {
+          "id": "media_synthetic_edge_missing_size",
+          "family": "file",
+          "content_type": "application/octet-stream",
+          "resource_note": "Synthetic metadata-only edge row with omitted size."
+        }
+      ]
+    },
+    "snsFailure": {
+      "error": "synthetic SNS unavailable",
+      "items": [],
+      "recoverable": true
+    },
+    "dbExplorerEdge": [],
+    "apiRunnerFailure": {
+      "safeAliases": [],
+      "forbiddenControls": [],
+      "responsePreview": {
+        "status": "blocked",
+        "summary": "Synthetic endpoint guard blocked unsafe request.",
+        "redacted": true
+      }
+    },
+    "hookFailure": {
+      "running": false,
+      "keywords_count": 0,
+      "events_count": 0,
+      "last_error": "synthetic hook unavailable",
+      "safe": true
+    },
+    "mcpEdge": {
+      "routes": [],
+      "tools": [],
+      "prompts": [],
+      "summary": "Synthetic empty MCP inventory."
+    },
+    "semanticPreviewEdge": {
+      "model": "synthetic-embedding-model",
+      "dim": 0,
+      "kind": "message",
+      "limit": 0,
+      "offset": 0,
+      "total": 0,
+      "groups": [],
+      "items": []
+    },
+    "graphResidualsFailure": {
+      "enabled": false,
+      "paused": true,
+      "running": false,
+      "entity_count": 0,
+      "relation_count": 0,
+      "event_count": 0,
+      "fact_count": 0,
+      "source_count": 0,
+      "last_error": "synthetic graph unavailable"
+    }
+  },
   "routes": {
     "/api/v1/unread": {
-      "items": [
+      "total": 2,
+      "chats": [
         {
           "chat": "session_synthetic_001",
           "count": 2
@@ -13,29 +80,44 @@
       ]
     },
     "/api/v1/members": {
-      "chat": "chatroom_synthetic_001",
-      "items": [
+      "count": 2,
+      "members": [
         {
           "username": "member_synthetic_001",
-          "display_name": "Synthetic Member Alpha"
+          "display": "Synthetic Member Alpha"
+        },
+        {
+          "username": "member_synthetic_002",
+          "nickname": "Synthetic Member Beta"
         }
       ]
     },
     "/api/v1/new_messages": {
-      "items": [
+      "count": 1,
+      "messages": [
         {
           "id": "new_message_synthetic_001",
           "chat": "session_synthetic_001",
-          "summary": "Synthetic new-message summary"
+          "sender": "contact_synthetic_001",
+          "time": "2026-01-02 08:00",
+          "timestamp": 1767340800,
+          "type": "image",
+          "content": "Synthetic new-message summary",
+          "media_type": "image",
+          "media_key": "media_synthetic_new_image"
         }
       ]
     },
     "/api/v1/favorites": {
-      "items": [
+      "count": 1,
+      "favorites": [
         {
           "id": "favorite_synthetic_001",
+          "chat": "session_synthetic_001",
+          "sender": "contact_synthetic_001",
+          "time": "2026-01-02 08:30",
           "type": "text",
-          "summary": "Synthetic favorite summary"
+          "content": "Synthetic favorite summary"
         }
       ]
     },
@@ -51,47 +133,144 @@
       ]
     },
     "/api/v1/sns_notifications": {
-      "items": [
+      "total": 2,
+      "notifications": [
         {
-          "id": "sns_notification_synthetic_001",
-          "actor": "sns_actor_synthetic_001",
           "type": "like",
-          "timestamp": "2026-01-02T08:00:00Z"
+          "time": "01-02 08:00",
+          "timestamp": 1767340800,
+          "from_username": "sns_actor_synthetic_001",
+          "from_nickname": "Synthetic Actor Alpha",
+          "content": "",
+          "feed_id": 9001001,
+          "feed_author": "Synthetic Author",
+          "feed_author_username": "sns_author_synthetic_001",
+          "feed_preview": "Synthetic feed preview for notification"
+        },
+        {
+          "type": "comment",
+          "time": "01-02 08:05",
+          "timestamp": 1767341100,
+          "from_username": "sns_actor_synthetic_002",
+          "from_nickname": "Synthetic Actor Beta",
+          "content": "Synthetic notification comment",
+          "feed_id": 9001002,
+          "feed_author": "Synthetic Author",
+          "feed_author_username": "sns_author_synthetic_001",
+          "feed_preview": "Synthetic second feed preview"
         }
       ]
     },
     "/api/v1/sns_feed": {
+      "count": 2,
       "items": [
         {
-          "id": "sns_feed_synthetic_001",
-          "author": "sns_actor_synthetic_001",
-          "summary": "Synthetic SNS feed row",
-          "media_count": 1,
-          "timestamp": "2026-01-02T09:00:00Z"
+          "id": 9001001,
+          "timestamp": 1767344400,
+          "time": "2026-01-02 09:00",
+          "username": "sns_author_synthetic_001",
+          "display": "Synthetic Author Alpha",
+          "content": "Synthetic SNS image post content",
+          "raw_content": "<sns><contentDesc>Synthetic SNS image post content</contentDesc></sns>",
+          "content_type": "image",
+          "location": {
+            "city": "Synthetic City",
+            "poi_name": "Synthetic POI",
+            "poi_address": "Synthetic district"
+          },
+          "media_list": [
+            {
+              "type": "image",
+              "url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "thumb": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "proxy_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "proxy_thumb_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "resolved_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "resolved_thumb_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "width": 1280,
+              "height": 720,
+              "duration": ""
+            }
+          ],
+          "article": {
+            "title": "Synthetic Article Title",
+            "description": "Synthetic article description",
+            "url": "https://synthetic.invalid/sns/article",
+            "cover_url": "https://synthetic.invalid/sns/article-cover"
+          },
+          "finder_feed": {
+            "nickname": "Synthetic Finder",
+            "avatar": "https://synthetic.invalid/sns/avatar",
+            "desc": "Synthetic finder feed description",
+            "media_count": 1,
+            "video_url": "https://synthetic.invalid/sns/finder-video",
+            "cover_url": "https://synthetic.invalid/sns/finder-cover",
+            "thumb_url": "https://synthetic.invalid/sns/finder-thumb",
+            "width": 1080,
+            "height": 1920,
+            "duration": "12秒"
+          }
+        },
+        {
+          "id": 9001002,
+          "timestamp": 1767348000,
+          "time": "2026-01-02 10:00",
+          "username": "sns_author_synthetic_002",
+          "display": "Synthetic Author Beta",
+          "content": "Synthetic SNS text-only post",
+          "raw_content": "<sns><contentDesc>Synthetic SNS text-only post</contentDesc></sns>",
+          "content_type": "text",
+          "location": null,
+          "media_list": [],
+          "article": null,
+          "finder_feed": null
         }
       ]
     },
     "/api/v1/sns_search": {
+      "count": 1,
       "items": [
         {
-          "id": "sns_search_synthetic_001",
-          "summary": "Synthetic SNS search result",
-          "timestamp": "2026-01-02T10:00:00Z"
+          "id": 9001003,
+          "timestamp": 1767351600,
+          "time": "2026-01-02 11:00",
+          "username": "sns_author_synthetic_003",
+          "content": "Synthetic matched SNS search content",
+          "raw_content": "<sns><contentDesc>Synthetic matched SNS search content</contentDesc></sns>",
+          "content_type": "video",
+          "location": {
+            "city": "Synthetic Search City"
+          },
+          "media_list": [
+            {
+              "type": "video",
+              "url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "thumb": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "proxy_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "proxy_thumb_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "resolved_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "resolved_thumb_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+              "width": 1920,
+              "height": 1080,
+              "duration": "8秒",
+              "live_photo": {
+                "url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+                "thumb": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+                "proxy_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+                "proxy_thumb_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+                "resolved_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy",
+                "resolved_thumb_url": "http://127.0.0.1:5030/api/v1/sns/media/proxy"
+              }
+            }
+          ],
+          "article": null,
+          "finder_feed": null
         }
       ]
     },
-    "/api/v1/db/tables": {
-      "items": [
-        {
-          "name": "SyntheticMessages",
-          "row_count": 42
-        }
-      ]
-    },
+    "/api/v1/db/tables": ["SyntheticMessages", "SyntheticContacts", "SyntheticMedia"],
     "/api/v1/db/data": {
-      "table": "SyntheticMessages",
-      "columns": ["id", "kind", "summary"],
-      "rows": [
+      "items": [
         {
           "id": "db_row_synthetic_001",
           "kind": "text",
@@ -100,49 +279,422 @@
       ]
     },
     "/api/v1/db/query": {
-      "columns": ["id", "summary"],
-      "rows": [
+      "items": [
         {
           "id": "query_row_synthetic_001",
           "summary": "Synthetic query row"
         }
       ]
     },
-    "/api/v1/hook/events": {
+    "/api/v1/db": {
+      "MicroMsg": ["MSG0.db", "MSG1.db"],
+      "MediaMSG": ["MediaMSG0.db"],
+      "Sns": ["SnsMicroMsg.db"]
+    },
+    "/api/v1/db/search": {
+      "keyword": "synthetic",
+      "mode": "quick",
+      "total": 1,
       "items": [
         {
-          "id": "hook_event_synthetic_001",
-          "event_type": "message",
-          "summary": "Synthetic hook event summary",
-          "timestamp": "2026-01-03T08:00:00Z"
+          "group": "MicroMsg",
+          "file": "MSG0.db",
+          "db_name": "MSG0.db",
+          "table": "SyntheticMessages",
+          "column": "summary",
+          "row_id": "1",
+          "preview": "Synthetic matched DB preview",
+          "row": {
+            "id": "db_search_synthetic_001",
+            "summary": "Synthetic matched DB row"
+          }
         }
       ]
     },
+    "/api/v1/cache/clear": {
+      "message": "Cache cleared successfully",
+      "deletedCount": 3
+    },
+    "apiRunner": {
+      "safeAliases": ["health", "sessions", "history", "search", "db", "db_tables", "db_data", "db_query", "cache_clear"],
+      "forbiddenControls": ["raw_path", "raw_headers", "body_file", "remote_host"],
+      "responsePreview": {
+        "redacted": true,
+        "max_chars": 1200
+      }
+    },
+    "/api/v1/hook/config": {
+      "keywords": "synthetic-keyword\nsynthetic-topic",
+      "notify_mode": "mcp,weixin",
+      "post_url": "https://synthetic.invalid/hook",
+      "before_count": 2,
+      "after_count": 3,
+      "forward_all": false,
+      "forward_contacts": "synthetic_contact_alpha",
+      "forward_chatrooms": "synthetic_room_alpha"
+    },
+    "/api/v1/hook/status": {
+      "running": true,
+      "keywords": ["synthetic-keyword", "synthetic-topic"],
+      "keywords_raw": "synthetic-keyword\nsynthetic-topic",
+      "keywords_count": 2,
+      "notify_mode": "mcp,weixin",
+      "post_url": "https://synthetic.invalid/hook",
+      "before_count": 2,
+      "after_count": 3,
+      "forward_all": false,
+      "forward_contacts": ["synthetic_contact_alpha"],
+      "forward_contacts_raw": "synthetic_contact_alpha",
+      "forward_chatrooms": ["synthetic_room_alpha"],
+      "forward_chatrooms_raw": "synthetic_room_alpha",
+      "mcp_notification_method": "notifications/chatlog/keyword_hit",
+      "sse_clients": 1,
+      "event_count": 2,
+      "last_event_at": "2026-01-03T08:00:00Z",
+      "events_store_file": "synthetic-hook-events-store",
+      "weixin": {
+        "installed": true,
+        "enabled": true,
+        "available": true,
+        "editable": true,
+        "hermes_home": "synthetic-hermes-home",
+        "env_file": "synthetic-env-file",
+        "config_file": "synthetic-config-file",
+        "account_file": "synthetic-account-file",
+        "account_id": "synthetic-account-id",
+        "token": "synthetic-token-redaction-target",
+        "base_url": "https://synthetic.invalid/hermes",
+        "cdn_base_url": "https://synthetic.invalid/hermes-cdn",
+        "home_channel": "synthetic-home-channel",
+        "home_channel_name": "Synthetic Home Channel"
+      },
+      "qq": {
+        "installed": true,
+        "enabled": false,
+        "available": true,
+        "editable": true,
+        "hermes_home": "synthetic-hermes-home",
+        "config_file": "synthetic-qq-config-file",
+        "app_id": "synthetic-app-id",
+        "client_secret": "synthetic-client-secret-redaction-target",
+        "home_channel": "synthetic-qq-home-channel",
+        "home_channel_name": "Synthetic QQ Home Channel"
+      }
+    },
+    "/api/v1/hook/events": {
+      "events": [
+        {
+          "id": 90001,
+          "created_at": "2026-01-03T08:00:00Z",
+          "rule_type": "keyword",
+          "rule_label": "synthetic keyword rule",
+          "keyword": "synthetic-keyword",
+          "talker": "synthetic_talker_alpha",
+          "talker_name": "Synthetic Talker Alpha",
+          "sender": "synthetic_sender_alpha",
+          "sender_name": "Synthetic Sender Alpha",
+          "trigger_seq": 42,
+          "trigger_type": 1,
+          "trigger_time": "2026-01-03 08:00:00",
+          "trigger_content": "Synthetic hook trigger content for redaction tests only",
+          "context": [
+            {
+              "seq": 41,
+              "time": "2026-01-03 07:59:00",
+              "sender": "Synthetic Sender Alpha",
+              "is_self": false,
+              "type": 1,
+              "content": "Synthetic context content for redaction tests only",
+              "position": "before"
+            }
+          ],
+          "deliveries": [
+            {
+              "target": "mcp",
+              "status": "queued",
+              "success": true
+            }
+          ]
+        }
+      ]
+    },
+    "/api/v1/hook/events/clear": {
+      "ok": true,
+      "cleared": 2
+    },
+    "/api/v1/hook/stream": {
+      "events": [
+        {
+          "event": "snapshot",
+          "data": {
+            "events": []
+          }
+        },
+        {
+          "event": "hook_event",
+          "data": {
+            "id": 90002,
+            "created_at": "2026-01-03T08:05:00Z",
+            "rule_type": "keyword",
+            "rule_label": "synthetic keyword rule",
+            "keyword": "synthetic-keyword",
+            "trigger_content": "Synthetic streaming trigger content for redaction tests only"
+          }
+        }
+      ]
+    },
+    "/api/v1/hook/hermes/weixin": {
+      "installed": true,
+      "enabled": true,
+      "available": true,
+      "editable": true,
+      "account_id": "synthetic-account-id",
+      "token": "synthetic-token-redaction-target",
+      "home_channel": "synthetic-home-channel",
+      "home_channel_name": "Synthetic Home Channel"
+    },
+    "/api/v1/hook/hermes/qq": {
+      "installed": true,
+      "enabled": false,
+      "available": true,
+      "editable": true,
+      "app_id": "synthetic-app-id",
+      "client_secret": "synthetic-client-secret-redaction-target",
+      "home_channel": "synthetic-qq-home-channel",
+      "home_channel_name": "Synthetic QQ Home Channel"
+    },
     "/mcp": {
+      "routes": [
+        { "path": "/mcp", "method": "POST", "status": "available" },
+        { "path": "/sse", "method": "GET", "status": "available" },
+        { "path": "/message", "method": "POST", "status": "available" }
+      ],
       "tools": [
         {
-          "name": "synthetic.sessions.list",
-          "description": "Synthetic MCP tool listing"
+          "name": "wx_sessions",
+          "description": "wx-cli compatible sessions list",
+          "argument_keys": ["limit"]
+        },
+        {
+          "name": "wx_history",
+          "description": "wx-cli compatible history lookup",
+          "argument_keys": ["chat", "limit", "offset"]
+        }
+      ],
+      "prompts": [
+        {
+          "name": "chat_summary_daily",
+          "description": "Daily chat summary prompt",
+          "argument_keys": ["date", "talker"]
         }
       ]
     },
     "/api/v1/semantic/index/preview": {
+      "model": "synthetic-embedding-model",
+      "dim": 768,
+      "kind": "message",
+      "limit": 20,
+      "offset": 0,
+      "total": 2,
+      "groups": [
+        { "name": "message", "count": 1 },
+        { "name": "entity", "count": 1 }
+      ],
       "items": [
         {
+          "kind": "message",
           "id": "semantic_preview_synthetic_001",
-          "status": "ready",
-          "summary": "Synthetic semantic preview row"
+          "talker": "synthetic_talker_alpha",
+          "seq": 42,
+          "sender": "synthetic_sender_alpha",
+          "content": "Synthetic semantic preview content for redaction tests only",
+          "model": "synthetic-embedding-model",
+          "dim": 768,
+          "vector_norm": 0.98,
+          "vector_sample": [0.1, 0.2, 0.3],
+          "x": 0.1,
+          "y": -0.2,
+          "z": 0.3,
+          "outlier_score": 0.12,
+          "is_outlier": false,
+          "updated_at": 1767427200
+        }
+      ],
+      "store_path": "synthetic-vector-store-redaction-target",
+      "sample_dims": 3,
+      "outliers": [
+        {
+          "kind": "entity",
+          "id": "semantic_preview_outlier_001",
+          "username": "synthetic_user_alpha",
+          "display": "Synthetic User Alpha",
+          "content": "Synthetic semantic outlier content for redaction tests only",
+          "model": "synthetic-embedding-model",
+          "dim": 768,
+          "vector_norm": 1.42,
+          "vector_sample": [0.8, -0.7, 0.6],
+          "x": 0.8,
+          "y": -0.7,
+          "z": 0.6,
+          "outlier_score": 0.91,
+          "is_outlier": true,
+          "updated_at": 1767427200
         }
       ]
     },
+    "/api/v1/graph/config": {
+      "workers": 2,
+      "enqueue_workers": 1
+    },
+    "/api/v1/graph/ingest/business": {
+      "ok": true,
+      "count": 1,
+      "ids": [3001],
+      "status": {
+        "ready": true,
+        "running": false,
+        "workers": 2,
+        "enqueue_workers": 1
+      }
+    },
+    "/api/v1/graph/ingest/event": {
+      "ok": true,
+      "count": 1,
+      "ids": [3002],
+      "status": {
+        "ready": true,
+        "running": false,
+        "workers": 2,
+        "enqueue_workers": 1
+      }
+    },
     "/api/v1/graph/ingest/message": {
-      "accepted": 1,
-      "summary": "Synthetic graph ingest response"
+      "ok": true,
+      "count": 1,
+      "ids": [3003],
+      "status": {
+        "ready": true,
+        "running": false,
+        "workers": 2,
+        "enqueue_workers": 1
+      }
+    },
+    "/api/v1/graph/qa": {
+      "answer": "Synthetic graph answer for redaction tests only",
+      "evidence": {
+        "entities": [
+          {
+            "name": "Synthetic Entity Alpha",
+            "type": "person",
+            "mentions": 2
+          }
+        ],
+        "events": [
+          {
+            "title": "Synthetic Event Alpha",
+            "summary": "Synthetic evidence summary for redaction tests only"
+          }
+        ]
+      }
     },
     "/api/v1/graph/status": {
-      "ready": true,
-      "node_count": 4,
-      "edge_count": 3
+      "enabled": true,
+      "paused": false,
+      "running": false,
+      "entity_count": 2,
+      "relation_count": 1,
+      "event_count": 1,
+      "fact_count": 1,
+      "source_count": 1,
+      "pending": 0,
+      "processing": 0,
+      "processed": 4,
+      "failed": 0,
+      "progress_pct": 100,
+      "last_error": "",
+      "workers": 2,
+      "enqueue_workers": 1
+    },
+    "/api/v1/graph/query": {
+      "entities": [
+        {
+          "id": "graph_entity_synthetic_001",
+          "name": "Synthetic Entity Alpha",
+          "type": "person"
+        }
+      ],
+      "relations": [
+        {
+          "subject": "Synthetic Entity Alpha",
+          "predicate": "mentioned",
+          "object": "Synthetic Topic Alpha"
+        }
+      ],
+      "events": [
+        {
+          "id": "graph_event_synthetic_001",
+          "title": "Synthetic Event Alpha",
+          "event_type": "message"
+        }
+      ],
+      "facts": [
+        {
+          "id": "graph_fact_synthetic_001",
+          "statement": "Synthetic fact summary"
+        }
+      ]
+    },
+    "/api/v1/graph/visualize": {
+      "nodes": [
+        {
+          "id": "node_synthetic_a",
+          "name": "Synthetic Node A",
+          "kind": "person",
+          "value": 2,
+          "last_seen": 1767427200
+        },
+        {
+          "id": "node_synthetic_b",
+          "name": "Synthetic Node B",
+          "kind": "topic",
+          "value": 1,
+          "last_seen": 1767427200
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge_synthetic_a_b",
+          "source": "node_synthetic_a",
+          "target": "node_synthetic_b",
+          "label": "mentions",
+          "status": "active",
+          "confidence": 0.9,
+          "evidence_count": 1,
+          "last_seen": 1767427200
+        }
+      ],
+      "timeline": [
+        {
+          "time": 1767427200,
+          "type": "message",
+          "title": "Synthetic graph event",
+          "description": "Synthetic graph timeline summary",
+          "source": "synthetic"
+        }
+      ],
+      "generated_at": 1767427200
+    },
+    "/api/v1/graph/timeline": {
+      "count": 1,
+      "items": [
+        {
+          "time": 1767427200,
+          "type": "message",
+          "title": "Synthetic timeline event",
+          "description": "Synthetic timeline summary",
+          "source": "synthetic"
+        }
+      ]
     }
   }
 }

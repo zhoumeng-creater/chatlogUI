@@ -73,6 +73,155 @@ export interface RawHistoryMessage {
   chat_type?: string;
 }
 
+export interface RawFavoriteMessage extends RawHistoryMessage {
+  id?: string;
+}
+
+export interface RawFavoritesResponse {
+  count?: number;
+  total?: number;
+  favorites?: RawFavoriteMessage[];
+  messages?: RawFavoriteMessage[];
+}
+
+export interface RawMember {
+  username: string;
+  display?: string;
+  remark?: string;
+  nickname?: string;
+  alias?: string;
+}
+
+export interface RawMembersResponse {
+  count?: number;
+  members?: RawMember[];
+}
+
+export interface RawUnreadChat {
+  chat: string;
+  count?: number;
+  unread?: number;
+}
+
+export interface RawUnreadResponse {
+  total?: number;
+  count?: number;
+  unread?: number;
+  chats?: RawUnreadChat[];
+}
+
+export interface RawNewMessage extends RawHistoryMessage {
+  id?: string;
+}
+
+export interface RawNewMessagesResponse {
+  count?: number;
+  total?: number;
+  messages?: RawNewMessage[];
+}
+
+export interface RawSnsLocation {
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  poi_name?: string;
+  poi_address?: string;
+}
+
+export interface RawSnsMediaResource {
+  url?: string;
+  thumb?: string;
+  thumb_url?: string;
+  proxy_url?: string;
+  proxy_thumb_url?: string;
+  resolved_url?: string;
+  resolved_thumb_url?: string;
+  raw_url?: string;
+  raw_thumb?: string;
+  token?: string;
+  key?: string;
+  enc_idx?: string;
+}
+
+export interface RawSnsMediaItem extends RawSnsMediaResource {
+  type?: string;
+  md5?: string;
+  width?: number;
+  height?: number;
+  duration?: string;
+  live_photo?: RawSnsMediaResource | null;
+}
+
+export interface RawSnsArticle {
+  title?: string;
+  description?: string;
+  url?: string;
+  cover_url?: string;
+}
+
+export interface RawSnsFinderFeed {
+  nickname?: string;
+  avatar?: string;
+  desc?: string;
+  media_count?: number;
+  video_url?: string;
+  cover_url?: string;
+  thumb_url?: string;
+  width?: number;
+  height?: number;
+  duration?: string;
+}
+
+export interface RawSnsPostRow {
+  id?: string | number | null;
+  tid?: string | number | null;
+  timestamp?: number | null;
+  create_time?: number | null;
+  time?: string | null;
+  create_time_str?: string | null;
+  username?: string | null;
+  user_name?: string | null;
+  display?: string | null;
+  nickname?: string | null;
+  content?: string | null;
+  content_desc?: string | null;
+  raw_content?: string | null;
+  xml_content?: string | null;
+  content_type?: string | null;
+  location?: RawSnsLocation | null;
+  media_list?: RawSnsMediaItem[] | null;
+  article?: RawSnsArticle | null;
+  finder_feed?: RawSnsFinderFeed | null;
+}
+
+export interface RawSnsFeedResponse {
+  count?: number;
+  items?: RawSnsPostRow[];
+}
+
+export interface RawSnsSearchResponse {
+  count?: number;
+  items?: RawSnsPostRow[];
+}
+
+export interface RawSnsNotificationRow {
+  type?: string | null;
+  time?: string | null;
+  timestamp?: number | null;
+  from_username?: string | null;
+  from_nickname?: string | null;
+  content?: string | null;
+  feed_id?: string | number | null;
+  feed_author?: string | null;
+  feed_author_username?: string | null;
+  feed_preview?: string | null;
+}
+
+export interface RawSnsNotificationResponse {
+  notifications?: RawSnsNotificationRow[];
+  total?: number;
+}
+
 export interface RawHistoryResponse {
   chat: string;
   username?: string;

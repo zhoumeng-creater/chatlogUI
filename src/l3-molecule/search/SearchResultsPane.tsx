@@ -1,6 +1,6 @@
 import { Button, Typography } from "@l4/ui";
+import { classNames } from "@/utils/classNames";
 import type { SearchResults, SearchStatus } from "@l2/data-clerk/stores/useSearchStore";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { maskDisplayText } from "@l3/chat/conversationDisplay";
 
 interface SearchResultsPaneProps {
@@ -10,6 +10,7 @@ interface SearchResultsPaneProps {
   loading: boolean;
   error: string | null;
   activeResultId: string | null;
+  privacyOn: boolean;
   onOpenResult: (message: SearchResults["messages"][number]) => void;
   onLoadMore: () => void;
   onRetry: () => void;
@@ -32,13 +33,12 @@ export function SearchResultsPane({
   loading,
   error,
   activeResultId,
+  privacyOn,
   onOpenResult,
   onLoadMore,
   onRetry,
   onClear,
 }: SearchResultsPaneProps) {
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-
   if (status === "invalid" && query.length > 0) {
     return (
       <div className="workbench-empty-state">
@@ -74,7 +74,7 @@ export function SearchResultsPane({
         <Typography variant="body" color="var(--text-secondary)">
           {error}
         </Typography>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="search-result-pane__actions">
           <Button variant="secondary" size="sm" onClick={onRetry}>
             重试
           </Button>
@@ -116,7 +116,7 @@ export function SearchResultsPane({
             key={message.id}
             type="button"
             role="listitem"
-            className={`search-result-row${active ? " search-result-row--active" : ""}`}
+            className={classNames("search-result-row", active && "search-result-row--active")}
             aria-current={active ? "true" : undefined}
             onClick={() => onOpenResult(message)}
           >
@@ -152,7 +152,7 @@ export function SearchResultsPane({
           size="sm"
           loading={loading}
           onClick={onLoadMore}
-          style={{ width: "100%", borderRadius: 0 }}
+          className="search-result-pane__load-more"
         >
           加载更多搜索结果
         </Button>
