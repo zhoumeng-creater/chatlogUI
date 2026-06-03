@@ -6,6 +6,12 @@ async function readWorkflow(path) {
 }
 
 describe("release workflow governance", () => {
+  it("declares the pnpm version required by GitHub Actions", async () => {
+    const packageJson = JSON.parse(await readWorkflow("package.json"));
+
+    expect(packageJson.packageManager).toBe("pnpm@11.4.0");
+  });
+
   it("keeps local release checks scoped to the Windows x64 first release", async () => {
     const packageJson = JSON.parse(await readWorkflow("package.json"));
 
