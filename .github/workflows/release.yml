@@ -170,8 +170,20 @@ jobs:
           prerelease: false
           args: --target ${{ matrix.target }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
 
+      - name: Download Generated Updater Manifest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "output/release-assets/${{ matrix.platform }}"
+          gh release download "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --pattern latest.json \
+            --dir "output/release-assets/${{ matrix.platform }}" \
+            --clobber
+
       - name: Verify Generated Updater Manifest
-        run: node scripts/verify-updater-manifest.mjs --bundle-root src-tauri/target --required-platforms "${{ matrix.platform }}"
+        run: node scripts/verify-updater-manifest.mjs --manifest "output/release-assets/${{ matrix.platform }}/latest.json" --artifact-dir "src-tauri/target/${{ matrix.target }}/release/bundle" --required-platforms "${{ matrix.platform }}"
 
       - name: Upload Release Evidence Bundle
         if: always()
@@ -179,6 +191,7 @@ jobs:
         with:
           name: release-evidence-${{ matrix.target }}
           path: |
+            output/release-assets/**
             scripts/release/sidecar-artifacts.json
             src-tauri/target/**/release/bundle/**
             src-tauri/target/release/bundle/**

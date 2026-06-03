@@ -51,8 +51,12 @@ describe("release workflow governance", () => {
     expect(workflow).not.toContain("target: aarch64-apple-darwin");
     expect(workflow).not.toContain("target: x86_64-unknown-linux-gnu");
     expect(workflow).toContain("node scripts/verify-updater-manifest.mjs");
-    expect(workflow).toContain("--bundle-root src-tauri/target");
+    expect(workflow).toContain("gh release download");
+    expect(workflow).toContain('output/release-assets/${{ matrix.platform }}/latest.json');
+    expect(workflow).toContain('--manifest "output/release-assets/${{ matrix.platform }}/latest.json"');
+    expect(workflow).toContain('--artifact-dir "src-tauri/target/${{ matrix.target }}/release/bundle"');
     expect(workflow).toContain('--required-platforms "${{ matrix.platform }}"');
+    expect(workflow).toContain("output/release-assets/**");
   });
 
   it("checks out the owner fork sidecar source at the pinned commit", async () => {
