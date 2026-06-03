@@ -19,6 +19,9 @@ output/
 # Rust build outputs
 target/
 
+# Tauri generated helper schemas
+src-tauri/gen/
+
 # Sidecar runtime files (PID, logs)
 chatlog/
 
@@ -40,27 +43,28 @@ Thumbs.db
 .env
 .env.*
 
-# Spec Kit local cache
-.specify/tmp/
-.specify/cache/
+# Local Spec Kit metadata
+.specify/
 
 # Local extracted workflow kit source package
 chatlogUI-agent-workflow-kit/
 
-# Local agent/workflow tooling and scratch notes
+# Local agent/workflow tooling, development notes, and scratch files
+AGENTS.md
 .agents/
 .opencode/
 .superpowers/
 opencode.json
 README-WORKFLOW-KIT.md
+.gitignore-additions.txt
+开发指南.md
 docs/agent-workflow/
 docs/superpowers/
 docs/reviews/
+docs/
+specs/
+e2e/README.md
+e2e/mock-chatlog-server/README.md
 task_plan.md
 findings.md
 progress.md
-
-# Spec Kit generated tooling; keep the project constitution tracked.
-.specify/*
-!.specify/memory/
-!.specify/memory/constitution.md
