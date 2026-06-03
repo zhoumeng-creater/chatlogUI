@@ -42,6 +42,14 @@ describe("release workflow governance", () => {
     expect(workflow).toMatch(/pull_request:\s*\n\s*branches:\s*\[[^\]]*\bmaster\b[^\]]*\]/);
   });
 
+  it("keeps build-check Tauri config JSON quoted across runner shells", async () => {
+    const workflow = await readWorkflow(".github/workflows/build-check.yml");
+
+    expect(workflow).toMatch(
+      /- name: Tauri Build\s+shell: bash\s+run: pnpm tauri build --target "\$\{\{ matrix\.target \}\}" --config '\{"bundle":\{"createUpdaterArtifacts":false\}\}'/,
+    );
+  });
+
   it("verifies updater manifests with target-specific platform evidence", async () => {
     const workflow = await readWorkflow(".github/workflows/release.yml");
 
