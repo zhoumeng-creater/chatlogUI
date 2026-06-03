@@ -3,6 +3,7 @@ set -euo pipefail
 
 target="${1:?target triple is required}"
 mode="${2:-check}"
+repo_root="$(pwd)"
 
 out_dir="src-tauri/binaries"
 mkdir -p "$out_dir"
@@ -15,6 +16,18 @@ if [[ -z "$node_bin" ]]; then
     node_bin="node.exe"
   else
     echo "::error::Node.js is required to verify sidecar artifact provenance"
+    exit 1
+  fi
+fi
+
+go_bin="${GO_BIN:-}"
+if [[ -z "$go_bin" ]]; then
+  if command -v go >/dev/null 2>&1; then
+    go_bin="go"
+  elif command -v go.exe >/dev/null 2>&1; then
+    go_bin="go.exe"
+  else
+    echo "::error::Go is required to build the approved sidecar source"
     exit 1
   fi
 fi
@@ -51,7 +64,18 @@ case "$target" in
     ;;
 esac
 
-binary_path="${out_dir}/${binary_name}"
+binary_rel="${out_dir}/${binary_name}"
+binary_path="${repo_root}/${binary_rel}"
+source_dir="${SIDECAR_SOURCE_DIR:-}"
+if [[ -z "$source_dir" ]]; then
+  if [[ -d "cmd/chatlog" ]]; then
+    source_dir="$repo_root"
+  elif [[ -d "output/sidecar-source/chatlog_alpha/cmd/chatlog" ]]; then
+    source_dir="$repo_root/output/sidecar-source/chatlog_alpha"
+  fi
+elif [[ "$source_dir" != /* && "$source_dir" != [A-Za-z]:* ]]; then
+  source_dir="$repo_root/$source_dir"
+fi
 
 if [[ "$mode" == "release" ]]; then
   "$node_bin" scripts/verify-sidecar-artifacts.mjs --target "$target" --mode "$mode" --stage-dir "$out_dir"
@@ -59,13 +83,13 @@ else
   "$node_bin" scripts/verify-sidecar-artifacts.mjs --target "$target" --mode "$mode"
 fi
 
-if [[ -d "cmd/chatlog" ]]; then
-  echo "Building sidecar target=${target} mode=${mode} source=cmd/chatlog destination=${binary_path}"
-  GOOS="$goos" GOARCH="$goarch" go build -trimpath -ldflags="-s -w" -o "$binary_path" ./cmd/chatlog
+if [[ -n "$source_dir" && -d "$source_dir/cmd/chatlog" ]]; then
+  echo "Building sidecar target=${target} mode=${mode} source=${source_dir}/cmd/chatlog destination=${binary_rel}"
+  (cd "$source_dir" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=1 "$go_bin" build -trimpath -ldflags="-s -w" -o "$binary_path" ./cmd/chatlog)
 elif [[ -s "$binary_path" ]]; then
-  echo "Using existing sidecar target=${target} mode=${mode} destination=${binary_path}"
+  echo "Using existing sidecar target=${target} mode=${mode} destination=${binary_rel}"
 elif [[ "$mode" == "check" ]]; then
-  echo "::warning::cmd/chatlog is missing and ${binary_path} was not found; creating CI-only check-mode placeholder"
+  echo "::warning::cmd/chatlog is missing and ${binary_rel} was not found; creating CI-only check-mode placeholder"
   printf 'CI placeholder for %s\n' "$target" > "$binary_path"
 else
   echo "::error::Missing approved sidecar source or checksum-verified artifact for ${target}; refusing release packaging"
@@ -81,7 +105,7 @@ if command -v sha256sum >/dev/null 2>&1; then
 else
   checksum="$(shasum -a 256 "$binary_path" | awk '{print $1}')"
 fi
-echo "Sidecar prepared target=${target} mode=${mode} destination=${binary_path} sha256=${checksum}"
+echo "Sidecar prepared target=${target} mode=${mode} destination=${binary_rel} sha256=${checksum}"
 
 if [[ "$mode" == "release" ]]; then
   "$node_bin" scripts/verify-sidecar-artifacts.mjs --target "$target" --mode "$mode" --stage-dir "$out_dir"
