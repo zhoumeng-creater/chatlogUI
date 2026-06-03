@@ -12,6 +12,16 @@ describe("release workflow governance", () => {
     expect(packageJson.packageManager).toBe("pnpm@11.4.0");
   });
 
+  it("uses a Node version compatible with pnpm 11 in CI", async () => {
+    const buildCheck = await readWorkflow(".github/workflows/build-check.yml");
+    const release = await readWorkflow(".github/workflows/release.yml");
+
+    for (const workflow of [buildCheck, release]) {
+      expect(workflow).toContain('node-version: "22.13.0"');
+      expect(workflow).not.toContain('node-version: "20"');
+    }
+  });
+
   it("keeps local release checks scoped to the Windows x64 first release", async () => {
     const packageJson = JSON.parse(await readWorkflow("package.json"));
 
