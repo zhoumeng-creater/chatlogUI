@@ -46,3 +46,21 @@ Thumbs.db
 
 # Local extracted workflow kit source package
 chatlogUI-agent-workflow-kit/
+
+# Local agent/workflow tooling and scratch notes
+.agents/
+.opencode/
+.superpowers/
+opencode.json
+README-WORKFLOW-KIT.md
+docs/agent-workflow/
+docs/superpowers/
+docs/reviews/
+task_plan.md
+findings.md
+progress.md
+
+# Spec Kit generated tooling; keep the project constitution tracked.
+.specify/*
+!.specify/memory/
+!.specify/memory/constitution.md

@@ -49,9 +49,9 @@ cd src-tauri && cargo test
 - `src-tauri/`: Tauri shell, sidecar process management, native commands, capabilities, bundle config.
 - `docs/`: planning and architecture documents.
 - `specs/`: executable specifications for productization work.
-- `.agents/skills/`: Codex/opencode reusable workflows.
-- `.opencode/commands/`: opencode slash-command prompts.
-- `.opencode/agents/`: opencode review and analysis subagents.
+
+Local agent tool bundles, opencode command packs, superpowers session files, and
+scratch planning files are intentionally ignored and must not be committed.
 
 ## Architecture rules
 
@@ -95,7 +95,7 @@ Use one of these flows:
 - Bug/build failure: use `chatlog-debug` or existing `superpowers/systematic-debugging`.
 - Active feature completion/debug: use `chatlog-debug`, `planning-with-files` when the
   task spans many steps or conversations, `verification-before-completion`, and
-  `requesting-code-review` or `.opencode/commands/review-risk.md` before merge.
+  `requesting-code-review` or an equivalent local review workflow before merge.
 - UI implementation/polish: use `ui-acceptance` plus existing `frontend-design`.
 - Sidecar/Tauri integration: use `sidecar-integration`.
 - Productization-scale planning or cross-cutting feature decomposition: use Spec Kit
