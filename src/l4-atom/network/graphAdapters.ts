@@ -28,6 +28,18 @@ export interface GraphStatusView {
   failed: number;
   progressPct: number;
   lastError: string;
+  historyQueued: boolean;
+  enqueueRunning: boolean;
+  workers: number;
+  enqueueWorkers: number;
+  startedAt: string;
+  processingRatePerMinute: number;
+  estimatedSecondsLeft: number;
+  lastUpdatedAt: string;
+  queueLabel: string;
+  workerLabel: string;
+  etaLabel: string;
+  rateLabel: string;
 }
 
 export interface GraphNodeView {
@@ -72,11 +84,73 @@ export interface GraphVisualizeView {
   };
 }
 
+export interface GraphDetailRow {
+  label: string;
+  value: string;
+}
+
+export interface GraphQueryEntityRow {
+  id: string;
+  label: string;
+  type: string;
+  mentions: number;
+  detailRows: GraphDetailRow[];
+}
+
+export interface GraphQueryRelationRow {
+  id: string;
+  label: string;
+  subject: string;
+  predicate: string;
+  object: string;
+  status: string;
+  confidence: number;
+  supportScore: number;
+  verified: string;
+  verifiedLabel: string;
+  conflictGroup: string;
+  validFrom: number;
+  validTo: number;
+  validFromLabel: string;
+  validToLabel: string;
+  evidenceCount: number;
+  detailRows: GraphDetailRow[];
+}
+
+export interface GraphQueryEventRow {
+  id: string;
+  label: string;
+  type: string;
+  time: number;
+  timeLabel: string;
+  sourceLabel: string;
+  actors: string[];
+  targets: string[];
+  detailRows: GraphDetailRow[];
+}
+
+export interface GraphQueryFactRow {
+  id: string;
+  label: string;
+  changeType: string;
+  status: string;
+  supportScore: number;
+  verified: string;
+  verifiedLabel: string;
+  conflictGroup: string;
+  validFrom: number;
+  validTo: number;
+  validFromLabel: string;
+  validToLabel: string;
+  evidenceCount: number;
+  detailRows: GraphDetailRow[];
+}
+
 export interface GraphQueryView {
-  entities: Array<Record<string, unknown> & { label: string }>;
-  relations: Array<Record<string, unknown> & { label: string }>;
-  events: Array<Record<string, unknown> & { label: string }>;
-  facts: Array<Record<string, unknown> & { label: string }>;
+  entities: GraphQueryEntityRow[];
+  relations: GraphQueryRelationRow[];
+  events: GraphQueryEventRow[];
+  facts: GraphQueryFactRow[];
 }
 
 export interface GraphTimelineView {
@@ -97,6 +171,12 @@ export function adaptGraphStatus(raw: unknown): GraphStatusView {
   const paused = boolValue(data.paused);
   const running = boolValue(data.running);
   const lastError = stringValue(data.last_error);
+  const historyQueued = boolValue(data.history_queued);
+  const processing = numberValue(data.processing);
+  const workers = numberValue(data.workers);
+  const enqueueWorkers = numberValue(data.enqueue_workers);
+  const processingRatePerMinute = numberValue(data.processing_rate_per_minute);
+  const estimatedSecondsLeft = numberValue(data.estimated_seconds_left);
   return {
     state: deriveGraphStatusState({ enabled, paused, running, lastError }),
     enabled,
@@ -110,11 +190,23 @@ export function adaptGraphStatus(raw: unknown): GraphStatusView {
       sources: numberValue(data.source_count),
     },
     pending: numberValue(data.pending),
-    processing: numberValue(data.processing),
+    processing,
     processed: numberValue(data.processed),
     failed: numberValue(data.failed),
     progressPct: numberValue(data.progress_pct),
     lastError,
+    historyQueued,
+    enqueueRunning: boolValue(data.enqueue_running),
+    workers,
+    enqueueWorkers,
+    startedAt: stringValue(data.started_at),
+    processingRatePerMinute,
+    estimatedSecondsLeft,
+    lastUpdatedAt: stringValue(data.last_updated_at),
+    queueLabel: queueLabel(historyQueued, processing),
+    workerLabel: workerLabel(workers, enqueueWorkers),
+    etaLabel: etaLabel(estimatedSecondsLeft),
+    rateLabel: rateLabel(processingRatePerMinute),
   };
 }
 
@@ -164,25 +256,10 @@ export function adaptGraphVisualize(
 export function adaptGraphQuery(raw: unknown): GraphQueryView {
   const data = asRecord(raw);
   return {
-    entities: arrayValue(data.entities).map((item) => {
-      const entity = asRecord(item);
-      return { ...entity, label: stringValue(entity.name) || stringValue(entity.canonical_name) };
-    }),
-    relations: arrayValue(data.relations).map((item) => {
-      const relation = asRecord(item);
-      return {
-        ...relation,
-        label: [relation.subject, relation.predicate, relation.object].map(stringValue).filter(Boolean).join(" "),
-      };
-    }),
-    events: arrayValue(data.events).map((item) => {
-      const event = asRecord(item);
-      return { ...event, label: stringValue(event.title) || stringValue(event.event_type) };
-    }),
-    facts: arrayValue(data.facts).map((item) => {
-      const fact = asRecord(item);
-      return { ...fact, label: stringValue(fact.statement) || stringValue(fact.canonical_statement) };
-    }),
+    entities: arrayValue(data.entities).map(adaptQueryEntity),
+    relations: arrayValue(data.relations).map(adaptQueryRelation),
+    events: arrayValue(data.events).map(adaptQueryEvent),
+    facts: arrayValue(data.facts).map(adaptQueryFact),
   };
 }
 
@@ -262,6 +339,148 @@ function adaptTimelineRow(value: unknown): GraphTimelineRow {
   };
 }
 
+function adaptQueryEntity(value: unknown): GraphQueryEntityRow {
+  const entity = asRecord(value);
+  const id = idValue(entity.id) || idValue(entity.entity_id);
+  const label = stringValue(entity.name) || stringValue(entity.canonical_name) || id;
+  const type = stringValue(entity.type) || stringValue(entity.kind);
+  const mentions = numberValue(entity.mentions);
+  return {
+    id: id || stableId(label, type),
+    label,
+    type,
+    mentions,
+    detailRows: compactDetailRows([
+      detail("名称", label),
+      detail("类型", type),
+      detail("提及次数", mentions),
+    ]),
+  };
+}
+
+function adaptQueryRelation(value: unknown): GraphQueryRelationRow {
+  const relation = asRecord(value);
+  const subject = stringValue(relation.subject) || stringValue(relation.source);
+  const predicate = stringValue(relation.predicate) || stringValue(relation.relation);
+  const object = stringValue(relation.object) || stringValue(relation.target);
+  const status = stringValue(relation.status);
+  const confidence = numberValue(relation.confidence);
+  const supportScore = numberValue(relation.support_score);
+  const verified = stringValue(relation.verified);
+  const verifiedDisplay = verifiedLabel(verified);
+  const conflictGroup = stringValue(relation.conflict_group);
+  const validFrom = numberValue(relation.valid_from);
+  const validTo = numberValue(relation.valid_to);
+  const validFromLabel = formatUnixSeconds(validFrom);
+  const validToLabel = formatUnixSeconds(validTo);
+  const evidenceCount = numberValue(relation.evidence_count);
+  const label = [subject, predicate, object].filter(Boolean).join(" ");
+
+  return {
+    id: idValue(relation.id) || stableId(subject, predicate, object),
+    label,
+    subject,
+    predicate,
+    object,
+    status,
+    confidence,
+    supportScore,
+    verified,
+    verifiedLabel: verifiedDisplay,
+    conflictGroup,
+    validFrom,
+    validTo,
+    validFromLabel,
+    validToLabel,
+    evidenceCount,
+    detailRows: compactDetailRows([
+      detail("主体", subject),
+      detail("关系", predicate),
+      detail("客体", object),
+      detail("状态", status),
+      detail("置信度", confidence),
+      detail("支持度", supportScore),
+      detail("验证", verifiedDisplay),
+      detail("冲突组", conflictGroup),
+      detail("有效开始", validFromLabel),
+      detail("有效结束", validToLabel),
+      detail("证据数量", evidenceCount),
+    ]),
+  };
+}
+
+function adaptQueryEvent(value: unknown): GraphQueryEventRow {
+  const event = asRecord(value);
+  const label = stringValue(event.title) || stringValue(event.event_type);
+  const type = stringValue(event.event_type) || stringValue(event.type);
+  const time = numberValue(event.time, numberValue(event.event_time));
+  const timeLabel = formatUnixSeconds(time);
+  const actors = stringArrayValue(event.actors);
+  const targets = stringArrayValue(event.targets);
+  const sourceLabel = stringValue(event.source_label) || stringValue(event.source);
+  return {
+    id: idValue(event.id) || stableId(label, type, time),
+    label,
+    type,
+    time,
+    timeLabel,
+    sourceLabel,
+    actors,
+    targets,
+    detailRows: compactDetailRows([
+      detail("标题", label),
+      detail("类型", type),
+      detail("时间", timeLabel),
+      detail("参与方", actors.join(", ")),
+      detail("目标", targets.join(", ")),
+      detail("来源", sourceLabel),
+      detail("证据数量", numberValue(event.evidence_count)),
+    ]),
+  };
+}
+
+function adaptQueryFact(value: unknown): GraphQueryFactRow {
+  const fact = asRecord(value);
+  const label = stringValue(fact.statement) || stringValue(fact.canonical_statement);
+  const changeType = stringValue(fact.change_type);
+  const status = stringValue(fact.status);
+  const supportScore = numberValue(fact.support_score);
+  const verified = stringValue(fact.verified);
+  const verifiedDisplay = verifiedLabel(verified);
+  const conflictGroup = stringValue(fact.conflict_group);
+  const evidenceCount = numberValue(fact.evidence_count);
+  const validFrom = numberValue(fact.valid_from);
+  const validTo = numberValue(fact.valid_to);
+  const validFromLabel = formatUnixSeconds(validFrom);
+  const validToLabel = formatUnixSeconds(validTo);
+  return {
+    id: idValue(fact.id) || stableId(label, status, validFrom),
+    label,
+    changeType,
+    status,
+    supportScore,
+    verified,
+    verifiedLabel: verifiedDisplay,
+    conflictGroup,
+    validFrom,
+    validTo,
+    validFromLabel,
+    validToLabel,
+    evidenceCount,
+    detailRows: compactDetailRows([
+      detail("事实", label),
+      detail("变化", changeType),
+      detail("状态", status),
+      detail("支持度", supportScore),
+      detail("验证", verifiedDisplay),
+      detail("冲突组", conflictGroup),
+      detail("有效开始", validFromLabel),
+      detail("有效结束", validToLabel),
+      detail("证据数量", evidenceCount),
+    ]),
+  };
+}
+
 function deriveGraphStatusState(input: {
   enabled: boolean;
   paused: boolean;
@@ -289,10 +508,88 @@ function stringValue(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function idValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+function stableId(...parts: Array<string | number>): string {
+  const id = parts
+    .map((part) => String(part).trim())
+    .filter(Boolean)
+    .join("|");
+  return id || "unknown";
+}
+
 function numberValue(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
 function boolValue(value: unknown): boolean {
   return typeof value === "boolean" ? value : false;
+}
+
+function detail(label: string, value: string | number): GraphDetailRow {
+  return { label, value: String(value) };
+}
+
+function compactDetailRows(rows: GraphDetailRow[]): GraphDetailRow[] {
+  return rows.filter((row) => row.value !== "" && row.value !== "0");
+}
+
+function queueLabel(historyQueued: boolean, processing: number): string {
+  const history = historyQueued ? "历史已入队" : "历史未入队";
+  return `${history} / ${processing} 处理中`;
+}
+
+function workerLabel(workers: number, enqueueWorkers: number): string {
+  return `${workers} 图谱线程 / ${enqueueWorkers} 入队线程`;
+}
+
+function etaLabel(seconds: number): string {
+  if (seconds <= 0) return "";
+  const minutes = Math.ceil(seconds / 60);
+  return minutes <= 1 ? "约 1 分钟" : `约 ${minutes} 分钟`;
+}
+
+function rateLabel(rate: number): string {
+  return rate > 0 ? `${Math.round(rate)}/min` : "";
+}
+
+function stringArrayValue(value: unknown): string[] {
+  return arrayValue(value)
+    .map((item) => stringValue(item))
+    .filter(Boolean);
+}
+
+function verifiedLabel(value: string): string {
+  switch (value) {
+    case "supported":
+      return "已支持";
+    case "partial":
+      return "部分支持";
+    case "unsupported":
+      return "不支持";
+    case "unverified":
+      return "未验证";
+    default:
+      return value;
+  }
+}
+
+function formatUnixSeconds(seconds: number): string {
+  if (seconds <= 0) return "";
+  const date = new Date(seconds * 1000);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getUTCFullYear();
+  const month = pad2(date.getUTCMonth() + 1);
+  const day = pad2(date.getUTCDate());
+  const hour = pad2(date.getUTCHours());
+  const minute = pad2(date.getUTCMinutes());
+  return `${year}-${month}-${day} ${hour}:${minute} UTC`;
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
 }

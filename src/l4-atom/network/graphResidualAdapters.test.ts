@@ -56,7 +56,7 @@ describe("graphResidualAdapters", () => {
     expect(JSON.stringify(result)).not.toContain("Synthetic private graph content");
   });
 
-  it("redacts graph QA answer and evidence summaries", () => {
+  it("keeps graph QA answer preview and redacts raw evidence summaries", () => {
     const payload = buildGraphQAPayload({
       query: "Synthetic private graph query",
       window: "7d",
@@ -74,9 +74,10 @@ describe("graphResidualAdapters", () => {
     expect(response).toMatchObject({
       hasAnswer: true,
       evidenceCount: 2,
-      answerPreview: "已隐藏回答",
+      answerPreview: "Synthetic private graph answer",
       evidenceSummary: "2 条证据已隐藏",
     });
-    expect(JSON.stringify(response)).not.toContain("Synthetic private");
+    expect(JSON.stringify(response)).not.toContain("Synthetic private person");
+    expect(JSON.stringify(response)).not.toContain("Synthetic private evidence");
   });
 });

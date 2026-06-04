@@ -67,6 +67,139 @@
       "fact_count": 0,
       "source_count": 0,
       "last_error": "synthetic graph unavailable"
+    },
+    "graphStatus": {
+      "loaded": {
+        "enabled": true,
+        "paused": false,
+        "running": false,
+        "entity_count": 2,
+        "relation_count": 1,
+        "event_count": 1,
+        "fact_count": 1,
+        "source_count": 1,
+        "pending": 0,
+        "processing": 0,
+        "processed": 4,
+        "failed": 0,
+        "progress_pct": 100,
+        "last_error": "",
+        "history_queued": false,
+        "enqueue_running": false,
+        "workers": 2,
+        "enqueue_workers": 1,
+        "started_at": "2026-06-04T01:00:00Z",
+        "processing_rate_per_minute": 0,
+        "estimated_seconds_left": 0,
+        "last_updated_at": "2026-06-04T01:10:00Z"
+      },
+      "running": {
+        "enabled": true,
+        "paused": false,
+        "running": true,
+        "entity_count": 2,
+        "relation_count": 1,
+        "event_count": 1,
+        "fact_count": 1,
+        "source_count": 1,
+        "pending": 8,
+        "processing": 1,
+        "processed": 24,
+        "failed": 1,
+        "progress_pct": 72,
+        "last_error": "",
+        "history_queued": true,
+        "enqueue_running": true,
+        "workers": 2,
+        "enqueue_workers": 3,
+        "started_at": "2026-06-04T01:00:00Z",
+        "processing_rate_per_minute": 45,
+        "estimated_seconds_left": 91,
+        "last_updated_at": "2026-06-04T01:30:00Z"
+      },
+      "paused": {
+        "enabled": true,
+        "paused": true,
+        "running": false,
+        "entity_count": 2,
+        "relation_count": 1,
+        "event_count": 1,
+        "fact_count": 1,
+        "source_count": 1,
+        "pending": 8,
+        "processing": 0,
+        "processed": 24,
+        "failed": 1,
+        "progress_pct": 72,
+        "last_error": "",
+        "history_queued": true,
+        "enqueue_running": false,
+        "workers": 2,
+        "enqueue_workers": 3
+      },
+      "failed": {
+        "enabled": true,
+        "paused": false,
+        "running": false,
+        "entity_count": 0,
+        "relation_count": 0,
+        "event_count": 0,
+        "fact_count": 0,
+        "source_count": 0,
+        "pending": 0,
+        "processing": 0,
+        "processed": 0,
+        "failed": 1,
+        "progress_pct": 0,
+        "last_error": "synthetic graph failed",
+        "history_queued": false,
+        "enqueue_running": false,
+        "workers": 0,
+        "enqueue_workers": 0
+      },
+      "empty": {
+        "nodes": [],
+        "edges": [],
+        "timeline": []
+      },
+      "malformed": {
+        "nodes": [{ "name": "Synthetic missing id" }],
+        "edges": []
+      },
+      "oversized": {
+        "node_count": 301,
+        "edge_count": 0,
+        "timeline_count": 0
+      }
+    },
+    "graphQueryDetail": {
+      "relations": [
+        {
+          "id": "graph_relation_synthetic_001",
+          "subject": "Synthetic Entity Alpha",
+          "predicate": "mentioned",
+          "object": "Synthetic Topic Alpha",
+          "status": "active",
+          "confidence": 0.9,
+          "support_score": 0.81,
+          "verified": "supported",
+          "conflict_group": "synthetic-conflict-group",
+          "valid_from": 1767225600,
+          "valid_to": 1769817600,
+          "evidence_count": 2
+        }
+      ],
+      "facts": [
+        {
+          "id": "graph_fact_synthetic_001",
+          "statement": "Synthetic fact summary",
+          "status": "active",
+          "verified": "unverified",
+          "support_score": 0.64,
+          "conflict_group": "synthetic-conflict-group",
+          "evidence_count": 1
+        }
+      ]
     }
   },
   "routes": {
@@ -612,8 +745,14 @@
       "failed": 0,
       "progress_pct": 100,
       "last_error": "",
+      "history_queued": false,
+      "enqueue_running": false,
       "workers": 2,
-      "enqueue_workers": 1
+      "enqueue_workers": 1,
+      "started_at": "2026-06-04T01:00:00Z",
+      "processing_rate_per_minute": 0,
+      "estimated_seconds_left": 0,
+      "last_updated_at": "2026-06-04T01:10:00Z"
     },
     "/api/v1/graph/query": {
       "entities": [
@@ -627,7 +766,15 @@
         {
           "subject": "Synthetic Entity Alpha",
           "predicate": "mentioned",
-          "object": "Synthetic Topic Alpha"
+          "object": "Synthetic Topic Alpha",
+          "status": "active",
+          "confidence": 0.9,
+          "support_score": 0.81,
+          "verified": "supported",
+          "conflict_group": "synthetic-conflict-group",
+          "valid_from": 1767225600,
+          "valid_to": 1769817600,
+          "evidence_count": 2
         }
       ],
       "events": [
@@ -640,7 +787,12 @@
       "facts": [
         {
           "id": "graph_fact_synthetic_001",
-          "statement": "Synthetic fact summary"
+          "statement": "Synthetic fact summary",
+          "status": "active",
+          "verified": "unverified",
+          "support_score": 0.64,
+          "conflict_group": "synthetic-conflict-group",
+          "evidence_count": 1
         }
       ]
     },

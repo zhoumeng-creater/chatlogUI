@@ -8,9 +8,12 @@ interface SemanticIndexPreviewProps {
   view: SemanticPreviewView;
   kind: SemanticPreviewKind;
   limit: number;
+  talker: string;
+  talkerOptions: Array<{ chat: string; label: string }>;
   privacyOn: boolean;
   onKindChange: (kind: SemanticPreviewKind) => void;
   onLimitChange: (limit: number) => void;
+  onTalkerChange: (talker: string) => void;
   onRefresh: () => void;
   onPreviousPage: () => void;
   onNextPage: () => void;
@@ -27,9 +30,12 @@ export function SemanticIndexPreview({
   view,
   kind,
   limit,
+  talker,
+  talkerOptions,
   privacyOn,
   onKindChange,
   onLimitChange,
+  onTalkerChange,
   onRefresh,
   onPreviousPage,
   onNextPage,
@@ -56,6 +62,17 @@ export function SemanticIndexPreview({
           <Select controlSize="sm" value={kind} onChange={(event) => onKindChange(event.currentTarget.value)}>
             {KIND_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="developer-field">
+          <span>会话</span>
+          <Select controlSize="sm" value={talker} onChange={(event) => onTalkerChange(event.currentTarget.value)}>
+            <option value="">全部</option>
+            {talkerOptions.map((option) => (
+              <option key={option.chat} value={option.chat}>
                 {option.label}
               </option>
             ))}

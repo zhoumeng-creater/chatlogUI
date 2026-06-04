@@ -4,6 +4,7 @@ import { useSettingsStore } from "@/l2-coordinator/data-clerk/stores/useSettings
 import {
   askGraphQA,
   fetchGraphConfig,
+  fetchGraphQuery,
   fetchGraphStatus,
   fetchGraphTimeline,
   fetchGraphVisualize,
@@ -18,10 +19,14 @@ import {
 } from "@l4/network";
 import type { EntityKind, VisualizeParams } from "@/l2-coordinator/api-docs/graph";
 import type {
+  GraphQueryView,
   GraphStatusView,
   GraphVisualizeView,
 } from "@/l4-atom/network/graphAdapters";
-import { deriveGraphModuleView } from "./graphViewModel";
+import {
+  deriveGraphModuleView,
+  resolveGraphWorkbenchItemIdFromCanvas,
+} from "./graphViewModel";
 import {
   buildGraphResidualView,
   hasMeaningfulGraphBusinessDraft,
@@ -76,30 +81,31 @@ export function useGraphCommander() {
   const loadGraphSummary = useCallback(async (params: VisualizeParams = {}) => {
     useGraphStore.setState({ loading: true, error: null, visualizationRequested: false });
     try {
-      const [status, visualize] = await Promise.all([
+      const requestParams = graphRequestParams(params);
+      const [status, query, visualize, timeline] = await Promise.all([
         fetchGraphStatus(graphDiagnostics()),
-        fetchGraphVisualize(params, graphDiagnostics()),
+        fetchGraphQuery(requestParams, undefined, graphDiagnostics()),
+        fetchGraphVisualize(requestParams, graphDiagnostics()),
+        fetchGraphTimeline(requestParams, graphDiagnostics()),
       ]);
       const graphStore = useGraphStore.getState();
       graphStore.setStatusSummary(status as unknown as GraphStatusView | null);
+      graphStore.setQuery(query as unknown as GraphQueryView);
       graphStore.setVisualize(visualize as unknown as GraphVisualizeView);
+      graphStore.setTimeline(timeline);
       graphStore.setLoading(false);
-      void loadGraphTimeline(params);
     } catch (error) {
       useGraphStore.getState().setError(
         error instanceof Error ? error.message : "加载图谱摘要失败",
       );
     }
-  }, [loadGraphTimeline]);
+  }, []);
 
   const loadVisualization = useCallback(async () => {
     const graphStore = useGraphStore.getState();
     graphStore.setVisualizationRequested(true);
     if (graphStore.visualize?.state === "loaded") return;
-    await loadGraph({
-      keyword: graphStore.keyword || undefined,
-      window: graphStore.timeWindow || undefined,
-    });
+    await loadGraph(graphRequestParams());
   }, [loadGraph]);
 
   const cancelGraphLoad = useCallback(() => {
@@ -107,14 +113,16 @@ export function useGraphCommander() {
   }, []);
 
   const retryGraphLoad = useCallback(async () => {
-    const { keyword, timeWindow } = useGraphStore.getState();
-    await loadGraphSummary({ keyword: keyword || undefined, window: timeWindow || undefined });
+    await loadGraphSummary(graphRequestParams());
   }, [loadGraphSummary]);
 
-  const runGraphAction = useCallback(async (action: "rebuild" | "pause" | "resume") => {
+  const runGraphAction = useCallback(async (action: "rebuild" | "reset-rebuild" | "pause" | "resume") => {
     try {
       const result = await manageGraph(action, graphDiagnostics("POST"));
       useGraphStore.getState().setActionStatus(result);
+      if (action === "reset-rebuild") {
+        useGraphStore.getState().cancelAdvancedConfirmation();
+      }
       await refreshStatus();
     } catch (error) {
       useGraphStore.getState().setError(
@@ -122,6 +130,14 @@ export function useGraphCommander() {
       );
     }
   }, [refreshStatus]);
+
+  const resetRebuildGraph = useCallback(async () => {
+    if (useGraphStore.getState().advancedConfirmationPending !== "reset") {
+      useGraphStore.getState().requestAdvancedConfirmation("reset");
+      return;
+    }
+    await runGraphAction("reset-rebuild");
+  }, [runGraphAction]);
 
   const loadGraphConfig = useCallback(async () => {
     useGraphStore.getState().setAdvancedConfigLoading();
@@ -196,8 +212,9 @@ export function useGraphCommander() {
   }, [refreshStatus]);
 
   const runGraphQA = useCallback(async (draft?: GraphQADraft) => {
-    const nextDraft = draft ?? useGraphStore.getState().qaDraft;
-    if (!nextDraft.query.trim()) {
+    const nextDraft = usableGraphQADraft(draft) ?? useGraphStore.getState().qaDraft;
+    const query = nextDraft.query.trim();
+    if (!query) {
       useGraphStore.getState().setQAError("请输入图谱问题");
       return;
     }
@@ -208,7 +225,7 @@ export function useGraphCommander() {
 
     useGraphStore.getState().setQALoading();
     try {
-      const result = await askGraphQA(nextDraft, graphDiagnostics("POST"));
+      const result = await askGraphQA({ ...nextDraft, query }, graphDiagnostics("POST"));
       useGraphStore.getState().setQAResult(result);
     } catch (error) {
       useGraphStore.getState().setQAError(
@@ -218,13 +235,12 @@ export function useGraphCommander() {
   }, []);
 
   const searchGraph = useCallback(async (keyword: string) => {
-    useGraphStore.setState({ keyword });
-    await loadGraphSummary({ keyword });
+    useGraphStore.getState().setGraphFilters({ keyword });
+    await loadGraphSummary(graphRequestParams({ keyword }));
   }, [loadGraphSummary]);
 
   const refreshGraph = useCallback(async () => {
-    const { keyword, timeWindow } = useGraphStore.getState();
-    await loadGraphSummary({ keyword: keyword || undefined, window: timeWindow || undefined });
+    await loadGraphSummary(graphRequestParams());
   }, [loadGraphSummary]);
 
   const openGraph = useCallback(async () => {
@@ -252,7 +268,33 @@ export function useGraphCommander() {
   }, []);
 
   const selectNode = useCallback((nodeId: string | null) => {
-    useGraphStore.getState().setSelectedNode(nodeId);
+    const graphStore = useGraphStore.getState();
+    graphStore.setSelectedNode(nodeId);
+    if (!nodeId) {
+      graphStore.setSelectedGraphItem(null);
+      return;
+    }
+    const node = graphStore.data?.nodes.find((item) => item.id === nodeId);
+    graphStore.setSelectedGraphItem(resolveGraphWorkbenchItemIdFromCanvas({
+      kind: "node",
+      id: nodeId,
+      label: node?.name,
+      query: graphStore.query,
+    }));
+  }, []);
+
+  const selectEdge = useCallback((edgeId: string) => {
+    const graphStore = useGraphStore.getState();
+    const edge = graphStore.data?.edges.find((item) => item.id === edgeId);
+    const nodesById = new Map((graphStore.data?.nodes ?? []).map((node) => [node.id, node.name]));
+    graphStore.setSelectedGraphItem(resolveGraphWorkbenchItemIdFromCanvas({
+      kind: "edge",
+      id: edgeId,
+      label: edge?.label,
+      sourceLabel: edge ? nodesById.get(edge.source) : undefined,
+      targetLabel: edge ? nodesById.get(edge.target) : undefined,
+      query: graphStore.query,
+    }));
   }, []);
 
   const focusOnChat = useCallback((contactName: string) => {
@@ -273,9 +315,32 @@ export function useGraphCommander() {
     await searchGraph(keyword);
   }, [searchGraph]);
 
-  const setGraphFilter = useCallback((params: { keyword?: string; window?: string }) => {
-    if (params.keyword !== undefined) useGraphStore.getState().setKeyword(params.keyword);
-    if (params.window !== undefined) useGraphStore.getState().setTimeWindow(params.window);
+  const setGraphFilter = useCallback((params: {
+    keyword?: string;
+    window?: string;
+    entity?: string;
+    relation?: string;
+    limit?: number;
+    start?: string;
+    end?: string;
+  }) => {
+    useGraphStore.getState().setGraphFilters({
+      keyword: params.keyword,
+      timeWindow: params.window,
+      entityFilter: params.entity,
+      relationFilter: params.relation,
+      limit: params.limit,
+      start: params.start,
+      end: params.end,
+    });
+  }, []);
+
+  const clearGraphFilters = useCallback(() => {
+    useGraphStore.getState().clearGraphFilters();
+  }, []);
+
+  const selectGraphItem = useCallback((id: string | null) => {
+    useGraphStore.getState().setSelectedGraphItem(id);
   }, []);
 
   const setVisibleKinds = useCallback((kinds: EntityKind[]) => {
@@ -308,12 +373,14 @@ export function useGraphCommander() {
     data: store.data,
     loadStatus: store.loadStatus,
     statusSummary: store.statusSummary,
+    query: store.query,
     visualize: store.visualize,
     timeline: store.timeline,
     actionStatus: store.actionStatus,
     advancedConfigStatus: store.advancedConfigStatus,
     ingestStatus: store.ingestStatus,
     qaStatus: store.qaStatus,
+    activeTab: store.activeTab,
     advancedConfig: store.advancedConfig,
     graphConfigDraft: store.graphConfigDraft,
     businessDraft: store.businessDraft,
@@ -329,7 +396,11 @@ export function useGraphCommander() {
     moduleView: deriveGraphModuleView({
       statusSummary: store.statusSummary,
       visualize: store.visualize,
+      query: store.query,
+      timeline: store.timeline,
       visualizationRequested: store.visualizationRequested,
+      activeTab: store.activeTab,
+      selectedItemId: store.selectedGraphItemId,
     }),
     advancedView: buildGraphResidualView({
       configStatus: store.advancedConfigStatus,
@@ -347,10 +418,16 @@ export function useGraphCommander() {
     error: store.error,
     keyword: store.keyword,
     timeWindow: store.timeWindow,
+    entityFilter: store.entityFilter,
+    relationFilter: store.relationFilter,
+    limit: store.limit,
+    start: store.start,
+    end: store.end,
     autoRotate: store.autoRotate,
     visible: store.visible,
     minimized: store.minimized,
     hoveredNodeId: store.hoveredNodeId,
+    selectedGraphItemId: store.selectedGraphItemId,
     selectedNodeId: store.selectedNodeId,
     pulsedNodeId: store.pulsedNodeId,
     tooltipCoord: store.tooltipCoord,
@@ -370,6 +447,7 @@ export function useGraphCommander() {
     cancelGraphLoad,
     retryGraphLoad,
     rebuildGraph: () => runGraphAction("rebuild"),
+    resetRebuildGraph,
     pauseGraph: () => runGraphAction("pause"),
     resumeGraph: () => runGraphAction("resume"),
     loadGraphConfig,
@@ -383,6 +461,8 @@ export function useGraphCommander() {
     updateEventDraft: store.updateEventDraft,
     updateQADraft: store.updateQADraft,
     setGraphFilter,
+    clearGraphFilters,
+    selectGraphItem,
     clearGraphError: () => store.setError(null),
     loadGraph,
     searchGraph,
@@ -392,11 +472,30 @@ export function useGraphCommander() {
     toggleMinimize,
     hoverNode,
     selectNode,
+    selectEdge,
     focusOnChat,
     focusOnGraphFromSearch,
     setKeyword: store.setKeyword,
     setTimeWindow: store.setTimeWindow,
+    setActiveTab: store.setActiveTab,
     toggleAutoRotate: store.toggleAutoRotate,
     reset: store.reset,
+  };
+}
+
+function usableGraphQADraft(draft?: GraphQADraft): GraphQADraft | null {
+  return draft && typeof draft.query === "string" ? draft : null;
+}
+
+function graphRequestParams(overrides: VisualizeParams = {}) {
+  const state = useGraphStore.getState();
+  return {
+    keyword: overrides.keyword ?? (state.keyword || undefined),
+    window: overrides.window ?? (state.timeWindow || undefined),
+    start: overrides.start ?? (state.start || undefined),
+    end: overrides.end ?? (state.end || undefined),
+    limit: overrides.limit ?? state.limit,
+    entity: state.entityFilter || undefined,
+    relation: state.relationFilter || undefined,
   };
 }

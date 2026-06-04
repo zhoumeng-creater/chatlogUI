@@ -1,4 +1,4 @@
-import { Database, Play, Save, X } from "lucide-react";
+import { Database, Pause, Play, RefreshCw, RotateCcw, Save, X } from "lucide-react";
 import { Button, Input, Typography } from "@l4/ui";
 import type {
   GraphBusinessDraft,
@@ -15,8 +15,13 @@ interface GraphAdvancedPanelProps {
   eventDraft: GraphEventDraft;
   qaDraft: GraphQADraft;
   privacyOn: boolean;
+  graphPaused: boolean;
   onLoadConfig: () => void;
   onSaveConfig: () => void;
+  onRebuild: () => void;
+  onResetRebuild: () => void;
+  onPause: () => void;
+  onResume: () => void;
   onConfigDraftChange: (draft: Partial<GraphConfigDraft>) => void;
   onBusinessDraftChange: (draft: Partial<GraphBusinessDraft>) => void;
   onEventDraftChange: (draft: Partial<GraphEventDraft>) => void;
@@ -34,8 +39,13 @@ export function GraphAdvancedPanel({
   eventDraft,
   qaDraft,
   privacyOn,
+  graphPaused,
   onLoadConfig,
   onSaveConfig,
+  onRebuild,
+  onResetRebuild,
+  onPause,
+  onResume,
   onConfigDraftChange,
   onBusinessDraftChange,
   onEventDraftChange,
@@ -80,11 +90,11 @@ export function GraphAdvancedPanel({
       <div className="graph-advanced-grid">
         <section className="graph-advanced-card">
           <Typography variant="label" weight={700}>
-            Config
+            抽取配置
           </Typography>
           <div className="graph-advanced-row">
             <label className="developer-field">
-              <span>Workers</span>
+              <span>图谱线程</span>
               <Input
                 controlSize="sm"
                 type="number"
@@ -94,7 +104,7 @@ export function GraphAdvancedPanel({
               />
             </label>
             <label className="developer-field">
-              <span>Enqueue</span>
+              <span>入队线程</span>
               <Input
                 controlSize="sm"
                 type="number"
@@ -111,7 +121,37 @@ export function GraphAdvancedPanel({
         </section>
         <section className="graph-advanced-card">
           <Typography variant="label" weight={700}>
-            Business Ingest
+            管理操作
+          </Typography>
+          <Typography variant="caption" color="var(--text-secondary)">
+            暂停、重建和重置重建会调用本地图谱管理接口。
+          </Typography>
+          <div className="graph-advanced-actions">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={graphPaused ? onResume : onPause}
+            >
+              {graphPaused ? <Play size={14} /> : <Pause size={14} />}
+              {graphPaused ? "继续抽取" : "暂停抽取"}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={onRebuild}>
+              <RefreshCw size={14} />
+              重建
+            </Button>
+            <Button
+              variant={view.resetRebuildCopy.startsWith("确认") ? "danger" : "secondary"}
+              size="sm"
+              onClick={onResetRebuild}
+            >
+              <RotateCcw size={14} />
+              {view.resetRebuildCopy}
+            </Button>
+          </div>
+        </section>
+        <section className="graph-advanced-card">
+          <Typography variant="label" weight={700}>
+            业务记录写入
           </Typography>
           <Input
             controlSize="sm"
@@ -140,14 +180,14 @@ export function GraphAdvancedPanel({
         </section>
         <section className="graph-advanced-card">
           <Typography variant="label" weight={700}>
-            Event Ingest
+            事件写入
           </Typography>
           <Input
             controlSize="sm"
             value={privacyOn ? "" : eventDraft.eventType ?? ""}
             disabled={privacyOn}
             onChange={(event) => onEventDraftChange({ eventType: event.currentTarget.value })}
-            placeholder={privacyOn ? "隐私模式已隐藏事件类型" : "event_type"}
+            placeholder={privacyOn ? "隐私模式已隐藏事件类型" : "事件类型"}
           />
           <textarea
             className="graph-advanced-textarea"
@@ -169,7 +209,7 @@ export function GraphAdvancedPanel({
         </section>
         <section className="graph-advanced-card">
           <Typography variant="label" weight={700}>
-            Graph QA
+            图谱问答
           </Typography>
           <textarea
             className="graph-advanced-textarea"

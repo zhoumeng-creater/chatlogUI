@@ -8,10 +8,14 @@ export async function openSyntheticWorkbench(page: Page) {
 }
 
 export async function openWorkbenchModule(page: Page, label: string) {
-  const railButton = page.getByRole("button", { name: `打开${label}模块` }).first();
-  if (await railButton.isVisible()) {
-    await railButton.click();
-    return;
+  const railButtons = page.getByRole("button", { name: `打开${label}模块` });
+  const count = await railButtons.count();
+  for (let index = 0; index < count; index += 1) {
+    const button = railButtons.nth(index);
+    if (await button.isVisible()) {
+      await button.click();
+      return;
+    }
   }
 
   await page.getByRole("button", { name: label, exact: true }).click();

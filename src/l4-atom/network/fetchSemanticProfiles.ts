@@ -6,12 +6,19 @@ import {
 } from "./httpClient";
 import { adaptSemanticProfiles, type SemanticProfilesView } from "./semanticAdapters";
 
+export interface SemanticProfilesRequestInput {
+  chat?: string;
+  window?: string;
+}
+
 export async function fetchSemanticProfiles(
-  chat: string,
+  input: string | SemanticProfilesRequestInput,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticProfilesView> {
+  const { chat, window } = normalizeSemanticProfilesRequest(input);
   const url = new URL(`${AI_BASE_URL}/api/v1/semantic/profiles`);
-  url.searchParams.set('chat', chat);
+  if (chat) url.searchParams.set('chat', chat);
+  if (window) url.searchParams.set('window', window);
 
   const data = await requestJson(url.toString(), {
     timeoutMs: 30000,
@@ -21,4 +28,8 @@ export async function fetchSemanticProfiles(
     }),
   });
   return adaptSemanticProfiles(data);
+}
+
+function normalizeSemanticProfilesRequest(input: string | SemanticProfilesRequestInput): SemanticProfilesRequestInput {
+  return typeof input === "string" ? { chat: input } : input;
 }

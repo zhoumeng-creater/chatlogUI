@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useMemo, useRef, useEffect, type MutableRefObject } from "react";
 import { useAiStore } from "@/l2-coordinator/data-clerk/stores/useAiStore";
 import { useChatCommander } from "@/l2-coordinator/commander/useChatCommander";
 import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
@@ -7,6 +7,7 @@ import { translateError } from "@/l2-coordinator/diplomat/errorTranslator";
 import { createTokenBuffer } from "@/l2-coordinator/diplomat/sseParser";
 import { withOverloadRetry } from "@/l2-coordinator/diplomat/overloadInterceptor";
 import { debounce } from "@/l2-coordinator/diplomat/debounce";
+import { copyTextToClipboard } from "@l4/system";
 import {
   streamQA,
   fetchSemanticSearch,
@@ -25,16 +26,46 @@ import {
   INDEX_BUILD_TIMEOUT_MS,
   SEMANTIC_SEARCH_DEBOUNCE_MS,
 } from "@/utils/constants";
-import type { SemanticConfig, QARequest, SemanticSearchRequest } from "@/l2-coordinator/api-docs/semantic";
+import type { QARequest, SemanticSearchRequest } from "@/l2-coordinator/api-docs/semantic";
 import {
   deriveCompactSemanticStatus,
   deriveSemanticModuleView,
   deriveSemanticQaView,
 } from "./semanticViewModel";
+import {
+  buildConnectionTestPayload,
+  createSemanticSetupDraft,
+  deriveIndexActionIntent,
+  deriveSemanticIndexCenterView,
+  deriveSemanticSetupView,
+  type SemanticIndexCommand,
+  type SemanticSetupDraft,
+} from "./semanticSetupViewModel";
+import {
+  runSemanticIndexActionWithRefetch,
+  saveSemanticConfigWithRefetch,
+} from "./semanticSetupActions";
 import { buildSemanticPreviewView } from "./semanticPreviewViewModel";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
+import {
+  buildSemanticQARequestEnvelope,
+  type SemanticQADraft,
+} from "./semanticQaRequestModel";
+import { getSemanticQACopyText } from "./semanticQaActions";
+import {
+  buildSemanticAnalysisRequest,
+  buildSemanticPreviewRequest,
+  buildSemanticSearchRequest,
+  type SemanticSearchControlOverrides,
+  type SemanticDiscoveryScope,
+} from "./semanticDiscoveryRequestModel";
+import { buildSemanticDiscoveryView } from "./semanticDiscoveryViewModel";
+import {
+  resolveSemanticSearchNavigation,
+} from "./semanticDiscoveryNavigation";
 
-type IndexAction = "rebuild" | "pause" | "resume" | "clear";
+type LegacyIndexAction = "rebuild" | "pause" | "resume" | "clear";
+type IndexAction = SemanticIndexCommand | LegacyIndexAction;
 
 function semanticDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
@@ -47,9 +78,10 @@ function semanticDiagnostics(method: "GET" | "POST" = "GET") {
 export function useAiCommander() {
   const store = useAiStore();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { selectedConversationId } = useChatCommander();
+  const { selectedConversationId, selectAndLoad } = useChatCommander();
   const conversations = useChatStore((s) => s.conversations);
   const sseAbortRef = useRef<AbortController | null>(null);
+  const activeQARef = useRef<{ streamId: string; aiMsgId: string } | null>(null);
   const indexPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentConv = conversations.find(c => c.id === selectedConversationId);
   const currentChat = currentConv?.username;
@@ -64,14 +96,14 @@ export function useAiCommander() {
         store.setIndexStatus(status);
 
         if (status.status === "ready") {
-          clearInterval(indexPollRef.current!);
+          clearIndexPolling(indexPollRef);
           store.setPhase("index_ready");
         } else if (status.status === "error") {
-          clearInterval(indexPollRef.current!);
+          clearIndexPolling(indexPollRef);
           store.setPhase("index_error");
           store.setError(status.error || "索引构建失败");
         } else if (Date.now() - startTime > INDEX_BUILD_TIMEOUT_MS) {
-          clearInterval(indexPollRef.current!);
+          clearIndexPolling(indexPollRef);
           store.setError("索引构建超时，请检查系统资源后重试");
         }
       } catch {
@@ -110,19 +142,30 @@ export function useAiCommander() {
     }
   }, [store, startIndexPolling]);
 
-  const saveConfig = useCallback(async (config: SemanticConfig) => {
+  const saveConfig = useCallback(async (draft: SemanticSetupDraft) => {
     try {
-      await setSemanticConfig(config, semanticDiagnostics("POST"));
-      store.setConfig(config);
+      const result = await saveSemanticConfigWithRefetch(draft, {
+        saveConfig: (payload) => setSemanticConfig(payload, semanticDiagnostics("POST")),
+        fetchConfig: () => fetchSemanticConfig(semanticDiagnostics()),
+      });
+      store.setConfig(result.config);
       store.setPhase("index_not_built");
     } catch (error) {
       store.setError(translateError(String(error)));
+      throw error;
     }
   }, [store]);
 
-  const testConnection = useCallback(async (provider: string, cfg: Record<string, string>) => {
+  const testConnection = useCallback(async (
+    draftOrProvider: SemanticSetupDraft | string,
+    cfg: Record<string, string> = {},
+  ) => {
     try {
-      return await testLLMConnection(provider, cfg, semanticDiagnostics("POST"));
+      if (typeof draftOrProvider === "string") {
+        return await testLLMConnection(draftOrProvider, cfg, semanticDiagnostics("POST"));
+      }
+      const payload = buildConnectionTestPayload(draftOrProvider);
+      return await testLLMConnection(payload.provider, payload.config, semanticDiagnostics("POST"));
     } catch (error) {
       return { ok: false, success: false, message: String(error) };
     }
@@ -130,150 +173,250 @@ export function useAiCommander() {
 
   const doIndexAction = useCallback(async (action: IndexAction) => {
     try {
-      await manageIndex(action, semanticDiagnostics("POST"));
-      if (action === "rebuild") {
+      const intent = deriveIndexActionIntent(normalizeIndexCommand(action), store.indexStatus);
+      const result = await runSemanticIndexActionWithRefetch(intent, {
+        manageIndex: (sidecarAction) => manageIndex(sidecarAction, semanticDiagnostics("POST")),
+        fetchIndexStatus: () => fetchIndexStatus(semanticDiagnostics()),
+      });
+      store.setIndexStatus(result.status);
+      if (result.polling === "start") {
         store.setPhase("index_building");
         startIndexPolling();
-      } else if (action === "clear") {
-        store.setPhase("index_not_built");
-        store.setIndexStatus({ status: "idle", total: 0, completed: 0 });
+      } else {
+        clearIndexPolling(indexPollRef);
+        applyIndexStatusPhase(result.status, store);
       }
     } catch (error) {
       store.setError(translateError(String(error)));
+      throw error;
     }
   }, [store, startIndexPolling]);
 
   useEffect(() => {
     return () => {
-      if (indexPollRef.current) clearInterval(indexPollRef.current);
+      clearIndexPolling(indexPollRef);
       if (sseAbortRef.current) {
         sseAbortRef.current.abort();
-        const aiStore = useAiStore.getState();
-        if (aiStore.qaStreaming) {
-          aiStore.setQAStatus("stopped");
+        const activeQA = activeQARef.current;
+        if (activeQA) {
+          useAiStore.getState().stopQAStream(activeQA.streamId, activeQA.aiMsgId);
+          activeQARef.current = null;
         }
       }
     };
   }, []);
 
   const stopQAStream = useCallback(() => {
+    const activeQA = activeQARef.current;
+    if (activeQA) {
+      useAiStore.getState().stopQAStream(activeQA.streamId, activeQA.aiMsgId);
+      activeQARef.current = null;
+    }
     sseAbortRef.current?.abort();
     sseAbortRef.current = null;
-    const aiStore = useAiStore.getState();
-    if (aiStore.qaStreaming) {
-      aiStore.setQAStatus("stopped");
-      aiStore.setQAStreaming(false);
-      useAiStore.setState({
-        qaMessages: aiStore.qaMessages.map((message) =>
-          message.isStreaming ? { ...message, isStreaming: false } : message
-        ),
-      });
-    }
   }, []);
 
-  const askQuestion = useCallback((query: string, scope?: "contact" | "all") => {
-    if (!query.trim()) return;
+  const askQuestion = useCallback((
+    draftOrQuery: string | SemanticQADraft,
+    scope?: "contact" | "selected" | "all",
+  ) => {
+    const draft: SemanticQADraft = typeof draftOrQuery === "string"
+      ? { query: draftOrQuery, scope }
+      : draftOrQuery;
+    const createdAt = Date.now();
+    const envelope = buildSemanticQARequestEnvelope(draft, {
+      currentChat,
+      messages: useAiStore.getState().qaMessages,
+      now: createdAt,
+    });
+    if (!envelope.request.query.trim()) return;
 
+    const previousQA = activeQARef.current;
+    if (previousQA) {
+      useAiStore.getState().stopQAStream(previousQA.streamId, previousQA.aiMsgId);
+      activeQARef.current = null;
+    }
     sseAbortRef.current?.abort();
     const abortController = new AbortController();
     sseAbortRef.current = abortController;
+    const streamId = createQAStreamId();
 
-    const userMsgId = `user-${Date.now()}`;
+    const query = envelope.request.query;
+    const userMsgId = `user-${createdAt}`;
     store.addQAMessage({
       id: userMsgId,
       role: "user",
       content: query,
-      timestamp: Date.now(),
+      timestamp: createdAt,
     });
 
-    const aiMsgId = `ai-${Date.now()}`;
+    const aiMsgId = `ai-${createdAt}`;
     store.addQAMessage({
       id: aiMsgId,
       role: "assistant",
       content: "",
-      timestamp: Date.now(),
+      timestamp: createdAt,
       isStreaming: true,
+      completionStatus: "streaming",
+      requestSnapshot: envelope.snapshot,
     });
+    activeQARef.current = { streamId, aiMsgId };
 
     store.setQAError(null);
     store.setQAStatus("connecting");
+    store.setActiveQAStream(streamId);
 
-    const params: QARequest = {
-      query,
-      chat: scope === "all" ? undefined : (currentChat || undefined),
-      scope: scope || undefined,
-    };
+    const params: QARequest = envelope.request;
 
     const tokenBuffer = createTokenBuffer(50);
 
     streamQA(
       params,
       (event) => {
+        if (!useAiStore.getState().isActiveQAStream(streamId)) return;
         if (event.type === "delta") {
           if (useAiStore.getState().qaStatus === "connecting") {
             store.setQAStatus("streaming");
           }
           tokenBuffer.feed(event.text, (text) => {
-            store.appendQAToken(aiMsgId, text);
+            useAiStore.getState().appendQATokenForStream(streamId, aiMsgId, text);
           });
         } else if (event.type === "done") {
           tokenBuffer.flush((text) => {
-            if (text) store.appendQAToken(aiMsgId, text);
+            if (text) useAiStore.getState().appendQATokenForStream(streamId, aiMsgId, text);
           });
-          const msgs = useAiStore.getState().qaMessages;
+          const aiStore = useAiStore.getState();
+          if (!aiStore.isActiveQAStream(streamId)) return;
+          const msgs = aiStore.qaMessages;
           const currentAnswer = msgs.find((m) => m.id === aiMsgId)?.content ?? "";
           const answer = currentAnswer || event.payload.answer;
-          const finalMsgs = msgs.map((m) =>
-            m.id === aiMsgId ? { ...m, content: answer, isStreaming: false } : m
-          );
-          useAiStore.setState({ qaMessages: finalMsgs });
-          store.setQAStatus(answer.trim() ? "completed" : "empty");
+          aiStore.completeQAMessageForStream(streamId, aiMsgId, {
+            content: answer,
+            evidence: event.payload.evidence,
+            reason: event.payload.reason,
+            sourceCount: sourceCountFromDonePayload(event.payload),
+            metadata: event.payload.metadata,
+          });
+          activeQARef.current = null;
+          if (sseAbortRef.current === abortController) sseAbortRef.current = null;
         } else if (event.type === "error") {
           tokenBuffer.flush((text) => {
-            if (text) store.appendQAToken(aiMsgId, text);
+            if (text) useAiStore.getState().appendQATokenForStream(streamId, aiMsgId, text);
           });
+          if (!useAiStore.getState().isActiveQAStream(streamId)) return;
           const message = translateError(event.error || "ESEMANTIC_SSE_ERROR");
-          store.setQAStatus("failed");
-          store.setQAError(message);
-          store.setError(message);
+          useAiStore.getState().failQAStream(streamId, aiMsgId, message);
+          activeQARef.current = null;
+          if (sseAbortRef.current === abortController) sseAbortRef.current = null;
         }
       },
       (error) => {
-        store.setQAStatus("failed");
-        if (error.name !== "AbortError") {
-          const message = translateError(error.message || "ESEMANTIC_SSE_ERROR");
-          store.setQAError(message);
-          store.setError(message);
-        }
+        if (!useAiStore.getState().isActiveQAStream(streamId)) return;
+        if (error.name === "AbortError") return;
+        const message = translateError(error.message || "ESEMANTIC_SSE_ERROR");
+        useAiStore.getState().failQAStream(streamId, aiMsgId, message);
+        activeQARef.current = null;
+        if (sseAbortRef.current === abortController) sseAbortRef.current = null;
       },
       abortController.signal,
       semanticDiagnostics("POST"),
     );
   }, [currentChat, store]);
 
-  const semanticSearch = useCallback(async (query: string, scope?: "contact" | "all") => {
-    store.setSearchQuery(query);
+  const retryQAMessage = useCallback((messageId: string) => {
+    const message = useAiStore.getState().qaMessages.find((item) => item.id === messageId);
+    const snapshot = message?.requestSnapshot;
+    if (!snapshot) return;
+    askQuestion({
+      query: snapshot.query,
+      scope: snapshot.scope,
+      chat: snapshot.chat,
+      chats: snapshot.chats,
+      window: snapshot.window,
+      entityOverride: snapshot.entityOverride,
+      retrievalDepth: snapshot.retrievalDepth,
+      sourceLimit: snapshot.sourceLimit,
+      topN: snapshot.topN,
+      includeHistory: snapshot.includeHistory,
+    });
+  }, [askQuestion]);
+
+  const copyQAMessageAnswer = useCallback(async (messageId: string): Promise<boolean> => {
+    const message = useAiStore.getState().qaMessages.find((item) => item.id === messageId);
+    const text = getSemanticQACopyText(message, privacyOn);
+    if (!text) return false;
+    try {
+      return await copyTextToClipboard(text);
+    } catch {
+      return false;
+    }
+  }, [privacyOn]);
+
+  const openSemanticSearchResult = useCallback((result: {
+    chat: string;
+    chatLabel?: string;
+    localId?: number;
+  }) => {
+    const target = resolveSemanticSearchNavigation({
+      result,
+      conversations,
+      privacyOn,
+    });
+    if (target.status !== "ready") return target;
+    void selectAndLoad(target.conversationId, target.chat);
+    return target;
+  }, [conversations, privacyOn, selectAndLoad]);
+
+  const recentDiscoveryChats = useMemo(() => conversations
+    .filter((conversation) => conversation.username)
+    .slice(0, 8)
+    .map((conversation) => ({
+      chat: conversation.username,
+      label: privacyOn
+        ? "已隐藏会话"
+        : conversation.displayName || conversation.username,
+    })), [conversations, privacyOn]);
+  const discoverySearchContextRef = useRef({ currentChat, recentDiscoveryChats });
+
+  useEffect(() => {
+    discoverySearchContextRef.current = { currentChat, recentDiscoveryChats };
+  }, [currentChat, recentDiscoveryChats]);
+
+  const semanticSearch = useCallback(async (
+    query: string,
+    scope?: SemanticDiscoveryScope,
+    overrides: SemanticSearchControlOverrides = {},
+  ) => {
+    const aiStore = useAiStore.getState();
+    const context = discoverySearchContextRef.current;
+    const searchScope = scope ?? aiStore.discoverySearchScope;
+    aiStore.setSearchQuery(query);
     if (!query.trim()) {
-      store.setSearchResults(null);
-      store.setSearchError(null);
+      aiStore.setSearchResults(null);
+      aiStore.setSearchError(null);
       return;
     }
-    store.setSearchLoading(true);
-    store.setSearchError(null);
+    aiStore.setSearchLoading(true);
+    aiStore.setSearchError(null);
     try {
-      const params: SemanticSearchRequest = {
+      const params: SemanticSearchRequest = buildSemanticSearchRequest({
         query,
-        chat: scope === "all" ? undefined : (currentChat || undefined),
-        scope,
-      };
+        scope: searchScope,
+        currentChat: context.currentChat,
+        selectedChats: context.recentDiscoveryChats,
+        window: overrides.window ?? aiStore.discoveryWindow,
+        depth: overrides.depth ?? aiStore.discoveryDepth,
+        sourceLimit: overrides.sourceLimit ?? aiStore.discoverySourceLimit,
+        rerank: overrides.rerank ?? aiStore.discoveryRerank,
+      });
       const results = await withOverloadRetry(() =>
         fetchSemanticSearch(params, semanticDiagnostics()),
       );
-      store.setSearchResults(results);
+      useAiStore.getState().setSearchResults(results);
     } catch (error) {
-      store.setSearchError(translateError(String(error)));
+      useAiStore.getState().setSearchError(translateError(String(error)));
     }
-  }, [currentChat, store]);
+  }, []);
 
   const debouncedSearchRef = useRef<ReturnType<typeof debounce>>();
   useEffect(() => {
@@ -281,19 +424,23 @@ export function useAiCommander() {
     return () => { debouncedSearchRef.current?.cancel(); };
   }, [semanticSearch]);
 
-  const debouncedSearch = useCallback((query: string, scope?: "contact" | "all") => {
+  const debouncedSearch = useCallback((query: string, scope?: SemanticDiscoveryScope) => {
     debouncedSearchRef.current?.(query, scope);
   }, []);
 
   const loadAnalysis = useCallback(async () => {
-    if (!currentChat) return;
+    const request = buildSemanticAnalysisRequest({
+      currentChat,
+      window: store.discoveryWindow,
+    });
+    if (!request) return;
 
     store.setTopicsLoading(true);
     store.setProfileLoading(true);
 
     try {
       const topics = await withOverloadRetry(() =>
-        fetchSemanticTopics(currentChat, semanticDiagnostics()),
+        fetchSemanticTopics(request, semanticDiagnostics()),
       );
       store.setTopics(topics);
     } catch (error) {
@@ -302,7 +449,7 @@ export function useAiCommander() {
 
     try {
       const profile = await withOverloadRetry(() =>
-        fetchSemanticProfiles(currentChat, semanticDiagnostics()),
+        fetchSemanticProfiles(request, semanticDiagnostics()),
       );
       store.setProfile(profile);
     } catch (error) {
@@ -323,11 +470,12 @@ export function useAiCommander() {
     aiStore.setPreviewLoading();
     try {
       const preview = await fetchSemanticIndexPreview(
-        {
+        buildSemanticPreviewRequest({
           kind: kind === "all" ? undefined : kind,
+          talker: aiStore.previewTalker || undefined,
           limit,
           offset,
-        },
+        }),
         semanticDiagnostics(),
       );
       useAiStore.getState().setPreview(preview);
@@ -346,6 +494,11 @@ export function useAiCommander() {
   const setPreviewLimit = useCallback((limit: number) => {
     useAiStore.getState().setPreviewLimit(limit);
     void loadPreview({ limit, offset: 0 });
+  }, [loadPreview]);
+
+  const setPreviewTalker = useCallback((talker: string) => {
+    useAiStore.getState().setPreviewTalker(talker);
+    void loadPreview({ offset: 0 });
   }, [loadPreview]);
 
   const loadPreviousPreviewPage = useCallback(() => {
@@ -374,8 +527,9 @@ export function useAiCommander() {
     aiStore.setProfile(null);
   }, [currentChat]);
 
-  const latestAssistantAnswer =
-    [...store.qaMessages].reverse().find((message) => message.role === "assistant")?.content ?? "";
+  const latestAssistantMessage =
+    [...store.qaMessages].reverse().find((message) => message.role === "assistant");
+  const latestAssistantAnswer = latestAssistantMessage?.content ?? "";
   const moduleView = deriveSemanticModuleView({
     phase: store.phase,
     config: store.config,
@@ -386,6 +540,7 @@ export function useAiCommander() {
     status: store.qaStatus,
     answer: latestAssistantAnswer,
     error: store.qaError,
+    message: latestAssistantMessage,
   });
   const compactStatus = deriveCompactSemanticStatus({
     phase: store.phase,
@@ -398,6 +553,40 @@ export function useAiCommander() {
     preview: store.preview,
     error: store.previewError,
   }, privacyOn);
+  const semanticDiscoveryView = buildSemanticDiscoveryView({
+    privacyOn,
+    currentChatLabel: currentConv?.displayName || currentConv?.username,
+    window: store.discoveryWindow,
+    moduleReady: moduleView.kind === "ready",
+    search: {
+      query: store.searchQuery,
+      loading: store.searchLoading,
+      error: store.searchError,
+      results: store.searchResults,
+    },
+    topics: {
+      loading: store.topicsLoading,
+      error: store.topicsError,
+      data: store.topics,
+    },
+    profile: {
+      loading: store.profileLoading,
+      error: store.profileError,
+      data: store.profile,
+    },
+  });
+  const setupDraft = createSemanticSetupDraft(store.config);
+  const setupView = deriveSemanticSetupView(setupDraft, store.config, privacyOn, store.indexStatus);
+  const indexCenterView = deriveSemanticIndexCenterView(store.indexStatus);
+  const qaRecentChats = useMemo(() => conversations
+    .filter((conversation) => conversation.username)
+    .slice(0, 8)
+    .map((conversation, index) => ({
+      chat: conversation.username,
+      label: privacyOn
+        ? `已隐藏会话 ${index + 1}`
+        : conversation.displayName || conversation.username,
+    })), [conversations, privacyOn]);
 
   return {
     phase: store.phase,
@@ -407,6 +596,7 @@ export function useAiCommander() {
     qaView,
     compactStatus,
     qaMessages: store.qaMessages,
+    qaRecentChats,
     qaLoading: store.qaLoading,
     qaStreaming: store.qaStreaming,
     qaStatus: store.qaStatus,
@@ -426,14 +616,32 @@ export function useAiCommander() {
     previewKind: store.previewKind,
     previewLimit: store.previewLimit,
     previewOffset: store.previewOffset,
+    previewTalker: store.previewTalker,
+    previewTalkerOptions: recentDiscoveryChats,
     previewError: store.previewError,
+    discoveryWindow: store.discoveryWindow,
+    discoverySearchScope: store.discoverySearchScope,
+    discoveryDepth: store.discoveryDepth,
+    discoverySourceLimit: store.discoverySourceLimit,
+    discoveryRerank: store.discoveryRerank,
     semanticPreviewView,
+    semanticDiscoveryView,
+    setupDraft,
+    setupView,
+    getSetupView: (draft: SemanticSetupDraft) =>
+      deriveSemanticSetupView(draft, store.config, privacyOn, store.indexStatus),
+    indexCenterView,
+    getIndexActionIntent: (command: SemanticIndexCommand) =>
+      deriveIndexActionIntent(command, store.indexStatus),
     error: store.error,
     initialize,
     saveConfig,
     testConnection,
     doIndexAction,
     askQuestion,
+    retryQAMessage,
+    copyQAMessageAnswer,
+    openSemanticSearchResult,
     stopQAStream,
     debouncedSearch,
     semanticSearch,
@@ -441,10 +649,71 @@ export function useAiCommander() {
     loadPreview,
     setPreviewKind,
     setPreviewLimit,
+    setPreviewTalker,
     loadPreviousPreviewPage,
     loadNextPreviewPage,
+    setDiscoveryWindow: store.setDiscoveryWindow,
+    setDiscoverySearchScope: store.setDiscoverySearchScope,
+    setDiscoveryDepth: store.setDiscoveryDepth,
+    setDiscoverySourceLimit: store.setDiscoverySourceLimit,
+    setDiscoveryRerank: store.setDiscoveryRerank,
     clearError: () => store.setError(null),
     clearQAMessages: store.clearQAMessages,
     reset: store.reset,
   };
+}
+
+function normalizeIndexCommand(action: IndexAction): SemanticIndexCommand {
+  switch (action) {
+    case "rebuild":
+      return "build";
+    case "clear":
+      return "clearIndex";
+    case "pause":
+    case "resume":
+    case "build":
+    case "rebuildFromScratch":
+    case "clearIndex":
+      return action;
+    default:
+      return "build";
+  }
+}
+
+function applyIndexStatusPhase(
+  status: { status: string; state?: string; error?: string; lastError?: string },
+  store: ReturnType<typeof useAiStore.getState>,
+): void {
+  const state = status.state ?? status.status;
+  if (state === "ready") {
+    store.setPhase("index_ready");
+    return;
+  }
+  if (state === "error") {
+    store.setPhase("index_error");
+    store.setError(status.lastError || status.error || "语义索引不可用");
+    return;
+  }
+  store.setPhase("index_not_built");
+}
+
+function clearIndexPolling(ref: MutableRefObject<ReturnType<typeof setInterval> | null>): void {
+  if (!ref.current) return;
+  clearInterval(ref.current);
+  ref.current = null;
+}
+
+function createQAStreamId(): string {
+  return `qa-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function sourceCountFromDonePayload(payload: { evidence: Array<Record<string, unknown>>; metadata: Record<string, unknown> }): number {
+  const metadataSourceCount = numberMetadata(payload.metadata, "sourceCount")
+    ?? numberMetadata(payload.metadata, "source_count");
+  return metadataSourceCount ?? payload.evidence.length;
+}
+
+function numberMetadata(metadata: Record<string, unknown>, key: string): number | null {
+  const value = metadata[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }

@@ -1,36 +1,18 @@
 import { Button, Surface, Typography, SkeletonLoader } from "@l4/ui";
-import {
-  getSemanticDisplayText,
-  getSemanticProfileRows,
-  getSemanticTypeDistributionRows,
-} from "./semanticDisplay";
-
-interface ContactProfileDataView {
-  profiles?: Array<{
-    sender: string;
-    senderName: string;
-    messages: number;
-    topKeywords: Array<{ topic: string; count: number }>;
-  }>;
-  typeDistribution?: Array<{ type: string; count: number }>;
-  summary?: string;
-}
+import type { SemanticDiscoveryView } from "@/l2-coordinator/commander/semanticDiscoveryViewModel";
+import { SemanticProfileRows } from "./SemanticProfileRows";
 
 interface ContactProfileProps {
-  profile: ContactProfileDataView | null;
-  loading: boolean;
-  error?: string | null;
-  privacyOn: boolean;
+  view: SemanticDiscoveryView["profile"];
   onRetry?: () => void;
+  onAskSender?: (sender: string) => void;
 }
 
-export function ContactProfile({ profile, loading, error, privacyOn, onRetry }: ContactProfileProps) {
-  if (loading && !profile) {
+export function ContactProfile({ view, onRetry, onAskSender }: ContactProfileProps) {
+  if (view.status === "loading") {
     return (
       <Surface variant="subtle" className="semantic-section">
-        <Typography variant="label" weight={700}>
-          联系人画像
-        </Typography>
+        <SectionHeader view={view} />
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="semantic-skeleton-column">
             <SkeletonLoader variant="rect" width="30%" height={12} />
@@ -41,14 +23,12 @@ export function ContactProfile({ profile, loading, error, privacyOn, onRetry }: 
     );
   }
 
-  if (error) {
+  if (view.status === "error") {
     return (
       <Surface variant="subtle" className="semantic-section">
-        <Typography variant="label" weight={700}>
-          联系人画像
-        </Typography>
+        <SectionHeader view={view} />
         <Typography variant="body" color="var(--danger)" className="semantic-error-copy">
-          {error}
+          {view.summaryError || "加载联系人画像失败"}
         </Typography>
         {onRetry && (
           <Button type="button" variant="secondary" size="sm" onClick={onRetry}>
@@ -59,15 +39,10 @@ export function ContactProfile({ profile, loading, error, privacyOn, onRetry }: 
     );
   }
 
-  const rows = getSemanticProfileRows(profile?.profiles, privacyOn);
-  const typeRows = getSemanticTypeDistributionRows(profile?.typeDistribution);
-
-  if (!profile || rows.length === 0) {
+  if (view.status === "idle" || view.status === "empty") {
     return (
       <Surface variant="subtle" className="semantic-section">
-        <Typography variant="label" weight={700}>
-          联系人画像
-        </Typography>
+        <SectionHeader view={view} />
         <Typography variant="body" color="var(--text-secondary)">
           暂无联系人画像数据，请先完成语义索引或选择有足够消息的会话。
         </Typography>
@@ -77,47 +52,32 @@ export function ContactProfile({ profile, loading, error, privacyOn, onRetry }: 
 
   return (
     <Surface variant="subtle" className="semantic-section">
-      <Typography variant="label" weight={700}>
-        联系人画像
-      </Typography>
-      {profile.summary && (
-        <div className="semantic-profile-row">
+      <SectionHeader view={view} />
+      {view.summary && (
+        <div className="semantic-summary-block">
           <Typography variant="caption" color="var(--text-secondary)">
             总结
           </Typography>
           <Typography variant="caption" color="var(--text-secondary)">
-            {getSemanticDisplayText(profile.summary, privacyOn)}
+            {view.summary}
           </Typography>
         </div>
       )}
-      {rows.map((row) => (
-        <div key={`${row.sender}-${row.messages}`} className="semantic-profile-row">
-          <Typography variant="caption" color="var(--text-secondary)">
-            {row.sender}
-          </Typography>
-          <Typography variant="body">
-            {row.messages}
-          </Typography>
-          {row.keywords.length > 0 && (
-            <div className="semantic-chip-list">
-              {row.keywords.map((keyword) => (
-                <span key={keyword} className="semantic-chip">
-                  {keyword}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-      {typeRows.length > 0 && (
+      {view.summaryError && (
+        <Typography variant="caption" color="var(--warning)">
+          {view.summaryError}
+        </Typography>
+      )}
+      <SemanticProfileRows rows={view.rows} onAskSender={onAskSender} />
+      {view.typeRows.length > 0 && (
         <div className="semantic-profile-row">
           <Typography variant="caption" color="var(--text-secondary)">
             类型分布
           </Typography>
           <div className="semantic-chip-list">
-            {typeRows.map((row) => (
-              <span key={row} className="semantic-chip">
-                {row}
+            {view.typeRows.map((row) => (
+              <span key={row.type} className="semantic-chip">
+                {row.type}: {row.countLabel}
               </span>
             ))}
           </div>
@@ -125,4 +85,23 @@ export function ContactProfile({ profile, loading, error, privacyOn, onRetry }: 
       )}
     </Surface>
   );
+}
+
+function SectionHeader({ view }: { view: SemanticDiscoveryView["profile"] }) {
+  return (
+    <div className="semantic-section__header">
+      <Typography variant="label" weight={700}>
+        联系人画像
+      </Typography>
+      {(view.windowLabel || view.countLabel) && (
+        <Typography variant="caption" color="var(--text-secondary)">
+          {semanticMetaLine(view.windowLabel, view.countLabel)}
+        </Typography>
+      )}
+    </div>
+  );
+}
+
+function semanticMetaLine(...values: Array<string | undefined>): string {
+  return values.filter((value): value is string => Boolean(value)).join(" · ");
 }

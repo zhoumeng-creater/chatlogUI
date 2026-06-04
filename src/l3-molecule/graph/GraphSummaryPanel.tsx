@@ -13,11 +13,15 @@ interface GraphSummaryPanelProps {
   loadStatus: GraphLoadStatusView;
   loading: boolean;
   actionStatus: GraphActionResultView | null;
+  resetRebuildCopy: string;
+  confirmationCopy: string | null;
   onRefresh: () => void;
   onRebuild: () => void;
+  onResetRebuild: () => void;
   onPause: () => void;
   onResume: () => void;
   onCancel: () => void;
+  onCancelConfirmation: () => void;
 }
 
 export function GraphSummaryPanel({
@@ -26,11 +30,15 @@ export function GraphSummaryPanel({
   loadStatus,
   loading,
   actionStatus,
+  resetRebuildCopy,
+  confirmationCopy,
   onRefresh,
   onRebuild,
+  onResetRebuild,
   onPause,
   onResume,
   onCancel,
+  onCancelConfirmation,
 }: GraphSummaryPanelProps) {
   const status = statusSummary?.state ?? loadStatus;
   const counts = statusSummary?.counts;
@@ -55,14 +63,12 @@ export function GraphSummaryPanel({
         <Metric label="实体" value={counts?.entities ?? summary?.nodeCount ?? 0} />
         <Metric label="关系" value={counts?.relations ?? summary?.edgeCount ?? 0} />
         <Metric label="事件" value={counts?.events ?? summary?.timelineCount ?? 0} />
+        <Metric label="事实" value={counts?.facts ?? 0} />
+        <Metric label="来源" value={counts?.sources ?? 0} />
         <Metric label="待处理" value={statusSummary?.pending ?? 0} />
+        <Metric label="处理中" value={statusSummary?.processing ?? 0} />
+        <Metric label="失败" value={statusSummary?.failed ?? 0} />
       </div>
-
-      {statusSummary && statusSummary.progressPct > 0 && statusSummary.progressPct < 100 && (
-        <div className="graph-summary-panel__progress" aria-label={`图谱处理进度 ${statusSummary.progressPct}%`}>
-          <span style={{ width: `${statusSummary.progressPct}%` }} />
-        </div>
-      )}
 
       <div className="graph-summary-panel__actions">
         <Button variant="secondary" size="sm" onClick={onRefresh} loading={loading}>
@@ -72,6 +78,14 @@ export function GraphSummaryPanel({
         <Button variant="ghost" size="sm" onClick={onRebuild}>
           <RotateCcw size={14} />
           重建
+        </Button>
+        <Button
+          variant={resetRebuildCopy.startsWith("确认") ? "danger" : "ghost"}
+          size="sm"
+          onClick={onResetRebuild}
+        >
+          <RotateCcw size={14} />
+          {resetRebuildCopy}
         </Button>
         {statusSummary?.paused ? (
           <Button variant="ghost" size="sm" onClick={onResume}>
@@ -90,6 +104,32 @@ export function GraphSummaryPanel({
           </Button>
         )}
       </div>
+
+      {statusSummary && statusSummary.progressPct > 0 && statusSummary.progressPct < 100 && (
+        <div className="graph-summary-panel__progress" aria-label={`图谱处理进度 ${statusSummary.progressPct}%`}>
+          <progress value={statusSummary.progressPct} max={100} />
+        </div>
+      )}
+
+      {statusSummary && (
+        <div className="graph-summary-panel__context">
+          {statusSummary.queueLabel && <span>{statusSummary.queueLabel}</span>}
+          {statusSummary.workerLabel && <span>{statusSummary.workerLabel}</span>}
+          {statusSummary.etaLabel && <span>{statusSummary.etaLabel}</span>}
+          {statusSummary.rateLabel && <span>{statusSummary.rateLabel}</span>}
+        </div>
+      )}
+
+      {confirmationCopy && (
+        <div className="graph-summary-panel__confirmation">
+          <Typography variant="caption" color="var(--danger)">
+            {confirmationCopy}
+          </Typography>
+          <Button variant="ghost" size="sm" onClick={onCancelConfirmation}>
+            取消
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

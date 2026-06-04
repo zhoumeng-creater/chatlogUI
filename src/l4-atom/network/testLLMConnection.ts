@@ -15,7 +15,7 @@ export interface ConnectionTestResultView {
 
 export async function testLLMConnection(
   provider: string,
-  config: Record<string, string>,
+  config: object,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<ConnectionTestResultView> {
   const startTime = Date.now();

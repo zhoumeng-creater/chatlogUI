@@ -1,120 +1,212 @@
-import { useState } from 'react';
-import { Typography } from '@l4/ui/Typography';
-import { Input } from '@l4/ui/Input';
-import { Spinner } from '@l4/ui/Spinner';
-import { Button } from '@l4/ui/Button';
-import { classNames } from '@/utils/classNames';
-import { getSemanticDisplayText } from './semanticDisplay';
-
-interface SemanticSearchResultItemView {
-  chat: string;
-  chatName?: string;
-  sender: string;
-  senderId?: string;
-  time: string;
-  content: string;
-  relevanceScore: number;
-  localId: number;
-}
-
-interface SemanticSearchResultsView {
-  count?: number;
-  totalCount?: number;
-  results: SemanticSearchResultItemView[];
-}
+import { useEffect, useState } from "react";
+import { Button, Input, Select, Spinner, Typography } from "@l4/ui";
+import { classNames } from "@/utils/classNames";
+import type {
+  SemanticDiscoveryScope,
+  SemanticSearchControlOverrides,
+} from "@/l2-coordinator/commander/semanticDiscoveryRequestModel";
+import type {
+  SemanticDiscoverySearchRowView,
+  SemanticDiscoveryView,
+} from "@/l2-coordinator/commander/semanticDiscoveryViewModel";
 
 interface SemanticSearchProps {
-  searchResults: SemanticSearchResultsView | null;
-  searchLoading: boolean;
-  searchError?: string | null;
-  privacyOn: boolean;
-  onSearch: (query: string, scope?: "contact" | "all") => void;
-  onSelectResult: (chat: string, label: string) => void;
+  view: SemanticDiscoveryView["search"];
+  query: string;
+  scope: SemanticDiscoveryScope;
+  window: string;
+  depth: string;
+  sourceLimit: number;
+  rerank: boolean;
+  onSearch: (
+    query: string,
+    scope?: SemanticDiscoveryScope,
+    overrides?: SemanticSearchControlOverrides,
+  ) => void;
+  onScopeChange: (scope: SemanticDiscoveryScope) => void;
+  onWindowChange: (window: string) => void;
+  onDepthChange: (depth: string) => void;
+  onSourceLimitChange: (limit: number) => void;
+  onRerankChange: (enabled: boolean) => void;
+  onSelectResult: (result: SemanticDiscoverySearchRowView) => void;
   onRetry?: () => void;
 }
 
+const WINDOW_OPTIONS = [
+  { value: "today", label: "今天" },
+  { value: "yesterday", label: "昨天" },
+  { value: "7d", label: "7 天" },
+  { value: "30d", label: "30 天" },
+  { value: "90d", label: "90 天" },
+  { value: "1y", label: "1 年" },
+  { value: "all", label: "全部" },
+];
+
+const DEPTH_OPTIONS = [
+  { value: "standard", label: "标准" },
+  { value: "deep", label: "深入" },
+  { value: "wide", label: "广泛" },
+];
+
 export function SemanticSearch({
-  searchResults,
-  searchLoading,
-  searchError,
-  privacyOn,
+  view,
+  query,
+  scope,
+  window,
+  depth,
+  sourceLimit,
+  rerank,
   onSearch,
+  onScopeChange,
+  onWindowChange,
+  onDepthChange,
+  onSourceLimitChange,
+  onRerankChange,
   onSelectResult,
   onRetry,
 }: SemanticSearchProps) {
-  const [query, setQuery] = useState('');
-  const [scope, setScope] = useState<'contact' | 'all'>('contact');
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value;
-    setQuery(v);
-    onSearch(v, scope);
-  };
-
+  const [draftQuery, setDraftQuery] = useState(query);
   const exampleQueries = [
-    '上个月和老板讨论了什么',
-    '关于预算的会议记录',
-    '谁提到了项目上线时间',
+    "上个月和老板讨论了什么",
+    "关于预算的会议记录",
+    "谁提到了项目上线时间",
   ];
+
+  useEffect(() => {
+    setDraftQuery(query);
+  }, [query]);
 
   return (
     <div className="semantic-search">
       <div className="semantic-search__header">
         <Input
+          aria-label="语义搜索"
           placeholder="用自然语言搜索聊天记录..."
-          value={query}
-          onChange={handleChange}
+          value={draftQuery}
+          onChange={(event) => {
+            const nextQuery = event.target.value;
+            setDraftQuery(nextQuery);
+            onSearch(nextQuery, scope);
+          }}
         />
-        <div className="semantic-search__scope">
-          <label className="semantic-search__option">
-            <input
-              type="radio"
-              checked={scope === 'contact'}
-              onChange={() => setScope('contact')}
-              className="semantic-search__radio"
-            />
-            当前联系人
+        <div className="semantic-search__controls">
+          <label className="semantic-search__field">
+            <span>范围</span>
+            <Select
+              controlSize="sm"
+              value={scope}
+              onChange={(event) => {
+                const nextScope = event.currentTarget.value as SemanticDiscoveryScope;
+                onScopeChange(nextScope);
+                if (draftQuery.trim()) onSearch(draftQuery, nextScope);
+              }}
+            >
+              <option value="contact">当前会话</option>
+              <option value="selected">最近会话</option>
+              <option value="all">全部会话</option>
+            </Select>
           </label>
-          <label className="semantic-search__option">
+          <label className="semantic-search__field">
+            <span>窗口</span>
+            <Select
+              controlSize="sm"
+              value={window}
+              onChange={(event) => {
+                const nextWindow = event.currentTarget.value;
+                onWindowChange(nextWindow);
+                if (draftQuery.trim()) onSearch(draftQuery, scope, { window: nextWindow });
+              }}
+            >
+              {WINDOW_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="semantic-search__field">
+            <span>深度</span>
+            <Select
+              controlSize="sm"
+              value={depth}
+              onChange={(event) => {
+                const nextDepth = event.currentTarget.value;
+                onDepthChange(nextDepth);
+                if (draftQuery.trim()) onSearch(draftQuery, scope, { depth: nextDepth });
+              }}
+            >
+              {DEPTH_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="semantic-search__field">
+            <span>候选</span>
+            <Select
+              controlSize="sm"
+              value={String(sourceLimit)}
+              onChange={(event) => {
+                const nextSourceLimit = Number(event.currentTarget.value);
+                onSourceLimitChange(nextSourceLimit);
+                if (draftQuery.trim()) onSearch(draftQuery, scope, { sourceLimit: nextSourceLimit });
+              }}
+            >
+              {[10, 25, 50, 100].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="semantic-search__toggle">
             <input
-              type="radio"
-              checked={scope === 'all'}
-              onChange={() => setScope('all')}
-              className="semantic-search__radio"
+              type="checkbox"
+              checked={rerank}
+              onChange={(event) => {
+                const nextRerank = event.currentTarget.checked;
+                onRerankChange(nextRerank);
+                if (draftQuery.trim()) onSearch(draftQuery, scope, { rerank: nextRerank });
+              }}
             />
-            全部联系人
+            重排
           </label>
         </div>
       </div>
 
       <div className="semantic-search__body">
-        {searchLoading && (
+        {view.status === "loading" && (
           <div className="semantic-search__loading">
             <Spinner size={20} />
           </div>
         )}
 
-        {!query && !searchResults && (
+        {!draftQuery && view.status === "idle" && (
           <div className="semantic-search__examples">
             <Typography variant="caption" color="var(--color-text-tertiary)" className="semantic-search__caption">
-              示例查询:
+              示例查询
             </Typography>
-            {exampleQueries.map((eq, i) => (
-              <div
-                key={i}
-                onClick={() => { setQuery(eq); onSearch(eq, scope); }}
+            {exampleQueries.map((example) => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => {
+                  setDraftQuery(example);
+                  onSearch(example, scope);
+                }}
                 className="semantic-search__example"
               >
-                {eq}
-              </div>
+                {example}
+              </button>
             ))}
           </div>
         )}
 
-        {searchError && (
+        {view.status === "error" && (
           <div className="semantic-search__error" role="alert">
             <Typography variant="body" color="var(--danger)" className="semantic-search__caption">
-              {searchError}
+              {view.error}
             </Typography>
             {onRetry && (
               <Button variant="secondary" size="sm" onClick={onRetry}>
@@ -124,61 +216,49 @@ export function SemanticSearch({
           </div>
         )}
 
-        {query && !searchLoading && !searchError && searchResults && searchResults.results.length === 0 && (
+        {draftQuery && view.status === "empty" && (
           <div className="semantic-search__empty">
             <Typography variant="body" color="var(--text-secondary)">
-              没有找到语义匹配结果。
+              没有找到语义匹配结果。可以放宽时间窗口、切换范围或减少重排限制。
             </Typography>
           </div>
         )}
 
-        {searchResults && (
-          <div>
+        {view.rows.length > 0 && (
+          <div className="semantic-search__results">
             <Typography variant="caption" color="var(--color-text-secondary)" className="semantic-search__caption">
-              找到 {searchResults.count ?? searchResults.totalCount ?? searchResults.results.length} 条结果
+              {view.summary}
             </Typography>
-            {searchResults.results.map((r, i) => (
-              (() => {
-                const sender = getSemanticDisplayText(r.sender, privacyOn, "未知发送者");
-                const chatLabel = getSemanticDisplayText(r.chatName || r.chat, privacyOn, "未知会话");
-                const content = getSemanticDisplayText(r.content, privacyOn);
-                const score = r.relevanceScore <= 1 ? r.relevanceScore * 100 : r.relevanceScore;
-                return (
-              <div
-                key={i}
-                onClick={() => {
-                  if (r.chat) onSelectResult(r.chat, r.chatName || r.chat);
-                }}
-                className={classNames(
-                  "semantic-search__row",
-                  r.chat && "semantic-search__row--clickable",
-                )}
+            {view.rows.map((row) => (
+              <button
+                key={`${row.chat}-${row.localId}`}
+                type="button"
+                onClick={() => onSelectResult(row)}
+                className={classNames("semantic-search__row", "semantic-search__row--clickable")}
               >
-                <div className="semantic-search__row-head">
+                <span className="semantic-search__row-head">
                   <Typography variant="caption" weight={600}>
-                    {chatLabel} · {sender}
+                    {row.chatLabel} · {row.senderLabel}
                   </Typography>
                   <Typography variant="caption" color="var(--color-text-quaternary)">
-                    {r.time}
+                    {row.time}
                   </Typography>
-                </div>
+                </span>
                 <Typography variant="caption" color="var(--color-text-secondary)" className="semantic-search__snippet">
-                  {content.length > 100 ? content.slice(0, 100) + '...' : content}
+                  {row.contentPreview.length > 100 ? `${row.contentPreview.slice(0, 100)}...` : row.contentPreview}
                 </Typography>
-                <div className="semantic-search__score">
+                <span className="semantic-search__score">
                   <progress
                     className="semantic-search__score-meter"
-                    value={Math.max(0, Math.min(100, score))}
+                    value={Number(row.scoreLabel.replace("%", ""))}
                     max={100}
-                    aria-label={`相关度 ${Math.round(score)}%`}
+                    aria-label={`相关度 ${row.scoreLabel}`}
                   />
                   <Typography variant="caption" color="var(--color-text-quaternary)">
-                    {Math.round(score)}%
+                    {row.scoreLabel}
                   </Typography>
-                </div>
-              </div>
-                );
-              })()
+                </span>
+              </button>
             ))}
           </div>
         )}

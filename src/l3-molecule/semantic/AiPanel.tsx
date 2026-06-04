@@ -4,13 +4,15 @@ import { classNames } from '@/utils/classNames';
 import { Typography } from '@l4/ui/Typography';
 import { Button } from '@l4/ui/Button';
 import { IconButton } from '@l4/ui/IconButton';
-import { ProgressBar } from '@l4/ui/ProgressBar';
 import { Spinner } from '@l4/ui/Spinner';
 import { QAPanel } from './QAPanel';
 import { SemanticSearch } from './SemanticSearch';
 import { TopicView } from './TopicView';
 import { ContactProfile } from './ContactProfile';
 import { SemanticIndexPreview } from './SemanticIndexPreview';
+import { SemanticDiscoveryPanel } from './SemanticDiscoveryPanel';
+import { SemanticSetupCenter } from './SemanticSetupCenter';
+import { SemanticIndexCenter } from './SemanticIndexCenter';
 import { SetupWizard } from './SetupWizard';
 import type { useAiCommander } from '@l2/commander/useAiCommander';
 
@@ -72,10 +74,10 @@ export function AiPanel({
     { key: 'preview', label: '预览' },
   ];
 
-  const indexProgress =
-    ai.indexStatus && ai.indexStatus.total > 0
-      ? (ai.indexStatus.completed / ai.indexStatus.total) * 100
-      : 0;
+  const showIndexCenter =
+    mode === 'ai'
+    && ai.moduleView.kind !== 'checking_config'
+    && ai.moduleView.kind !== 'setup_required';
 
   return (
     <div className="semantic-panel">
@@ -94,10 +96,10 @@ export function AiPanel({
         >
           AI
         </Button>
-        {mode === 'ai' && ai.moduleView.kind !== 'setup_required' && (
+        {mode === 'ai' && (
           <div className="semantic-panel__spacer" />
         )}
-        {mode === 'ai' && ai.moduleView.kind !== 'setup_required' && (
+        {mode === 'ai' && (
           <IconButton
             label="AI 设置"
             tooltip="AI 设置"
@@ -135,69 +137,33 @@ export function AiPanel({
               )}
 
               {ai.moduleView.kind === 'setup_required' && (
-                <div className="semantic-state">
-                  <Typography variant="h3" className="semantic-state__title">
-                    AI 功能尚未配置
-                  </Typography>
-                  <Typography variant="body" color="var(--color-text-secondary)" className="semantic-state__copy">
-                    配置 AI 服务后即可体验智能问答、语义搜索和联系人分析
-                  </Typography>
-                  <Button variant="primary" onClick={() => setShowWizard(true)}>
-                    开始配置
-                  </Button>
-                </div>
+                <SemanticSetupCenter
+                  initialDraft={ai.setupDraft}
+                  getSetupView={ai.getSetupView}
+                  onTestConnection={ai.testConnection}
+                  onSave={ai.saveConfig}
+                  privacyOn={privacyOn}
+                  compact
+                />
               )}
 
-              {ai.moduleView.kind === 'index_unavailable' && !currentChat && (
-                <div className="semantic-state">
-                  <Typography variant="body" color="var(--color-text-secondary)" className="semantic-state__copy">
-                    选择左侧联系人后即可使用 AI 功能
-                  </Typography>
-                </div>
-              )}
-
-              {ai.moduleView.kind === 'index_unavailable' && currentChat && (
-                <div className="semantic-state">
-                  <Typography variant="body" color="var(--color-text-secondary)" className="semantic-state__copy">
-                    {ai.moduleView.message}
-                  </Typography>
-                  <Button variant="primary" size="sm" onClick={() => ai.doIndexAction('rebuild')}>
-                    构建索引
-                  </Button>
-                </div>
-              )}
-
-              {ai.moduleView.kind === 'index_running' && (
-                <div className="semantic-state">
-                  <ProgressBar
-                    progress={indexProgress}
-                    label="正在构建语义索引..."
-                    variant={indexProgress === 0 ? 'indeterminate' : 'default'}
-                  />
-                  <div className="semantic-actions">
-                    <Button variant="secondary" size="sm" onClick={() => ai.doIndexAction('pause')}>
-                      暂停
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {ai.moduleView.kind === 'index_paused' && (
-                <div className="semantic-state">
-                  <Typography variant="body" color="var(--color-text-secondary)" className="semantic-state__copy">
-                    {ai.moduleView.message}
-                  </Typography>
-                  <Button variant="primary" size="sm" onClick={() => ai.doIndexAction('resume')}>
-                    恢复索引
-                  </Button>
-                </div>
+              {showIndexCenter && (
+                <SemanticIndexCenter view={ai.indexCenterView} onAction={ai.doIndexAction} />
               )}
 
               {ai.moduleView.kind === 'ready' && (
-                <>
-                  {activeTab === 'qa' && !!currentChat && (
+                <SemanticDiscoveryPanel
+                  view={ai.semanticDiscoveryView}
+                  onRefresh={() => {
+                    if (activeTab === 'analysis') ai.loadAnalysis();
+                    if (activeTab === 'preview') ai.loadPreview();
+                    if (activeTab === 'search') ai.semanticSearch(ai.searchQuery);
+                  }}
+                >
+                  {activeTab === 'qa' && (
                     <QAPanel
                       qaMessages={ai.qaMessages}
+                      recentChats={ai.qaRecentChats}
                       qaStreaming={ai.qaStreaming}
                       qaStatus={ai.qaStatus}
                       qaError={ai.qaError}
@@ -205,41 +171,45 @@ export function AiPanel({
                       privacyOn={privacyOn}
                       onAskQuestion={ai.askQuestion}
                       onStopQAStream={ai.stopQAStream}
+                      onRetryQAMessage={ai.retryQAMessage}
+                      onCopyQAMessageAnswer={ai.copyQAMessageAnswer}
+                      onSelectEvidenceSource={onSelectAndLoad}
                     />
-                  )}
-                  {activeTab === 'qa' && !currentChat && (
-                    <div className="semantic-state">
-                      <Typography variant="body" color="var(--color-text-secondary)">
-                        选择左侧联系人后即可开始 AI 问答
-                      </Typography>
-                    </div>
                   )}
                   {activeTab === 'search' && (
                     <SemanticSearch
-                      searchResults={ai.searchResults}
-                      searchLoading={ai.searchLoading}
-                      searchError={ai.searchError}
-                      privacyOn={privacyOn}
+                      view={ai.semanticDiscoveryView.search}
+                      query={ai.searchQuery}
+                      scope={ai.discoverySearchScope}
+                      window={ai.discoveryWindow}
+                      depth={ai.discoveryDepth}
+                      sourceLimit={ai.discoverySourceLimit}
+                      rerank={ai.discoveryRerank}
                       onSearch={ai.debouncedSearch}
+                      onScopeChange={ai.setDiscoverySearchScope}
+                      onWindowChange={ai.setDiscoveryWindow}
+                      onDepthChange={ai.setDiscoveryDepth}
+                      onSourceLimitChange={ai.setDiscoverySourceLimit}
+                      onRerankChange={ai.setDiscoveryRerank}
                       onRetry={() => ai.semanticSearch(ai.searchQuery)}
-                      onSelectResult={onSelectAndLoad}
+                      onSelectResult={ai.openSemanticSearchResult}
                     />
                   )}
                   {activeTab === 'analysis' && !!currentChat && (
                     <div className="semantic-analysis-stack">
                       <TopicView
-                        topics={ai.topics}
-                        loading={ai.topicsLoading}
-                        error={ai.topicsError}
-                        privacyOn={privacyOn}
+                        view={ai.semanticDiscoveryView.topics}
                         onRetry={ai.loadAnalysis}
                       />
                       <ContactProfile
-                        profile={ai.profile}
-                        loading={ai.profileLoading}
-                        error={ai.profileError}
-                        privacyOn={privacyOn}
+                        view={ai.semanticDiscoveryView.profile}
                         onRetry={ai.loadAnalysis}
+                        onAskSender={(sender) => ai.askQuestion({
+                          query: "请总结这个对象近期的重点。",
+                          scope: "contact",
+                          window: ai.discoveryWindow,
+                          entityOverride: sender,
+                        })}
                       />
                     </div>
                   )}
@@ -255,18 +225,21 @@ export function AiPanel({
                       view={ai.semanticPreviewView}
                       kind={ai.previewKind}
                       limit={ai.previewLimit}
+                      talker={ai.previewTalker}
+                      talkerOptions={ai.previewTalkerOptions}
                       privacyOn={privacyOn}
                       onKindChange={ai.setPreviewKind}
                       onLimitChange={ai.setPreviewLimit}
+                      onTalkerChange={ai.setPreviewTalker}
                       onRefresh={() => ai.loadPreview()}
                       onPreviousPage={ai.loadPreviousPreviewPage}
                       onNextPage={ai.loadNextPreviewPage}
                     />
                   )}
-                </>
+                </SemanticDiscoveryPanel>
               )}
 
-              {ai.moduleView.kind === 'failed' && (
+              {ai.moduleView.kind === 'failed' && !ai.indexStatus && (
                 <div className="semantic-state">
                   <Typography variant="body" color="var(--danger)" className="semantic-state__copy">
                     {ai.moduleView.message || ai.error || '发生未知错误'}
@@ -276,22 +249,6 @@ export function AiPanel({
                   </Button>
                 </div>
               )}
-
-              {ai.moduleView.kind === 'ready' && (activeTab === 'analysis' || activeTab === 'preview') && (
-                <div className="semantic-footer">
-                  <Typography variant="caption" color="var(--color-text-quaternary)">
-                    索引已就绪 · {ai.indexStatus?.completed?.toLocaleString() || 0} 条已索引
-                  </Typography>
-                  <div className="semantic-footer__actions">
-                    <Button variant="ghost" size="sm" onClick={() => ai.doIndexAction('rebuild')}>
-                      重建索引
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => ai.doIndexAction('clear')}>
-                      清空索引
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
       </div>
@@ -299,10 +256,11 @@ export function AiPanel({
       {showWizard && (
         <SetupWizard
           onClose={() => setShowWizard(false)}
+          initialDraft={ai.setupDraft}
+          getSetupView={ai.getSetupView}
           testConnection={ai.testConnection}
           saveConfig={ai.saveConfig}
-          doIndexAction={ai.doIndexAction}
-          indexStatus={ai.indexStatus}
+          privacyOn={privacyOn}
         />
       )}
     </div>

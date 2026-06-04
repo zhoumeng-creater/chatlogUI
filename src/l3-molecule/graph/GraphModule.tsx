@@ -21,6 +21,11 @@ interface GraphModuleProps {
 export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
   const { loadGraphConfig, openGraphModule } = graph;
   const [keywordDraft, setKeywordDraft] = useState(graph.keyword);
+  const [entityDraft, setEntityDraft] = useState(graph.entityFilter);
+  const [relationDraft, setRelationDraft] = useState(graph.relationFilter);
+  const [limitDraft, setLimitDraft] = useState(String(graph.limit));
+  const [startDraft, setStartDraft] = useState(graph.start);
+  const [endDraft, setEndDraft] = useState(graph.end);
 
   useEffect(() => {
     void openGraphModule();
@@ -32,13 +37,30 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
 
   useEffect(() => {
     setKeywordDraft(graph.keyword);
-  }, [graph.keyword]);
+    setEntityDraft(graph.entityFilter);
+    setRelationDraft(graph.relationFilter);
+    setLimitDraft(String(graph.limit));
+    setStartDraft(graph.start);
+    setEndDraft(graph.end);
+  }, [graph.keyword, graph.entityFilter, graph.relationFilter, graph.limit, graph.start, graph.end]);
 
   const submitFilter = () => {
-    graph.setGraphFilter({ keyword: keywordDraft });
+    const nextLimit = Number(limitDraft);
+    const limit = Number.isFinite(nextLimit) && nextLimit > 0 ? nextLimit : graph.limit;
+    graph.setGraphFilter({
+      keyword: keywordDraft,
+      entity: entityDraft,
+      relation: relationDraft,
+      limit,
+      start: startDraft,
+      end: endDraft,
+    });
     void graph.loadGraphSummary({
       keyword: keywordDraft || undefined,
       window: graph.timeWindow || undefined,
+      limit,
+      start: startDraft || undefined,
+      end: endDraft || undefined,
     });
   };
 
@@ -47,6 +69,21 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
     void graph.loadGraphSummary({
       keyword: keywordDraft || undefined,
       window: window || undefined,
+      limit: graph.limit,
+      start: startDraft || undefined,
+      end: endDraft || undefined,
+    });
+  };
+
+  const useInspectorFilter = (keyword: string) => {
+    setKeywordDraft(keyword);
+    graph.setGraphFilter({ keyword });
+    void graph.loadGraphSummary({
+      keyword,
+      window: graph.timeWindow || undefined,
+      limit: graph.limit,
+      start: startDraft || undefined,
+      end: endDraft || undefined,
     });
   };
 
@@ -78,9 +115,63 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
             placeholder="筛选实体或关系"
             aria-label="筛选图谱"
           />
+          <Input
+            controlSize="sm"
+            value={entityDraft}
+            onChange={(event) => setEntityDraft(event.currentTarget.value)}
+            placeholder="实体"
+            aria-label="图谱实体筛选"
+          />
+          <Input
+            controlSize="sm"
+            value={relationDraft}
+            onChange={(event) => setRelationDraft(event.currentTarget.value)}
+            placeholder="关系"
+            aria-label="图谱关系筛选"
+          />
+          <Input
+            controlSize="sm"
+            type="number"
+            min={1}
+            max={300}
+            value={limitDraft}
+            onChange={(event) => setLimitDraft(event.currentTarget.value)}
+            aria-label="图谱数量上限"
+          />
+          <Input
+            controlSize="sm"
+            type="date"
+            value={startDraft}
+            onChange={(event) => setStartDraft(event.currentTarget.value)}
+            aria-label="图谱开始日期"
+          />
+          <Input
+            controlSize="sm"
+            type="date"
+            value={endDraft}
+            onChange={(event) => setEndDraft(event.currentTarget.value)}
+            aria-label="图谱结束日期"
+          />
           <Button variant="secondary" size="sm" type="submit" loading={graph.loading}>
             <Search size={14} />
             筛选
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={() => {
+              graph.clearGraphFilters();
+              setKeywordDraft("");
+              setEntityDraft("");
+              setRelationDraft("");
+              setLimitDraft("80");
+              setStartDraft("");
+              setEndDraft("");
+              void graph.loadGraphSummary({ limit: 80 });
+            }}
+          >
+            清空
           </Button>
           <div className="graph-module__time-tabs" role="tablist" aria-label="图谱时间范围">
             {TIME_OPTIONS.map((option) => (
@@ -131,6 +222,7 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
           onRefresh: graph.refreshGraph,
           onNodeHover: graph.hoverNode,
           onNodeDblClick: graph.selectNode,
+          onEdgeClick: graph.selectEdge,
           onVisibleKindsChange: graph.setVisibleKinds,
           onTimeWindowChange: setWindow,
           onLayoutModeChange: graph.setLayoutMode,
@@ -142,19 +234,24 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
         onRetry={graph.retryGraphLoad}
         onCancel={graph.cancelGraphLoad}
         onRebuild={graph.rebuildGraph}
+        onResetRebuild={graph.resetRebuildGraph}
         onPause={graph.pauseGraph}
         onResume={graph.resumeGraph}
+        onActiveTabChange={graph.setActiveTab}
+        onSelectGraphItem={graph.selectGraphItem}
+        onUseInspectorFilter={useInspectorFilter}
         onLoadVisualization={graph.loadVisualization}
         onLoadGraphConfig={graph.loadGraphConfig}
-        onSaveGraphConfig={graph.saveGraphAdvancedConfig}
+        onSaveGraphConfig={() => graph.saveGraphAdvancedConfig()}
         onGraphConfigDraftChange={graph.updateGraphConfigDraft}
         onBusinessDraftChange={graph.updateBusinessDraft}
         onEventDraftChange={graph.updateEventDraft}
         onQADraftChange={graph.updateQADraft}
-        onBusinessIngest={graph.runBusinessIngest}
-        onEventIngest={graph.runEventIngest}
-        onGraphQA={graph.runGraphQA}
+        onBusinessIngest={() => graph.runBusinessIngest()}
+        onEventIngest={() => graph.runEventIngest()}
+        onGraphQA={() => graph.runGraphQA()}
         onCancelAdvancedConfirmation={graph.cancelAdvancedConfirmation}
+        selectedGraphItemId={graph.selectedGraphItemId}
       />
     </section>
   );

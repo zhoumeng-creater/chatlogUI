@@ -1,3 +1,5 @@
+import { maskDiagnosticText } from "@/utils/maskSecrets";
+
 type RawRecord = Record<string, unknown>;
 
 export interface SemanticProviderView {
@@ -75,6 +77,23 @@ export interface SemanticIndexStatus {
   progressPct: number;
   lastError: string;
   error?: string;
+  indexedCount: number;
+  entityCount: number;
+  chunkCount: number;
+  startedAt: string;
+  processingRatePerMinute: number;
+  estimatedSecondsLeft: number;
+  lastIncrementalAt: string;
+  lastIncrementalAdded: number;
+  lastIncrementalError: string;
+  lastRerankAt: string;
+  lastRerankApplied: boolean;
+  lastRerankError: string;
+  progressLabel: string;
+  etaLabel: string;
+  rateLabel: string;
+  coverageLabel: string;
+  lastActivityLabel: string;
 }
 
 export interface SemanticIndexActionResult {
@@ -166,7 +185,7 @@ export interface SemanticQARequestInput {
   sourceLimit?: number;
   topN?: number;
   history?: SemanticQAHistoryItem[];
-  scope?: "contact" | "all";
+  scope?: "contact" | "selected" | "all";
 }
 
 export interface SemanticQARequestPayload {
@@ -186,6 +205,13 @@ export interface SemanticQADonePayload {
   evidence: Array<Record<string, unknown>>;
   reason: string;
   metadata: Record<string, unknown>;
+}
+
+export interface SemanticQAEntityCandidate {
+  display: string;
+  username: string;
+  kind: string;
+  source: string;
 }
 
 export function adaptSemanticConfig(raw: unknown): SemanticConfigView {
@@ -261,9 +287,10 @@ export function adaptSemanticConfig(raw: unknown): SemanticConfigView {
 export function adaptConnectionTestResult(raw: unknown): ConnectionTestResult {
   const data = asRecord(raw);
   const ok = boolValue(data.ok);
+  const error = stringValue(data.error);
   return {
     ok,
-    message: stringValue(data.error) || (ok ? "Connection succeeded" : "Connection failed"),
+    message: error ? safeSemanticDiagnosticText(error) : (ok ? "Connection succeeded" : "Connection failed"),
   };
 }
 
@@ -276,7 +303,16 @@ export function adaptSemanticIndexStatus(raw: unknown): SemanticIndexStatus {
   const pending = numberValue(data.pending);
   const failed = numberValue(data.failed);
   const total = processed + pending + failed;
-  const lastError = stringValue(data.last_error);
+  const lastError = safeSemanticDiagnosticText(stringValue(data.last_error));
+  const indexedCount = numberValue(data.indexed_count);
+  const entityCount = numberValue(data.entity_count);
+  const chunkCount = numberValue(data.chunk_count);
+  const processingRatePerMinute = numberValue(data.processing_rate_per_minute);
+  const estimatedSecondsLeft = numberValue(data.estimated_seconds_left);
+  const lastIncrementalAdded = numberValue(data.last_incremental_added);
+  const lastIncrementalError = safeSemanticDiagnosticText(stringValue(data.last_incremental_error));
+  const lastRerankApplied = boolValue(data.last_rerank_applied);
+  const lastRerankError = safeSemanticDiagnosticText(stringValue(data.last_rerank_error));
 
   const state = deriveIndexState({ ready, running, paused, lastError });
 
@@ -294,6 +330,28 @@ export function adaptSemanticIndexStatus(raw: unknown): SemanticIndexStatus {
     progressPct: numberValue(data.progress_pct, total > 0 ? (processed / total) * 100 : 0),
     lastError,
     error: lastError || undefined,
+    indexedCount,
+    entityCount,
+    chunkCount,
+    startedAt: stringValue(data.started_at),
+    processingRatePerMinute,
+    estimatedSecondsLeft,
+    lastIncrementalAt: stringValue(data.last_incremental_at),
+    lastIncrementalAdded,
+    lastIncrementalError,
+    lastRerankAt: stringValue(data.last_rerank_at),
+    lastRerankApplied,
+    lastRerankError,
+    progressLabel: progressLabel(processed, total),
+    etaLabel: etaLabel(estimatedSecondsLeft),
+    rateLabel: rateLabel(processingRatePerMinute),
+    coverageLabel: coverageLabel(indexedCount, entityCount, chunkCount),
+    lastActivityLabel: lastActivityLabel({
+      lastIncrementalAdded,
+      lastIncrementalError,
+      lastRerankApplied,
+      lastRerankError,
+    }),
   };
 }
 
@@ -303,7 +361,7 @@ export function adaptSemanticIndexActionResult(raw: unknown): SemanticIndexActio
     ok: boolValue(data.ok),
     accepted: boolValue(data.accepted),
     status: stringValue(data.status),
-    error: stringValue(data.error),
+    error: safeSemanticDiagnosticText(stringValue(data.error)),
   };
 }
 
@@ -339,7 +397,7 @@ export function adaptSemanticSearch(raw: unknown): SemanticSearchResultSet {
       provider: stringValue(data.rerank_provider),
       tried: boolValue(data.rerank_tried),
       applied: boolValue(data.rerank_applied),
-      error: stringValue(data.rerank_error),
+      error: safeSemanticDiagnosticText(stringValue(data.rerank_error)),
     },
     results,
   };
@@ -370,7 +428,7 @@ export function adaptSemanticTopics(raw: unknown): SemanticTopicsView {
       };
     }),
     summary: stringValue(data.summary),
-    summaryError: stringValue(data.summary_error),
+    summaryError: safeSemanticDiagnosticText(stringValue(data.summary_error)),
   };
 }
 
@@ -406,7 +464,7 @@ export function adaptSemanticProfiles(raw: unknown): SemanticProfilesView {
       };
     }).filter((entry) => entry.type),
     summary: stringValue(data.summary),
-    summaryError: stringValue(data.summary_error),
+    summaryError: safeSemanticDiagnosticText(stringValue(data.summary_error)),
   };
 }
 
@@ -428,12 +486,125 @@ export function buildSemanticQARequestPayload(
 
 export function adaptSemanticQAResponse(raw: unknown): SemanticQADonePayload {
   const data = asRecord(raw);
+  const evidence = arrayValue(data.evidence).map((entry) => ({ ...asRecord(entry) }));
   return {
     answer: stringValue(data.answer) || stringValue(data.content) || stringValue(data.text),
-    evidence: arrayValue(data.evidence).map((entry) => ({ ...asRecord(entry) })),
+    evidence,
     reason: stringValue(data.reason),
-    metadata: { ...asRecord(data.metadata) },
+    metadata: normalizeSemanticQAMetadata(data),
   };
+}
+
+function normalizeSemanticQAMetadata(data: RawRecord): Record<string, unknown> {
+  const metadata: Record<string, unknown> = sanitizeMetadataRecord(asRecord(data.metadata));
+  const debug = asRecord(data.debug);
+
+  setNumberMetadata(metadata, "sourceCount", data.source_count);
+  setStringMetadata(metadata, "window", data.window);
+  setStringMetadata(metadata, "depth", data.depth);
+  setNumberMetadata(metadata, "evidenceCount", data.count);
+  setBooleanMetadata(metadata, "direct", data.direct);
+  setBooleanMetadata(metadata, "rerankTried", data.rerank_tried);
+  setBooleanMetadata(metadata, "rerankApplied", data.rerank_applied);
+  setStringMetadata(metadata, "rerankError", data.rerank_error);
+
+  setStringMetadata(metadata, "intent", debug.intent);
+  setStringMetadata(metadata, "answerMode", debug.answer_mode);
+  setStringMetadata(metadata, "routeSource", debug.source);
+  setStringMetadata(metadata, "retrieval", debug.retrieval);
+  setStringMetadata(metadata, "emptyReason", debug.empty_reason);
+  setNumberMetadata(metadata, "entityCandidateCount", debug.entity_candidate_count);
+  setBooleanMetadata(metadata, "entityAmbiguous", debug.entity_ambiguous);
+
+  const entityCandidates = arrayValue(debug.entity_candidates)
+    .map(toEntityCandidate)
+    .filter((candidate) => candidate.display || candidate.username)
+    .slice(0, 8);
+  if (entityCandidates.length > 0) {
+    metadata.entityCandidates = entityCandidates;
+    if (!("entityCandidateCount" in metadata)) {
+      metadata.entityCandidateCount = entityCandidates.length;
+    }
+  }
+
+  return metadata;
+}
+
+function sanitizeMetadataRecord(record: RawRecord): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(record).filter(([key, value]) =>
+      !isDeniedSemanticMetadataKey(key) && isSafeSemanticMetadataValue(value),
+    ),
+  );
+}
+
+function isDeniedSemanticMetadataKey(key: string): boolean {
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return [
+    "answer",
+    "apikey",
+    "chat",
+    "chats",
+    "content",
+    "datakey",
+    "debug",
+    "deepseekapikey",
+    "evidence",
+    "history",
+    "message",
+    "messages",
+    "prompt",
+    "query",
+    "raw",
+    "secret",
+    "text",
+    "token",
+  ].some((blocked) => normalized.includes(blocked));
+}
+
+function isSafeSemanticMetadataValue(value: unknown): boolean {
+  if (value === null) return true;
+  if (typeof value === "string") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value === "boolean") return true;
+  if (Array.isArray(value)) {
+    return value.every((entry) => ["string", "number", "boolean"].includes(typeof entry));
+  }
+  return false;
+}
+
+function toEntityCandidate(value: unknown): SemanticQAEntityCandidate {
+  const data = asRecord(value);
+  return {
+    display: stringValue(data.display) || stringValue(data.name) || stringValue(data.username),
+    username: stringValue(data.username),
+    kind: stringValue(data.kind) || stringValue(data.type),
+    source: stringValue(data.source),
+  };
+}
+
+function setNumberMetadata(
+  metadata: Record<string, unknown>,
+  key: string,
+  value: unknown,
+  fallback?: number,
+): void {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    metadata[key] = value;
+    return;
+  }
+  if (fallback !== undefined) {
+    metadata[key] = fallback;
+  }
+}
+
+function setStringMetadata(metadata: Record<string, unknown>, key: string, value: unknown): void {
+  const text = stringValue(value);
+  if (text) metadata[key] = text;
+}
+
+function setBooleanMetadata(metadata: Record<string, unknown>, key: string, value: unknown): void {
+  if (typeof value === "boolean") metadata[key] = value;
 }
 
 function providerView(provider: string, model: string): SemanticProviderView {
@@ -457,6 +628,49 @@ function deriveIndexState(input: {
   return "idle";
 }
 
+function progressLabel(processed: number, total: number): string {
+  return total > 0 ? `${processed} / ${total} processed` : "No items processed";
+}
+
+function etaLabel(seconds: number): string {
+  if (seconds <= 0) return "";
+  const minutes = Math.ceil(seconds / 60);
+  return minutes <= 1 ? "1 min remaining" : `${minutes} min remaining`;
+}
+
+function rateLabel(rate: number): string {
+  return rate > 0 ? `${Math.round(rate)}/min` : "";
+}
+
+function coverageLabel(indexed: number, entities: number, chunks: number): string {
+  const parts = [
+    `${indexed} indexed`,
+    `${entities} entities`,
+    `${chunks} chunks`,
+  ];
+  return parts.join(" / ");
+}
+
+function lastActivityLabel(input: {
+  lastIncrementalAdded: number;
+  lastIncrementalError: string;
+  lastRerankApplied: boolean;
+  lastRerankError: string;
+}): string {
+  const parts: string[] = [];
+  if (input.lastIncrementalError) {
+    parts.push(`Incremental error: ${input.lastIncrementalError}`);
+  } else if (input.lastIncrementalAdded > 0) {
+    parts.push(`Incremental +${input.lastIncrementalAdded}`);
+  }
+  if (input.lastRerankError) {
+    parts.push(`rerank error: ${input.lastRerankError}`);
+  } else if (input.lastRerankApplied) {
+    parts.push("rerank applied");
+  }
+  return parts.join("; ");
+}
+
 function asRecord(value: unknown): RawRecord {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as RawRecord)
@@ -469,6 +683,10 @@ function arrayValue(value: unknown): unknown[] {
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function safeSemanticDiagnosticText(value: string): string {
+  return value ? maskDiagnosticText(value, { privacyMode: true }) : "";
 }
 
 function semanticTimeString(value: unknown): string {

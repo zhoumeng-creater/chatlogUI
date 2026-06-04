@@ -75,7 +75,11 @@ describe("workbenchViewModel", () => {
         canVisualize: false,
         shouldMountCanvas: false,
         message: "",
+        tabs: [],
         tableRows: [],
+        groupedSections: [],
+        timelineWorkbench: { rows: [] },
+        detailInspector: null,
       },
       sns: {
         status: "ready",

@@ -173,6 +173,63 @@ describe("semantic REST atoms", () => {
     expect(JSON.stringify(events[0])).not.toContain("Synthetic private message");
     expect(JSON.stringify(events[0])).not.toContain("wxid_synthetic");
   });
+
+  it("sends semantic discovery request parameters without UI-only labels", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        urls.push(String(input));
+        const path = new URL(String(input)).pathname;
+        if (path.endsWith("/api/v1/semantic/search")) {
+          return json({ query: "alpha", source_count: 0, count: 0, rerank: false, results: [] });
+        }
+        if (path.endsWith("/api/v1/semantic/topics")) {
+          return json({ window: "30d", window_label: "Last 30 days", topics: [], daily: [] });
+        }
+        if (path.endsWith("/api/v1/semantic/profiles")) {
+          return json({ window: "30d", window_label: "Last 30 days", profiles: [], type_distribution: [] });
+        }
+        return json({});
+      }),
+    );
+
+    await fetchSemanticSearch({
+      query: "alpha",
+      limit: 12,
+      chat: "wxid_backend_chat",
+      chats: ["room_a@chatroom", "wxid_b"],
+      window: "30d",
+      depth: "deep",
+      sourceLimit: 25,
+      rerank: false,
+      scope: "all",
+      chatName: "Project room",
+    } as never);
+    await fetchSemanticTopics({ chat: "wxid_backend_chat", window: "30d" } as never);
+    await fetchSemanticProfiles({ chat: "wxid_backend_chat", window: "30d" } as never);
+
+    const searchUrl = new URL(urls.find((url) => url.includes("/semantic/search")) ?? "");
+    expect(searchUrl.searchParams.get("query")).toBe("alpha");
+    expect(searchUrl.searchParams.get("limit")).toBe("12");
+    expect(searchUrl.searchParams.get("chat")).toBe("wxid_backend_chat");
+    expect(searchUrl.searchParams.get("chats")).toBe("room_a@chatroom,wxid_b");
+    expect(searchUrl.searchParams.get("window")).toBe("30d");
+    expect(searchUrl.searchParams.get("depth")).toBe("deep");
+    expect(searchUrl.searchParams.get("source_limit")).toBe("25");
+    expect(searchUrl.searchParams.get("rerank")).toBe("false");
+    expect(searchUrl.searchParams.has("scope")).toBe(false);
+    expect(searchUrl.searchParams.has("chatName")).toBe(false);
+    expect(searchUrl.searchParams.has("chat_name")).toBe(false);
+
+    const topicsUrl = new URL(urls.find((url) => url.includes("/semantic/topics")) ?? "");
+    expect(topicsUrl.searchParams.get("chat")).toBe("wxid_backend_chat");
+    expect(topicsUrl.searchParams.get("window")).toBe("30d");
+
+    const profilesUrl = new URL(urls.find((url) => url.includes("/semantic/profiles")) ?? "");
+    expect(profilesUrl.searchParams.get("chat")).toBe("wxid_backend_chat");
+    expect(profilesUrl.searchParams.get("window")).toBe("30d");
+  });
 });
 
 function json(value: unknown): Response {

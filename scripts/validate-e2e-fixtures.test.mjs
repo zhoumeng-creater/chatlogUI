@@ -154,6 +154,121 @@ describe("validateFixtureWorkspace", () => {
     expect(result.errors.join("\n")).toContain("must resolve to an array of table names");
   });
 
+  it("fails when graph workbench fixture shapes drift from the sidecar contract", async () => {
+    const root = await createFixtureWorkspace(await mkdtemp(join(tmpdir(), "fixture-graph-shape-")), {
+      fixture: {
+        routes: {
+          "/api/v1/graph/status": {
+            enabled: true,
+            history_queued: 3,
+          },
+          "/api/v1/graph/query": {
+            relations: [
+              {
+                verified: true,
+                valid_from: "2026-01-01",
+              },
+            ],
+            facts: [
+              {
+                verified: false,
+                valid_to: "2026-01-31",
+              },
+            ],
+            events: [
+              {
+                time: "2026-01-01T00:00:00Z",
+              },
+            ],
+          },
+          "/api/v1/graph/timeline": {
+            items: [
+              {
+                time: "2026-01-01T00:00:00Z",
+              },
+            ],
+          },
+          "/api/v1/graph/qa": { answer: "Synthetic answer" },
+        },
+      },
+      manifest: {
+        routeStates: [
+          {
+            id: "graph-status",
+            fixture: "core",
+            section: "routes./api/v1/graph/status",
+            method: "GET",
+            path: "/api/v1/graph/status",
+          },
+          {
+            id: "graph-query",
+            fixture: "core",
+            section: "routes./api/v1/graph/query",
+            method: "GET",
+            path: "/api/v1/graph/query",
+          },
+          {
+            id: "graph-timeline",
+            fixture: "core",
+            section: "routes./api/v1/graph/timeline",
+            method: "GET",
+            path: "/api/v1/graph/timeline",
+          },
+          {
+            id: "graph-qa",
+            fixture: "core",
+            section: "routes./api/v1/graph/qa",
+            method: "GET",
+            path: "/api/v1/graph/qa",
+          },
+        ],
+      },
+      routeMap: {
+        routes: [
+          {
+            id: "graph-status",
+            method: "GET",
+            path: "/api/v1/graph/status",
+            fixture: "core",
+            section: "routes./api/v1/graph/status",
+          },
+          {
+            id: "graph-query",
+            method: "GET",
+            path: "/api/v1/graph/query",
+            fixture: "core",
+            section: "routes./api/v1/graph/query",
+          },
+          {
+            id: "graph-timeline",
+            method: "GET",
+            path: "/api/v1/graph/timeline",
+            fixture: "core",
+            section: "routes./api/v1/graph/timeline",
+          },
+          {
+            id: "graph-qa",
+            method: "GET",
+            path: "/api/v1/graph/qa",
+            fixture: "core",
+            section: "routes./api/v1/graph/qa",
+          },
+        ],
+      },
+    });
+
+    const result = await validateFixtureWorkspace(root);
+    const errors = result.errors.join("\n");
+
+    expect(result.ok).toBe(false);
+    expect(errors).toContain("graph status history_queued must be boolean");
+    expect(errors).toContain("graph relations[0].verified must be a string status");
+    expect(errors).toContain("graph relations[0].valid_from must be Unix seconds");
+    expect(errors).toContain("graph facts[0].verified must be a string status");
+    expect(errors).toContain("graph timeline[0].time must be Unix seconds");
+    expect(errors).toContain("/api/v1/graph/qa must be registered as POST");
+  });
+
   it("fails closed on real-looking secrets and unapproved local paths", async () => {
     const root = await createFixtureWorkspace(await mkdtemp(join(tmpdir(), "fixture-secret-")), {
       fixture: {
@@ -215,5 +330,32 @@ describe("validateFixtureWorkspace", () => {
 
     expect(result.ok).toBe(false);
     expect(result.errors.join("\n")).toContain("advanced family media needs at least one edge or failure state");
+  });
+
+  it("fails when P3 semantic and graph contract state coverage is incomplete", async () => {
+    const root = await createFixtureWorkspace(await mkdtemp(join(tmpdir(), "fixture-p3-coverage-")), {
+      manifest: {
+        requiredStateCoverage: { p3SemanticGraph: true },
+        routeStates: [
+          {
+            id: "semantic-index.ready",
+            fixture: "core",
+            section: "routes./api/v1/sessions",
+            method: "N/A",
+            path: "contract:semantic-index",
+            family: "semantic_index",
+            state: "ready",
+          },
+        ],
+      },
+    });
+
+    const result = await validateFixtureWorkspace(root);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.join("\n")).toContain("semantic_index needs state running");
+    expect(result.errors.join("\n")).toContain("semantic_qa needs state completed");
+    expect(result.errors.join("\n")).toContain("graph_status needs state loaded");
+    expect(result.errors.join("\n")).toContain("graph_query needs state detail");
   });
 });

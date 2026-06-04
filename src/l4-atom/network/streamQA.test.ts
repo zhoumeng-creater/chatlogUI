@@ -4,6 +4,7 @@ import { streamQA } from "./streamQA";
 import type { SemanticStreamEvent } from "./semanticStreamParser";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -21,7 +22,7 @@ describe("streamQA", () => {
             start(controller) {
               const encoder = new TextEncoder();
               controller.enqueue(encoder.encode('event: delta\ndata: {"text":"hel'));
-              controller.enqueue(encoder.encode('lo"}\n\nevent: done\ndata: {"answer":"hello","evidence":[],"reason":"done"}\n\n'));
+              controller.enqueue(encoder.encode('lo"}\n\nevent: done\ndata: {"answer":"hello","evidence":[],"reason":"done","source_count":2,"window":"7d","depth":"standard","count":0,"rerank_tried":true,"rerank_applied":true}\n\n'));
               controller.close();
             },
           }),
@@ -61,7 +62,14 @@ describe("streamQA", () => {
           answer: "hello",
           evidence: [],
           reason: "done",
-          metadata: {},
+          metadata: {
+            sourceCount: 2,
+            window: "7d",
+            depth: "standard",
+            evidenceCount: 0,
+            rerankTried: true,
+            rerankApplied: true,
+          },
         },
       },
     ]);
@@ -84,6 +92,32 @@ describe("streamQA", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("reports SSE timeout aborts as retryable semantic timeout errors", async () => {
+    vi.useFakeTimers();
+    const onError = vi.fn();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("aborted", "AbortError"));
+          });
+        }),
+      ),
+    );
+
+    streamQA({ query: "Timeout" }, vi.fn(), onError);
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    await Promise.resolve();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toMatchObject({
+      message: "ESEMANTIC_TIMEOUT",
+    });
   });
 
   it("emits a redacted stream diagnostic event when diagnostics are supplied", async () => {

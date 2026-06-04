@@ -2,14 +2,14 @@ import { lazy, Suspense } from "react";
 import { Network } from "lucide-react";
 import { Button, Spinner, Typography } from "@l4/ui";
 import type { GraphCanvasProps } from "./GraphCanvas";
-import type { GraphModuleViewState } from "./graphTypes";
+import type { GraphModuleView } from "@l2/commander/graphViewModel";
 
 const LazyGraphCanvas = lazy(() =>
   import("./GraphCanvas").then((module) => ({ default: module.GraphCanvas })),
 );
 
 interface GraphVisualizePanelProps {
-  moduleView: GraphModuleViewState;
+  moduleView: GraphModuleView;
   loading: boolean;
   error: string | null;
   canvasProps: GraphCanvasProps;

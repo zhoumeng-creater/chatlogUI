@@ -38,6 +38,15 @@ export interface SemanticConfig {
     topN: number;
     similarityThreshold: number;
   };
+  features?: {
+    enableRerank?: boolean;
+    enableQa?: boolean;
+    enableTopics?: boolean;
+    enableProfiles?: boolean;
+    enableLlmChunk?: boolean;
+    realtimeIndex?: boolean;
+    indexWorkers?: number;
+  };
   readiness?: {
     embeddingConfigured: boolean;
     rerankConfigured: boolean;
@@ -85,6 +94,22 @@ export interface IndexStatusResponse {
   lastError?: string;
   error?: string;
   startedAt?: string;
+  indexedCount?: number;
+  entityCount?: number;
+  chunkCount?: number;
+  processingRatePerMinute?: number;
+  estimatedSecondsLeft?: number;
+  lastIncrementalAt?: string;
+  lastIncrementalAdded?: number;
+  lastIncrementalError?: string;
+  lastRerankAt?: string;
+  lastRerankApplied?: boolean;
+  lastRerankError?: string;
+  progressLabel?: string;
+  etaLabel?: string;
+  rateLabel?: string;
+  coverageLabel?: string;
+  lastActivityLabel?: string;
 }
 
 // ========== QA 相关 ==========
@@ -99,7 +124,12 @@ export interface QARequest {
   sourceLimit?: number;
   topN?: number;
   history?: Array<{ role: "user" | "assistant"; content: string }>;
-  scope?: 'contact' | 'all';
+  scope?: 'contact' | 'selected' | 'all';
+}
+
+export interface QARequestSnapshot extends QARequest {
+  createdAt: number;
+  includeHistory?: boolean;
 }
 
 export interface QADonePayload {
@@ -115,6 +145,12 @@ export interface QAMessage {
   content: string;
   timestamp: number;
   isStreaming?: boolean;
+  completionStatus?: 'streaming' | 'completed' | 'stopped' | 'failed' | 'empty';
+  evidence?: Array<Record<string, unknown>>;
+  reason?: string;
+  sourceCount?: number;
+  metadata?: Record<string, unknown>;
+  requestSnapshot?: QARequestSnapshot;
 }
 
 export interface SSEChunk {
@@ -129,7 +165,12 @@ export interface SemanticSearchRequest {
   query: string;
   limit?: number;
   chat?: string;
-  scope?: 'contact' | 'all';
+  chats?: string[];
+  window?: string;
+  depth?: string;
+  sourceLimit?: number;
+  rerank?: boolean;
+  scope?: 'contact' | 'selected' | 'all';
 }
 
 export interface SemanticSearchResultItem {
@@ -185,6 +226,11 @@ export interface TopicsResponse {
   timeRange?: string;
 }
 
+export interface TopicsRequest {
+  chat?: string;
+  window?: string;
+}
+
 // ========== 联系人画像相关 ==========
 
 export interface ContactProfileData {
@@ -209,6 +255,12 @@ export interface ContactProfileData {
   mainTopics?: string[];
   sentiment?: string;
   summary?: string;
+  summaryError?: string;
+}
+
+export interface ContactProfileRequest {
+  chat?: string;
+  window?: string;
 }
 
 // ========== AI 模块状态 ==========
@@ -228,6 +280,7 @@ export type AiPhase =
 
 export interface AiState {
   phase: AiPhase;
+  lastStablePhase: AiPhase;
   config: SemanticConfig | null;
   indexStatus: IndexStatusResponse | null;
   qaMessages: QAMessage[];
@@ -235,10 +288,17 @@ export interface AiState {
   qaStreaming: boolean;
   qaStatus: 'idle' | 'connecting' | 'streaming' | 'completed' | 'stopped' | 'failed' | 'empty';
   qaError: string | null;
+  activeQAStreamId: string | null;
   searchQuery: string;
   searchResults: SemanticSearchResponse | null;
   searchLoading: boolean;
   searchError: string | null;
+  discoveryWindow: string;
+  discoverySearchScope: 'contact' | 'selected' | 'all';
+  discoveryDepth: string;
+  discoverySourceLimit: number;
+  discoveryRerank: boolean;
+  previewTalker: string;
   topics: TopicsResponse | null;
   topicsLoading: boolean;
   topicsError: string | null;
@@ -254,15 +314,50 @@ export interface AiActions {
   setIndexStatus: (status: IndexStatusResponse) => void;
   addQAMessage: (msg: QAMessage) => void;
   appendQAToken: (msgId: string, token: string) => void;
+  appendQATokenForStream: (streamId: string, msgId: string, token: string) => void;
   setQALoading: (loading: boolean) => void;
   setQAStreaming: (streaming: boolean) => void;
   setQAStatus: (status: AiState['qaStatus']) => void;
   setQAError: (error: string | null) => void;
+  setActiveQAStream: (streamId: string) => void;
+  clearActiveQAStream: (streamId?: string) => void;
+  isActiveQAStream: (streamId: string) => boolean;
+  completeQAMessage: (
+    msgId: string,
+    completion: {
+      content: string;
+      evidence?: Array<Record<string, unknown>>;
+      reason?: string;
+      sourceCount?: number;
+      metadata?: Record<string, unknown>;
+      completionStatus?: QAMessage['completionStatus'];
+    },
+  ) => void;
+  completeQAMessageForStream: (
+    streamId: string,
+    msgId: string,
+    completion: {
+      content: string;
+      evidence?: Array<Record<string, unknown>>;
+      reason?: string;
+      sourceCount?: number;
+      metadata?: Record<string, unknown>;
+      completionStatus?: QAMessage['completionStatus'];
+    },
+  ) => void;
+  stopQAStream: (streamId: string, msgId: string) => void;
+  failQAStream: (streamId: string, msgId: string, error: string) => void;
   clearQAMessages: () => void;
   setSearchQuery: (query: string) => void;
   setSearchResults: (results: SemanticSearchResponse | null) => void;
   setSearchLoading: (loading: boolean) => void;
   setSearchError: (error: string | null) => void;
+  setDiscoveryWindow: (window: string) => void;
+  setDiscoverySearchScope: (scope: AiState['discoverySearchScope']) => void;
+  setDiscoveryDepth: (depth: string) => void;
+  setDiscoverySourceLimit: (limit: number) => void;
+  setDiscoveryRerank: (enabled: boolean) => void;
+  setPreviewTalker: (talker: string) => void;
   setTopics: (topics: TopicsResponse | null) => void;
   setTopicsLoading: (loading: boolean) => void;
   setTopicsError: (error: string | null) => void;

@@ -1,7 +1,11 @@
-import { GraphFallbackTable } from "./GraphFallbackTable";
+import { GraphGroupedList } from "./GraphGroupedList";
+import { GraphDetailInspector } from "./GraphDetailInspector";
+import { GraphTimelineWorkbench } from "./GraphTimelineWorkbench";
 import { GraphSummaryPanel } from "./GraphSummaryPanel";
 import { GraphVisualizePanel } from "./GraphVisualizePanel";
 import { GraphAdvancedPanel } from "./GraphAdvancedPanel";
+import { GraphWorkbenchTabs } from "./GraphWorkbenchTabs";
+import { GraphQAPanel } from "./GraphQAPanel";
 import type { GraphCanvasProps } from "./GraphCanvas";
 import type {
   GraphBusinessDraft,
@@ -13,13 +17,13 @@ import type { GraphResidualView } from "@l2/commander/graphResidualViewModel";
 import type {
   GraphActionResultView,
   GraphLoadStatusView,
-  GraphModuleViewState,
   GraphStatusSummaryView,
   GraphVisualizeViewState,
 } from "./graphTypes";
+import type { GraphModuleView as GraphModuleViewModel, GraphWorkbenchTabId } from "@l2/commander/graphViewModel";
 
 interface GraphModuleViewProps {
-  moduleView: GraphModuleViewState;
+  moduleView: GraphModuleViewModel;
   statusSummary: GraphStatusSummaryView | null;
   visualize: GraphVisualizeViewState | null;
   loadStatus: GraphLoadStatusView;
@@ -33,12 +37,17 @@ interface GraphModuleViewProps {
   qaDraft: GraphQADraft;
   privacyOn: boolean;
   canvasProps: GraphCanvasProps;
+  selectedGraphItemId: string | null;
   onRefresh: () => void;
   onRetry: () => void;
   onCancel: () => void;
   onRebuild: () => void;
+  onResetRebuild: () => void;
   onPause: () => void;
   onResume: () => void;
+  onActiveTabChange: (tab: GraphWorkbenchTabId) => void;
+  onSelectGraphItem: (id: string) => void;
+  onUseInspectorFilter: (keyword: string) => void;
   onLoadVisualization: () => void;
   onLoadGraphConfig: () => void;
   onSaveGraphConfig: () => void;
@@ -67,12 +76,17 @@ export function GraphModuleView({
   qaDraft,
   privacyOn,
   canvasProps,
+  selectedGraphItemId,
   onRefresh,
   onRetry,
   onCancel,
   onRebuild,
+  onResetRebuild,
   onPause,
   onResume,
+  onActiveTabChange,
+  onSelectGraphItem,
+  onUseInspectorFilter,
   onLoadVisualization,
   onLoadGraphConfig,
   onSaveGraphConfig,
@@ -85,6 +99,44 @@ export function GraphModuleView({
   onGraphQA,
   onCancelAdvancedConfirmation,
 }: GraphModuleViewProps) {
+  const activeTab = moduleView.tabs.find((tab) => tab.active)?.id ?? "overview";
+  const handleInspectorAction = (actionId: string) => {
+    const inspector = moduleView.detailInspector;
+    if (!inspector || privacyOn) return;
+
+    if (actionId === "filter-related") {
+      onUseInspectorFilter(inspector.title);
+      return;
+    }
+
+    if (actionId === "focus-visualization") {
+      onActiveTabChange("visualize");
+      onLoadVisualization();
+      return;
+    }
+
+    if (actionId === "graph-qa") {
+      onQADraftChange({ query: `请基于知识图谱解释：${inspector.title}` });
+      onActiveTabChange("qa");
+    }
+  };
+
+  const listAndInspector = (
+    <div className="graph-workbench-split">
+      <GraphGroupedList
+        sections={moduleView.groupedSections}
+        selectedItemId={selectedGraphItemId}
+        privacyOn={privacyOn}
+        onSelect={onSelectGraphItem}
+      />
+      <GraphDetailInspector
+        inspector={moduleView.detailInspector}
+        privacyOn={privacyOn}
+        onAction={handleInspectorAction}
+      />
+    </div>
+  );
+
   return (
     <div className="graph-module-view">
       <GraphSummaryPanel
@@ -93,41 +145,86 @@ export function GraphModuleView({
         loadStatus={loadStatus}
         loading={loading}
         actionStatus={actionStatus}
+        resetRebuildCopy={advancedView.resetRebuildCopy}
+        confirmationCopy={advancedView.confirmationCopy}
         onRefresh={onRefresh}
         onRebuild={onRebuild}
+        onResetRebuild={onResetRebuild}
         onPause={onPause}
         onResume={onResume}
         onCancel={onCancel}
-      />
-      <div className="graph-module-view__content">
-        <GraphFallbackTable rows={moduleView.tableRows} privacyOn={privacyOn} />
-        <GraphVisualizePanel
-          moduleView={moduleView}
-          loading={loading}
-          error={error}
-          canvasProps={canvasProps}
-          onLoadVisualization={onLoadVisualization}
-          onRetry={onRetry}
-        />
-      </div>
-      <GraphAdvancedPanel
-        view={advancedView}
-        configDraft={graphConfigDraft}
-        businessDraft={businessDraft}
-        eventDraft={eventDraft}
-        qaDraft={qaDraft}
-        privacyOn={privacyOn}
-        onLoadConfig={onLoadGraphConfig}
-        onSaveConfig={onSaveGraphConfig}
-        onConfigDraftChange={onGraphConfigDraftChange}
-        onBusinessDraftChange={onBusinessDraftChange}
-        onEventDraftChange={onEventDraftChange}
-        onQADraftChange={onQADraftChange}
-        onBusinessIngest={onBusinessIngest}
-        onEventIngest={onEventIngest}
-        onGraphQA={onGraphQA}
         onCancelConfirmation={onCancelAdvancedConfirmation}
       />
+      <GraphWorkbenchTabs tabs={moduleView.tabs} onChange={onActiveTabChange} />
+      <div className="graph-module-view__content">
+        {(activeTab === "overview" || activeTab === "list") && listAndInspector}
+        {activeTab === "timeline" && (
+          <div className="graph-workbench-split">
+            <GraphTimelineWorkbench
+              timeline={moduleView.timelineWorkbench}
+              selectedItemId={selectedGraphItemId}
+              privacyOn={privacyOn}
+              onSelect={onSelectGraphItem}
+            />
+            <GraphDetailInspector
+              inspector={moduleView.detailInspector}
+              privacyOn={privacyOn}
+              onAction={handleInspectorAction}
+            />
+          </div>
+        )}
+        {activeTab === "visualize" && (
+          <div className="graph-workbench-split">
+            <GraphVisualizePanel
+              moduleView={moduleView}
+              loading={loading}
+              error={error}
+              canvasProps={canvasProps}
+              onLoadVisualization={onLoadVisualization}
+              onRetry={onRetry}
+            />
+            <GraphDetailInspector
+              inspector={moduleView.detailInspector}
+              privacyOn={privacyOn}
+              onAction={handleInspectorAction}
+            />
+          </div>
+        )}
+        {activeTab === "qa" && (
+          <GraphQAPanel
+            view={advancedView}
+            draft={qaDraft}
+            privacyOn={privacyOn}
+            onDraftChange={onQADraftChange}
+            onAsk={onGraphQA}
+          />
+        )}
+        {activeTab === "advanced" && (
+          <GraphAdvancedPanel
+            view={advancedView}
+            configDraft={graphConfigDraft}
+            businessDraft={businessDraft}
+            eventDraft={eventDraft}
+            qaDraft={qaDraft}
+            privacyOn={privacyOn}
+            graphPaused={Boolean(statusSummary?.paused)}
+            onLoadConfig={onLoadGraphConfig}
+            onSaveConfig={onSaveGraphConfig}
+            onRebuild={onRebuild}
+            onResetRebuild={onResetRebuild}
+            onPause={onPause}
+            onResume={onResume}
+            onConfigDraftChange={onGraphConfigDraftChange}
+            onBusinessDraftChange={onBusinessDraftChange}
+            onEventDraftChange={onEventDraftChange}
+            onQADraftChange={onQADraftChange}
+            onBusinessIngest={onBusinessIngest}
+            onEventIngest={onEventIngest}
+            onGraphQA={onGraphQA}
+            onCancelConfirmation={onCancelAdvancedConfirmation}
+          />
+        )}
+      </div>
     </div>
   );
 }

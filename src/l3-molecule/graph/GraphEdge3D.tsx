@@ -12,9 +12,10 @@ interface GraphEdge3DProps {
   edge: GraphEdgeView;
   fromPos: THREE.Vector3;
   toPos: THREE.Vector3;
+  onClick: (edgeId: string) => void;
 }
 
-export function GraphEdge3D({ edge, fromPos, toPos }: GraphEdge3DProps) {
+export function GraphEdge3D({ edge, fromPos, toPos, onClick }: GraphEdge3DProps) {
   const color = EDGE_COLORS[edge.status] ?? EDGE_COLORS.active;
   const isDashed = edge.status === "ended" || edge.status === "conflict";
 
@@ -40,5 +41,13 @@ export function GraphEdge3D({ edge, fromPos, toPos }: GraphEdge3DProps) {
     return lineObj;
   }, [fromPos, toPos, color, isDashed, edge.confidence]);
 
-  return <primitive object={line} />;
+  return (
+    <primitive
+      object={line}
+      onClick={(event: { stopPropagation: () => void }) => {
+        event.stopPropagation();
+        onClick(edge.id);
+      }}
+    />
+  );
 }
