@@ -548,5 +548,155 @@
         }
       ]
     }
+  },
+  "contractStates": {
+    "semanticIndexReady": {
+      "ready": true,
+      "running": false,
+      "paused": false,
+      "processed": 100,
+      "pending": 0,
+      "failed": 0,
+      "progress_pct": 100,
+      "indexed_count": 80,
+      "entity_count": 9,
+      "chunk_count": 120,
+      "processing_rate_per_minute": 0,
+      "estimated_seconds_left": 0,
+      "last_error": ""
+    },
+    "semanticIndexRunning": {
+      "ready": false,
+      "running": true,
+      "paused": false,
+      "processed": 42,
+      "pending": 58,
+      "failed": 1,
+      "progress_pct": 42,
+      "indexed_count": 42,
+      "entity_count": 6,
+      "chunk_count": 84,
+      "started_at": "2026-06-04T00:00:00Z",
+      "processing_rate_per_minute": 12,
+      "estimated_seconds_left": 125,
+      "last_incremental_at": "2026-06-04T00:03:00Z",
+      "last_incremental_added": 3,
+      "last_rerank_at": "2026-06-04T00:04:00Z",
+      "last_rerank_applied": true,
+      "last_error": ""
+    },
+    "semanticIndexPaused": {
+      "ready": false,
+      "running": false,
+      "paused": true,
+      "processed": 42,
+      "pending": 58,
+      "failed": 0,
+      "progress_pct": 42,
+      "indexed_count": 42,
+      "entity_count": 6,
+      "chunk_count": 84,
+      "last_error": ""
+    },
+    "semanticIndexFailed": {
+      "ready": false,
+      "running": false,
+      "paused": false,
+      "processed": 42,
+      "pending": 58,
+      "failed": 2,
+      "progress_pct": 42,
+      "indexed_count": 42,
+      "entity_count": 6,
+      "chunk_count": 84,
+      "last_error": "synthetic semantic index failure"
+    },
+    "semanticUnconfigured": {
+      "enabled": false,
+      "embedding_provider": "",
+      "embedding_model": "",
+      "chat_provider": "",
+      "chat_model": "",
+      "has_api_key": false,
+      "enable_qa": false,
+      "enable_rerank": false
+    },
+    "semanticQaCompleted": {
+      "events": [
+        {
+          "event": "delta",
+          "data": {
+            "text": "Synthetic answer"
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "answer": "Synthetic answer",
+            "evidence": [
+              {
+                "label": "Synthetic source A",
+                "kind": "message",
+                "score": 0.91
+              },
+              {
+                "label": "Synthetic source B",
+                "kind": "entity",
+                "score": 0.82
+              }
+            ],
+            "source_count": 2,
+            "window": "7d",
+            "depth": "standard",
+            "rerank_tried": true,
+            "rerank_applied": true,
+            "rerank_error": "",
+            "reason": "complete",
+            "metadata": {
+              "source": "synthetic",
+              "trace": "synthetic-redacted"
+            }
+          }
+        }
+      ]
+    },
+    "semanticQaEmpty": {
+      "events": [
+        {
+          "event": "done",
+          "data": {
+            "answer": "",
+            "evidence": [],
+            "source_count": 0,
+            "reason": "empty_context",
+            "metadata": {
+              "source": "synthetic"
+            }
+          }
+        }
+      ]
+    },
+    "semanticQaError": {
+      "events": [
+        {
+          "event": "error",
+          "data": {
+            "message": "synthetic semantic QA failure",
+            "reason": "provider_error"
+          }
+        }
+      ]
+    },
+    "semanticQaCancellable": {
+      "events": [
+        {
+          "event": "delta",
+          "data": {
+            "text": "Synthetic partial"
+          }
+        }
+      ],
+      "cancellable": true
+    }
   }
 }

@@ -5,8 +5,8 @@ import type {
   GraphConfigDraft,
   GraphEventDraft,
   GraphQADraft,
-} from "@l4/network";
-import type { GraphResidualView } from "@l2/commander/graphResidualViewModel";
+  GraphResidualView,
+} from "@l2/commander/graphResidualViewModel";
 
 interface GraphAdvancedPanelProps {
   view: GraphResidualView;

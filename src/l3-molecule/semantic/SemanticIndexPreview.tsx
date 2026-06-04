@@ -1,7 +1,6 @@
 import { RefreshCw } from "lucide-react";
 import { Button, Select, Typography } from "@l4/ui";
-import type { SemanticPreviewKind } from "@l4/network";
-import type { SemanticPreviewView } from "@l2/commander/semanticPreviewViewModel";
+import type { SemanticPreviewKind, SemanticPreviewView } from "@l2/commander/semanticPreviewViewModel";
 import { formatSemanticPreviewContent, formatSemanticPreviewIdentity } from "./semanticPreviewDisplay";
 
 interface SemanticIndexPreviewProps {
