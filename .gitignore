@@ -63,6 +63,8 @@ docs/superpowers/
 docs/reviews/
 docs/
 specs/
+!e2e/specs/
+!e2e/specs/**
 e2e/README.md
 e2e/mock-chatlog-server/README.md
 task_plan.md

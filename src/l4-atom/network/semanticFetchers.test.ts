@@ -173,6 +173,68 @@ describe("semantic REST atoms", () => {
     expect(JSON.stringify(events[0])).not.toContain("Synthetic private message");
     expect(JSON.stringify(events[0])).not.toContain("wxid_synthetic");
   });
+
+  it("sends P3-C discovery parameters without leaking UI-only scope", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        calls.push({ url: String(input), init });
+        const path = new URL(String(input)).pathname;
+
+        if (path.endsWith("/api/v1/semantic/search")) {
+          return json({
+            query: "release risk",
+            window: "30d",
+            depth: "deep",
+            source_count: 2,
+            count: 0,
+            rerank: true,
+            results: [],
+          });
+        }
+        if (path.endsWith("/api/v1/semantic/topics")) {
+          return json({ window: "30d", count: 0, topics: [] });
+        }
+        if (path.endsWith("/api/v1/semantic/profiles")) {
+          return json({ window: "30d", count: 0, profiles: [], type_distribution: [] });
+        }
+
+        return json({});
+      }),
+    );
+
+    await fetchSemanticSearch({
+      query: "release risk",
+      limit: 12,
+      window: "30d",
+      depth: "deep",
+      sourceLimit: 8,
+      chats: ["wxid_alpha", "room_beta"],
+      rerank: true,
+      scope: "selected",
+    });
+    await fetchSemanticTopics({ chat: "wxid_alpha", window: "30d" });
+    await fetchSemanticProfiles({ chat: "wxid_alpha", window: "30d" });
+
+    const searchUrl = new URL(calls.find((call) => call.url.includes("/semantic/search"))?.url ?? "");
+    expect(searchUrl.searchParams.get("query")).toBe("release risk");
+    expect(searchUrl.searchParams.get("limit")).toBe("12");
+    expect(searchUrl.searchParams.get("window")).toBe("30d");
+    expect(searchUrl.searchParams.get("depth")).toBe("deep");
+    expect(searchUrl.searchParams.get("source_limit")).toBe("8");
+    expect(searchUrl.searchParams.get("chats")).toBe("wxid_alpha,room_beta");
+    expect(searchUrl.searchParams.get("rerank")).toBe("true");
+    expect(searchUrl.searchParams.has("scope")).toBe(false);
+
+    const topicsUrl = new URL(calls.find((call) => call.url.includes("/semantic/topics"))?.url ?? "");
+    expect(topicsUrl.searchParams.get("chat")).toBe("wxid_alpha");
+    expect(topicsUrl.searchParams.get("window")).toBe("30d");
+
+    const profilesUrl = new URL(calls.find((call) => call.url.includes("/semantic/profiles"))?.url ?? "");
+    expect(profilesUrl.searchParams.get("chat")).toBe("wxid_alpha");
+    expect(profilesUrl.searchParams.get("window")).toBe("30d");
+  });
 });
 
 function json(value: unknown): Response {

@@ -1,31 +1,16 @@
 import { Button, Surface, Typography, SkeletonLoader } from "@l4/ui";
-import {
-  getSemanticDisplayText,
-  getSemanticProfileRows,
-  getSemanticTypeDistributionRows,
-} from "./semanticDisplay";
-
-interface ContactProfileDataView {
-  profiles?: Array<{
-    sender: string;
-    senderName: string;
-    messages: number;
-    topKeywords: Array<{ topic: string; count: number }>;
-  }>;
-  typeDistribution?: Array<{ type: string; count: number }>;
-  summary?: string;
-}
+import type { SemanticDiscoveryProfileView } from "@l2/commander/semanticDiscoveryViewModel";
 
 interface ContactProfileProps {
-  profile: ContactProfileDataView | null;
+  view: SemanticDiscoveryProfileView | null;
   loading: boolean;
   error?: string | null;
-  privacyOn: boolean;
   onRetry?: () => void;
+  onAskAboutSender?: (senderId: string) => void;
 }
 
-export function ContactProfile({ profile, loading, error, privacyOn, onRetry }: ContactProfileProps) {
-  if (loading && !profile) {
+export function ContactProfile({ view, loading, error, onRetry, onAskAboutSender }: ContactProfileProps) {
+  if (loading && !view) {
     return (
       <Surface variant="subtle" className="semantic-section">
         <Typography variant="label" weight={700}>
@@ -59,10 +44,7 @@ export function ContactProfile({ profile, loading, error, privacyOn, onRetry }: 
     );
   }
 
-  const rows = getSemanticProfileRows(profile?.profiles, privacyOn);
-  const typeRows = getSemanticTypeDistributionRows(profile?.typeDistribution);
-
-  if (!profile || rows.length === 0) {
+  if (!view || view.rows.length === 0) {
     return (
       <Surface variant="subtle" className="semantic-section">
         <Typography variant="label" weight={700}>
@@ -77,45 +59,60 @@ export function ContactProfile({ profile, loading, error, privacyOn, onRetry }: 
 
   return (
     <Surface variant="subtle" className="semantic-section">
-      <Typography variant="label" weight={700}>
-        联系人画像
-      </Typography>
-      {profile.summary && (
-        <div className="semantic-profile-row">
-          <Typography variant="caption" color="var(--text-secondary)">
-            总结
+      <div className="semantic-section__head">
+        <div>
+          <Typography variant="label" weight={700}>
+            {view.title}
           </Typography>
           <Typography variant="caption" color="var(--text-secondary)">
-            {getSemanticDisplayText(profile.summary, privacyOn)}
+            {view.windowLabel} · {view.countLabel}
           </Typography>
         </div>
+        {view.truncatedLabel && <span className="semantic-warning-pill">{view.truncatedLabel}</span>}
+      </div>
+      {view.summary && (
+        <Typography variant="caption" color="var(--text-secondary)" className="semantic-summary-copy">
+          {view.summary}
+        </Typography>
       )}
-      {rows.map((row) => (
-        <div key={`${row.sender}-${row.messages}`} className="semantic-profile-row">
-          <Typography variant="caption" color="var(--text-secondary)">
-            {row.sender}
-          </Typography>
-          <Typography variant="body">
-            {row.messages}
-          </Typography>
-          {row.keywords.length > 0 && (
-            <div className="semantic-chip-list">
-              {row.keywords.map((keyword) => (
-                <span key={keyword} className="semantic-chip">
-                  {keyword}
-                </span>
-              ))}
+      {view.summaryError && (
+        <Typography variant="caption" color="var(--warning)" className="semantic-warning-copy">
+          摘要生成失败：{view.summaryError}
+        </Typography>
+      )}
+      {view.rows.map((row) => (
+        <div key={`${row.senderId}-${row.messagesLabel}`} className="semantic-profile-row">
+          <div className="semantic-profile-row__head">
+            <div>
+              <Typography variant="caption" color="var(--text-secondary)">
+                {row.senderLabel}
+              </Typography>
+              <Typography variant="body">
+                {row.messagesLabel}
+              </Typography>
             </div>
-          )}
+            {row.canAskAboutSender && onAskAboutSender && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => onAskAboutSender(row.senderId)}>
+                问答
+              </Button>
+            )}
+          </div>
+          <div className="semantic-chip-list semantic-chip-list--inline">
+            {row.keywords.map((keyword) => (
+              <span key={keyword} className="semantic-chip">
+                {keyword}
+              </span>
+            ))}
+          </div>
         </div>
       ))}
-      {typeRows.length > 0 && (
+      {view.typeRows.length > 0 && (
         <div className="semantic-profile-row">
           <Typography variant="caption" color="var(--text-secondary)">
             类型分布
           </Typography>
           <div className="semantic-chip-list">
-            {typeRows.map((row) => (
+            {view.typeRows.map((row) => (
               <span key={row} className="semantic-chip">
                 {row}
               </span>

@@ -25,13 +25,27 @@ import {
   INDEX_BUILD_TIMEOUT_MS,
   SEMANTIC_SEARCH_DEBOUNCE_MS,
 } from "@/utils/constants";
-import type { SemanticConfig, QARequest, SemanticSearchRequest } from "@/l2-coordinator/api-docs/semantic";
+import type {
+  SemanticConfig,
+  QARequest,
+  SemanticDiscoveryWindow,
+  SemanticSearchDepth,
+  SemanticSearchRequest,
+  SemanticSearchScope,
+} from "@/l2-coordinator/api-docs/semantic";
 import {
   deriveCompactSemanticStatus,
   deriveSemanticModuleView,
   deriveSemanticQaView,
 } from "./semanticViewModel";
 import { buildSemanticPreviewView } from "./semanticPreviewViewModel";
+import {
+  buildSemanticAnalysisRequest,
+  buildSemanticPreviewRequest,
+  buildSemanticSearchRequest,
+} from "./semanticDiscoveryRequestModel";
+import { resolveSemanticSearchTarget } from "./semanticDiscoveryNavigation";
+import { buildSemanticDiscoveryView } from "./semanticDiscoveryViewModel";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 type IndexAction = "rebuild" | "pause" | "resume" | "clear";
@@ -171,7 +185,7 @@ export function useAiCommander() {
     }
   }, []);
 
-  const askQuestion = useCallback((query: string, scope?: "contact" | "all") => {
+  const askQuestion = useCallback((query: string, scope?: "contact" | "all", overrides: Partial<QARequest> = {}) => {
     if (!query.trim()) return;
 
     sseAbortRef.current?.abort();
@@ -202,6 +216,10 @@ export function useAiCommander() {
       query,
       chat: scope === "all" ? undefined : (currentChat || undefined),
       scope: scope || undefined,
+      window: store.discoveryWindow,
+      retrievalDepth: store.searchDepth,
+      sourceLimit: store.searchSourceLimit,
+      ...overrides,
     };
 
     const tokenBuffer = createTokenBuffer(50);
@@ -251,8 +269,15 @@ export function useAiCommander() {
     );
   }, [currentChat, store]);
 
-  const semanticSearch = useCallback(async (query: string, scope?: "contact" | "all") => {
+  const askAboutSender = useCallback((senderId: string) => {
+    const entityOverride = senderId.trim();
+    if (!entityOverride) return;
+    askQuestion("请基于当前会话总结这个对象的沟通主题和行为模式。", "contact", { entityOverride });
+  }, [askQuestion]);
+
+  const semanticSearch = useCallback(async (query = useAiStore.getState().searchQuery) => {
     store.setSearchQuery(query);
+    store.setSearchNavigationNote(null);
     if (!query.trim()) {
       store.setSearchResults(null);
       store.setSearchError(null);
@@ -261,11 +286,20 @@ export function useAiCommander() {
     store.setSearchLoading(true);
     store.setSearchError(null);
     try {
-      const params: SemanticSearchRequest = {
+      const aiStore = useAiStore.getState();
+      const params: SemanticSearchRequest | null = buildSemanticSearchRequest({
         query,
-        chat: scope === "all" ? undefined : (currentChat || undefined),
-        scope,
-      };
+        scope: aiStore.searchScope,
+        currentChat,
+        selectedChats: aiStore.selectedSearchChats,
+        conversations,
+        window: aiStore.discoveryWindow,
+        depth: aiStore.searchDepth,
+        sourceLimit: aiStore.searchSourceLimit,
+        rerank: aiStore.searchRerank,
+        limit: 20,
+      });
+      if (!params) return;
       const results = await withOverloadRetry(() =>
         fetchSemanticSearch(params, semanticDiagnostics()),
       );
@@ -273,7 +307,7 @@ export function useAiCommander() {
     } catch (error) {
       store.setSearchError(translateError(String(error)));
     }
-  }, [currentChat, store]);
+  }, [conversations, currentChat, store]);
 
   const debouncedSearchRef = useRef<ReturnType<typeof debounce>>();
   useEffect(() => {
@@ -281,19 +315,20 @@ export function useAiCommander() {
     return () => { debouncedSearchRef.current?.cancel(); };
   }, [semanticSearch]);
 
-  const debouncedSearch = useCallback((query: string, scope?: "contact" | "all") => {
-    debouncedSearchRef.current?.(query, scope);
+  const debouncedSearch = useCallback((query: string) => {
+    debouncedSearchRef.current?.(query);
   }, []);
 
   const loadAnalysis = useCallback(async () => {
-    if (!currentChat) return;
+    const request = buildSemanticAnalysisRequest(currentChat, useAiStore.getState().discoveryWindow);
+    if (!request) return;
 
     store.setTopicsLoading(true);
     store.setProfileLoading(true);
 
     try {
       const topics = await withOverloadRetry(() =>
-        fetchSemanticTopics(currentChat, semanticDiagnostics()),
+        fetchSemanticTopics(request, semanticDiagnostics()),
       );
       store.setTopics(topics);
     } catch (error) {
@@ -302,7 +337,7 @@ export function useAiCommander() {
 
     try {
       const profile = await withOverloadRetry(() =>
-        fetchSemanticProfiles(currentChat, semanticDiagnostics()),
+        fetchSemanticProfiles(request, semanticDiagnostics()),
       );
       store.setProfile(profile);
     } catch (error) {
@@ -314,20 +349,18 @@ export function useAiCommander() {
     kind?: SemanticPreviewKind;
     limit?: number;
     offset?: number;
+    talker?: string;
   } = {}) => {
     const aiStore = useAiStore.getState();
     const kind = overrides.kind ?? aiStore.previewKind;
     const limit = overrides.limit ?? aiStore.previewLimit;
     const offset = overrides.offset ?? aiStore.previewOffset;
+    const talker = overrides.talker ?? aiStore.previewTalker;
 
     aiStore.setPreviewLoading();
     try {
       const preview = await fetchSemanticIndexPreview(
-        {
-          kind: kind === "all" ? undefined : kind,
-          limit,
-          offset,
-        },
+        buildSemanticPreviewRequest({ kind, limit, offset, talker }),
         semanticDiagnostics(),
       );
       useAiStore.getState().setPreview(preview);
@@ -348,6 +381,11 @@ export function useAiCommander() {
     void loadPreview({ limit, offset: 0 });
   }, [loadPreview]);
 
+  const setPreviewTalker = useCallback((talker: string) => {
+    useAiStore.getState().setPreviewTalker(talker);
+    void loadPreview({ talker, offset: 0 });
+  }, [loadPreview]);
+
   const loadPreviousPreviewPage = useCallback(() => {
     const aiStore = useAiStore.getState();
     const offset = Math.max(0, aiStore.previewOffset - aiStore.previewLimit);
@@ -361,6 +399,36 @@ export function useAiCommander() {
     aiStore.setPreviewOffset(offset);
     void loadPreview({ offset });
   }, [loadPreview]);
+
+  const setSearchScope = useCallback((scope: SemanticSearchScope) => {
+    useAiStore.getState().setSearchScope(scope);
+  }, []);
+
+  const setSelectedSearchChats = useCallback((chats: string[]) => {
+    useAiStore.getState().setSelectedSearchChats(chats);
+  }, []);
+
+  const setDiscoveryWindow = useCallback((window: SemanticDiscoveryWindow) => {
+    useAiStore.getState().setDiscoveryWindow(window);
+  }, []);
+
+  const setSearchDepth = useCallback((depth: SemanticSearchDepth) => {
+    useAiStore.getState().setSearchDepth(depth);
+  }, []);
+
+  const setSearchSourceLimit = useCallback((limit: number) => {
+    useAiStore.getState().setSearchSourceLimit(limit);
+  }, []);
+
+  const setSearchRerank = useCallback((rerank: boolean) => {
+    useAiStore.getState().setSearchRerank(rerank);
+  }, []);
+
+  const resolveSearchResult = useCallback((result: Parameters<typeof resolveSemanticSearchTarget>[0]) => {
+    const target = resolveSemanticSearchTarget(result, conversations, privacyOn);
+    store.setSearchNavigationNote(target.message);
+    return target;
+  }, [conversations, privacyOn, store]);
 
   const previousChatRef = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -398,6 +466,20 @@ export function useAiCommander() {
     preview: store.preview,
     error: store.previewError,
   }, privacyOn);
+  const discoveryView = buildSemanticDiscoveryView({
+    conversations,
+    currentChat,
+    currentContactName: currentConv?.displayName,
+    privacyOn,
+    window: store.discoveryWindow,
+    scope: store.searchScope,
+    selectedChats: store.selectedSearchChats,
+    depth: store.searchDepth,
+    sourceLimit: store.searchSourceLimit,
+    rerank: store.searchRerank,
+    topics: store.topics,
+    profile: store.profile,
+  });
 
   return {
     phase: store.phase,
@@ -412,6 +494,13 @@ export function useAiCommander() {
     qaStatus: store.qaStatus,
     qaError: store.qaError,
     searchQuery: store.searchQuery,
+    searchScope: store.searchScope,
+    selectedSearchChats: store.selectedSearchChats,
+    discoveryWindow: store.discoveryWindow,
+    searchDepth: store.searchDepth,
+    searchSourceLimit: store.searchSourceLimit,
+    searchRerank: store.searchRerank,
+    searchNavigationNote: store.searchNavigationNote,
     searchResults: store.searchResults,
     searchLoading: store.searchLoading,
     searchError: store.searchError,
@@ -424,25 +513,37 @@ export function useAiCommander() {
     previewStatus: store.previewStatus,
     preview: store.preview,
     previewKind: store.previewKind,
+    previewTalker: store.previewTalker,
     previewLimit: store.previewLimit,
     previewOffset: store.previewOffset,
     previewError: store.previewError,
     semanticPreviewView,
+    discoveryView,
     error: store.error,
     initialize,
     saveConfig,
     testConnection,
     doIndexAction,
     askQuestion,
+    askAboutSender,
     stopQAStream,
     debouncedSearch,
     semanticSearch,
+    resolveSearchResult,
+    setSearchQuery: store.setSearchQuery,
     loadAnalysis,
     loadPreview,
     setPreviewKind,
     setPreviewLimit,
+    setPreviewTalker,
     loadPreviousPreviewPage,
     loadNextPreviewPage,
+    setSearchScope,
+    setSelectedSearchChats,
+    setDiscoveryWindow,
+    setSearchDepth,
+    setSearchSourceLimit,
+    setSearchRerank,
     clearError: () => store.setError(null),
     clearQAMessages: store.clearQAMessages,
     reset: store.reset,

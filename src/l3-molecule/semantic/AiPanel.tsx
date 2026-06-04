@@ -11,6 +11,7 @@ import { SemanticSearch } from './SemanticSearch';
 import { TopicView } from './TopicView';
 import { ContactProfile } from './ContactProfile';
 import { SemanticIndexPreview } from './SemanticIndexPreview';
+import { SemanticDiscoveryContextBar } from './SemanticDiscoveryContextBar';
 import { SetupWizard } from './SetupWizard';
 import type { useAiCommander } from '@l2/commander/useAiCommander';
 
@@ -54,11 +55,11 @@ export function AiPanel({
 
   useEffect(() => {
     if (mode !== 'ai' || activeTab !== 'analysis' || !currentChat) return;
-    const key = `${currentChat}:${ai.indexStatus?.status ?? "unknown"}:${ai.indexStatus?.completed ?? 0}`;
+    const key = `${currentChat}:${ai.discoveryWindow}:${ai.indexStatus?.status ?? "unknown"}:${ai.indexStatus?.completed ?? 0}`;
     if (analysisRequestKey.current === key) return;
     analysisRequestKey.current = key;
     aiRef.current.loadAnalysis();
-  }, [activeTab, ai.indexStatus?.completed, ai.indexStatus?.status, currentChat, mode]);
+  }, [activeTab, ai.discoveryWindow, ai.indexStatus?.completed, ai.indexStatus?.status, currentChat, mode]);
 
   useEffect(() => {
     if (mode !== 'ai' || activeTab !== 'preview') return;
@@ -195,6 +196,7 @@ export function AiPanel({
 
               {ai.moduleView.kind === 'ready' && (
                 <>
+                  <SemanticDiscoveryContextBar view={ai.discoveryView} />
                   {activeTab === 'qa' && !!currentChat && (
                     <QAPanel
                       qaMessages={ai.qaMessages}
@@ -216,30 +218,54 @@ export function AiPanel({
                   )}
                   {activeTab === 'search' && (
                     <SemanticSearch
+                      query={ai.searchQuery}
+                      scope={ai.searchScope}
+                      selectedChats={ai.selectedSearchChats}
+                      window={ai.discoveryWindow}
+                      depth={ai.searchDepth}
+                      sourceLimit={ai.searchSourceLimit}
+                      rerank={ai.searchRerank}
+                      discoveryView={ai.discoveryView}
                       searchResults={ai.searchResults}
                       searchLoading={ai.searchLoading}
                       searchError={ai.searchError}
+                      navigationNote={ai.searchNavigationNote}
                       privacyOn={privacyOn}
+                      onQueryChange={ai.setSearchQuery}
                       onSearch={ai.debouncedSearch}
-                      onRetry={() => ai.semanticSearch(ai.searchQuery)}
-                      onSelectResult={onSelectAndLoad}
+                      onSubmitSearch={() => ai.semanticSearch()}
+                      onScopeChange={ai.setSearchScope}
+                      onSelectedChatsChange={ai.setSelectedSearchChats}
+                      onWindowChange={ai.setDiscoveryWindow}
+                      onDepthChange={ai.setSearchDepth}
+                      onSourceLimitChange={ai.setSearchSourceLimit}
+                      onRerankChange={ai.setSearchRerank}
+                      onRetry={() => ai.semanticSearch()}
+                      onSelectResult={(result) => {
+                        const target = ai.resolveSearchResult(result);
+                        if (target.kind === "ready") {
+                          onSelectAndLoad(target.conversationId, target.chat);
+                        }
+                      }}
                     />
                   )}
                   {activeTab === 'analysis' && !!currentChat && (
                     <div className="semantic-analysis-stack">
                       <TopicView
-                        topics={ai.topics}
+                        view={ai.discoveryView.topics}
                         loading={ai.topicsLoading}
                         error={ai.topicsError}
-                        privacyOn={privacyOn}
                         onRetry={ai.loadAnalysis}
                       />
                       <ContactProfile
-                        profile={ai.profile}
+                        view={ai.discoveryView.profile}
                         loading={ai.profileLoading}
                         error={ai.profileError}
-                        privacyOn={privacyOn}
                         onRetry={ai.loadAnalysis}
+                        onAskAboutSender={(senderId) => {
+                          setActiveTab("qa");
+                          ai.askAboutSender(senderId);
+                        }}
                       />
                     </div>
                   )}
@@ -254,9 +280,12 @@ export function AiPanel({
                     <SemanticIndexPreview
                       view={ai.semanticPreviewView}
                       kind={ai.previewKind}
+                      talker={ai.previewTalker}
+                      talkerOptions={ai.discoveryView.previewTalkerOptions}
                       limit={ai.previewLimit}
                       privacyOn={privacyOn}
                       onKindChange={ai.setPreviewKind}
+                      onTalkerChange={ai.setPreviewTalker}
                       onLimitChange={ai.setPreviewLimit}
                       onRefresh={() => ai.loadPreview()}
                       onPreviousPage={ai.loadPreviousPreviewPage}

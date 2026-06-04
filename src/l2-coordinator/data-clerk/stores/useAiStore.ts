@@ -1,5 +1,18 @@
 import { create } from "zustand";
-import type { AiState, AiActions, AiPhase, SemanticConfig, IndexStatusResponse, QAMessage, TopicsResponse, ContactProfileData, SemanticSearchResponse } from "@/l2-coordinator/api-docs/semantic";
+import type {
+  AiState,
+  AiActions,
+  AiPhase,
+  SemanticConfig,
+  IndexStatusResponse,
+  QAMessage,
+  TopicsResponse,
+  ContactProfileData,
+  SemanticSearchResponse,
+  SemanticDiscoveryWindow,
+  SemanticSearchDepth,
+  SemanticSearchScope,
+} from "@/l2-coordinator/api-docs/semantic";
 import { QA_MAX_HISTORY } from "@/utils/constants";
 import type { SemanticIndexPreviewView, SemanticPreviewKind } from "@l4/network";
 
@@ -14,6 +27,17 @@ interface AiPreviewState {
   previewError: string | null;
 }
 
+interface AiDiscoveryState {
+  searchScope: SemanticSearchScope;
+  selectedSearchChats: string[];
+  discoveryWindow: SemanticDiscoveryWindow;
+  searchDepth: SemanticSearchDepth;
+  searchSourceLimit: number;
+  searchRerank: boolean;
+  previewTalker: string;
+  searchNavigationNote: string | null;
+}
+
 interface AiPreviewActions {
   setPreviewLoading: () => void;
   setPreview: (preview: SemanticIndexPreviewView) => void;
@@ -23,9 +47,20 @@ interface AiPreviewActions {
   setPreviewOffset: (offset: number) => void;
 }
 
-type AiStore = AiState & AiActions & AiPreviewState & AiPreviewActions;
+interface AiDiscoveryActions {
+  setSearchScope: (scope: SemanticSearchScope) => void;
+  setSelectedSearchChats: (chats: string[]) => void;
+  setDiscoveryWindow: (window: SemanticDiscoveryWindow) => void;
+  setSearchDepth: (depth: SemanticSearchDepth) => void;
+  setSearchSourceLimit: (limit: number) => void;
+  setSearchRerank: (rerank: boolean) => void;
+  setPreviewTalker: (talker: string) => void;
+  setSearchNavigationNote: (note: string | null) => void;
+}
 
-const initialState: AiState & AiPreviewState = {
+type AiStore = AiState & AiActions & AiPreviewState & AiPreviewActions & AiDiscoveryState & AiDiscoveryActions;
+
+const initialState: AiState & AiPreviewState & AiDiscoveryState = {
   phase: "idle",
   config: null,
   indexStatus: null,
@@ -50,6 +85,14 @@ const initialState: AiState & AiPreviewState = {
   previewLimit: 20,
   previewOffset: 0,
   previewError: null,
+  searchScope: "contact",
+  selectedSearchChats: [],
+  discoveryWindow: "7d",
+  searchDepth: "standard",
+  searchSourceLimit: 6,
+  searchRerank: true,
+  previewTalker: "all",
+  searchNavigationNote: null,
   error: null,
 };
 
@@ -116,6 +159,17 @@ export const useAiStore = create<AiStore>((set) => ({
     set({ previewLimit: Math.max(1, Math.min(100, Math.round(previewLimit))), previewOffset: 0 }),
   setPreviewOffset: (previewOffset: number) =>
     set({ previewOffset: Math.max(0, Math.round(previewOffset)), previewStatus: "idle" }),
+
+  setSearchScope: (searchScope: SemanticSearchScope) => set({ searchScope }),
+  setSelectedSearchChats: (selectedSearchChats: string[]) => set({ selectedSearchChats }),
+  setDiscoveryWindow: (discoveryWindow: SemanticDiscoveryWindow) => set({ discoveryWindow }),
+  setSearchDepth: (searchDepth: SemanticSearchDepth) => set({ searchDepth }),
+  setSearchSourceLimit: (searchSourceLimit: number) =>
+    set({ searchSourceLimit: Math.max(1, Math.min(50, Math.round(searchSourceLimit))) }),
+  setSearchRerank: (searchRerank: boolean) => set({ searchRerank }),
+  setPreviewTalker: (previewTalker: string) =>
+    set({ previewTalker, previewOffset: 0, preview: null, previewStatus: "idle", previewError: null }),
+  setSearchNavigationNote: (searchNavigationNote: string | null) => set({ searchNavigationNote }),
 
   setError: (error: string | null) => set({ error, phase: error ? "error" : undefined }),
 

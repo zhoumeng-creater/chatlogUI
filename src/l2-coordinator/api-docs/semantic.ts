@@ -125,11 +125,20 @@ export interface SSEChunk {
 
 // ========== 语义搜索相关 ==========
 
+export type SemanticDiscoveryWindow = "7d" | "30d" | "90d" | "all" | string;
+export type SemanticSearchDepth = "quick" | "standard" | "deep" | string;
+export type SemanticSearchScope = "contact" | "selected" | "all";
+
 export interface SemanticSearchRequest {
   query: string;
   limit?: number;
   chat?: string;
-  scope?: 'contact' | 'all';
+  chats?: string[];
+  window?: SemanticDiscoveryWindow;
+  depth?: SemanticSearchDepth;
+  sourceLimit?: number;
+  rerank?: boolean;
+  scope?: SemanticSearchScope;
 }
 
 export interface SemanticSearchResultItem {
@@ -209,6 +218,7 @@ export interface ContactProfileData {
   mainTopics?: string[];
   sentiment?: string;
   summary?: string;
+  summaryError?: string;
 }
 
 // ========== AI 模块状态 ==========

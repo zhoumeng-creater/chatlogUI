@@ -1,19 +1,14 @@
 import { Button, Surface, Typography, SkeletonLoader } from "@l4/ui";
-import { getSemanticDisplayText } from "./semanticDisplay";
-
-interface TopicViewData {
-  topics: Array<{ topic: string; count: number }>;
-}
+import type { SemanticDiscoveryTopicsView } from "@l2/commander/semanticDiscoveryViewModel";
 
 interface TopicViewProps {
-  topics: TopicViewData | null;
+  view: SemanticDiscoveryTopicsView | null;
   loading: boolean;
   error?: string | null;
-  privacyOn: boolean;
   onRetry?: () => void;
 }
 
-export function TopicView({ topics, loading, error, privacyOn, onRetry }: TopicViewProps) {
+export function TopicView({ view, loading, error, onRetry }: TopicViewProps) {
 
   if (loading) {
     return (
@@ -49,7 +44,7 @@ export function TopicView({ topics, loading, error, privacyOn, onRetry }: TopicV
     );
   }
 
-  if (!topics || topics.topics.length === 0) {
+  if (!view || view.rows.length === 0) {
     return (
       <Surface variant="subtle" className="semantic-section">
         <Typography variant="label" weight={700}>
@@ -62,27 +57,69 @@ export function TopicView({ topics, loading, error, privacyOn, onRetry }: TopicV
     );
   }
 
-  const maxCount = Math.max(...topics.topics.map((topic) => topic.count), 1);
+  const maxCount = Math.max(...view.rows.map((topic) => topic.count), 1);
 
   return (
     <Surface variant="subtle" className="semantic-section">
-      <Typography variant="label" weight={700}>
-        热门话题
-      </Typography>
-      {topics.topics.map((topic, index) => (
-        <div key={`${topic.topic}-${index}`} className="semantic-topic-row">
+      <div className="semantic-section__head">
+        <div>
+          <Typography variant="label" weight={700}>
+            {view.title}
+          </Typography>
+          <Typography variant="caption" color="var(--text-secondary)">
+            {view.windowLabel} · {view.countLabel}
+          </Typography>
+        </div>
+        {view.truncatedLabel && <span className="semantic-warning-pill">{view.truncatedLabel}</span>}
+      </div>
+      {view.summary && (
+        <Typography variant="caption" color="var(--text-secondary)" className="semantic-summary-copy">
+          {view.summary}
+        </Typography>
+      )}
+      {view.summaryError && (
+        <Typography variant="caption" color="var(--warning)" className="semantic-warning-copy">
+          摘要生成失败：{view.summaryError}
+        </Typography>
+      )}
+      {view.daily.length > 0 && (
+        <div className="semantic-topic-trend" aria-label="话题每日趋势">
+          {view.daily.map((entry) => (
+            <div key={entry.date} className="semantic-topic-trend__item">
+              <progress
+                className="semantic-topic-trend__bar"
+                value={entry.percent}
+                max={100}
+                aria-label={`${entry.date} ${entry.count} 条`}
+              />
+              <span>{entry.date.slice(-5)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {view.rows.map((topic, index) => (
+        <div key={`${topic.label}-${index}`} className="semantic-topic-row">
           <div className="semantic-topic-row__label">
-            <Typography variant="caption">{getSemanticDisplayText(topic.topic, privacyOn)}</Typography>
+            <Typography variant="caption">{topic.label}</Typography>
             <Typography variant="caption" color="var(--text-secondary)">
-              {topic.count} 条
+              {topic.countLabel} 条
             </Typography>
           </div>
           <progress
             className="semantic-topic-row__meter"
             value={(topic.count / maxCount) * 100}
             max={100}
-            aria-label={`${getSemanticDisplayText(topic.topic, privacyOn)} 占比`}
+            aria-label={`${topic.label} 占比`}
           />
+          {topic.keywords.length > 0 && (
+            <div className="semantic-chip-list semantic-chip-list--inline">
+              {topic.keywords.map((keyword) => (
+                <span key={keyword} className="semantic-chip">
+                  {keyword}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </Surface>

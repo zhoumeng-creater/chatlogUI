@@ -7,9 +7,12 @@ import { formatSemanticPreviewContent, formatSemanticPreviewIdentity } from "./s
 interface SemanticIndexPreviewProps {
   view: SemanticPreviewView;
   kind: SemanticPreviewKind;
+  talker: string;
+  talkerOptions: Array<{ value: string; label: string }>;
   limit: number;
   privacyOn: boolean;
   onKindChange: (kind: SemanticPreviewKind) => void;
+  onTalkerChange: (talker: string) => void;
   onLimitChange: (limit: number) => void;
   onRefresh: () => void;
   onPreviousPage: () => void;
@@ -26,9 +29,12 @@ const KIND_OPTIONS: Array<{ value: SemanticPreviewKind; label: string }> = [
 export function SemanticIndexPreview({
   view,
   kind,
+  talker,
+  talkerOptions,
   limit,
   privacyOn,
   onKindChange,
+  onTalkerChange,
   onLimitChange,
   onRefresh,
   onPreviousPage,
@@ -55,6 +61,16 @@ export function SemanticIndexPreview({
           <span>类型</span>
           <Select controlSize="sm" value={kind} onChange={(event) => onKindChange(event.currentTarget.value)}>
             {KIND_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="developer-field">
+          <span>会话</span>
+          <Select controlSize="sm" value={talker} onChange={(event) => onTalkerChange(event.currentTarget.value)}>
+            {talkerOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
