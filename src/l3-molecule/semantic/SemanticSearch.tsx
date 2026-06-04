@@ -221,6 +221,11 @@ export function SemanticSearch({
             <Typography variant="body" color="var(--text-secondary)">
               没有找到语义匹配结果。可以放宽时间窗口、切换范围或减少重排限制。
             </Typography>
+            {view.rerankError && (
+              <Typography variant="caption" color="var(--danger)">
+                重排失败：{view.rerankError}
+              </Typography>
+            )}
           </div>
         )}
 
@@ -229,6 +234,11 @@ export function SemanticSearch({
             <Typography variant="caption" color="var(--color-text-secondary)" className="semantic-search__caption">
               {view.summary}
             </Typography>
+            {view.rerankError && (
+              <Typography variant="caption" color="var(--danger)" className="semantic-search__caption">
+                重排失败：{view.rerankError}
+              </Typography>
+            )}
             {view.rows.map((row) => (
               <button
                 key={`${row.chat}-${row.localId}`}

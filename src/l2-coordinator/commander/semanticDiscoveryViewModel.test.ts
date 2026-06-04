@@ -60,6 +60,7 @@ describe("semanticDiscoveryViewModel", () => {
 
     expect(view.search.status).toBe("ready");
     expect(view.search.summary).toBe("1 条结果 / 25 条候选 / 30d / deep / rerank 异常");
+    expect(view.search.rerankError).toBe("rerank unavailable");
     expect(view.search.rows[0]).toMatchObject({
       chat: "wxid_backend_chat",
       senderId: "wxid_sender",

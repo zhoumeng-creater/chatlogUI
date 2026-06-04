@@ -67,6 +67,7 @@ export interface SemanticDiscoveryView {
     status: SemanticDiscoveryPanelStatus;
     summary: string;
     error: string;
+    rerankError: string;
     rows: SemanticDiscoverySearchRowView[];
   };
   topics: {
@@ -109,9 +110,9 @@ export function buildSemanticDiscoveryView(input: SemanticDiscoveryViewInput): S
 
 function buildSearchView(input: SemanticDiscoveryViewInput): SemanticDiscoveryView["search"] {
   const { search } = input;
-  if (search.loading) return { status: "loading", summary: "正在语义搜索", error: "", rows: [] };
-  if (search.error) return { status: "error", summary: "", error: search.error, rows: [] };
-  if (!search.results) return { status: "idle", summary: "", error: "", rows: [] };
+  if (search.loading) return { status: "loading", summary: "正在语义搜索", error: "", rerankError: "", rows: [] };
+  if (search.error) return { status: "error", summary: "", error: search.error, rerankError: "", rows: [] };
+  if (!search.results) return { status: "idle", summary: "", error: "", rerankError: "", rows: [] };
   const rows = search.results.results.map((row) => ({
     chat: row.chat,
     senderId: row.senderId,
@@ -126,6 +127,7 @@ function buildSearchView(input: SemanticDiscoveryViewInput): SemanticDiscoveryVi
     status: rows.length > 0 ? "ready" : "empty",
     summary: searchSummary(search.results),
     error: "",
+    rerankError: search.results.rerank?.error ?? "",
     rows,
   };
 }

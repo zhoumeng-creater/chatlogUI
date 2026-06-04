@@ -65,7 +65,7 @@ export function ContactProfile({ view, onRetry, onAskSender }: ContactProfilePro
       )}
       {view.summaryError && (
         <Typography variant="caption" color="var(--warning)">
-          {view.summaryError}
+          摘要生成失败：{view.summaryError}
         </Typography>
       )}
       <SemanticProfileRows rows={view.rows} onAskSender={onAskSender} />

@@ -97,7 +97,7 @@ export function TopicView({ view, onRetry }: TopicViewProps) {
       )}
       {view.summaryError && (
         <Typography variant="caption" color="var(--warning)">
-          {view.summaryError}
+          摘要生成失败：{view.summaryError}
         </Typography>
       )}
     </Surface>
