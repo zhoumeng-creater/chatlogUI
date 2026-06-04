@@ -38,6 +38,13 @@ const SECRET_PATTERNS = [
   },
 ];
 
+const P3_SEMANTIC_GRAPH_REQUIRED_STATES = {
+  semantic_index: ["ready", "running", "paused", "failed", "unconfigured"],
+  semantic_qa: ["completed", "empty", "failure", "cancelled"],
+  graph_status: ["loaded", "running", "paused", "failed", "empty", "malformed", "oversized"],
+  graph_query: ["detail"],
+};
+
 export async function validateFixtureWorkspace(rootDir = process.cwd()) {
   const errors = [];
   const warnings = [];
@@ -61,6 +68,7 @@ export async function validateFixtureWorkspace(rootDir = process.cwd()) {
   validateRouteStates("manifest.routeStates", manifest.routeStates, fixtureById, errors, manifestRoutes);
   validateRouteStates("routeMap.routes", routeMap.routes, fixtureById, errors, routes);
   validateAdvancedFamilyCoverage(manifest, manifestRoutes, errors);
+  validateRequiredStateCoverage(manifest, manifestRoutes, errors);
   validateUniqueRouteIds(routes, errors);
 
   for (const [fixtureId, fixture] of fixtureById) {
@@ -70,6 +78,24 @@ export async function validateFixtureWorkspace(rootDir = process.cwd()) {
   scanValue(routeMap, "route-map", errors);
 
   return { ok: errors.length === 0, errors, warnings, routes };
+}
+
+function validateRequiredStateCoverage(manifest, routes, errors) {
+  if (manifest.requiredStateCoverage?.p3SemanticGraph !== true) return;
+
+  for (const [family, requiredStates] of Object.entries(P3_SEMANTIC_GRAPH_REQUIRED_STATES)) {
+    const familyStates = new Set(
+      routes
+        .filter((route) => route.family === family)
+        .map((route) => route.state),
+    );
+
+    for (const state of requiredStates) {
+      if (!familyStates.has(state)) {
+        errors.push(`${family} needs state ${state}`);
+      }
+    }
+  }
 }
 
 async function loadFixtures(rootDir, manifest, errors) {
@@ -177,6 +203,67 @@ function validateRouteContractShape(label, route, value, errors) {
     if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !item.trim())) {
       errors.push(`${label}: /api/v1/db/tables must resolve to an array of table names`);
     }
+  }
+
+  if (route.path === "/api/v1/graph/qa" && method !== "POST") {
+    errors.push(`${label}: /api/v1/graph/qa must be registered as POST`);
+  }
+
+  if (route.path === "/api/v1/graph/status" || route.path.startsWith("contract:graph-status")) {
+    validateGraphStatusShape(label, value, errors);
+  }
+
+  if (route.path === "/api/v1/graph/query" || route.path.startsWith("contract:graph-query")) {
+    validateGraphQueryShape(label, value, errors);
+  }
+
+  if (route.path === "/api/v1/graph/visualize") {
+    validateGraphTimelineRows(label, Array.isArray(value?.timeline) ? value.timeline : [], errors);
+  }
+
+  if (route.path === "/api/v1/graph/timeline") {
+    validateGraphTimelineRows(label, Array.isArray(value?.items) ? value.items : [], errors);
+  }
+}
+
+function validateGraphStatusShape(label, value, errors) {
+  if (!value || typeof value !== "object" || !Object.prototype.hasOwnProperty.call(value, "history_queued")) {
+    return;
+  }
+  if (typeof value.history_queued !== "boolean") {
+    errors.push(`${label}: graph status history_queued must be boolean`);
+  }
+}
+
+function validateGraphQueryShape(label, value, errors) {
+  if (!value || typeof value !== "object") return;
+  validateGraphTemporalRows(label, "relations", Array.isArray(value.relations) ? value.relations : [], errors);
+  validateGraphTemporalRows(label, "facts", Array.isArray(value.facts) ? value.facts : [], errors);
+  validateGraphTimelineRows(label, Array.isArray(value.events) ? value.events : [], errors);
+}
+
+function validateGraphTemporalRows(label, key, rows, errors) {
+  rows.forEach((row, index) => {
+    if (!row || typeof row !== "object") return;
+    if (Object.prototype.hasOwnProperty.call(row, "verified") && typeof row.verified !== "string") {
+      errors.push(`${label}: graph ${key}[${index}].verified must be a string status`);
+    }
+    validateOptionalUnixSeconds(label, `graph ${key}[${index}].valid_from`, row.valid_from, errors);
+    validateOptionalUnixSeconds(label, `graph ${key}[${index}].valid_to`, row.valid_to, errors);
+  });
+}
+
+function validateGraphTimelineRows(label, rows, errors) {
+  rows.forEach((row, index) => {
+    if (!row || typeof row !== "object") return;
+    validateOptionalUnixSeconds(label, `graph timeline[${index}].time`, row.time, errors);
+  });
+}
+
+function validateOptionalUnixSeconds(label, field, value, errors) {
+  if (value === undefined || value === null) return;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    errors.push(`${label}: ${field} must be Unix seconds`);
   }
 }
 

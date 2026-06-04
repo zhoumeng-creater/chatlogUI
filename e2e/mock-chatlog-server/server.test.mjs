@@ -29,6 +29,51 @@ describe("mock chatlog server", () => {
     }
   });
 
+  it("selects semantic QA SSE contract states from synthetic request queries", async () => {
+    const server = await startMockChatlogServer({ rootDir: process.cwd(), port: 0 });
+    try {
+      const emptyResponse = await fetch(`${server.baseUrl}/api/v1/semantic/qa/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: "synthetic empty qa" }),
+      });
+      const emptyText = await emptyResponse.text();
+
+      const failureResponse = await fetch(`${server.baseUrl}/api/v1/semantic/qa/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: "synthetic failure qa" }),
+      });
+      const failureText = await failureResponse.text();
+
+      expect(emptyText).toContain("synthetic empty answer");
+      expect(failureText).toContain("event: error");
+      expect(failureText).toContain("synthetic semantic QA failed");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("serves graph QA through the sidecar POST contract only", async () => {
+    const server = await startMockChatlogServer({ rootDir: process.cwd(), port: 0 });
+    try {
+      const postResponse = await fetch(`${server.baseUrl}/api/v1/graph/qa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: "synthetic graph qa" }),
+      });
+      const postJson = await postResponse.json();
+
+      const getResponse = await fetch(`${server.baseUrl}/api/v1/graph/qa`);
+
+      expect(postResponse.status).toBe(200);
+      expect(postJson.answer).toContain("Synthetic graph answer");
+      expect(getResponse.status).toBe(404);
+    } finally {
+      await server.close();
+    }
+  });
+
   it("serves generated media placeholders without reading real media", async () => {
     const server = await startMockChatlogServer({ rootDir: process.cwd(), port: 0 });
     try {

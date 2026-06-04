@@ -1,90 +1,96 @@
 import { describe, expect, it } from "vitest";
 import {
-  getSemanticAnswerSegments,
-  getSemanticDisplayText,
-  getSemanticProfileRows,
-  getSemanticTypeDistributionRows,
+  getSemanticEntityCandidateRows,
+  getSemanticEvidenceRows,
+  getSemanticMetadataChips,
 } from "./semanticDisplay";
 
-describe("getSemanticAnswerSegments", () => {
-  it("segments headings, bullets, links-as-text, code blocks, and unsafe HTML as text", () => {
-    expect(
-      getSemanticAnswerSegments(
-        [
-          "## Release Notes",
-          "- Shipped [alpha](https://example.test)",
-          "Normal **bold** and `inline` text",
-          "<script>alert(1)</script>",
-          "```ts",
-          "const value = 1;",
-          "```",
-        ].join("\n"),
-      ),
-    ).toEqual([
-      { type: "heading", text: "Release Notes" },
-      { type: "bullet", text: "Shipped alpha (https://example.test)" },
-      { type: "paragraph", text: "Normal bold and inline text" },
-      { type: "paragraph", text: "<script>alert(1)</script>" },
-      { type: "code", text: "const value = 1;", language: "ts" },
-    ]);
-  });
-
-  it("returns an empty list for blank answers", () => {
-    expect(getSemanticAnswerSegments(" \n ")).toEqual([]);
-  });
-
-  it("masks semantic labels and snippets when privacy mode is enabled", () => {
-    expect(getSemanticDisplayText("Alice budget", true)).toBe("***** ******");
-    expect(getSemanticDisplayText("", false, "Untitled")).toBe("Untitled");
-  });
-
-  it("formats profile rows from backend-shaped sender records", () => {
-    expect(
-      getSemanticProfileRows(
-        [
-          {
-            sender: "wxid_sender",
-            senderName: "Alice",
-            messages: 42,
-            topKeywords: [
-              { topic: "release", count: 7 },
-              { topic: "design", count: 3 },
-            ],
-          },
-        ],
-        false,
-      ),
-    ).toEqual([
+describe("semantic QA display helpers", () => {
+  it("formats evidence rows with scores, context, and privacy masking", () => {
+    const evidence = [
       {
-        sender: "Alice",
-        messages: "42 条",
-        keywords: ["release (7)", "design (3)"],
-      },
-    ]);
-  });
-
-  it("masks profile senders and keywords in privacy mode", () => {
-    expect(
-      getSemanticProfileRows(
-        [
+        time: "2026-06-04 09:30",
+        talker_name: "Project Room",
+        sender_name: "Alice",
+        source: "message",
+        chunk_type: "summary",
+        score: 0.92345,
+        rerank_score: 0.721,
+        content: "Private evidence body",
+        context: [
           {
-            sender: "wxid_sender",
-            senderName: "Alice",
-            messages: 42,
-            topKeywords: [{ topic: "release", count: 7 }],
+            time: "2026-06-04 09:29",
+            sender_name: "Bob",
+            content: "Private context body",
           },
         ],
-        true,
-      )[0],
-    ).toEqual({
-      sender: "*****",
-      messages: "42 条",
-      keywords: ["******* (7)"],
+      },
+    ];
+
+    expect(getSemanticEvidenceRows(evidence, false)[0]).toMatchObject({
+      index: 1,
+      time: "2026-06-04 09:30",
+      chatLabel: "Project Room",
+      senderLabel: "Alice",
+      sourceLabel: "message / summary",
+      scoreLabel: "score 0.9235",
+      rerankScoreLabel: "rerank 0.7210",
+      content: "Private evidence body",
+      contextRows: [
+        {
+          time: "2026-06-04 09:29",
+          senderLabel: "Bob",
+          content: "Private context body",
+        },
+      ],
     });
+
+    const privateRow = getSemanticEvidenceRows(evidence, true)[0];
+    expect(privateRow.chatLabel).not.toContain("Project");
+    expect(privateRow.senderLabel).not.toContain("Alice");
+    expect(privateRow.content).not.toContain("Private");
+    expect(privateRow.contextRows[0].content).not.toContain("Private");
+    expect(privateRow.scoreLabel).toBe("score 0.9235");
   });
 
-  it("formats type distribution rows and preserves empty profile states", () => {
-    expect(getSemanticProfileRows(undefined, false)).toEqual([]);
-    expect(getSemanticTypeDistributionRows([{ type: "person", count: 1 }])).toEqual(["person: 1"]);
+  it("formats metadata chips and entity candidates without exposing raw debug fields", () => {
+    const metadata = {
+      sourceCount: 3,
+      window: "30d",
+      depth: "deep",
+      evidenceCount: 2,
+      rerankTried: true,
+      rerankApplied: false,
+      rerankError: "synthetic rerank unavailable",
+      entityAmbiguous: true,
+      entityCandidates: [
+        {
+          display: "Alice",
+          username: "wxid_alice",
+          kind: "person",
+          source: "contacts",
+          raw_note: "should not show",
+        },
+      ],
+    };
+
+    expect(getSemanticMetadataChips(metadata)).toEqual([
+      "数据源 3",
+      "时间窗 30d",
+      "深度 deep",
+      "证据 2",
+      "Rerank 未应用",
+      "Rerank: synthetic rerank unavailable",
+      "候选 1 · 有歧义",
+    ]);
+
+    const candidates = getSemanticEntityCandidateRows(metadata, true);
+    expect(candidates[0]).toMatchObject({
+      entityOverride: "wxid_alice",
+      kindLabel: "******",
+      sourceLabel: "********",
+    });
+    expect(candidates[0].displayLabel).not.toContain("Alice");
+    expect(JSON.stringify(candidates)).not.toContain("raw_note");
   });
 });

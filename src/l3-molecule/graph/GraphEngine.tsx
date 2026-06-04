@@ -129,6 +129,7 @@ interface GraphEngineProps {
   privacyOn: boolean;
   onNodeHover: (nodeId: string | null, coord?: { x: number; y: number }) => void;
   onNodeDblClick: (nodeId: string) => void;
+  onEdgeClick: (edgeId: string) => void;
 }
 
 export function GraphEngine({
@@ -142,6 +143,7 @@ export function GraphEngine({
   privacyOn,
   onNodeHover,
   onNodeDblClick,
+  onEdgeClick,
 }: GraphEngineProps) {
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
   const { camera } = useThree();
@@ -235,6 +237,7 @@ export function GraphEngine({
               edge={edge}
               fromPos={fromPos}
               toPos={toPos}
+              onClick={onEdgeClick}
             />
           );
         })}

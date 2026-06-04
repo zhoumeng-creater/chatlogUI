@@ -1,4 +1,5 @@
-import type { AiPhase, IndexStatusResponse, SemanticConfig } from "@/l2-coordinator/api-docs/semantic";
+import type { AiPhase, IndexStatusResponse, QAMessage, SemanticConfig } from "@/l2-coordinator/api-docs/semantic";
+import { maskDiagnosticText } from "@/utils/maskSecrets";
 
 export type SemanticQaStatus =
   | "idle"
@@ -25,6 +26,7 @@ export interface SemanticModuleView {
   qaEnabled: boolean;
   statusLabel: string;
   message: string;
+  indexSummary?: SemanticIndexSummary;
 }
 
 export interface SemanticQaView {
@@ -32,6 +34,17 @@ export interface SemanticQaView {
   label: string;
   message: string;
   canStop: boolean;
+  evidenceReady: boolean;
+  sourceCount: number;
+  metadataSummary: string[];
+}
+
+export interface SemanticIndexSummary {
+  progressLabel: string;
+  etaLabel: string;
+  rateLabel: string;
+  coverageLabel: string;
+  lastActivityLabel: string;
 }
 
 export interface CompactSemanticStatus {
@@ -56,6 +69,7 @@ export function deriveSemanticModuleView(input: SemanticViewInput): SemanticModu
       qaEnabled: false,
       statusLabel: "Checking config",
       message: "Checking semantic provider configuration.",
+      indexSummary: semanticIndexSummary(input.indexStatus),
     };
   }
 
@@ -69,6 +83,7 @@ export function deriveSemanticModuleView(input: SemanticViewInput): SemanticModu
       qaEnabled: false,
       statusLabel: "Setup required",
       message: "Semantic provider configuration is required for this module.",
+      indexSummary: semanticIndexSummary(input.indexStatus),
     };
   }
 
@@ -80,7 +95,8 @@ export function deriveSemanticModuleView(input: SemanticViewInput): SemanticModu
       searchEnabled: false,
       qaEnabled: false,
       statusLabel: "Index failed",
-      message: input.indexStatus?.lastError || input.indexStatus?.error || "Semantic index failed.",
+      message: safeStatusText(input.indexStatus?.lastError || input.indexStatus?.error || "Semantic index failed."),
+      indexSummary: semanticIndexSummary(input.indexStatus),
     };
   }
 
@@ -92,6 +108,7 @@ export function deriveSemanticModuleView(input: SemanticViewInput): SemanticModu
       qaEnabled: false,
       statusLabel: `Indexing ${indexProgress(input.indexStatus)}%`,
       message: "Semantic indexing is running. Core chat, search, and stats remain available.",
+      indexSummary: semanticIndexSummary(input.indexStatus),
     };
   }
 
@@ -103,6 +120,7 @@ export function deriveSemanticModuleView(input: SemanticViewInput): SemanticModu
       qaEnabled: false,
       statusLabel: "Index paused",
       message: "Resume or rebuild the semantic index to use semantic search and QA.",
+      indexSummary: semanticIndexSummary(input.indexStatus),
     };
   }
 
@@ -114,6 +132,7 @@ export function deriveSemanticModuleView(input: SemanticViewInput): SemanticModu
       qaEnabled: true,
       statusLabel: "Ready",
       message: "Semantic search and QA are ready.",
+      indexSummary: semanticIndexSummary(input.indexStatus),
     };
   }
 
@@ -124,6 +143,7 @@ export function deriveSemanticModuleView(input: SemanticViewInput): SemanticModu
     qaEnabled: false,
     statusLabel: "Index unavailable",
     message: "Build the semantic index to enable semantic search and QA.",
+    indexSummary: semanticIndexSummary(input.indexStatus),
   };
 }
 
@@ -131,23 +151,25 @@ export function deriveSemanticQaView(input: {
   status: SemanticQaStatus;
   answer: string;
   error?: string | null;
+  message?: QAMessage;
 }): SemanticQaView {
+  const extras = qaViewExtras(input.message);
   switch (input.status) {
     case "connecting":
-      return { status: input.status, label: "Connecting", message: "Connecting to semantic QA.", canStop: true };
+      return { status: input.status, label: "Connecting", message: "Connecting to semantic QA.", canStop: true, ...extras };
     case "streaming":
-      return { status: input.status, label: "Streaming", message: input.answer, canStop: true };
+      return { status: input.status, label: "Streaming", message: input.answer, canStop: true, ...extras };
     case "completed":
-      return { status: input.status, label: "Completed", message: input.answer, canStop: false };
+      return { status: input.status, label: "Completed", message: input.answer, canStop: false, ...extras };
     case "stopped":
-      return { status: input.status, label: "Stopped", message: input.answer || "The stream was stopped.", canStop: false };
+      return { status: input.status, label: "Stopped", message: input.answer || "The stream was stopped.", canStop: false, ...extras };
     case "failed":
-      return { status: input.status, label: "Failed", message: input.error || "Semantic QA failed.", canStop: false };
+      return { status: input.status, label: "Failed", message: safeStatusText(input.error || "Semantic QA failed."), canStop: false, ...extras };
     case "empty":
-      return { status: input.status, label: "No Answer", message: "The stream completed without an answer.", canStop: false };
+      return { status: input.status, label: "No Answer", message: "The stream completed without an answer.", canStop: false, ...extras };
     case "idle":
     default:
-      return { status: "idle", label: "Idle", message: "", canStop: false };
+      return { status: "idle", label: "Idle", message: "", canStop: false, ...extras };
   }
 }
 
@@ -194,4 +216,56 @@ function indexProgress(indexStatus: IndexStatusResponse | null): number {
     return total > 0 ? Math.round((indexStatus.processed / total) * 100) : 0;
   }
   return 0;
+}
+
+function semanticIndexSummary(indexStatus: IndexStatusResponse | null): SemanticIndexSummary | undefined {
+  if (!indexStatus) return undefined;
+  return {
+    progressLabel: indexStatus.progressLabel || `${indexProgress(indexStatus)}% indexed`,
+    etaLabel: indexStatus.etaLabel || "",
+    rateLabel: indexStatus.rateLabel || "",
+    coverageLabel: indexStatus.coverageLabel || "",
+    lastActivityLabel: indexStatus.lastActivityLabel || "",
+  };
+}
+
+function qaViewExtras(message?: QAMessage): Pick<SemanticQaView, "evidenceReady" | "sourceCount" | "metadataSummary"> {
+  const sourceCount = message?.sourceCount ?? message?.evidence?.length ?? 0;
+  return {
+    evidenceReady: sourceCount > 0 || (message?.evidence?.length ?? 0) > 0,
+    sourceCount,
+    metadataSummary: semanticMetadataSummary(message?.metadata),
+  };
+}
+
+function semanticMetadataSummary(metadata?: Record<string, unknown>): string[] {
+  if (!metadata) return [];
+  const summary: string[] = [];
+  const window = stringMetadata(metadata, "window");
+  const depth = stringMetadata(metadata, "depth") || stringMetadata(metadata, "retrievalDepth");
+  const rerankApplied = booleanMetadata(metadata, "rerankApplied") ?? booleanMetadata(metadata, "rerank_applied");
+  const rerankTried = booleanMetadata(metadata, "rerankTried") ?? booleanMetadata(metadata, "rerank_tried");
+  const rerankError = stringMetadata(metadata, "rerankError") || stringMetadata(metadata, "rerank_error");
+
+  if (window) summary.push(`Window ${window}`);
+  if (depth) summary.push(`Depth ${depth}`);
+  if (rerankError) summary.push("Rerank error");
+  else if (rerankApplied) summary.push("Rerank applied");
+  else if (rerankTried) summary.push("Rerank tried");
+
+  return summary;
+}
+
+function safeStatusText(text: string): string {
+  return maskDiagnosticText(text);
+}
+
+function stringMetadata(metadata: Record<string, unknown>, key: string): string {
+  const value = metadata[key];
+  return typeof value === "string" ? value : "";
+}
+
+function booleanMetadata(metadata: Record<string, unknown>, key: string): boolean | null {
+  const value = metadata[key];
+  return typeof value === "boolean" ? value : null;
 }

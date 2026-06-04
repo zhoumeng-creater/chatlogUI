@@ -1,6 +1,7 @@
 import { Typography } from "@l4/ui/Typography";
 import { getGraphTooltipDisplay } from "./graphDisplay";
 import type { GraphDataView } from "./graphTypes";
+import type { CSSProperties } from "react";
 
 const KIND_LABELS: Record<string, string> = {
   person: "人物",
@@ -41,28 +42,29 @@ export function GraphTooltip({
   const lastSeenDate = node.last_seen
     ? new Date(node.last_seen * 1000).toLocaleDateString("zh-CN", { month: "long", day: "numeric" })
     : "未知";
+  const tooltipStyle = {
+    "--graph-tooltip-x": `${tooltipCoord ? tooltipCoord.x + 16 : 0}px`,
+    "--graph-tooltip-y": `${tooltipCoord ? tooltipCoord.y - 60 : 0}px`,
+  } as CSSProperties;
 
   return (
       <div
         className="graph-tooltip"
-        style={{
-          left: tooltipCoord ? tooltipCoord.x + 16 : 0,
-          top: tooltipCoord ? tooltipCoord.y - 60 : 0,
-        }}
+        style={tooltipStyle}
       >
-        <Typography variant="body" weight={700} style={{ marginBottom: 4 }}>
+        <Typography variant="body" weight={700} className="graph-tooltip__title">
           {display.title}
         </Typography>
         <Typography variant="caption" color="var(--color-text-secondary)">
           {kindLabel} · 提到 {node.value} 次
         </Typography>
-        <Typography variant="caption" color="var(--color-text-tertiary)" style={{ marginTop: 4 }}>
+        <Typography variant="caption" color="var(--color-text-tertiary)" className="graph-tooltip__spaced">
           最近活跃：{lastSeenDate}
         </Typography>
         <Typography variant="caption" color="var(--color-text-tertiary)">
           关联关系：{connectedEdges.length} 条
         </Typography>
-        <Typography variant="caption" color="var(--color-accent)" style={{ marginTop: 4 }}>
+        <Typography variant="caption" color="var(--color-accent)" className="graph-tooltip__spaced">
           双击查看聊天记录
         </Typography>
       </div>

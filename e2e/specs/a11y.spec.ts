@@ -39,9 +39,17 @@ test.describe("accessibility and keyboard gate", () => {
     await expect(page.getByText("Hook Events")).toBeVisible();
 
     await openWorkbenchModule(page, "图谱");
+    await page.getByRole("button", { name: /Synthetic Entity Alpha mentioned Synthetic Topic Alpha/ }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("complementary", { name: "图谱详情" })).toContainText("已支持");
+    await page.getByRole("tab", { name: "可视化" }).focus();
+    await page.keyboard.press("Enter");
     await page.getByRole("button", { name: "打开可视化" }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByLabel("知识图谱可视化")).toBeVisible();
+    await page.getByRole("tab", { name: "问答" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("region", { name: "图谱问答面板" })).toBeVisible();
   });
 
   test("does not expose forbidden accessible names in narrow privacy mode", async ({ page }) => {
@@ -54,6 +62,26 @@ test.describe("accessibility and keyboard gate", () => {
 
     await assertNoForbiddenVisibleText(page);
     privacyGuard.assertNoLeaks();
+  });
+
+  test("keeps semantic QA evidence reachable and dismissible by keyboard", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await openWorkbenchModule(page, "AI");
+
+    await page.locator(".qa-input__textarea").fill("synthetic completed qa a11y");
+    await page.getByRole("button", { name: /发送/ }).click();
+    const evidenceButton = page.getByRole("button", { name: "证据" });
+    await expect(evidenceButton).toBeVisible();
+
+    await evidenceButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("complementary", { name: "问答证据" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "关闭证据" })).toBeFocused();
+    await expectNoCriticalA11yViolations(page);
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("complementary", { name: "问答证据" })).toHaveCount(0);
   });
 
   test("traps and restores focus for narrow inspector drawers", async ({ page }) => {

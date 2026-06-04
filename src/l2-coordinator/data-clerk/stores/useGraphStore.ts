@@ -2,11 +2,13 @@ import { create } from "zustand";
 import type { EntityKind, VisualizeResult } from "@/l2-coordinator/api-docs/graph";
 import type {
   GraphActionResult,
+  GraphQueryView,
   GraphLoadStatus,
   GraphStatusView,
   GraphTimelineView,
   GraphVisualizeView,
 } from "@/l4-atom/network/graphAdapters";
+import type { GraphWorkbenchTabId } from "@/l2-coordinator/commander/graphViewModel";
 import type {
   GraphBusinessDraft,
   GraphConfigDraft,
@@ -18,23 +20,41 @@ import type {
 } from "@l4/network";
 import type { GraphResidualLoadStatus } from "@/l2-coordinator/commander/graphResidualViewModel";
 
-export type GraphAdvancedConfirmation = "business" | "event" | "qa";
+export type GraphAdvancedConfirmation = "business" | "event" | "qa" | "reset";
+
+interface GraphFilterPatch {
+  keyword?: string;
+  timeWindow?: string;
+  entityFilter?: string;
+  relationFilter?: string;
+  limit?: number;
+  start?: string;
+  end?: string;
+}
 
 interface GraphState {
   data: VisualizeResult | null;
   loadStatus: GraphLoadStatus;
   statusSummary: GraphStatusView | null;
+  query: GraphQueryView | null;
   visualize: GraphVisualizeView | null;
   timeline: GraphTimelineView | null;
   actionStatus: GraphActionResult | null;
+  activeTab: GraphWorkbenchTabId;
   visualizationRequested: boolean;
   loading: boolean;
   error: string | null;
   keyword: string;
   timeWindow: string;
+  entityFilter: string;
+  relationFilter: string;
+  limit: number;
+  start: string;
+  end: string;
   autoRotate: boolean;
   visible: boolean;
   minimized: boolean;
+  selectedGraphItemId: string | null;
   hoveredNodeId: string | null;
   selectedNodeId: string | null;
   pulsedNodeId: string | null;
@@ -63,9 +83,13 @@ interface GraphActions {
   setData: (data: VisualizeResult) => void;
   setLoadStatus: (status: GraphLoadStatus) => void;
   setStatusSummary: (status: GraphStatusView | null) => void;
+  setQuery: (query: GraphQueryView | null) => void;
   setVisualize: (visualize: GraphVisualizeView | null) => void;
   setTimeline: (timeline: GraphTimelineView | null) => void;
   setActionStatus: (status: GraphActionResult | null) => void;
+  setActiveTab: (tab: GraphWorkbenchTabId) => void;
+  setGraphFilters: (filters: GraphFilterPatch) => void;
+  clearGraphFilters: () => void;
   setVisualizationRequested: (requested: boolean) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -74,6 +98,7 @@ interface GraphActions {
   toggleAutoRotate: () => void;
   setVisible: (visible: boolean) => void;
   setMinimized: (minimized: boolean) => void;
+  setSelectedGraphItem: (id: string | null) => void;
   setHoveredNode: (id: string | null, coord?: { x: number; y: number }) => void;
   setSelectedNode: (id: string | null) => void;
   setPulsedNode: (id: string | null) => void;
@@ -105,17 +130,25 @@ const initialState: GraphState = {
   data: null,
   loadStatus: "idle",
   statusSummary: null,
+  query: null,
   visualize: null,
   timeline: null,
   actionStatus: null,
+  activeTab: "overview",
   visualizationRequested: false,
   loading: false,
   error: null,
   keyword: "",
   timeWindow: "",
+  entityFilter: "",
+  relationFilter: "",
+  limit: 80,
+  start: "",
+  end: "",
   autoRotate: true,
   visible: false,
   minimized: false,
+  selectedGraphItemId: null,
   hoveredNodeId: null,
   selectedNodeId: null,
   pulsedNodeId: null,
@@ -167,6 +200,8 @@ export const useGraphStore = create<GraphStore>((set) => ({
 
   setStatusSummary: (statusSummary: GraphStatusView | null) => set({ statusSummary }),
 
+  setQuery: (query: GraphQueryView | null) => set({ query }),
+
   setVisualize: (visualize: GraphVisualizeView | null) =>
     set({
       visualize,
@@ -186,6 +221,30 @@ export const useGraphStore = create<GraphStore>((set) => ({
 
   setActionStatus: (actionStatus: GraphActionResult | null) => set({ actionStatus }),
 
+  setActiveTab: (activeTab: GraphWorkbenchTabId) => set({ activeTab }),
+
+  setGraphFilters: (filters: GraphFilterPatch) =>
+    set((state) => ({
+      keyword: filters.keyword ?? state.keyword,
+      timeWindow: filters.timeWindow ?? state.timeWindow,
+      entityFilter: filters.entityFilter ?? state.entityFilter,
+      relationFilter: filters.relationFilter ?? state.relationFilter,
+      limit: filters.limit ?? state.limit,
+      start: filters.start ?? state.start,
+      end: filters.end ?? state.end,
+    })),
+
+  clearGraphFilters: () =>
+    set({
+      keyword: "",
+      timeWindow: "",
+      entityFilter: "",
+      relationFilter: "",
+      limit: 80,
+      start: "",
+      end: "",
+    }),
+
   setVisualizationRequested: (visualizationRequested: boolean) => set({ visualizationRequested }),
 
   setLoading: (loading: boolean) => set({ loading, loadStatus: loading ? "loading" : "idle" }),
@@ -203,6 +262,8 @@ export const useGraphStore = create<GraphStore>((set) => ({
   setVisible: (visible: boolean) => set({ visible }),
 
   setMinimized: (minimized: boolean) => set({ minimized }),
+
+  setSelectedGraphItem: (selectedGraphItemId: string | null) => set({ selectedGraphItemId }),
 
   setHoveredNode: (id: string | null, coord?: { x: number; y: number }) =>
     set({ hoveredNodeId: id, tooltipCoord: id ? (coord ?? null) : null }),

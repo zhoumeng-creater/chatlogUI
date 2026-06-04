@@ -1,4 +1,4 @@
-import type { SemanticQADonePayload } from "./semanticAdapters";
+import { adaptSemanticQAResponse, type SemanticQADonePayload } from "./semanticAdapters";
 
 export interface SSEChunk {
   type: "token" | "done" | "error";
@@ -135,7 +135,7 @@ function parseSemanticSSEMessage(message: string): SemanticStreamEvent[] {
   }
 
   if (event === "done") {
-    return [{ type: "done", payload: donePayload(payload) }];
+    return [{ type: "done", payload: adaptSemanticQAResponse(payload) }];
   }
 
   if (event === "error") {
@@ -156,18 +156,6 @@ function parsePayload(raw: string): unknown {
   } catch {
     return raw;
   }
-}
-
-function donePayload(payload: unknown): SemanticQADonePayload {
-  const record = asRecord(payload);
-  return {
-    answer: stringValue(record.answer) || stringValue(record.content) || stringValue(record.text),
-    evidence: Array.isArray(record.evidence)
-      ? record.evidence.map((entry) => ({ ...asRecord(entry) }))
-      : [],
-    reason: stringValue(record.reason),
-    metadata: { ...asRecord(record.metadata) },
-  };
 }
 
 function payloadText(payload: unknown): string {

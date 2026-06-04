@@ -1,6 +1,7 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { QAMessage } from './QAMessage';
-import { QAInput } from './QAInput';
+import { QAInput, type QAComposerDraft, type QAEntityOverride, type QARecentChatOption } from './QAInput';
+import { SemanticQAEvidenceDrawer } from './SemanticQAEvidenceDrawer';
 
 interface QAMessageView {
   id: string;
@@ -8,6 +9,12 @@ interface QAMessageView {
   content: string;
   timestamp: number;
   isStreaming?: boolean;
+  completionStatus?: 'streaming' | 'completed' | 'stopped' | 'failed' | 'empty';
+  evidence?: Array<Record<string, unknown>>;
+  reason?: string;
+  sourceCount?: number;
+  metadata?: Record<string, unknown>;
+  requestSnapshot?: unknown;
 }
 
 interface QAPanelProps {
@@ -16,9 +23,13 @@ interface QAPanelProps {
   qaStatus: "idle" | "connecting" | "streaming" | "completed" | "stopped" | "failed" | "empty";
   qaError: string | null;
   currentContact: string;
+  recentChats?: QARecentChatOption[];
   privacyOn: boolean;
-  onAskQuestion: (query: string, scope?: "contact" | "all") => void;
+  onAskQuestion: (draft: QAComposerDraft) => void;
   onStopQAStream: () => void;
+  onRetryQAMessage: (messageId: string) => void;
+  onCopyQAMessageAnswer: (messageId: string) => Promise<boolean>;
+  onSelectEvidenceSource?: (chat: string, label: string) => void;
 }
 
 export function QAPanel({
@@ -27,11 +38,18 @@ export function QAPanel({
   qaStatus,
   qaError,
   currentContact,
+  recentChats,
   privacyOn,
   onAskQuestion,
   onStopQAStream,
+  onRetryQAMessage,
+  onCopyQAMessageAnswer,
+  onSelectEvidenceSource,
 }: QAPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [evidenceMessageId, setEvidenceMessageId] = useState<string | null>(null);
+  const [entityOverride, setEntityOverride] = useState<QAEntityOverride | null>(null);
+  const evidenceMessage = qaMessages.find((message) => message.id === evidenceMessageId);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -41,7 +59,14 @@ export function QAPanel({
     <div className="qa-panel">
       <div className="qa-panel__messages">
         {qaMessages.map((msg) => (
-          <QAMessage key={msg.id} message={msg} privacyOn={privacyOn} />
+          <QAMessage
+            key={msg.id}
+            message={msg}
+            privacyOn={privacyOn}
+            onOpenEvidence={setEvidenceMessageId}
+            onRetry={onRetryQAMessage}
+            onCopy={onCopyQAMessageAnswer}
+          />
         ))}
         {qaStatus === "stopped" && (
           <div className="qa-panel__status qa-panel__status--stopped">已停止生成</div>
@@ -55,11 +80,29 @@ export function QAPanel({
         <div ref={messagesEndRef} />
       </div>
 
+      {evidenceMessage && evidenceMessage.role === 'assistant' && (
+        <SemanticQAEvidenceDrawer
+          message={evidenceMessage}
+          privacyOn={privacyOn}
+          onClose={() => setEvidenceMessageId(null)}
+          onUseEntityCandidate={(candidate) => {
+            setEntityOverride({
+              value: candidate.entityOverride,
+              label: candidate.displayLabel,
+            });
+          }}
+          onOpenSource={onSelectEvidenceSource}
+        />
+      )}
+
       <QAInput
         onSend={onAskQuestion}
         onStop={onStopQAStream}
         disabled={qaStreaming}
         currentContact={currentContact}
+        recentChats={recentChats}
+        entityOverride={entityOverride}
+        onClearEntityOverride={() => setEntityOverride(null)}
       />
     </div>
   );

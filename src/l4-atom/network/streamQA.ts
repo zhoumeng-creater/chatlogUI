@@ -23,7 +23,7 @@ export function streamQA(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): StreamQAHandle {
   const controller = new AbortController();
-  let abortReason: "timeout" | "abort" = "timeout";
+  let abortReason: "timeout" | "abort" = signal?.aborted ? "abort" : "timeout";
   const abortWithReason = (reason: "timeout" | "abort") => {
     abortReason = reason;
     controller.abort();
@@ -91,15 +91,19 @@ export function streamQA(
           for (const event of parser.push(text)) onChunk(event);
         }
       } catch (err) {
-        if (!(err instanceof DOMException && err.name === 'AbortError')) {
-          onError(err instanceof Error ? err : new Error(String(err)));
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          emitDiagnosticEvent(null, abortReason);
+          if (abortReason === "timeout") onError(new Error("ESEMANTIC_TIMEOUT"));
+          return;
         }
+        onError(err instanceof Error ? err : new Error(String(err)));
       }
     })
     .catch((err) => {
       clearTimeout(timeoutId);
       if (err instanceof DOMException && err.name === 'AbortError') {
         emitDiagnosticEvent(null, abortReason);
+        if (abortReason === "timeout") onError(new Error("ESEMANTIC_TIMEOUT"));
         return;
       }
       emitDiagnosticEvent(null, "network");

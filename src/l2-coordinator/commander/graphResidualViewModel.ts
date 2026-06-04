@@ -32,30 +32,32 @@ export interface GraphResidualView {
   businessIngestCopy: string;
   eventIngestCopy: string;
   qaCopy: string;
+  resetRebuildCopy: string;
   confirmationCopy: string | null;
   errorCopy: string | null;
 }
 
 export function buildGraphResidualView(
   input: GraphResidualViewInput,
-  _privacyOn: boolean,
+  privacyOn: boolean,
 ): GraphResidualView {
   return {
     configStatus: input.configStatus,
     ingestStatus: input.ingestStatus,
     qaStatus: input.qaStatus,
     configSummary: input.config
-      ? `${input.config.workers} workers · ${input.config.enqueueWorkers} enqueue`
+      ? `${input.config.workers} 图谱线程 · ${input.config.enqueueWorkers} 入队线程`
       : "图谱配置未加载",
     ingestSummary: input.ingestResult
       ? `${input.ingestResult.count} item${input.ingestResult.count === 1 ? "" : "s"} · ${input.ingestResult.statusLabel}`
       : "尚未执行图谱 ingest",
     qaSummary: input.qaResult
-      ? `${input.qaResult.answerPreview || "无回答"} · ${input.qaResult.evidenceSummary}`
+      ? `${qaAnswerSummary(input.qaResult, privacyOn)} · ${input.qaResult.evidenceSummary}`
       : "尚未执行图谱 QA",
     businessIngestCopy: input.confirmationPending === "business" ? "确认写入业务记录" : "写入业务记录",
     eventIngestCopy: input.confirmationPending === "event" ? "确认写入事件" : "写入事件",
     qaCopy: input.confirmationPending === "qa" ? "确认提问" : "提问",
+    resetRebuildCopy: input.confirmationPending === "reset" ? "确认重置重建" : "重置重建",
     confirmationCopy: confirmationCopy(input.confirmationPending),
     errorCopy: input.configError ?? input.ingestError ?? input.qaError,
   };
@@ -87,8 +89,19 @@ function confirmationCopy(action: GraphAdvancedConfirmation | null): string | nu
       ? "业务记录写入"
       : action === "event"
         ? "事件写入"
-        : "图谱 QA";
+        : action === "reset"
+          ? "图谱清空并重建"
+          : "图谱 QA";
+  if (action === "reset") {
+    return `${label} 会调用本地图谱接口清空并重建索引；再次点击确认，或取消。`;
+  }
   return `${label} 会调用本地图谱接口并可能写入索引；再次点击确认，或取消。`;
+}
+
+function qaAnswerSummary(result: GraphQAResponseView, privacyOn: boolean): string {
+  if (!result.hasAnswer) return "无回答";
+  if (privacyOn) return "已隐藏回答";
+  return result.answerPreview || "无回答";
 }
 
 function hasText(value: unknown): boolean {

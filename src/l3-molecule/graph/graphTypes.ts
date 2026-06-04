@@ -40,6 +40,10 @@ export interface GraphStatusSummaryView {
   failed: number;
   progressPct: number;
   lastError: string;
+  queueLabel?: string;
+  workerLabel?: string;
+  etaLabel?: string;
+  rateLabel?: string;
 }
 
 export interface GraphNodeView {

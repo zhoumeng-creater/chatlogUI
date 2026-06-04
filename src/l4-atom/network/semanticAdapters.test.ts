@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adaptConnectionTestResult,
+  adaptSemanticQAResponse,
   adaptSemanticConfig,
   adaptSemanticIndexActionResult,
   adaptSemanticIndexStatus,
@@ -9,6 +10,7 @@ import {
   adaptSemanticTopics,
   buildSemanticQARequestPayload,
 } from "./semanticAdapters";
+import { containsSensitiveDiagnosticText } from "@/utils/maskSecrets";
 
 describe("adaptSemanticConfig", () => {
   it("maps flat snake_case config and saved credential flags without exposing raw keys", () => {
@@ -111,6 +113,25 @@ describe("adaptConnectionTestResult", () => {
       message: "missing api key",
     });
   });
+
+  it("redacts sensitive backend connection errors before they reach setup UI", () => {
+    const result = adaptConnectionTestResult({
+      ok: false,
+      error: [
+        "api_key=sk-real-secret",
+        "token=raw-token",
+        "message: synthetic-private-message",
+        "C:\\Users\\Alice\\WeChat Files\\wxid_real",
+      ].join(" "),
+    });
+
+    expect(result.message).not.toContain("sk-real-secret");
+    expect(result.message).not.toContain("raw-token");
+    expect(result.message).not.toContain("synthetic-private-message");
+    expect(result.message).not.toContain("Alice");
+    expect(result.message).not.toContain("wxid_real");
+    expect(containsSensitiveDiagnosticText(result.message)).toBe(false);
+  });
 });
 
 describe("adaptSemanticIndexStatus", () => {
@@ -157,9 +178,153 @@ describe("adaptSemanticIndexStatus", () => {
     expect(failed.state).toBe("error");
     expect(failed.lastError).toBe("embedding unavailable");
   });
+
+  it("maps extended index coverage, timing, incremental, rerank, and derived labels", () => {
+    const status = adaptSemanticIndexStatus({
+      ready: false,
+      running: true,
+      paused: false,
+      processed: 250,
+      pending: 50,
+      failed: 5,
+      progress_pct: 82,
+      indexed_count: 240,
+      entity_count: 48,
+      chunk_count: 1024,
+      started_at: "2026-06-04T01:00:00Z",
+      processing_rate_per_minute: 120,
+      estimated_seconds_left: 95,
+      last_incremental_at: "2026-06-04T01:15:00Z",
+      last_incremental_added: 12,
+      last_incremental_error: "",
+      last_rerank_at: "2026-06-04T01:16:00Z",
+      last_rerank_applied: true,
+      last_rerank_error: "",
+    });
+
+    expect(status.indexedCount).toBe(240);
+    expect(status.entityCount).toBe(48);
+    expect(status.chunkCount).toBe(1024);
+    expect(status.startedAt).toBe("2026-06-04T01:00:00Z");
+    expect(status.processingRatePerMinute).toBe(120);
+    expect(status.estimatedSecondsLeft).toBe(95);
+    expect(status.lastIncrementalAt).toBe("2026-06-04T01:15:00Z");
+    expect(status.lastIncrementalAdded).toBe(12);
+    expect(status.lastIncrementalError).toBe("");
+    expect(status.lastRerankAt).toBe("2026-06-04T01:16:00Z");
+    expect(status.lastRerankApplied).toBe(true);
+    expect(status.lastRerankError).toBe("");
+    expect(status.progressLabel).toBe("250 / 305 processed");
+    expect(status.etaLabel).toBe("2 min remaining");
+    expect(status.rateLabel).toBe("120/min");
+    expect(status.coverageLabel).toBe("240 indexed / 48 entities / 1024 chunks");
+    expect(status.lastActivityLabel).toBe("Incremental +12; rerank applied");
+  });
+
+  it("redacts incremental and rerank backend errors before deriving index labels", () => {
+    const status = adaptSemanticIndexStatus({
+      ready: false,
+      running: false,
+      paused: false,
+      processed: 12,
+      pending: 0,
+      failed: 2,
+      last_error: "",
+      last_incremental_error: "api_key=sk-real-secret message: synthetic-private-message",
+      last_rerank_error: "C:\\Users\\Alice\\WeChat Files\\wxid_real token=raw-token",
+    });
+
+    expect(status.lastIncrementalError).not.toContain("sk-real-secret");
+    expect(status.lastRerankError).not.toContain("raw-token");
+    expect(status.lastActivityLabel).not.toContain("synthetic-private-message");
+    expect(status.lastActivityLabel).not.toContain("Alice");
+    expect(status.lastActivityLabel).not.toContain("wxid_real");
+    expect(containsSensitiveDiagnosticText(status.lastActivityLabel)).toBe(false);
+  });
 });
 
 describe("semantic response adapters", () => {
+  it("maps sidecar QA done top-level metadata without copying raw debug payloads", () => {
+    const done = adaptSemanticQAResponse({
+      query: "private synthetic question",
+      chat: "wxid_should_not_copy",
+      source_count: 3,
+      window: "30d",
+      depth: "deep",
+      count: 2,
+      answer: "Synthetic answer",
+      evidence: [
+        {
+          source: "message",
+          chunk_type: "message",
+          score: 0.91,
+          rerank_score: 0.72,
+          content: "Synthetic evidence body",
+        },
+      ],
+      direct: false,
+      debug: {
+        intent: "person_lookup",
+        answer_mode: "rag",
+        source: "planner",
+        retrieval: "vector/rag",
+        entity_query: "Alice real name",
+        entity_candidates: [
+          {
+            display: "Alice",
+            username: "wxid_alice",
+            kind: "person",
+            source: "contacts",
+            raw_note: "should not copy",
+          },
+        ],
+        entity_candidate_count: 1,
+        entity_ambiguous: true,
+        prompt: "private prompt should not copy",
+      },
+      reason: "completed",
+      rerank_tried: true,
+      rerank_applied: false,
+      rerank_error: "synthetic rerank unavailable",
+      metadata: {
+        existing: "kept",
+        query: "nested private query should not copy",
+      },
+    });
+
+    expect(done.metadata).toMatchObject({
+      existing: "kept",
+      sourceCount: 3,
+      window: "30d",
+      depth: "deep",
+      evidenceCount: 2,
+      direct: false,
+      rerankTried: true,
+      rerankApplied: false,
+      rerankError: "synthetic rerank unavailable",
+      intent: "person_lookup",
+      answerMode: "rag",
+      routeSource: "planner",
+      retrieval: "vector/rag",
+      entityCandidateCount: 1,
+      entityAmbiguous: true,
+      entityCandidates: [
+        {
+          display: "Alice",
+          username: "wxid_alice",
+          kind: "person",
+          source: "contacts",
+        },
+      ],
+    });
+    expect(done.metadata).not.toHaveProperty("debug");
+    expect(done.metadata).not.toHaveProperty("query");
+    expect(done.metadata).not.toHaveProperty("chat");
+    expect(JSON.stringify(done.metadata)).not.toContain("private synthetic question");
+    expect(JSON.stringify(done.metadata)).not.toContain("private prompt");
+    expect(JSON.stringify(done.metadata)).not.toContain("raw_note");
+  });
+
   it("maps backend-shaped semantic search metadata and result rows", () => {
     const search = adaptSemanticSearch({
       query: "release",
@@ -269,6 +434,21 @@ describe("semantic response adapters", () => {
       status: "running",
       error: "",
     });
+  });
+
+  it("redacts index action backend errors before callers render them", () => {
+    const result = adaptSemanticIndexActionResult({
+      ok: false,
+      accepted: false,
+      status: "error",
+      error: "token=raw-token query=synthetic-private-message C:\\Users\\Alice\\WeChat Files\\wxid_real",
+    });
+
+    expect(result.error).not.toContain("raw-token");
+    expect(result.error).not.toContain("synthetic-private-message");
+    expect(result.error).not.toContain("Alice");
+    expect(result.error).not.toContain("wxid_real");
+    expect(containsSensitiveDiagnosticText(result.error)).toBe(false);
   });
 });
 

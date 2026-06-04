@@ -120,13 +120,19 @@ export function buildGraphQAPayload(draft: GraphQADraft): RawRecord {
 
 export function adaptGraphQAResponse(raw: unknown): GraphQAResponseView {
   const data = asRecord(raw);
+  const answerPreview = truncatePreview(stringValue(data.answer));
   const evidenceCount = countEvidence(data.evidence);
   return {
-    hasAnswer: stringValue(data.answer).length > 0,
-    answerPreview: stringValue(data.answer).length > 0 ? "已隐藏回答" : "",
+    hasAnswer: answerPreview.length > 0,
+    answerPreview,
     evidenceCount,
     evidenceSummary: `${evidenceCount} 条证据已隐藏`,
   };
+}
+
+function truncatePreview(value: string, maxLength = 320): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
 function countEvidence(value: unknown): number {

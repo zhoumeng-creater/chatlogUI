@@ -48,6 +48,32 @@ describe("deriveSemanticModuleView", () => {
     expect(view.qaEnabled).toBe(false);
   });
 
+  it("exposes extended running index summaries without leaking raw backend fields", () => {
+    const view = deriveSemanticModuleView({
+      config: readyConfig(),
+      indexStatus: indexStatus("running", {
+        progressPct: 82,
+        processed: 250,
+        pending: 50,
+        failed: 5,
+        progressLabel: "250 / 305 processed",
+        etaLabel: "2 min remaining",
+        rateLabel: "120/min",
+        coverageLabel: "240 indexed / 48 entities / 1024 chunks",
+        lastActivityLabel: "Incremental +12; rerank applied",
+      }),
+      qaStatus: "idle",
+    });
+
+    expect(view.indexSummary).toEqual({
+      progressLabel: "250 / 305 processed",
+      etaLabel: "2 min remaining",
+      rateLabel: "120/min",
+      coverageLabel: "240 indexed / 48 entities / 1024 chunks",
+      lastActivityLabel: "Incremental +12; rerank applied",
+    });
+  });
+
   it("enables semantic search and QA only when config and index are ready", () => {
     const view = deriveSemanticModuleView({
       config: readyConfig(),
@@ -63,13 +89,18 @@ describe("deriveSemanticModuleView", () => {
   it("keeps backend errors recoverable inside the semantic module", () => {
     const view = deriveSemanticModuleView({
       config: readyConfig(),
-      indexStatus: indexStatus("error", { lastError: "embedding unavailable" }),
+      indexStatus: indexStatus("error", {
+        lastError: "embedding unavailable at C:\\Users\\Alice\\WeChat Files\\wxid_real api_key=sk-real-secret",
+      }),
       qaStatus: "idle",
     });
 
     expect(view.kind).toBe("failed");
     expect(view.blocksCoreWorkbench).toBe(false);
-    expect(view.message).toBe("embedding unavailable");
+    expect(view.message).toContain("embedding unavailable");
+    expect(view.message).not.toContain("Alice");
+    expect(view.message).not.toContain("wxid_real");
+    expect(view.message).not.toContain("sk-real-secret");
   });
 });
 
@@ -81,6 +112,31 @@ describe("deriveSemanticQaView", () => {
     expect(deriveSemanticQaView({ status: "failed", answer: "", error: "provider failed" }).message).toBe("provider failed");
     expect(deriveSemanticQaView({ status: "empty", answer: "" }).label).toBe("No Answer");
     expect(deriveSemanticQaView({ status: "completed", answer: "done" }).label).toBe("Completed");
+  });
+
+  it("marks completed QA messages with evidence and safe metadata as evidence-ready", () => {
+    const view = deriveSemanticQaView({
+      status: "completed",
+      answer: "done",
+      message: {
+        id: "assistant-1",
+        role: "assistant",
+        content: "done",
+        timestamp: 1,
+        evidence: [{ source: "synthetic-source" }],
+        sourceCount: 1,
+        metadata: {
+          window: "30d",
+          depth: "deep",
+          rerankTried: true,
+          rerankApplied: true,
+        },
+      },
+    });
+
+    expect(view.evidenceReady).toBe(true);
+    expect(view.sourceCount).toBe(1);
+    expect(view.metadataSummary).toEqual(["Window 30d", "Depth deep", "Rerank applied"]);
   });
 });
 

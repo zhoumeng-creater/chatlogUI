@@ -62,7 +62,10 @@ async function handleRequest(routeMap, request, response) {
   }
 
   if (route.responseType === "sse") {
-    writeSse(response, route.value);
+    const sseValue = route.id === "semantic-qa-stream.ready"
+      ? await semanticQAValueForRequest(routeMap, route, request)
+      : route.value;
+    writeSse(response, sseValue);
     return;
   }
 
@@ -82,6 +85,33 @@ function writeJson(response, status, value) {
   response.end(`${JSON.stringify(value)}\n`);
 }
 
+async function semanticQAValueForRequest(routeMap, route, request) {
+  const body = await readJsonBody(request);
+  const query = typeof body.query === "string" ? body.query.toLowerCase() : "";
+  const state = query.includes("cancel")
+    ? "cancelled"
+    : query.includes("failure")
+      ? "failure"
+      : query.includes("empty")
+        ? "empty"
+        : "completed";
+  return routeMap.routes.find((item) => item.id === `semantic-qa.${state}`)?.value ?? route.value;
+}
+
+async function readJsonBody(request) {
+  const chunks = [];
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  const text = Buffer.concat(chunks).toString("utf8").trim();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
 function writeSse(response, value) {
   response.writeHead(200, {
     "Content-Type": "text/event-stream; charset=utf-8",
@@ -94,6 +124,7 @@ function writeSse(response, value) {
     response.write(`event: ${event.event ?? "message"}\n`);
     response.write(`data: ${JSON.stringify(event.data ?? {})}\n\n`);
   }
+  if (value?.abandoned) return;
   response.end();
 }
 

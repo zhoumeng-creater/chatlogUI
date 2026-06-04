@@ -1,3 +1,5 @@
+import { maskDiagnosticText } from "@/utils/maskSecrets";
+
 const ERROR_MAP: Record<string, string> = {
   EADDRINUSE: "端口被占用，正在自动清理...",
   ECONNREFUSED: "引擎未启动，请稍后重试",
@@ -24,5 +26,5 @@ export function translateError(error: string): string {
       return message;
     }
   }
-  return `未知错误: ${error}`;
+  return `未知错误: ${maskDiagnosticText(error, { privacyMode: true })}`;
 }

@@ -3,6 +3,167 @@
   "fixturePurpose": "Core ready-state endpoint shapes for workbench, fixture contract, and browser E2E tests.",
   "privacyNotes": "All names, IDs, message text, and timestamps are synthetic. No real chat data is included.",
   "generatedAt": "2026-06-03T00:00:00.000Z",
+  "contractStates": {
+    "semanticIndex": {
+      "ready": {
+        "ready": true,
+        "running": false,
+        "paused": false,
+        "processed": 120,
+        "pending": 0,
+        "failed": 0,
+        "progress_pct": 100,
+        "indexed_count": 118,
+        "entity_count": 32,
+        "chunk_count": 512,
+        "last_error": ""
+      },
+      "running": {
+        "ready": false,
+        "running": true,
+        "paused": false,
+        "processed": 80,
+        "pending": 40,
+        "failed": 1,
+        "progress_pct": 66,
+        "indexed_count": 79,
+        "entity_count": 24,
+        "chunk_count": 360,
+        "started_at": "2026-06-04T01:00:00Z",
+        "processing_rate_per_minute": 90,
+        "estimated_seconds_left": 80,
+        "last_incremental_at": "2026-06-04T01:05:00Z",
+        "last_incremental_added": 8,
+        "last_incremental_error": "",
+        "last_rerank_at": "2026-06-04T01:06:00Z",
+        "last_rerank_applied": true,
+        "last_rerank_error": "",
+        "last_error": ""
+      },
+      "paused": {
+        "ready": false,
+        "running": false,
+        "paused": true,
+        "processed": 80,
+        "pending": 40,
+        "failed": 1,
+        "progress_pct": 66,
+        "last_error": ""
+      },
+      "failed": {
+        "ready": false,
+        "running": false,
+        "paused": false,
+        "processed": 80,
+        "pending": 0,
+        "failed": 2,
+        "progress_pct": 66,
+        "last_error": "synthetic semantic index unavailable"
+      },
+      "unconfigured": {
+        "ready": false,
+        "running": false,
+        "paused": false,
+        "processed": 0,
+        "pending": 0,
+        "failed": 0,
+        "progress_pct": 0,
+        "last_error": ""
+      }
+    },
+    "semanticQA": {
+      "completed": {
+        "events": [
+          { "event": "delta", "data": { "text": "Synthetic answer " } },
+          { "event": "delta", "data": { "text": "with evidence" } },
+          {
+            "event": "done",
+            "data": {
+              "answer": "Synthetic answer with evidence",
+              "source_count": 2,
+              "window": "7d",
+              "depth": "standard",
+              "count": 1,
+              "evidence": [
+                {
+                  "source": "synthetic-source",
+                  "chunk_type": "message",
+                  "time": "2026-01-01 08:00",
+                  "talker_name": "Synthetic Project Room",
+                  "sender_name": "Synthetic Sender",
+                  "score": 0.92,
+                  "rerank_score": 0.81,
+                  "content": "Synthetic evidence summary for QA fixture only",
+                  "context": [
+                    {
+                      "time": "2026-01-01 07:59",
+                      "sender_name": "Synthetic Context Sender",
+                      "content": "Synthetic context summary for QA fixture only"
+                    }
+                  ]
+                }
+              ],
+              "debug": {
+                "intent": "synthetic_qa",
+                "answer_mode": "rag",
+                "source": "planner",
+                "retrieval": "vector/rag",
+                "entity_candidate_count": 1,
+                "entity_ambiguous": true,
+                "entity_candidates": [
+                  {
+                    "display": "Synthetic Candidate",
+                    "username": "synthetic_candidate_user",
+                    "kind": "person",
+                    "source": "contacts"
+                  }
+                ]
+              },
+              "reason": "completed",
+              "rerank_tried": true,
+              "rerank_applied": true,
+              "rerank_error": ""
+            }
+          }
+        ]
+      },
+      "empty": {
+        "events": [
+          {
+            "event": "done",
+            "data": {
+              "answer": "",
+              "evidence": [],
+              "source_count": 0,
+              "window": "7d",
+              "depth": "standard",
+              "count": 0,
+              "reason": "synthetic empty answer",
+              "rerank_tried": false,
+              "rerank_applied": false,
+              "rerank_error": ""
+            }
+          }
+        ]
+      },
+      "failure": {
+        "events": [
+          {
+            "event": "error",
+            "data": {
+              "error": "synthetic semantic QA failed"
+            }
+          }
+        ]
+      },
+      "cancelled": {
+        "events": [
+          { "event": "delta", "data": { "text": "Synthetic partial answer" } }
+        ],
+        "abandoned": true
+      }
+    }
+  },
   "routes": {
     "/health": {
       "status": "ok"
@@ -185,7 +346,7 @@
       "embedding_provider": "ollama",
       "embedding_model": "synthetic-embedding-model",
       "embedding_dimension": 768,
-      "rerank_provider": "synthetic-rerank-provider",
+      "rerank_provider": "ollama",
       "rerank_model": "synthetic-rerank-model",
       "chat_provider": "ollama",
       "chat_model": "synthetic-chat-model",
@@ -205,6 +366,31 @@
       "realtime_index": true,
       "index_workers": 2
     },
+    "/api/v1/semantic/test": {
+      "ok": true,
+      "message": "synthetic semantic test succeeded",
+      "latency_ms": 18
+    },
+    "/api/v1/semantic/index/rebuild": {
+      "ok": true,
+      "accepted": true,
+      "status": "running"
+    },
+    "/api/v1/semantic/index/pause": {
+      "ok": true,
+      "accepted": true,
+      "status": "paused"
+    },
+    "/api/v1/semantic/index/resume": {
+      "ok": true,
+      "accepted": true,
+      "status": "running"
+    },
+    "/api/v1/semantic/index/clear": {
+      "ok": true,
+      "accepted": true,
+      "status": "idle"
+    },
     "/api/v1/semantic/index/status": {
       "ready": true,
       "running": false,
@@ -213,6 +399,18 @@
       "pending": 0,
       "failed": 0,
       "progress_pct": 100,
+      "indexed_count": 40,
+      "entity_count": 12,
+      "chunk_count": 128,
+      "started_at": "2026-06-04T00:00:00Z",
+      "processing_rate_per_minute": 0,
+      "estimated_seconds_left": 0,
+      "last_incremental_at": "2026-06-04T00:10:00Z",
+      "last_incremental_added": 4,
+      "last_incremental_error": "",
+      "last_rerank_at": "2026-06-04T00:12:00Z",
+      "last_rerank_applied": true,
+      "last_rerank_error": "",
       "last_error": ""
     },
     "/api/v1/semantic/search": {
@@ -223,7 +421,7 @@
       "depth": "standard",
       "count": 1,
       "rerank": true,
-      "rerank_provider": "synthetic-rerank-provider",
+      "rerank_provider": "ollama",
       "rerank_tried": true,
       "rerank_applied": true,
       "rerank_error": "",
@@ -261,7 +459,7 @@
         }
       ],
       "summary": "Synthetic topics summary",
-      "summary_error": ""
+      "summary_error": "synthetic topic summary warning"
     },
     "/api/v1/semantic/profiles": {
       "window": "7d",
@@ -290,7 +488,7 @@
         }
       ],
       "summary": "Synthetic profiles summary",
-      "summary_error": ""
+      "summary_error": "synthetic profile summary warning"
     },
     "/api/v1/semantic/qa/stream": {
       "events": [
@@ -310,11 +508,42 @@
           "event": "done",
           "data": {
             "answer": "Synthetic answer",
-            "evidence": [],
+            "source_count": 2,
+            "window": "7d",
+            "depth": "standard",
+            "count": 1,
+            "evidence": [
+              {
+                "source": "synthetic-source",
+                "chunk_type": "message",
+                "time": "2026-01-01 08:00",
+                "talker_name": "Synthetic Project Room",
+                "sender_name": "Synthetic Sender",
+                "score": 0.9,
+                "rerank_score": 0.8,
+                "content": "Synthetic evidence summary for route fixture only"
+              }
+            ],
+            "debug": {
+              "intent": "synthetic_qa",
+              "answer_mode": "rag",
+              "source": "planner",
+              "retrieval": "vector/rag",
+              "entity_candidate_count": 1,
+              "entity_ambiguous": true,
+              "entity_candidates": [
+                {
+                  "display": "Synthetic Candidate",
+                  "username": "synthetic_candidate_user",
+                  "kind": "person",
+                  "source": "contacts"
+                }
+              ]
+            },
             "reason": "complete",
-            "metadata": {
-              "source": "synthetic"
-            }
+            "rerank_tried": true,
+            "rerank_applied": true,
+            "rerank_error": ""
           }
         }
       ]

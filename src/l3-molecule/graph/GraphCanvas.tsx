@@ -31,6 +31,7 @@ export interface GraphCanvasProps {
   onRefresh: () => void;
   onNodeHover: (nodeId: string | null, coord?: { x: number; y: number }) => void;
   onNodeDblClick: (nodeId: string) => void;
+  onEdgeClick: (edgeId: string) => void;
   onVisibleKindsChange: (kinds: EntityKind[]) => void;
   onTimeWindowChange: (window: string) => void;
   onLayoutModeChange: (mode: GraphLayoutMode) => void;
@@ -58,6 +59,7 @@ export function GraphCanvas({
   onRefresh,
   onNodeHover,
   onNodeDblClick,
+  onEdgeClick,
   onVisibleKindsChange,
   onTimeWindowChange,
   onLayoutModeChange,
@@ -125,7 +127,6 @@ export function GraphCanvas({
           <Canvas
             camera={{ position: [0, 0, 8], fov: 50 }}
             gl={enableCanvasReadback ? { preserveDrawingBuffer: true } : undefined}
-            style={{ background: "#0a0a1a" }}
           >
             <GraphEngine
               data={data}
@@ -138,6 +139,7 @@ export function GraphCanvas({
               privacyOn={privacyOn}
               onNodeHover={onNodeHover}
               onNodeDblClick={onNodeDblClick}
+              onEdgeClick={onEdgeClick}
             />
           </Canvas>
         )}

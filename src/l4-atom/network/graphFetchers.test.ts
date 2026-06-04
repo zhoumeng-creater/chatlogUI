@@ -56,6 +56,27 @@ describe("graph REST atoms", () => {
     expect(calls.find((call) => call.url.includes("/graph/visualize"))?.url).toContain("limit=300");
   });
 
+  it("separates ordinary rebuild from reset rebuild payloads", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        calls.push({ url: String(input), init });
+        return json({ ok: true, accepted: true, status: "running" });
+      }),
+    );
+
+    await manageGraph("rebuild");
+    await manageGraph("reset-rebuild");
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0].url).toContain("/api/v1/graph/rebuild");
+    expect(calls[0].init?.body).toBe(JSON.stringify({ reset: false }));
+    expect(calls[1].url).toContain("/api/v1/graph/rebuild");
+    expect(calls[1].init?.body).toBe(JSON.stringify({ reset: true }));
+    expect(calls[1].init?.headers).toEqual({ "Content-Type": "application/json" });
+  });
+
   it("emits redacted graph diagnostic events when diagnostics are supplied", async () => {
     const events: DiagnosticEvent[] = [];
     vi.stubGlobal(

@@ -6,12 +6,19 @@ import {
 } from "./httpClient";
 import { adaptSemanticTopics, type SemanticTopicsView } from "./semanticAdapters";
 
+export interface SemanticTopicsRequestInput {
+  chat?: string;
+  window?: string;
+}
+
 export async function fetchSemanticTopics(
-  chat: string,
+  input: string | SemanticTopicsRequestInput,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticTopicsView> {
+  const { chat, window } = normalizeSemanticTopicsRequest(input);
   const url = new URL(`${AI_BASE_URL}/api/v1/semantic/topics`);
-  url.searchParams.set('chat', chat);
+  if (chat) url.searchParams.set('chat', chat);
+  if (window) url.searchParams.set('window', window);
 
   const data = await requestJson(url.toString(), {
     timeoutMs: 30000,
@@ -21,4 +28,8 @@ export async function fetchSemanticTopics(
     }),
   });
   return adaptSemanticTopics(data);
+}
+
+function normalizeSemanticTopicsRequest(input: string | SemanticTopicsRequestInput): SemanticTopicsRequestInput {
+  return typeof input === "string" ? { chat: input } : input;
 }
