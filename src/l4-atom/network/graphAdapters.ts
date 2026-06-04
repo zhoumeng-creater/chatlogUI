@@ -15,6 +15,10 @@ export interface GraphStatusView {
   enabled: boolean;
   paused: boolean;
   running: boolean;
+  historyQueued: boolean;
+  enqueueRunning: boolean;
+  workers: number;
+  enqueueWorkers: number;
   counts: {
     entities: number;
     relations: number;
@@ -28,6 +32,15 @@ export interface GraphStatusView {
   failed: number;
   progressPct: number;
   lastError: string;
+  startedAt: string;
+  processingRatePerMinute: number;
+  estimatedSecondsLeft: number;
+  lastUpdatedAt: string;
+  queueLabel: string;
+  workerLabel: string;
+  rateLabel: string;
+  etaLabel: string;
+  lastActivityLabel: string;
 }
 
 export interface GraphNodeView {
@@ -72,11 +85,23 @@ export interface GraphVisualizeView {
   };
 }
 
+export interface GraphDetailRow {
+  label: string;
+  value: string;
+}
+
+export interface GraphQueryItemView {
+  id: string;
+  label: string;
+  kind: string;
+  detailRows: GraphDetailRow[];
+}
+
 export interface GraphQueryView {
-  entities: Array<Record<string, unknown> & { label: string }>;
-  relations: Array<Record<string, unknown> & { label: string }>;
-  events: Array<Record<string, unknown> & { label: string }>;
-  facts: Array<Record<string, unknown> & { label: string }>;
+  entities: GraphQueryItemView[];
+  relations: GraphQueryItemView[];
+  events: GraphQueryItemView[];
+  facts: GraphQueryItemView[];
 }
 
 export interface GraphTimelineView {
@@ -97,11 +122,22 @@ export function adaptGraphStatus(raw: unknown): GraphStatusView {
   const paused = boolValue(data.paused);
   const running = boolValue(data.running);
   const lastError = stringValue(data.last_error);
+  const historyQueued = boolValue(data.history_queued);
+  const enqueueRunning = boolValue(data.enqueue_running);
+  const workers = numberValue(data.workers);
+  const enqueueWorkers = numberValue(data.enqueue_workers);
+  const processingRatePerMinute = numberValue(data.processing_rate_per_minute);
+  const estimatedSecondsLeft = numberValue(data.estimated_seconds_left);
+  const lastUpdatedAt = stringValue(data.last_updated_at);
   return {
     state: deriveGraphStatusState({ enabled, paused, running, lastError }),
     enabled,
     paused,
     running,
+    historyQueued,
+    enqueueRunning,
+    workers,
+    enqueueWorkers,
     counts: {
       entities: numberValue(data.entity_count),
       relations: numberValue(data.relation_count),
@@ -115,6 +151,15 @@ export function adaptGraphStatus(raw: unknown): GraphStatusView {
     failed: numberValue(data.failed),
     progressPct: numberValue(data.progress_pct),
     lastError,
+    startedAt: stringValue(data.started_at),
+    processingRatePerMinute,
+    estimatedSecondsLeft,
+    lastUpdatedAt,
+    queueLabel: queueLabel({ historyQueued, enqueueRunning }),
+    workerLabel: workerLabel({ workers, enqueueWorkers }),
+    rateLabel: rateLabel(processingRatePerMinute),
+    etaLabel: durationLabel(estimatedSecondsLeft),
+    lastActivityLabel: lastUpdatedAt ? `Updated ${lastUpdatedAt}` : "",
   };
 }
 
@@ -164,25 +209,10 @@ export function adaptGraphVisualize(
 export function adaptGraphQuery(raw: unknown): GraphQueryView {
   const data = asRecord(raw);
   return {
-    entities: arrayValue(data.entities).map((item) => {
-      const entity = asRecord(item);
-      return { ...entity, label: stringValue(entity.name) || stringValue(entity.canonical_name) };
-    }),
-    relations: arrayValue(data.relations).map((item) => {
-      const relation = asRecord(item);
-      return {
-        ...relation,
-        label: [relation.subject, relation.predicate, relation.object].map(stringValue).filter(Boolean).join(" "),
-      };
-    }),
-    events: arrayValue(data.events).map((item) => {
-      const event = asRecord(item);
-      return { ...event, label: stringValue(event.title) || stringValue(event.event_type) };
-    }),
-    facts: arrayValue(data.facts).map((item) => {
-      const fact = asRecord(item);
-      return { ...fact, label: stringValue(fact.statement) || stringValue(fact.canonical_statement) };
-    }),
+    entities: arrayValue(data.entities).map(adaptQueryEntity),
+    relations: arrayValue(data.relations).map(adaptQueryRelation),
+    events: arrayValue(data.events).map(adaptQueryEvent),
+    facts: arrayValue(data.facts).map(adaptQueryFact),
   };
 }
 
@@ -262,6 +292,96 @@ function adaptTimelineRow(value: unknown): GraphTimelineRow {
   };
 }
 
+function adaptQueryEntity(value: unknown): GraphQueryItemView {
+  const entity = asRecord(value);
+  return {
+    id: stringValue(entity.id),
+    label: stringValue(entity.name) || stringValue(entity.canonical_name) || stringValue(entity.id),
+    kind: stringValue(entity.type) || stringValue(entity.kind) || "entity",
+    detailRows: detailRows([
+      ["Type", entity.type ?? entity.kind],
+      ["Mentions", entity.mentions],
+      ["Confidence", entity.confidence],
+    ]),
+  };
+}
+
+function adaptQueryRelation(value: unknown): GraphQueryItemView {
+  const relation = asRecord(value);
+  return {
+    id: stringValue(relation.id),
+    label: [relation.subject, relation.predicate, relation.object].map(stringValue).filter(Boolean).join(" "),
+    kind: stringValue(relation.predicate) || "relation",
+    detailRows: detailRows([
+      ["Status", relation.status],
+      ["Confidence", relation.confidence],
+      ["Support", relation.support_score],
+      ["Verified", relation.verified],
+      ["Conflict", relation.conflict_group],
+      ["Valid from", relation.valid_from],
+      ["Valid to", relation.valid_to],
+      ["Evidence", evidenceCount(relation)],
+    ]),
+  };
+}
+
+function adaptQueryEvent(value: unknown): GraphQueryItemView {
+  const event = asRecord(value);
+  return {
+    id: stringValue(event.id),
+    label: stringValue(event.title) || stringValue(event.event_type) || stringValue(event.id),
+    kind: stringValue(event.event_type) || stringValue(event.type) || "event",
+    detailRows: detailRows([
+      ["Type", event.event_type ?? event.type],
+      ["Time", event.event_time ?? event.time],
+      ["Confidence", event.confidence],
+      ["Evidence", evidenceCount(event)],
+    ]),
+  };
+}
+
+function adaptQueryFact(value: unknown): GraphQueryItemView {
+  const fact = asRecord(value);
+  return {
+    id: stringValue(fact.id),
+    label: stringValue(fact.statement) || stringValue(fact.canonical_statement) || stringValue(fact.id),
+    kind: stringValue(fact.type) || "fact",
+    detailRows: detailRows([
+      ["Status", fact.status],
+      ["Confidence", fact.confidence],
+      ["Support", fact.support_score],
+      ["Verified", fact.verified],
+      ["Conflict", fact.conflict_group],
+      ["Valid from", fact.valid_from],
+      ["Valid to", fact.valid_to],
+      ["Evidence", evidenceCount(fact)],
+    ]),
+  };
+}
+
+function detailRows(rows: Array<[string, unknown]>): GraphDetailRow[] {
+  return rows.flatMap(([label, value]) => {
+    const formatted = formatDetailValue(value);
+    return formatted ? [{ label, value: formatted }] : [];
+  });
+}
+
+function evidenceCount(record: RawRecord): number {
+  const explicit = numberValue(record.evidence_count, -1);
+  if (explicit >= 0) return explicit;
+  const evidence = record.evidence;
+  if (Array.isArray(evidence)) return evidence.length;
+  if (evidence && typeof evidence === "object") return Object.keys(evidence).length || 1;
+  return evidence === undefined || evidence === null || evidence === "" ? 0 : 1;
+}
+
+function formatDetailValue(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "boolean") return String(value);
+  return "";
+}
+
 function deriveGraphStatusState(input: {
   enabled: boolean;
   paused: boolean;
@@ -273,6 +393,34 @@ function deriveGraphStatusState(input: {
   if (input.paused) return "paused";
   if (input.running) return "running";
   return "ready";
+}
+
+function queueLabel(input: { historyQueued: boolean; enqueueRunning: boolean }): string {
+  return [
+    input.historyQueued ? "history queued" : "",
+    input.enqueueRunning ? "enqueue running" : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function workerLabel(input: { workers: number; enqueueWorkers: number }): string {
+  return [
+    input.workers > 0 ? `${input.workers} graph ${input.workers === 1 ? "worker" : "workers"}` : "",
+    input.enqueueWorkers > 0 ? `${input.enqueueWorkers} enqueue ${input.enqueueWorkers === 1 ? "worker" : "workers"}` : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function rateLabel(value: number): string {
+  return value > 0 ? `${value}/min` : "";
+}
+
+function durationLabel(seconds: number): string {
+  if (seconds <= 0) return "";
+  const wholeSeconds = Math.round(seconds);
+  const minutes = Math.floor(wholeSeconds / 60);
+  const remainder = wholeSeconds % 60;
+  if (minutes > 0 && remainder > 0) return `${minutes}m ${remainder}s left`;
+  if (minutes > 0) return `${minutes}m left`;
+  return `${remainder}s left`;
 }
 
 function asRecord(value: unknown): RawRecord {

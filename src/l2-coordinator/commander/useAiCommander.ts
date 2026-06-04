@@ -149,34 +149,33 @@ export function useAiCommander() {
       if (sseAbortRef.current) {
         sseAbortRef.current.abort();
         const aiStore = useAiStore.getState();
-        if (aiStore.qaStreaming) {
-          aiStore.setQAStatus("stopped");
+        if (aiStore.activeQAStreamId) {
+          aiStore.stopQAStream(aiStore.activeQAStreamId);
         }
       }
     };
   }, []);
 
   const stopQAStream = useCallback(() => {
+    const activeStreamId = useAiStore.getState().activeQAStreamId;
     sseAbortRef.current?.abort();
     sseAbortRef.current = null;
-    const aiStore = useAiStore.getState();
-    if (aiStore.qaStreaming) {
-      aiStore.setQAStatus("stopped");
-      aiStore.setQAStreaming(false);
-      useAiStore.setState({
-        qaMessages: aiStore.qaMessages.map((message) =>
-          message.isStreaming ? { ...message, isStreaming: false } : message
-        ),
-      });
+    if (activeStreamId) {
+      useAiStore.getState().stopQAStream(activeStreamId);
     }
   }, []);
 
   const askQuestion = useCallback((query: string, scope?: "contact" | "all") => {
     if (!query.trim()) return;
 
+    const previousStreamId = useAiStore.getState().activeQAStreamId;
+    if (previousStreamId) {
+      useAiStore.getState().stopQAStream(previousStreamId);
+    }
     sseAbortRef.current?.abort();
     const abortController = new AbortController();
     sseAbortRef.current = abortController;
+    const streamId = `qa-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const userMsgId = `user-${Date.now()}`;
     store.addQAMessage({
@@ -192,11 +191,11 @@ export function useAiCommander() {
       role: "assistant",
       content: "",
       timestamp: Date.now(),
+      streamId,
       isStreaming: true,
     });
 
-    store.setQAError(null);
-    store.setQAStatus("connecting");
+    store.startQAStream(streamId);
 
     const params: QARequest = {
       query,
@@ -210,40 +209,30 @@ export function useAiCommander() {
       params,
       (event) => {
         if (event.type === "delta") {
-          if (useAiStore.getState().qaStatus === "connecting") {
-            store.setQAStatus("streaming");
-          }
           tokenBuffer.feed(event.text, (text) => {
-            store.appendQAToken(aiMsgId, text);
+            store.appendQAToken(streamId, aiMsgId, text);
           });
         } else if (event.type === "done") {
           tokenBuffer.flush((text) => {
-            if (text) store.appendQAToken(aiMsgId, text);
+            if (text) store.appendQAToken(streamId, aiMsgId, text);
           });
-          const msgs = useAiStore.getState().qaMessages;
-          const currentAnswer = msgs.find((m) => m.id === aiMsgId)?.content ?? "";
-          const answer = currentAnswer || event.payload.answer;
-          const finalMsgs = msgs.map((m) =>
-            m.id === aiMsgId ? { ...m, content: answer, isStreaming: false } : m
-          );
-          useAiStore.setState({ qaMessages: finalMsgs });
-          store.setQAStatus(answer.trim() ? "completed" : "empty");
+          store.completeQAStream(streamId, aiMsgId, event.payload);
         } else if (event.type === "error") {
           tokenBuffer.flush((text) => {
-            if (text) store.appendQAToken(aiMsgId, text);
+            if (text) store.appendQAToken(streamId, aiMsgId, text);
           });
           const message = translateError(event.error || "ESEMANTIC_SSE_ERROR");
-          store.setQAStatus("failed");
-          store.setQAError(message);
-          store.setError(message);
+          if (store.failQAStream(streamId, message)) {
+            store.setError(message);
+          }
         }
       },
       (error) => {
-        store.setQAStatus("failed");
         if (error.name !== "AbortError") {
           const message = translateError(error.message || "ESEMANTIC_SSE_ERROR");
-          store.setQAError(message);
-          store.setError(message);
+          if (store.failQAStream(streamId, message)) {
+            store.setError(message);
+          }
         }
       },
       abortController.signal,
@@ -376,6 +365,8 @@ export function useAiCommander() {
 
   const latestAssistantAnswer =
     [...store.qaMessages].reverse().find((message) => message.role === "assistant")?.content ?? "";
+  const latestAssistantMessage =
+    [...store.qaMessages].reverse().find((message) => message.role === "assistant") ?? null;
   const moduleView = deriveSemanticModuleView({
     phase: store.phase,
     config: store.config,
@@ -386,6 +377,8 @@ export function useAiCommander() {
     status: store.qaStatus,
     answer: latestAssistantAnswer,
     error: store.qaError,
+    evidenceCount: latestAssistantMessage?.evidenceCount,
+    reason: latestAssistantMessage?.reason,
   });
   const compactStatus = deriveCompactSemanticStatus({
     phase: store.phase,

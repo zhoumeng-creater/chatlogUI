@@ -37,6 +37,44 @@ describe("adaptGraphStatus", () => {
     });
   });
 
+  it("maps queue, worker, rate, ETA, source, and activity status fields", () => {
+    const status = adaptGraphStatus({
+      enabled: true,
+      paused: false,
+      running: true,
+      history_queued: true,
+      enqueue_running: true,
+      workers: 3,
+      enqueue_workers: 2,
+      source_count: 7,
+      started_at: "2026-06-04T00:00:00Z",
+      processing_rate_per_minute: 18,
+      estimated_seconds_left: 90,
+      last_updated_at: "2026-06-04T00:05:00Z",
+      pending: 5,
+      processing: 2,
+      processed: 11,
+      failed: 1,
+      progress_pct: 55,
+    });
+
+    expect(status).toMatchObject({
+      historyQueued: true,
+      enqueueRunning: true,
+      workers: 3,
+      enqueueWorkers: 2,
+      startedAt: "2026-06-04T00:00:00Z",
+      processingRatePerMinute: 18,
+      estimatedSecondsLeft: 90,
+      lastUpdatedAt: "2026-06-04T00:05:00Z",
+      queueLabel: "history queued · enqueue running",
+      workerLabel: "3 graph workers · 2 enqueue workers",
+      rateLabel: "18/min",
+      etaLabel: "1m 30s left",
+      lastActivityLabel: "Updated 2026-06-04T00:05:00Z",
+    });
+  });
+
   it("maps disabled and error states", () => {
     expect(adaptGraphStatus({ enabled: false })).toMatchObject({ state: "unavailable" });
     expect(adaptGraphStatus({ enabled: true, last_error: "graph worker failed" })).toMatchObject({
@@ -81,15 +119,53 @@ describe("graph query, timeline, and action adapters", () => {
   it("maps query response tables", () => {
     const query = adaptGraphQuery({
       entities: [{ id: 1, name: "Alice", type: "person", mentions: 2 }],
-      relations: [{ id: 2, subject: "Alice", predicate: "owns", object: "Project", confidence: 0.9 }],
-      events: [{ id: 3, title: "Launch", event_time: 1717000000 }],
-      facts: [{ id: 4, statement: "Alice owns Project" }],
+      relations: [{
+        id: 2,
+        subject: "Alice",
+        predicate: "owns",
+        object: "Project",
+        status: "active",
+        confidence: 0.9,
+        support_score: 0.75,
+        verified: true,
+        conflict_group: "synthetic-conflict",
+        valid_from: 1717000000,
+        valid_to: 1717100000,
+        evidence_count: 3,
+      }],
+      events: [{
+        id: 3,
+        title: "Launch",
+        summary: "Synthetic private event body",
+        event_time: 1717000000,
+        confidence: 0.7,
+        evidence: "Synthetic private evidence body",
+      }],
+      facts: [{
+        id: 4,
+        statement: "Alice owns Project",
+        status: "active",
+        confidence: 0.8,
+        support_score: 0.6,
+        verified: "verified",
+        conflict_group: "synthetic-conflict",
+        valid_from: 1717000000,
+        valid_to: 1717100000,
+        evidence: "Synthetic private fact body",
+      }],
     });
 
     expect(query.entities[0].label).toBe("Alice");
     expect(query.relations[0].label).toBe("Alice owns Project");
     expect(query.events[0].label).toBe("Launch");
     expect(query.facts[0].label).toBe("Alice owns Project");
+    expect(query.relations[0].detailRows).toContainEqual({ label: "Evidence", value: "3" });
+    expect(query.relations[0].detailRows).toContainEqual({ label: "Verified", value: "true" });
+    expect(query.facts[0].detailRows).toContainEqual({ label: "Support", value: "0.6" });
+    expect(query.events[0].detailRows).toContainEqual({ label: "Evidence", value: "1" });
+    expect(JSON.stringify(query)).not.toContain("Synthetic private event body");
+    expect(JSON.stringify(query)).not.toContain("Synthetic private evidence body");
+    expect(JSON.stringify(query)).not.toContain("Synthetic private fact body");
   });
 
   it("maps timeline rows and action responses", () => {

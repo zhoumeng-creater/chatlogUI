@@ -67,6 +67,131 @@
       "fact_count": 0,
       "source_count": 0,
       "last_error": "synthetic graph unavailable"
+    },
+    "graphLoaded": {
+      "nodes": [
+        {
+          "id": "node_synthetic_loaded_a",
+          "name": "Synthetic Loaded Node",
+          "kind": "person",
+          "value": 2,
+          "last_seen": 1767427200
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge_synthetic_loaded_a",
+          "source": "node_synthetic_loaded_a",
+          "target": "node_synthetic_loaded_b",
+          "label": "relates_to",
+          "status": "active",
+          "confidence": 0.85,
+          "evidence_count": 2,
+          "last_seen": 1767427200
+        }
+      ],
+      "timeline": [
+        {
+          "time": 1767427200,
+          "type": "event",
+          "title": "Synthetic loaded event",
+          "description": "Synthetic loaded timeline summary",
+          "source": "synthetic"
+        }
+      ],
+      "generated_at": 1767427200
+    },
+    "graphRunning": {
+      "enabled": true,
+      "paused": false,
+      "running": true,
+      "history_queued": true,
+      "enqueue_running": true,
+      "entity_count": 10,
+      "relation_count": 4,
+      "event_count": 3,
+      "fact_count": 2,
+      "source_count": 7,
+      "pending": 5,
+      "processing": 2,
+      "processed": 11,
+      "failed": 1,
+      "progress_pct": 55,
+      "workers": 3,
+      "enqueue_workers": 2,
+      "started_at": "2026-06-04T00:00:00Z",
+      "processing_rate_per_minute": 18,
+      "estimated_seconds_left": 90,
+      "last_updated_at": "2026-06-04T00:05:00Z",
+      "last_error": ""
+    },
+    "graphPaused": {
+      "enabled": true,
+      "paused": true,
+      "running": false,
+      "entity_count": 10,
+      "relation_count": 4,
+      "event_count": 3,
+      "fact_count": 2,
+      "source_count": 7,
+      "pending": 5,
+      "processing": 0,
+      "processed": 11,
+      "failed": 1,
+      "progress_pct": 55,
+      "workers": 3,
+      "enqueue_workers": 2,
+      "last_error": ""
+    },
+    "graphFailed": {
+      "enabled": true,
+      "paused": false,
+      "running": false,
+      "entity_count": 10,
+      "relation_count": 4,
+      "event_count": 3,
+      "fact_count": 2,
+      "source_count": 7,
+      "pending": 5,
+      "processing": 0,
+      "processed": 11,
+      "failed": 2,
+      "progress_pct": 55,
+      "workers": 3,
+      "enqueue_workers": 2,
+      "last_error": "synthetic graph worker failure"
+    },
+    "graphEmpty": {
+      "nodes": [],
+      "edges": [],
+      "timeline": [],
+      "generated_at": 1767427200
+    },
+    "graphMalformed": {
+      "nodes": [
+        {
+          "name": "Synthetic malformed node without id"
+        }
+      ],
+      "edges": [],
+      "timeline": [],
+      "generated_at": 1767427200
+    },
+    "graphOversized": {
+      "nodes": [
+        {
+          "id": "node_synthetic_oversized_sample",
+          "name": "Synthetic oversized sample",
+          "kind": "topic",
+          "value": 1,
+          "last_seen": 1767427200
+        }
+      ],
+      "edges": [],
+      "timeline": [],
+      "node_count": 301,
+      "oversized": true,
+      "generated_at": 1767427200
     }
   },
   "routes": {
@@ -612,8 +737,13 @@
       "failed": 0,
       "progress_pct": 100,
       "last_error": "",
+      "history_queued": false,
+      "enqueue_running": false,
       "workers": 2,
-      "enqueue_workers": 1
+      "enqueue_workers": 1,
+      "processing_rate_per_minute": 0,
+      "estimated_seconds_left": 0,
+      "last_updated_at": "2026-06-04T00:00:00Z"
     },
     "/api/v1/graph/query": {
       "entities": [
@@ -627,20 +757,39 @@
         {
           "subject": "Synthetic Entity Alpha",
           "predicate": "mentioned",
-          "object": "Synthetic Topic Alpha"
+          "object": "Synthetic Topic Alpha",
+          "status": "active",
+          "confidence": 0.9,
+          "support_score": 0.75,
+          "verified": true,
+          "conflict_group": "synthetic-conflict",
+          "valid_from": 1767427200,
+          "valid_to": 1767513600,
+          "evidence_count": 2
         }
       ],
       "events": [
         {
           "id": "graph_event_synthetic_001",
           "title": "Synthetic Event Alpha",
-          "event_type": "message"
+          "event_type": "message",
+          "event_time": 1767427200,
+          "confidence": 0.7,
+          "evidence": "Synthetic event evidence summary for adapter redaction checks only"
         }
       ],
       "facts": [
         {
           "id": "graph_fact_synthetic_001",
-          "statement": "Synthetic fact summary"
+          "statement": "Synthetic fact summary",
+          "status": "active",
+          "confidence": 0.8,
+          "support_score": 0.6,
+          "verified": "verified",
+          "conflict_group": "synthetic-conflict",
+          "valid_from": 1767427200,
+          "valid_to": 1767513600,
+          "evidence": "Synthetic fact evidence summary for adapter redaction checks only"
         }
       ]
     },

@@ -75,6 +75,23 @@ export interface SemanticIndexStatus {
   progressPct: number;
   lastError: string;
   error?: string;
+  indexedCount: number;
+  entityCount: number;
+  chunkCount: number;
+  startedAt: string;
+  processingRatePerMinute: number;
+  estimatedSecondsLeft: number;
+  lastIncrementalAt: string;
+  lastIncrementalAdded: number;
+  lastIncrementalError: string;
+  lastRerankAt: string;
+  lastRerankApplied: boolean;
+  lastRerankError: string;
+  progressLabel: string;
+  etaLabel: string;
+  rateLabel: string;
+  coverageSummary: string;
+  lastActivityLabel: string;
 }
 
 export interface SemanticIndexActionResult {
@@ -186,6 +203,12 @@ export interface SemanticQADonePayload {
   evidence: Array<Record<string, unknown>>;
   reason: string;
   metadata: Record<string, unknown>;
+  sourceCount: number;
+  window: string;
+  depth: string;
+  rerankTried: boolean;
+  rerankApplied: boolean;
+  rerankError: string;
 }
 
 export function adaptSemanticConfig(raw: unknown): SemanticConfigView {
@@ -277,6 +300,13 @@ export function adaptSemanticIndexStatus(raw: unknown): SemanticIndexStatus {
   const failed = numberValue(data.failed);
   const total = processed + pending + failed;
   const lastError = stringValue(data.last_error);
+  const indexedCount = numberValue(data.indexed_count);
+  const entityCount = numberValue(data.entity_count);
+  const chunkCount = numberValue(data.chunk_count);
+  const processingRatePerMinute = numberValue(data.processing_rate_per_minute);
+  const estimatedSecondsLeft = numberValue(data.estimated_seconds_left);
+  const lastIncrementalAdded = numberValue(data.last_incremental_added);
+  const lastRerankApplied = boolValue(data.last_rerank_applied);
 
   const state = deriveIndexState({ ready, running, paused, lastError });
 
@@ -294,6 +324,28 @@ export function adaptSemanticIndexStatus(raw: unknown): SemanticIndexStatus {
     progressPct: numberValue(data.progress_pct, total > 0 ? (processed / total) * 100 : 0),
     lastError,
     error: lastError || undefined,
+    indexedCount,
+    entityCount,
+    chunkCount,
+    startedAt: stringValue(data.started_at),
+    processingRatePerMinute,
+    estimatedSecondsLeft,
+    lastIncrementalAt: stringValue(data.last_incremental_at),
+    lastIncrementalAdded,
+    lastIncrementalError: stringValue(data.last_incremental_error),
+    lastRerankAt: stringValue(data.last_rerank_at),
+    lastRerankApplied,
+    lastRerankError: stringValue(data.last_rerank_error),
+    progressLabel: `${processed}/${total} processed`,
+    etaLabel: durationLabel(estimatedSecondsLeft),
+    rateLabel: rateLabel(processingRatePerMinute),
+    coverageSummary: coverageSummary(indexedCount, entityCount, chunkCount),
+    lastActivityLabel: semanticActivityLabel({
+      lastIncrementalAdded,
+      lastIncrementalError: stringValue(data.last_incremental_error),
+      lastRerankApplied,
+      lastRerankError: stringValue(data.last_rerank_error),
+    }),
   };
 }
 
@@ -428,11 +480,18 @@ export function buildSemanticQARequestPayload(
 
 export function adaptSemanticQAResponse(raw: unknown): SemanticQADonePayload {
   const data = asRecord(raw);
+  const metadata = asRecord(data.metadata);
   return {
     answer: stringValue(data.answer) || stringValue(data.content) || stringValue(data.text),
     evidence: arrayValue(data.evidence).map((entry) => ({ ...asRecord(entry) })),
     reason: stringValue(data.reason),
-    metadata: { ...asRecord(data.metadata) },
+    metadata: { ...metadata },
+    sourceCount: numberValue(data.source_count, numberValue(metadata.source_count)),
+    window: stringValue(data.window) || stringValue(metadata.window),
+    depth: stringValue(data.depth) || stringValue(metadata.depth),
+    rerankTried: boolValue(data.rerank_tried, boolValue(metadata.rerank_tried)),
+    rerankApplied: boolValue(data.rerank_applied, boolValue(metadata.rerank_applied)),
+    rerankError: stringValue(data.rerank_error) || stringValue(metadata.rerank_error),
   };
 }
 
@@ -493,4 +552,46 @@ function omitUndefined<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(
     Object.entries(value).filter(([, entry]) => entry !== undefined),
   ) as T;
+}
+
+function durationLabel(seconds: number): string {
+  if (seconds <= 0) return "";
+  const minutes = Math.floor(seconds / 60);
+  const remainder = Math.round(seconds % 60);
+  if (minutes <= 0) return `${remainder}s left`;
+  if (remainder <= 0) return `${minutes}m left`;
+  return `${minutes}m ${remainder}s left`;
+}
+
+function rateLabel(rate: number): string {
+  return rate > 0 ? `${rate}/min` : "";
+}
+
+function coverageSummary(indexedCount: number, entityCount: number, chunkCount: number): string {
+  const parts = [
+    indexedCount > 0 ? `${indexedCount} indexed` : "",
+    entityCount > 0 ? `${entityCount} entities` : "",
+    chunkCount > 0 ? `${chunkCount} chunks` : "",
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
+function semanticActivityLabel(input: {
+  lastIncrementalAdded: number;
+  lastIncrementalError: string;
+  lastRerankApplied: boolean;
+  lastRerankError: string;
+}): string {
+  const parts = [];
+  if (input.lastIncrementalError) {
+    parts.push(`Incremental error: ${input.lastIncrementalError}`);
+  } else if (input.lastIncrementalAdded > 0) {
+    parts.push(`Incremental +${input.lastIncrementalAdded}`);
+  }
+  if (input.lastRerankError) {
+    parts.push(`rerank error: ${input.lastRerankError}`);
+  } else if (input.lastRerankApplied) {
+    parts.push("rerank applied");
+  }
+  return parts.join(" · ");
 }

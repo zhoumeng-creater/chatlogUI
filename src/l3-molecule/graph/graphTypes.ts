@@ -40,6 +40,19 @@ export interface GraphStatusSummaryView {
   failed: number;
   progressPct: number;
   lastError: string;
+  historyQueued?: boolean;
+  enqueueRunning?: boolean;
+  workers?: number;
+  enqueueWorkers?: number;
+  startedAt?: string;
+  processingRatePerMinute?: number;
+  estimatedSecondsLeft?: number;
+  lastUpdatedAt?: string;
+  queueLabel?: string;
+  workerLabel?: string;
+  rateLabel?: string;
+  etaLabel?: string;
+  lastActivityLabel?: string;
 }
 
 export interface GraphNodeView {
@@ -111,5 +124,6 @@ export interface GraphModuleViewState {
   canVisualize: boolean;
   shouldMountCanvas: boolean;
   message: string;
+  statusDetails: string[];
   tableRows: GraphModuleTableRowView[];
 }

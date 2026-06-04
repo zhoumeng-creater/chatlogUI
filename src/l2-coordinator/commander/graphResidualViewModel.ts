@@ -1,11 +1,15 @@
 import type {
   GraphBusinessDraft,
+  GraphConfigDraft,
   GraphConfigView,
   GraphEventDraft,
   GraphIngestResult,
+  GraphQADraft,
   GraphQAResponseView,
 } from "@l4/network";
 import type { GraphAdvancedConfirmation } from "@l2/data-clerk/stores/useGraphStore";
+
+export type { GraphBusinessDraft, GraphConfigDraft, GraphEventDraft, GraphQADraft };
 
 export type GraphResidualLoadStatus = "idle" | "loading" | "ready" | "empty" | "error";
 

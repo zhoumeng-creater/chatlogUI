@@ -5,6 +5,7 @@ import {
   adaptSemanticIndexActionResult,
   adaptSemanticIndexStatus,
   adaptSemanticProfiles,
+  adaptSemanticQAResponse,
   adaptSemanticSearch,
   adaptSemanticTopics,
   buildSemanticQARequestPayload,
@@ -157,6 +158,49 @@ describe("adaptSemanticIndexStatus", () => {
     expect(failed.state).toBe("error");
     expect(failed.lastError).toBe("embedding unavailable");
   });
+
+  it("maps extended index status fields and derived labels", () => {
+    const status = adaptSemanticIndexStatus({
+      ready: false,
+      running: true,
+      paused: false,
+      processed: 42,
+      pending: 58,
+      failed: 0,
+      indexed_count: 80,
+      entity_count: 9,
+      chunk_count: 120,
+      started_at: "2026-06-04T00:00:00Z",
+      processing_rate_per_minute: 12,
+      estimated_seconds_left: 125,
+      last_incremental_at: "2026-06-04T00:10:00Z",
+      last_incremental_added: 3,
+      last_incremental_error: "",
+      last_rerank_at: "2026-06-04T00:12:00Z",
+      last_rerank_applied: true,
+      last_rerank_error: "",
+    });
+
+    expect(status).toMatchObject({
+      indexedCount: 80,
+      entityCount: 9,
+      chunkCount: 120,
+      startedAt: "2026-06-04T00:00:00Z",
+      processingRatePerMinute: 12,
+      estimatedSecondsLeft: 125,
+      lastIncrementalAt: "2026-06-04T00:10:00Z",
+      lastIncrementalAdded: 3,
+      lastIncrementalError: "",
+      lastRerankAt: "2026-06-04T00:12:00Z",
+      lastRerankApplied: true,
+      lastRerankError: "",
+      progressLabel: "42/100 processed",
+      etaLabel: "2m 5s left",
+      rateLabel: "12/min",
+      coverageSummary: "80 indexed · 9 entities · 120 chunks",
+      lastActivityLabel: "Incremental +3 · rerank applied",
+    });
+  });
 });
 
 describe("semantic response adapters", () => {
@@ -299,5 +343,38 @@ describe("buildSemanticQARequestPayload", () => {
       history: [{ role: "user", content: "Previous question" }],
     });
     expect("scope" in payload).toBe(false);
+  });
+});
+
+describe("adaptSemanticQAResponse", () => {
+  it("maps done payload metadata needed by QA completion state", () => {
+    const qa = adaptSemanticQAResponse({
+      answer: "Final answer",
+      evidence: [{ content: "Synthetic private message body", score: 0.8, type: "message" }],
+      reason: "complete",
+      source_count: 1,
+      window: "30d",
+      depth: "deep",
+      rerank_tried: true,
+      rerank_applied: true,
+      rerank_error: "",
+      metadata: {
+        source_count: 2,
+        window: "7d",
+      },
+    });
+
+    expect(qa).toMatchObject({
+      answer: "Final answer",
+      reason: "complete",
+      sourceCount: 1,
+      window: "30d",
+      depth: "deep",
+      rerankTried: true,
+      rerankApplied: true,
+      rerankError: "",
+    });
+    expect(qa.evidence).toHaveLength(1);
+    expect(qa.metadata).toMatchObject({ source_count: 2, window: "7d" });
   });
 });

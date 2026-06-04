@@ -38,12 +38,22 @@ describe("deriveSemanticModuleView", () => {
   it("maps running index progress to non-blocking indexing state", () => {
     const view = deriveSemanticModuleView({
       config: readyConfig(),
-      indexStatus: indexStatus("running", { progressPct: 42, processed: 42, pending: 58 }),
+      indexStatus: indexStatus("running", {
+        progressPct: 42,
+        processed: 42,
+        pending: 58,
+        rateLabel: "12/min",
+        etaLabel: "2m 5s left",
+        coverageSummary: "80 indexed · 9 entities · 120 chunks",
+      }),
       qaStatus: "idle",
     });
 
     expect(view.kind).toBe("index_running");
     expect(view.statusLabel).toBe("Indexing 42%");
+    expect(view.message).toContain("12/min");
+    expect(view.message).toContain("2m 5s left");
+    expect(view.message).toContain("80 indexed");
     expect(view.searchEnabled).toBe(false);
     expect(view.qaEnabled).toBe(false);
   });
@@ -81,6 +91,19 @@ describe("deriveSemanticQaView", () => {
     expect(deriveSemanticQaView({ status: "failed", answer: "", error: "provider failed" }).message).toBe("provider failed");
     expect(deriveSemanticQaView({ status: "empty", answer: "" }).label).toBe("No Answer");
     expect(deriveSemanticQaView({ status: "completed", answer: "done" }).label).toBe("Completed");
+  });
+
+  it("marks completed QA evidence readiness without exposing raw evidence text", () => {
+    const view = deriveSemanticQaView({
+      status: "completed",
+      answer: "done",
+      evidenceCount: 2,
+      reason: "complete",
+    });
+
+    expect(view.evidenceReady).toBe(true);
+    expect(view.evidenceLabel).toBe("2 evidence sources");
+    expect(JSON.stringify(view)).not.toContain("private");
   });
 });
 

@@ -62,6 +62,12 @@ describe("streamQA", () => {
           evidence: [],
           reason: "done",
           metadata: {},
+          sourceCount: 0,
+          window: "",
+          depth: "",
+          rerankTried: false,
+          rerankApplied: false,
+          rerankError: "",
         },
       },
     ]);

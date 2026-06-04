@@ -32,6 +32,9 @@ export interface SemanticQaView {
   label: string;
   message: string;
   canStop: boolean;
+  evidenceReady: boolean;
+  evidenceLabel: string;
+  reason: string;
 }
 
 export interface CompactSemanticStatus {
@@ -91,7 +94,12 @@ export function deriveSemanticModuleView(input: SemanticViewInput): SemanticModu
       searchEnabled: false,
       qaEnabled: false,
       statusLabel: `Indexing ${indexProgress(input.indexStatus)}%`,
-      message: "Semantic indexing is running. Core chat, search, and stats remain available.",
+      message: [
+        "Semantic indexing is running. Core chat, search, and stats remain available.",
+        input.indexStatus?.rateLabel,
+        input.indexStatus?.etaLabel,
+        input.indexStatus?.coverageSummary,
+      ].filter(Boolean).join(" "),
     };
   }
 
@@ -131,23 +139,35 @@ export function deriveSemanticQaView(input: {
   status: SemanticQaStatus;
   answer: string;
   error?: string | null;
+  evidenceCount?: number;
+  reason?: string;
 }): SemanticQaView {
+  const evidenceCount = input.evidenceCount ?? 0;
+  const evidenceReady = input.status === "completed" && evidenceCount > 0;
+  const evidenceLabel = evidenceReady
+    ? `${evidenceCount} evidence ${evidenceCount === 1 ? "source" : "sources"}`
+    : "";
+  const base = {
+    evidenceReady,
+    evidenceLabel,
+    reason: input.reason ?? "",
+  };
   switch (input.status) {
     case "connecting":
-      return { status: input.status, label: "Connecting", message: "Connecting to semantic QA.", canStop: true };
+      return { ...base, status: input.status, label: "Connecting", message: "Connecting to semantic QA.", canStop: true };
     case "streaming":
-      return { status: input.status, label: "Streaming", message: input.answer, canStop: true };
+      return { ...base, status: input.status, label: "Streaming", message: input.answer, canStop: true };
     case "completed":
-      return { status: input.status, label: "Completed", message: input.answer, canStop: false };
+      return { ...base, status: input.status, label: "Completed", message: input.answer, canStop: false };
     case "stopped":
-      return { status: input.status, label: "Stopped", message: input.answer || "The stream was stopped.", canStop: false };
+      return { ...base, status: input.status, label: "Stopped", message: input.answer || "The stream was stopped.", canStop: false };
     case "failed":
-      return { status: input.status, label: "Failed", message: input.error || "Semantic QA failed.", canStop: false };
+      return { ...base, status: input.status, label: "Failed", message: input.error || "Semantic QA failed.", canStop: false };
     case "empty":
-      return { status: input.status, label: "No Answer", message: "The stream completed without an answer.", canStop: false };
+      return { ...base, status: input.status, label: "No Answer", message: "The stream completed without an answer.", canStop: false };
     case "idle":
     default:
-      return { status: "idle", label: "Idle", message: "", canStop: false };
+      return { ...base, status: "idle", label: "Idle", message: "", canStop: false };
   }
 }
 

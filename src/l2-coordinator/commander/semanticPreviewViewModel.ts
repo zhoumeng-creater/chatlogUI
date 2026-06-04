@@ -4,6 +4,8 @@ import type {
   SemanticPreviewRow,
 } from "@l4/network";
 
+export type { SemanticPreviewKind };
+
 export type SemanticPreviewStatus = "idle" | "loading" | "ready" | "empty" | "error";
 
 export interface SemanticPreviewViewInput {

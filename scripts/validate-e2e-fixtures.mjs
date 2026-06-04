@@ -7,6 +7,12 @@ const FIXTURE_ROOT = join("e2e", "fixtures");
 const MANIFEST_PATH = join(FIXTURE_ROOT, "fixture-manifest.json");
 const ROUTE_MAP_PATH = join("e2e", "mock-chatlog-server", "route-map.json");
 
+const P3_CONTRACT_STATE_MATRIX = new Map([
+  ["semantic_contract", ["ready", "running", "paused", "failed", "unconfigured"]],
+  ["semantic_qa_stream", ["completed", "empty", "error", "cancellable"]],
+  ["graph_contract", ["loaded", "running", "paused", "failed", "empty", "malformed", "oversized"]],
+]);
+
 const SECRET_PATTERNS = [
   {
     label: "OpenAI-style secret",
@@ -61,6 +67,8 @@ export async function validateFixtureWorkspace(rootDir = process.cwd()) {
   validateRouteStates("manifest.routeStates", manifest.routeStates, fixtureById, errors, manifestRoutes);
   validateRouteStates("routeMap.routes", routeMap.routes, fixtureById, errors, routes);
   validateAdvancedFamilyCoverage(manifest, manifestRoutes, errors);
+  validateP3ContractCoverage("manifest.routeStates", manifestRoutes, errors);
+  validateP3ContractCoverage("routeMap.routes", routes, errors);
   validateUniqueRouteIds(routes, errors);
 
   for (const [fixtureId, fixture] of fixtureById) {
@@ -160,12 +168,28 @@ function validateAdvancedFamilyCoverage(manifest, routes, errors) {
       ? fixture.routeFamilies.map(stringValue).filter(Boolean)
       : [];
     for (const family of families) {
+      if (P3_CONTRACT_STATE_MATRIX.has(family)) continue;
       const familyRoutes = routes.filter((route) => route.fixture === fixtureId && route.family === family);
       if (!familyRoutes.some((route) => route.state === "success")) {
         errors.push(`advanced family ${family} needs at least one success state`);
       }
       if (!familyRoutes.some((route) => route.state === "edge" || route.state === "failure")) {
         errors.push(`advanced family ${family} needs at least one edge or failure state`);
+      }
+    }
+  }
+}
+
+function validateP3ContractCoverage(label, routes, errors) {
+  const declaredFamilies = new Set(routes.map((route) => route.family).filter(Boolean));
+  const hasP3Family = [...P3_CONTRACT_STATE_MATRIX.keys()].some((family) => declaredFamilies.has(family));
+  if (!hasP3Family) return;
+
+  for (const [family, states] of P3_CONTRACT_STATE_MATRIX) {
+    const familyRoutes = routes.filter((route) => route.family === family);
+    for (const state of states) {
+      if (!familyRoutes.some((route) => route.state === state)) {
+        errors.push(`${label}: ${family} needs state ${state}`);
       }
     }
   }

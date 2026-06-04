@@ -23,28 +23,37 @@ export interface GraphModuleView {
   canVisualize: boolean;
   shouldMountCanvas: boolean;
   message: string;
+  statusDetails: string[];
   tableRows: GraphModuleTableRow[];
 }
 
 export function deriveGraphModuleView(input: GraphModuleViewInput): GraphModuleView {
   if (input.statusSummary?.state === "unavailable") {
-    return baseView("unavailable", "Graph service is unavailable.");
+    return baseView("unavailable", "Graph service is unavailable.", input.statusSummary);
   }
 
   if (input.statusSummary?.state === "error") {
-    return baseView("failed", input.statusSummary.lastError || "Graph service failed.");
+    return baseView("failed", input.statusSummary.lastError || "Graph service failed.", input.statusSummary);
   }
 
   if (!input.visualize) {
     return {
-      ...baseView(input.statusSummary?.state === "running" ? "loading" : "idle", "Load graph summary to inspect relationships."),
+      ...baseView(
+        input.statusSummary?.state === "running" ? "loading" : "idle",
+        "Load graph summary to inspect relationships.",
+        input.statusSummary,
+      ),
       canVisualize: false,
     };
   }
 
   if (input.visualize.state !== "loaded") {
     return {
-      ...baseView(input.visualize.state, input.visualize.error || graphStateMessage(input.visualize.state)),
+      ...baseView(
+        input.visualize.state,
+        input.visualize.error || graphStateMessage(input.visualize.state),
+        input.statusSummary,
+      ),
       tableRows: graphTableRows(input.visualize),
     };
   }
@@ -55,17 +64,23 @@ export function deriveGraphModuleView(input: GraphModuleViewInput): GraphModuleV
     canVisualize: true,
     shouldMountCanvas: input.visualizationRequested,
     message: "Graph summary is loaded.",
+    statusDetails: graphStatusDetails(input.statusSummary),
     tableRows: graphTableRows(input.visualize),
   };
 }
 
-function baseView(kind: GraphModuleView["kind"], message: string): GraphModuleView {
+function baseView(
+  kind: GraphModuleView["kind"],
+  message: string,
+  statusSummary: GraphStatusView | null = null,
+): GraphModuleView {
   return {
     kind,
     blocksCoreWorkbench: false,
     canVisualize: false,
     shouldMountCanvas: false,
     message,
+    statusDetails: graphStatusDetails(statusSummary),
     tableRows: [],
   };
 }
@@ -100,4 +115,15 @@ function graphStateMessage(state: GraphLoadStatus): string {
   if (state === "cancelled") return "Graph loading was cancelled.";
   if (state === "error") return "Graph loading failed.";
   return "Graph is not loaded.";
+}
+
+function graphStatusDetails(statusSummary: GraphStatusView | null): string[] {
+  if (!statusSummary) return [];
+  return [
+    statusSummary.queueLabel,
+    statusSummary.workerLabel,
+    statusSummary.rateLabel,
+    statusSummary.etaLabel,
+    statusSummary.lastActivityLabel,
+  ].filter(Boolean);
 }

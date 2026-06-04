@@ -703,6 +703,18 @@
   background: var(--surface-subtle);
 }
 
+.graph-summary-panel__details {
+  display: flex;
+  grid-column: 1 / -1;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.graph-summary-panel__details > * {
+  min-width: 0;
+}
+
 .graph-summary-panel__progress {
   grid-column: 1 / -1;
   height: 4px;

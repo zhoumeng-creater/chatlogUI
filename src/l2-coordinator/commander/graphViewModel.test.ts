@@ -65,14 +65,44 @@ describe("deriveGraphModuleView", () => {
       tableRows: [{ id: "node-a", label: "Alice", type: "node" }],
     });
   });
+
+  it("summarizes running graph queue, workers, ETA, and fallback rows without mounting canvas", () => {
+    const view = deriveGraphModuleView({
+      statusSummary: status("running", "", {
+        queueLabel: "history queued · enqueue running",
+        workerLabel: "3 graph workers · 2 enqueue workers",
+        etaLabel: "1m 30s left",
+        rateLabel: "18/min",
+      }),
+      visualize: visualize("loaded"),
+      visualizationRequested: false,
+    });
+
+    expect(view.shouldMountCanvas).toBe(false);
+    expect(view.statusDetails).toEqual([
+      "history queued · enqueue running",
+      "3 graph workers · 2 enqueue workers",
+      "18/min",
+      "1m 30s left",
+    ]);
+    expect(view.tableRows).toContainEqual({ id: "node-a", label: "Alice", type: "node", detail: "person" });
+  });
 });
 
-function status(state: GraphStatusView["state"], lastError = ""): GraphStatusView {
-  return {
+function status(
+  state: GraphStatusView["state"],
+  lastError = "",
+  overrides: Partial<GraphStatusView> = {},
+): GraphStatusView {
+  const base: GraphStatusView = {
     state,
     enabled: state !== "unavailable",
     paused: state === "paused",
     running: state === "running",
+    historyQueued: false,
+    enqueueRunning: false,
+    workers: 0,
+    enqueueWorkers: 0,
     counts: { entities: 1, relations: 0, events: 0, facts: 0, sources: 0 },
     pending: 0,
     processing: 0,
@@ -80,7 +110,17 @@ function status(state: GraphStatusView["state"], lastError = ""): GraphStatusVie
     failed: 0,
     progressPct: state === "running" ? 40 : 100,
     lastError,
+    startedAt: "",
+    processingRatePerMinute: 0,
+    estimatedSecondsLeft: 0,
+    lastUpdatedAt: "",
+    queueLabel: "",
+    workerLabel: "",
+    rateLabel: "",
+    etaLabel: "",
+    lastActivityLabel: "",
   };
+  return { ...base, ...overrides };
 }
 
 function visualize(state: GraphVisualizeView["state"]): GraphVisualizeView {

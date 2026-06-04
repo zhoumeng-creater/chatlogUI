@@ -75,6 +75,7 @@ describe("workbenchViewModel", () => {
         canVisualize: false,
         shouldMountCanvas: false,
         message: "",
+        statusDetails: [],
         tableRows: [],
       },
       sns: {

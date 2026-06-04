@@ -35,6 +35,13 @@ export function GraphSummaryPanel({
   const status = statusSummary?.state ?? loadStatus;
   const counts = statusSummary?.counts;
   const summary = visualize?.summary;
+  const statusDetails = [
+    statusSummary?.queueLabel,
+    statusSummary?.workerLabel,
+    statusSummary?.rateLabel,
+    statusSummary?.etaLabel,
+    statusSummary?.lastActivityLabel,
+  ].filter(Boolean);
 
   return (
     <div className="graph-summary-panel" aria-label="图谱状态">
@@ -57,6 +64,16 @@ export function GraphSummaryPanel({
         <Metric label="事件" value={counts?.events ?? summary?.timelineCount ?? 0} />
         <Metric label="待处理" value={statusSummary?.pending ?? 0} />
       </div>
+
+      {statusDetails.length > 0 && (
+        <div className="graph-summary-panel__details">
+          {statusDetails.map((detail) => (
+            <Typography key={detail} variant="caption" color="var(--text-secondary)">
+              {detail}
+            </Typography>
+          ))}
+        </div>
+      )}
 
       {statusSummary && statusSummary.progressPct > 0 && statusSummary.progressPct < 100 && (
         <div className="graph-summary-panel__progress" aria-label={`图谱处理进度 ${statusSummary.progressPct}%`}>

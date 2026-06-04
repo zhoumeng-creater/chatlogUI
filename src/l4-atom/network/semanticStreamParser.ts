@@ -1,4 +1,4 @@
-import type { SemanticQADonePayload } from "./semanticAdapters";
+import { adaptSemanticQAResponse, type SemanticQADonePayload } from "./semanticAdapters";
 
 export interface SSEChunk {
   type: "token" | "done" | "error";
@@ -159,15 +159,7 @@ function parsePayload(raw: string): unknown {
 }
 
 function donePayload(payload: unknown): SemanticQADonePayload {
-  const record = asRecord(payload);
-  return {
-    answer: stringValue(record.answer) || stringValue(record.content) || stringValue(record.text),
-    evidence: Array.isArray(record.evidence)
-      ? record.evidence.map((entry) => ({ ...asRecord(entry) }))
-      : [],
-    reason: stringValue(record.reason),
-    metadata: { ...asRecord(record.metadata) },
-  };
+  return adaptSemanticQAResponse(payload);
 }
 
 function payloadText(payload: unknown): string {

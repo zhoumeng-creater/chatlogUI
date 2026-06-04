@@ -85,6 +85,22 @@ export interface IndexStatusResponse {
   lastError?: string;
   error?: string;
   startedAt?: string;
+  indexedCount?: number;
+  entityCount?: number;
+  chunkCount?: number;
+  processingRatePerMinute?: number;
+  estimatedSecondsLeft?: number;
+  lastIncrementalAt?: string;
+  lastIncrementalAdded?: number;
+  lastIncrementalError?: string;
+  lastRerankAt?: string;
+  lastRerankApplied?: boolean;
+  lastRerankError?: string;
+  progressLabel?: string;
+  etaLabel?: string;
+  rateLabel?: string;
+  coverageSummary?: string;
+  lastActivityLabel?: string;
 }
 
 // ========== QA 相关 ==========
@@ -107,6 +123,18 @@ export interface QADonePayload {
   evidence: Array<Record<string, unknown>>;
   reason: string;
   metadata: Record<string, unknown>;
+  sourceCount?: number;
+  window?: string;
+  depth?: string;
+  rerankTried?: boolean;
+  rerankApplied?: boolean;
+  rerankError?: string;
+}
+
+export interface QAEvidenceSummary {
+  label: string;
+  kind?: string;
+  score?: number;
 }
 
 export interface QAMessage {
@@ -115,6 +143,18 @@ export interface QAMessage {
   content: string;
   timestamp: number;
   isStreaming?: boolean;
+  streamId?: string;
+  completionStatus?: 'streaming' | 'completed' | 'stopped' | 'failed' | 'empty';
+  evidence?: QAEvidenceSummary[];
+  evidenceCount?: number;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+  sourceCount?: number;
+  window?: string;
+  depth?: string;
+  rerankTried?: boolean;
+  rerankApplied?: boolean;
+  rerankError?: string;
 }
 
 export interface SSEChunk {
@@ -235,6 +275,7 @@ export interface AiState {
   qaStreaming: boolean;
   qaStatus: 'idle' | 'connecting' | 'streaming' | 'completed' | 'stopped' | 'failed' | 'empty';
   qaError: string | null;
+  activeQAStreamId: string | null;
   searchQuery: string;
   searchResults: SemanticSearchResponse | null;
   searchLoading: boolean;
@@ -253,7 +294,11 @@ export interface AiActions {
   setConfig: (config: SemanticConfig) => void;
   setIndexStatus: (status: IndexStatusResponse) => void;
   addQAMessage: (msg: QAMessage) => void;
-  appendQAToken: (msgId: string, token: string) => void;
+  startQAStream: (streamId: string) => void;
+  appendQAToken: (streamId: string, msgId: string, token: string) => void;
+  completeQAStream: (streamId: string, msgId: string, payload: QADonePayload) => boolean;
+  failQAStream: (streamId: string, error: string) => boolean;
+  stopQAStream: (streamId: string) => boolean;
   setQALoading: (loading: boolean) => void;
   setQAStreaming: (streaming: boolean) => void;
   setQAStatus: (status: AiState['qaStatus']) => void;
