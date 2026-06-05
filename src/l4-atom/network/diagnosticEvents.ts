@@ -76,8 +76,6 @@ const SAFE_ATTRIBUTE_KEYS = new Set([
   "retryable",
   "count",
   "eventCount",
-  "source",
-  "target",
   "redactionOk",
   "releaseGate",
 ]);

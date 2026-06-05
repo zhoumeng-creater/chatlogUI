@@ -42,20 +42,21 @@ test.describe("privacy mode synthetic browser gate", () => {
     await page.getByRole("button", { name: "预览" }).click();
     await expect(page.getByText("已隐藏对象").first()).toBeVisible();
     await page.getByRole("button", { name: "问答" }).click();
-    await page.locator(".qa-input__textarea").fill("synthetic completed qa privacy");
-    await page.getByRole("button", { name: /发送/ }).click();
-    await expect(page.getByText("证据 1")).toBeVisible();
+    const qaTextarea = page.locator(".qa-input__textarea");
+    await expect(qaTextarea).toBeDisabled();
+    await expect(qaTextarea).toHaveValue("");
+    await expect(qaTextarea).not.toHaveAttribute("placeholder", /Synthetic|Chatroom|Session|Contact/i);
+    await expect(page.getByRole("button", { name: /发送/ })).toBeDisabled();
+    await expect(page.getByText("证据 1")).toHaveCount(0);
     await expect(page.getByText("Synthetic answer with evidence")).toHaveCount(0);
     await expect(page.locator(".qa-message__actions").getByRole("button", { name: "复制" })).toHaveCount(0);
-    await page.getByRole("button", { name: "证据" }).click();
-    await expect(page.getByRole("complementary", { name: "问答证据" })).toBeVisible();
-    await expect(page.getByText("Synthetic evidence summary for QA fixture only")).toHaveCount(0);
+    await expect(page.getByRole("complementary", { name: "问答证据" })).toHaveCount(0);
     await expect(page.getByText("Synthetic Candidate")).toHaveCount(0);
-    await page.getByRole("button", { name: "关闭证据" }).click();
 
     await openWorkbenchModule(page, "图谱");
     await page.getByRole("tab", { name: "问答" }).click();
-    await expect(page.getByPlaceholder("隐私模式已隐藏问题草稿")).toBeVisible();
+    await expect(page.getByPlaceholder("隐私模式已隐藏问题草稿")).toBeDisabled();
+    await expect(page.getByLabel("图谱问题")).toHaveValue("");
 
     await assertNoForbiddenVisibleText(page);
     await expectStableSyntheticPage(page);

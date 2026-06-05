@@ -10,7 +10,14 @@
     "bearerSyntheticRedactionCase": "Bearer synthetic-bearer-redaction-case",
     "windowsPathSyntheticRedactionCase": "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_redaction_case",
     "wxidSyntheticRedactionCase": "wxid_synthetic_redaction_case",
-    "privateMessageSyntheticRedactionCase": "Synthetic private message for redaction test only"
+    "privateMessageSyntheticRedactionCase": "Synthetic private message for redaction test only",
+    "semanticQuestionSyntheticRedactionCase": "Synthetic semantic question for redaction tests only",
+    "semanticAnswerSyntheticRedactionCase": "Synthetic semantic answer for redaction tests only",
+    "semanticEvidenceSyntheticRedactionCase": "Synthetic semantic evidence for redaction tests only",
+    "graphQuestionSyntheticRedactionCase": "Synthetic graph question for redaction tests only",
+    "graphAnswerSyntheticRedactionCase": "Synthetic graph answer for redaction tests only",
+    "graphEntitySyntheticRedactionCase": "Synthetic graph entity for redaction tests only",
+    "graphIngestSyntheticRedactionCase": "Synthetic graph ingest content for redaction tests only"
   },
   "expectedExport": {
     "redactionOk": true,
@@ -21,7 +28,14 @@
       "synthetic-bearer-redaction-case",
       "C:\\Users\\Synthetic",
       "wxid_synthetic_redaction_case",
-      "Synthetic private message for redaction test only"
+      "Synthetic private message for redaction test only",
+      "Synthetic semantic question for redaction tests only",
+      "Synthetic semantic answer for redaction tests only",
+      "Synthetic semantic evidence for redaction tests only",
+      "Synthetic graph question for redaction tests only",
+      "Synthetic graph answer for redaction tests only",
+      "Synthetic graph entity for redaction tests only",
+      "Synthetic graph ingest content for redaction tests only"
     ]
   }
 }

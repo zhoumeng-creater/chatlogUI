@@ -98,6 +98,34 @@ describe("diagnostics report model", () => {
     expect(text).not.toContain("synthetic-media-key");
   });
 
+  it("redacts P3 semantic and graph question, answer, evidence, entity, and ingest labels", () => {
+    const report = buildDiagnosticsReport({
+      privacyOn: true,
+      items: [
+        { label: "Semantic question", value: "Synthetic semantic question for redaction tests only" },
+        { label: "Semantic answer", value: "Synthetic semantic answer for redaction tests only" },
+        { label: "Semantic evidence", value: "Synthetic semantic evidence for redaction tests only" },
+        { label: "Graph question", value: "Synthetic graph question for redaction tests only" },
+        { label: "Graph answer", value: "Synthetic graph answer for redaction tests only" },
+        { label: "Graph entity", value: "Synthetic graph entity for redaction tests only" },
+        { label: "Graph ingest content", value: "Synthetic graph ingest content for redaction tests only" },
+        { label: "Diagnostic events", value: 3 },
+      ],
+    });
+
+    const text = serializeDiagnosticsReport(report);
+
+    expect(report.redactionOk).toBe(true);
+    expect(text).toContain("Diagnostic events: 3");
+    expect(text).not.toContain("Synthetic semantic question");
+    expect(text).not.toContain("Synthetic semantic answer");
+    expect(text).not.toContain("Synthetic semantic evidence");
+    expect(text).not.toContain("Synthetic graph question");
+    expect(text).not.toContain("Synthetic graph answer");
+    expect(text).not.toContain("Synthetic graph entity");
+    expect(text).not.toContain("Synthetic graph ingest content");
+  });
+
   it("adds diagnostics manifest 2.0 fields and redacts manifest paths", () => {
     const report = buildDiagnosticsReport({
       privacyOn: true,

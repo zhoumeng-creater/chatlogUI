@@ -23,6 +23,7 @@ interface QAInputProps {
   onSend: (draft: QAComposerDraft) => void;
   onStop: () => void;
   disabled: boolean;
+  privacyOn?: boolean;
   currentContact?: string;
   recentChats?: QARecentChatOption[];
   entityOverride?: QAEntityOverride | null;
@@ -38,6 +39,7 @@ export function QAInput({
   onSend,
   onStop,
   disabled,
+  privacyOn = false,
   currentContact,
   recentChats = [],
   entityOverride,
@@ -50,6 +52,13 @@ export function QAInput({
   const [sourceLimit, setSourceLimit] = useState(50);
   const [selectedChats, setSelectedChats] = useState<string[]>([]);
   const [includeHistory, setIncludeHistory] = useState(false);
+
+  useEffect(() => {
+    if (!privacyOn) return;
+    setQuery('');
+    setSelectedChats([]);
+    setIncludeHistory(false);
+  }, [privacyOn]);
 
   useEffect(() => {
     if (!currentContact && scope === 'contact') setScope('all');
@@ -66,7 +75,7 @@ export function QAInput({
   }, [recentChats]);
 
   const handleSend = () => {
-    if (!query.trim() || disabled) return;
+    if (!query.trim() || disabled || privacyOn) return;
     if (scope === 'selected' && selectedChats.length === 0) return;
     onSend({
       query: query.trim(),
@@ -82,7 +91,16 @@ export function QAInput({
     setQuery('');
     onClearEntityOverride?.();
   };
-  const sendDisabled = !disabled && (!query.trim() || (scope === 'selected' && selectedChats.length === 0));
+  const sendDisabled =
+    privacyOn || (!disabled && (!query.trim() || (scope === 'selected' && selectedChats.length === 0)));
+  const controlsDisabled = disabled || privacyOn;
+  const textareaPlaceholder = privacyOn
+    ? '隐私模式已隐藏问题输入'
+    : scope === 'contact'
+      ? `基于 ${currentContact || '当前联系人'} 提问...`
+      : scope === 'selected'
+        ? '基于选定会话提问...'
+        : '基于全部会话提问...';
 
   return (
     <div className="qa-input">
@@ -94,7 +112,7 @@ export function QAInput({
               checked={scope === 'contact'}
               onChange={() => setScope('contact')}
               className="qa-input__radio"
-              disabled={!currentContact}
+              disabled={!currentContact || controlsDisabled}
             />
             当前联系人
           </label>
@@ -104,7 +122,7 @@ export function QAInput({
               checked={scope === 'selected'}
               onChange={() => setScope('selected')}
               className="qa-input__radio"
-              disabled={recentChats.length === 0}
+              disabled={recentChats.length === 0 || controlsDisabled}
             />
             选定会话
           </label>
@@ -114,6 +132,7 @@ export function QAInput({
               checked={scope === 'all'}
               onChange={() => setScope('all')}
               className="qa-input__radio"
+              disabled={controlsDisabled}
             />
             全部会话
           </label>
@@ -124,6 +143,7 @@ export function QAInput({
             checked={includeHistory}
             onChange={(event) => setIncludeHistory(event.target.checked)}
             className="qa-input__checkbox"
+            disabled={controlsDisabled}
           />
           上下文
         </label>
@@ -133,6 +153,7 @@ export function QAInput({
             value={window}
             onChange={(event) => setWindow(event.target.value)}
             className="qa-input__select"
+            disabled={controlsDisabled}
           >
             <option value="today">今天</option>
             <option value="yesterday">昨天</option>
@@ -149,6 +170,7 @@ export function QAInput({
             value={retrievalDepth}
             onChange={(event) => setRetrievalDepth(event.target.value)}
             className="qa-input__select"
+            disabled={controlsDisabled}
           >
             <option value="standard">标准</option>
             <option value="deep">深入</option>
@@ -164,6 +186,7 @@ export function QAInput({
             value={sourceLimit}
             onChange={(event) => setSourceLimit(normalizeSourceLimit(event.target.valueAsNumber))}
             className="qa-input__number"
+            disabled={controlsDisabled}
           />
         </label>
       </div>
@@ -183,6 +206,7 @@ export function QAInput({
                   );
                 }}
                 className="qa-input__checkbox"
+                disabled={controlsDisabled}
               />
               <span>{item.label}</span>
             </label>
@@ -207,14 +231,8 @@ export function QAInput({
       <div className="qa-input__row">
         <textarea
           className="qa-input__textarea"
-          placeholder={
-            scope === 'contact'
-              ? `基于 ${currentContact || '当前联系人'} 提问...`
-              : scope === 'selected'
-                ? '基于选定会话提问...'
-                : '基于全部会话提问...'
-          }
-          value={query}
+          placeholder={textareaPlaceholder}
+          value={privacyOn ? '' : query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -222,14 +240,14 @@ export function QAInput({
               handleSend();
             }
           }}
-          disabled={disabled}
+          disabled={controlsDisabled}
           rows={3}
         />
         <Button
           variant="primary"
           size="sm"
           onClick={disabled ? onStop : handleSend}
-          disabled={sendDisabled}
+          disabled={disabled ? false : sendDisabled}
           className="qa-input__button"
         >
           {disabled ? <><Square size={14} />停止</> : <><Send size={14} />发送</>}

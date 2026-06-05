@@ -131,6 +131,31 @@ describe("diagnosticEvents", () => {
     });
   });
 
+  it("drops generic source and target attributes because callers can misuse them for private identities", () => {
+    const event = createDiagnosticEvent(
+      {
+        source: "ui",
+        level: "warn",
+        category: "p3e.privacy",
+        summary: "Graph diagnostic attribute audit",
+        attributes: {
+          endpointFamily: "graph",
+          source: "Synthetic graph entity for redaction tests only",
+          target: "Synthetic semantic contact for redaction tests only",
+          status: 200,
+        },
+      },
+      testOptions,
+    );
+
+    expect(event.attributes).toEqual({
+      endpointFamily: "graph",
+      status: 200,
+    });
+    expect(JSON.stringify(event)).not.toContain("Synthetic graph entity");
+    expect(JSON.stringify(event)).not.toContain("Synthetic semantic contact");
+  });
+
   it("keeps safe correlation and recovery metadata on HTTP events", () => {
     const event = createHttpDiagnosticEvent(
       {

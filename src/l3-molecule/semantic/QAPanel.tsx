@@ -99,6 +99,7 @@ export function QAPanel({
         onSend={onAskQuestion}
         onStop={onStopQAStream}
         disabled={qaStreaming}
+        privacyOn={privacyOn}
         currentContact={currentContact}
         recentChats={recentChats}
         entityOverride={entityOverride}

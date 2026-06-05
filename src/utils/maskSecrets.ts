@@ -57,6 +57,14 @@ export function maskDiagnosticText(input: string, options: MaskDiagnosticOptions
     .replace(/(\bhttps?:\/\/[^\s?]+)\?[^\s\n]+/gi, "$1?[redacted-query]")
     .replace(/\b(?:select|with)\b[\s\S]*?\bfrom\b[^\n]*/gi, "[redacted-sql]")
     .replace(/\b(?:insert\s+into|update|delete\s+from)\b[^\n]*/gi, "[redacted-sql]")
+    .replace(
+      /synthetic\s+(?:semantic|graph)\s+(?:question|answer|evidence|entity|ingest\s+content|placeholder)(?:\s+for\s+redaction\s+tests\s+only)?/gi,
+      "[redacted-private-diagnostic]",
+    )
+    .replace(
+      /synthetic\s+selected\s+value(?:\s+for\s+redaction\s+tests\s+only)?/gi,
+      "[redacted-private-diagnostic]",
+    )
     .replace(/[A-Z]:\\Users\\[^\\\n]+(?:\\[^\n]*)?/gi, "[redacted-path]")
     .replace(/[A-Z]:\\[^:\n]*(?:WeChat Files|微信 Files|微信文件)[^\n]*/gi, "[redacted-path]")
     .replace(/(?:^|\s)[^\s\n]*WeChat Files[^\n]*/gi, " [redacted-path]")
@@ -89,6 +97,8 @@ export function containsSensitiveDiagnosticText(input: string): boolean {
     /\b(?:keyword|query|sql|content|requestBody|responseBody|rawResponse)\s*[=:]\s*(?!\[redacted\]|\*+)[^\s,;]+/i,
     /"(?:content|sender|chat|keyword|query)"\s*:\s*"(?!\[redacted\])[^"]+"/i,
     /synthetic-private-message/i,
+    /synthetic\s+(?:semantic|graph)\s+(?:question|answer|evidence|entity|ingest\s+content|placeholder)/i,
+    /synthetic\s+selected\s+value/i,
   ].some((pattern) => pattern.test(normalized));
 }
 

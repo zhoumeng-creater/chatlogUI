@@ -69,4 +69,19 @@ describe("diagnostic redaction", () => {
     expect(containsSensitiveDiagnosticText("keyword=private chat text")).toBe(true);
     expect(containsSensitiveDiagnosticText("durationMs: 12")).toBe(false);
   });
+
+  it("detects unmasked P3 semantic and graph diagnostic markers", () => {
+    for (const marker of [
+      "Synthetic semantic question for redaction tests only",
+      "Synthetic semantic answer for redaction tests only",
+      "Synthetic semantic evidence for redaction tests only",
+      "Synthetic graph question for redaction tests only",
+      "Synthetic graph answer for redaction tests only",
+      "Synthetic graph entity for redaction tests only",
+      "Synthetic graph ingest content for redaction tests only",
+    ]) {
+      expect(containsSensitiveDiagnosticText(marker)).toBe(true);
+      expect(maskDiagnosticText(marker, { privacyMode: true })).not.toContain(marker);
+    }
+  });
 });

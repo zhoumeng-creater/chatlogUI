@@ -163,6 +163,6 @@ function buildManifestItems(manifest: DiagnosticsManifestInput): DiagnosticItemI
 }
 
 function shouldRedactDiagnosticValue(label: string): boolean {
-  return /data[_-]?key|img[_-]?key|api[_-]?key|token|secret|credential|password|authorization|private message|message body|chat content|request query|query|sql|raw response|request body|response body|sns proxy|media key|image key|video key|file key|voice key/i
+  return /data[_-]?key|img[_-]?key|api[_-]?key|token|secret|credential|password|authorization|private message|message body|chat content|request query|query|question|answer|evidence|entity|ingest|graph qa|semantic qa|sql|raw response|request body|response body|sns proxy|media key|image key|video key|file key|voice key/i
     .test(label);
 }

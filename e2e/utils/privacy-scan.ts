@@ -13,7 +13,17 @@ const FORBIDDEN_VISIBLE_PATTERNS = [
   /Synthetic streaming trigger content for redaction tests only/i,
   /Synthetic semantic preview content for redaction tests only/i,
   /Synthetic semantic outlier content for redaction tests only/i,
+  /Synthetic semantic question for redaction tests only/i,
+  /Synthetic semantic answer for redaction tests only/i,
+  /Synthetic semantic evidence for redaction tests only/i,
+  /Synthetic semantic placeholder for redaction tests only/i,
+  /Synthetic selected value for redaction tests only/i,
+  /Synthetic graph question for redaction tests only/i,
+  /Synthetic graph question placeholder for redaction tests only/i,
   /Synthetic graph answer for redaction tests only/i,
+  /Synthetic graph entity for redaction tests only/i,
+  /Synthetic graph entity alt for redaction tests only/i,
+  /Synthetic graph ingest content for redaction tests only/i,
   /Synthetic evidence summary for redaction tests only/i,
   /C:\\Users\\Synthetic/i,
   /dataKey=/i,
@@ -62,6 +72,36 @@ async function collectVisiblePrivacySnapshot(page: Page) {
       element.getAttribute("alt") ?? "",
     ]);
 
-    return [document.body.innerText, ...attributes].join("\n");
+    const formValues = Array.from(
+      document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+        "input, textarea, select",
+      ),
+    ).flatMap((element) => [
+      element.value ?? "",
+      element.getAttribute("placeholder") ?? "",
+    ]);
+
+    return [document.body.innerText, ...attributes, ...formValues].join("\n");
   });
+}
+
+export function collectPrivacySnapshotFromDocument(documentLike: Document): string {
+  const attributes = Array.from(
+    documentLike.querySelectorAll<HTMLElement>("[aria-label],[title],img[alt]"),
+  ).flatMap((element) => [
+    element.getAttribute("aria-label") ?? "",
+    element.getAttribute("title") ?? "",
+    element.getAttribute("alt") ?? "",
+  ]);
+
+  const formValues = Array.from(
+    documentLike.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+      "input, textarea, select",
+    ),
+  ).flatMap((element) => [
+    element.value ?? "",
+    element.getAttribute("placeholder") ?? "",
+  ]);
+
+  return [documentLike.body.innerText, ...attributes, ...formValues].join("\n");
 }
