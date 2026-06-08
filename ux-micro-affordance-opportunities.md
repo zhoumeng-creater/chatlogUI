@@ -18,6 +18,8 @@ Purpose: record small, high-leverage usability improvements that are not all imm
 
 Priority: high
 
+Status: foundation and high-impact compact command migration implemented 2026-06-08; broad lower-frequency migration still pending.
+
 Idea:
 Create one consistent tooltip contract for icon-only and compact controls:
 - delayed hover display;
@@ -27,19 +29,22 @@ Create one consistent tooltip contract for icon-only and compact controls:
 - privacy-safe text scanning in tests.
 
 Why:
-The app already has a `Tooltip` atom, but usage is partial and the current implementation is mostly visual.
+The app now has a shared `Tooltip` atom with id/description linkage, hover delay, focus reveal, placement variants, wrapping, and an `IconButton` path that no longer falls back to native `title`. The high-impact rail, graph, and media-preview command targets have moved to the shared path. Usage is still partial for lower-frequency compact controls outside this slice.
+
+2026-06-08 Step 4 evidence:
+Focused source/governance tests, `pnpm e2e:a11y`, `pnpm e2e`, `pnpm e2e:visual`, and `pnpm verify` passed for the high-impact shared-tooltip scope. This does not close native Tauri window smoke or lower-frequency tooltip migration.
 
 Likely first targets:
-- window control buttons after they are implemented;
+- window control buttons now use the shared shell control pattern, but native desktop smoke is still required before closing the P0 ledger item;
 - global privacy/developer/settings controls;
-- collapsed workbench rail buttons;
-- graph refresh/auto-rotate/time-axis controls;
-- media preview close/open controls;
+- lower-frequency inspector and drawer close/open controls;
 - QA evidence and inspector close buttons.
 
 ### 2. Disabled-reason hints
 
 Priority: high
+
+Status: shared primitive and high-impact reason categories implemented 2026-06-08; lower-frequency/service-readiness states remain pending.
 
 Idea:
 When a control is disabled, give a concise reason through adjacent copy or tooltip:
@@ -50,15 +55,15 @@ When a control is disabled, give a concise reason through adjacent copy or toolt
 - "没有上一页/下一页".
 
 Why:
-Disabled controls are currently common, but users often need to infer the missing prerequisite.
+Disabled controls are common, and the current high-impact privacy/missing-selection/loading/busy/pagination/incomplete blockers now use the shared `DisabledReason` primitive. Service/permission readiness and lower-frequency advanced states still need follow-up coverage.
+
+2026-06-08 Step 4 evidence:
+Focused source/governance tests, `pnpm e2e:a11y`, `pnpm e2e`, `pnpm e2e:visual`, and `pnpm verify` passed for the high-impact shared-disabled-reason scope. Service/permission readiness and lower-frequency advanced controls remain pending.
 
 Likely first targets:
-- media refresh;
-- current-conversation search scope;
-- semantic QA send/scope controls;
-- developer DB search in privacy mode;
-- graph advanced write/QA actions;
-- semantic preview pagination.
+- service/DB readiness controls outside the migrated high-impact surfaces;
+- unsupported or permission-blocked advanced controls;
+- remaining rare compact actions where the disabled reason is only implied by status text.
 
 ### 3. Status details popovers
 

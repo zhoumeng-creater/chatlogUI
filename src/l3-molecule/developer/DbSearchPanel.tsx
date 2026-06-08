@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { Button, Input, Select, Spinner, Typography } from "@l4/ui";
+import { Button, DisabledReason, Input, Select, Spinner, Typography } from "@l4/ui";
 import type { AdaptedDbSearchResponse } from "@l4/network";
 import type { DeveloperToolsLoadStatus } from "@l2/data-clerk/stores/useDeveloperToolsStore";
 import { formatDbSearchInputValue } from "./developerDisplay";
@@ -31,6 +31,8 @@ export function DbSearchPanel({
   onLimitChange,
   onSearch,
 }: DbSearchPanelProps) {
+  const privacyDisabledReasonId = privacyOn ? "developer-db-search-privacy-disabled-reason" : undefined;
+
   return (
     <section className="developer-section" aria-label="数据库搜索">
       <div className="developer-section__header">
@@ -47,6 +49,7 @@ export function DbSearchPanel({
           placeholder={privacyOn ? "隐私模式已隐藏关键词" : "keyword"}
           aria-label="数据库搜索关键词"
           disabled={privacyOn}
+          aria-describedby={privacyDisabledReasonId}
         />
         <Select
           controlSize="sm"
@@ -69,11 +72,23 @@ export function DbSearchPanel({
           <option value={200}>200</option>
           <option value={500}>500</option>
         </Select>
-        <Button variant="secondary" size="sm" onClick={onSearch} disabled={status === "loading" || privacyOn}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onSearch}
+          disabled={status === "loading" || privacyOn}
+          aria-describedby={privacyDisabledReasonId}
+        >
           <Search size={14} />
           搜索
         </Button>
       </div>
+      {privacyOn && (
+        <DisabledReason
+          id={privacyDisabledReasonId}
+          reason="隐私模式下不可搜索原始数据库。关闭隐私模式后可继续。"
+        />
+      )}
       {error && (
         <Typography variant="caption" color="var(--danger)">
           {error}

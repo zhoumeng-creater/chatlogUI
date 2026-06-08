@@ -1,5 +1,7 @@
+import { X } from "lucide-react";
+import { classNames } from "@/utils/classNames";
+import { IconButton } from "@l4/ui/IconButton";
 import { Typography } from "@l4/ui/Typography";
-import { Button } from "@l4/ui/Button";
 import { getGraphTimelineDisplay } from "./graphDisplay";
 import type { GraphDataView, GraphTimelineEntryView } from "./graphTypes";
 
@@ -45,16 +47,15 @@ export function GraphTimeline({
             <Typography variant="caption" weight={600} color="var(--color-text-secondary)">
               时间轴 · {data.timeline.length} 条
             </Typography>
-            <Button
-              variant="ghost"
+            <IconButton
+              icon={<X size={14} />}
+              label="关闭时间轴"
+              tooltip="关闭时间轴"
+              tooltipPlacement="left"
               size="sm"
               onClick={() => onTimelineVisibleChange(false)}
               className="graph-timeline__close"
-              title="关闭时间轴"
-              aria-label="关闭时间轴"
-            >
-              ×
-            </Button>
+            />
           </div>
           <div className="graph-timeline__body">
             {data.timeline.map((entry: GraphTimelineEntryView, i: number) => {
@@ -69,14 +70,15 @@ export function GraphTimeline({
                 privacyOn,
               );
               return (
-                <div
+                <button
+                  type="button"
                   key={id}
                   onClick={() => onHighlightTimelineEntry(id)}
-                  className={
-                    isHighlighted
-                      ? "graph-timeline__entry graph-timeline__entry--highlighted"
-                      : "graph-timeline__entry"
-                  }
+                  className={classNames(
+                    "graph-timeline__entry",
+                    isHighlighted && "graph-timeline__entry--highlighted",
+                  )}
+                  aria-pressed={isHighlighted}
                 >
                   <span className="graph-timeline__type">
                     {TYPE_LABELS[entry.type] ?? "条目"}
@@ -113,7 +115,7 @@ export function GraphTimeline({
                       </Typography>
                     )}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>

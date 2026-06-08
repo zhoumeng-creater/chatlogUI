@@ -1,5 +1,5 @@
 import { RefreshCw } from "lucide-react";
-import { Button, Select, Typography } from "@l4/ui";
+import { Button, DisabledReason, Select, Typography } from "@l4/ui";
 import type { SemanticPreviewKind, SemanticPreviewView } from "@l2/commander/semanticPreviewViewModel";
 import { formatSemanticPreviewContent, formatSemanticPreviewIdentity } from "./semanticPreviewDisplay";
 
@@ -39,6 +39,15 @@ export function SemanticIndexPreview({
   onPreviousPage,
   onNextPage,
 }: SemanticIndexPreviewProps) {
+  const refreshReason = view.status === "loading" ? "正在加载预览。加载完成后可刷新。" : undefined;
+  const refreshReasonId = refreshReason ? "semantic-preview-refresh-disabled-reason" : undefined;
+  const previousPageReason = getPreviewPagerReason("previous", view.status, view.canPagePrevious);
+  const nextPageReason = getPreviewPagerReason("next", view.status, view.canPageNext);
+  const previousPageReasonId = previousPageReason ? "semantic-preview-previous-disabled-reason" : undefined;
+  const nextPageReasonId = nextPageReason ? "semantic-preview-next-disabled-reason" : undefined;
+  const previousDisabled = view.status === "loading" || !view.canPagePrevious;
+  const nextDisabled = view.status === "loading" || !view.canPageNext;
+
   return (
     <section className="semantic-preview" aria-label="语义索引预览">
       <div className="semantic-preview__header">
@@ -50,10 +59,31 @@ export function SemanticIndexPreview({
             {view.summary}
           </Typography>
         </div>
-        <Button variant="ghost" size="sm" loading={view.status === "loading"} onClick={onRefresh}>
-          <RefreshCw size={14} />
-          刷新
-        </Button>
+        {refreshReason ? (
+          <DisabledReason id={refreshReasonId} reason={refreshReason} variant="compact">
+            <Button
+              variant="ghost"
+              size="sm"
+              loading={view.status === "loading"}
+              aria-describedby={refreshReasonId}
+              onClick={onRefresh}
+            >
+              <RefreshCw size={14} />
+              刷新
+            </Button>
+          </DisabledReason>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            loading={view.status === "loading"}
+            aria-describedby={refreshReasonId}
+            onClick={onRefresh}
+          >
+            <RefreshCw size={14} />
+            刷新
+          </Button>
+        )}
       </div>
       <div className="semantic-preview__controls">
         <label className="developer-field">
@@ -128,13 +158,63 @@ export function SemanticIndexPreview({
         )}
       </div>
       <div className="semantic-preview__pager">
-        <Button variant="ghost" size="sm" onClick={onPreviousPage} disabled={!view.canPagePrevious}>
-          上一页
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onNextPage} disabled={!view.canPageNext}>
-          下一页
-        </Button>
+        {previousPageReason ? (
+          <DisabledReason id={previousPageReasonId} reason={previousPageReason} variant="compact">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onPreviousPage}
+              disabled={previousDisabled}
+              aria-describedby={previousPageReasonId}
+            >
+              上一页
+            </Button>
+          </DisabledReason>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onPreviousPage}
+            disabled={previousDisabled}
+            aria-describedby={previousPageReasonId}
+          >
+            上一页
+          </Button>
+        )}
+        {nextPageReason ? (
+          <DisabledReason id={nextPageReasonId} reason={nextPageReason} variant="compact">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onNextPage}
+              disabled={nextDisabled}
+              aria-describedby={nextPageReasonId}
+            >
+              下一页
+            </Button>
+          </DisabledReason>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onNextPage}
+            disabled={nextDisabled}
+            aria-describedby={nextPageReasonId}
+          >
+            下一页
+          </Button>
+        )}
       </div>
     </section>
   );
+}
+
+function getPreviewPagerReason(
+  direction: "previous" | "next",
+  status: SemanticPreviewView["status"],
+  canPage: boolean,
+): string | undefined {
+  if (status === "loading") return "正在加载预览。加载完成后可翻页。";
+  if (canPage) return undefined;
+  return direction === "previous" ? "当前已经是第一页。" : "当前没有下一页。";
 }

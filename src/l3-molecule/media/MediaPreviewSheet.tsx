@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { Button, Typography } from "@l4/ui";
+import { IconButton, Typography } from "@l4/ui";
 import type { MediaAttachment } from "@l2/data-clerk/stores/useMediaStore";
 import { formatAttachmentLabel } from "./mediaDisplay";
 
@@ -26,9 +26,14 @@ export function MediaPreviewSheet({
         <Typography variant="label" weight={700}>
           {label}
         </Typography>
-        <Button variant="ghost" size="sm" onClick={onClose} aria-label="关闭媒体预览">
-          <X size={14} />
-        </Button>
+        <IconButton
+          icon={<X size={14} />}
+          label="关闭媒体预览"
+          tooltip="关闭媒体预览"
+          tooltipPlacement="left"
+          size="sm"
+          onClick={onClose}
+        />
       </div>
       <div className="media-preview-sheet__body">
         {renderPreview(attachment, resourceUrl, label)}

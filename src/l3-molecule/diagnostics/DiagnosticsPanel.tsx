@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
-import { Button, StatusIndicator, Surface, Typography } from "@l4/ui";
+import { Button, DisabledReason, StatusIndicator, Surface, Typography } from "@l4/ui";
 import { maskDiagnosticText } from "@/utils/maskSecrets";
 import { DiagnosticCopyButton } from "./DiagnosticCopyButton";
 
@@ -32,9 +32,20 @@ function formatDiagnosticsExportError(error: unknown): string {
   return `诊断导出失败：${safeMessage}`;
 }
 
+export function formatDiagnosticsExportSuccess(path: string): string {
+  const fileName = path.split(/[\\/]/).filter(Boolean).pop() ?? "诊断文件";
+  return `诊断已导出：${fileName}`;
+}
+
 export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPanelProps) {
   const [exportState, setExportState] = useState<"idle" | "exporting" | "exported" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const redactionBlockedReason = !report.redactionOk
+    ? `${report.blockedReason ?? "诊断报告仍包含敏感信息"}，已阻止复制和导出。`
+    : undefined;
+  const exportDisabledReason = redactionBlockedReason
+    ?? (exportState === "exporting" ? "正在导出诊断，请等待完成。" : undefined);
+  const exportDisabledReasonId = exportDisabledReason ? "diagnostics-export-disabled-reason" : undefined;
 
   async function handleExport() {
     if (!report.redactionOk) {
@@ -48,7 +59,7 @@ export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPane
     try {
       const path = await onExport();
       setExportState("exported");
-      setMessage(`已导出到 ${path}`);
+      setMessage(formatDiagnosticsExportSuccess(path));
     } catch (error) {
       setExportState("error");
       setMessage(formatDiagnosticsExportError(error));
@@ -82,11 +93,38 @@ export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPane
       </dl>
 
       <div className="diagnostics-actions">
-        <DiagnosticCopyButton text={copyText} disabled={!report.redactionOk} />
-        <Button variant="secondary" size="sm" loading={exportState === "exporting"} onClick={handleExport}>
-          <Download size={14} />
-          导出诊断
-        </Button>
+        <DiagnosticCopyButton
+          text={copyText}
+          disabled={!report.redactionOk}
+          disabledReason={redactionBlockedReason}
+        />
+        {exportDisabledReason ? (
+          <DisabledReason id={exportDisabledReasonId} reason={exportDisabledReason} variant="compact">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={exportState === "exporting"}
+              disabled={!report.redactionOk}
+              aria-describedby={exportDisabledReasonId}
+              onClick={handleExport}
+            >
+              <Download size={14} />
+              导出诊断
+            </Button>
+          </DisabledReason>
+        ) : (
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={exportState === "exporting"}
+            disabled={!report.redactionOk}
+            aria-describedby={exportDisabledReasonId}
+            onClick={handleExport}
+          >
+            <Download size={14} />
+            导出诊断
+          </Button>
+        )}
       </div>
 
       {message && (

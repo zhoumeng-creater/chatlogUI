@@ -69,6 +69,51 @@ describe("EndpointRunner", () => {
     expect(secondStep).toContain("确认运行");
     expect(secondStep).toContain("取消");
   });
+
+  it("describes why the run command is disabled when required params are missing", () => {
+    const html = renderToStaticMarkup(
+      <EndpointRunner
+        view={{ ...viewFor("search"), canRun: false }}
+        selectedEndpointId="search"
+        endpointParams={{}}
+        status="idle"
+        privacyOn={false}
+        confirmationPending={false}
+        onSelectEndpoint={vi.fn()}
+        onParamChange={vi.fn()}
+        onRequestConfirmation={vi.fn()}
+        onCancelConfirmation={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    const descriptionId = html.match(/aria-describedby="([^"]+)"/)?.[1];
+    expect(descriptionId).toBeTruthy();
+    expect(html).toContain(`id="${descriptionId}"`);
+    expect(html).toContain("请先补全必填参数");
+    expect(html).toContain("补全参数后可运行");
+  });
+
+  it("describes why runner actions are disabled while an API request is loading", () => {
+    const html = renderToStaticMarkup(
+      <EndpointRunner
+        view={viewFor("search")}
+        selectedEndpointId="search"
+        endpointParams={{ keyword: "synthetic keyword" }}
+        status="loading"
+        privacyOn={false}
+        confirmationPending={false}
+        onSelectEndpoint={vi.fn()}
+        onParamChange={vi.fn()}
+        onRequestConfirmation={vi.fn()}
+        onCancelConfirmation={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("正在运行 API");
+    expect(html).toContain("完成后可再次运行");
+  });
 });
 
 function viewFor(entryId: string): EndpointRunnerView {

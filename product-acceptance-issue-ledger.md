@@ -6,6 +6,8 @@ Purpose: this file is the single issue ledger for product-acceptance findings. I
 
 Status values:
 - `confirmed`: current source/evidence supports the issue.
+- `partial-source-implemented`: source/tests now cover a documented subset, but the broader acceptance scope remains open.
+- `partial-source-browser-implemented`: source/tests and browser checks now cover a documented subset, but native/manual/release evidence or lower-frequency scope remains open.
 - `product-decision`: current behavior may be valid, but product definition is missing.
 - `coverage-gap`: implementation may exist, but acceptance evidence is insufficient.
 - `not-confirmed-current-source`: user checkpoint is important, but current source appears to already mitigate it; keep as regression guard.
@@ -113,6 +115,11 @@ Evidence:
 - `src/l1-entry/pages/SetupCenterView.tsx:12-132` renders `setup-shell` directly and does not use `AppLayout`, so the first-run setup route lacks even the current visible app titlebar.
 - `rg` found no `@tauri-apps/api/window`, `getCurrentWindow`, `minimize`, `toggleMaximize`, or close-window integration in `src/`.
 - `docs/总体开发规划.md` already records the intended direction: a custom titlebar should provide minimize/maximize/close controls instead of fake platform lights.
+- 2026-06-08 Step 1 source implementation added an L4 current-window wrapper, L2 shell view/actions, L3 `WindowControlCluster`, shared `AppLayout` titlebar slots, and `/` Setup Center shared-shell coverage.
+- Source/browser/package-build evidence now passes for P0 shell controls: targeted L4/L2/governance tests, desktop-shell Playwright route coverage, keyboard reachability, `pnpm e2e`, `pnpm e2e:visual`, `pnpm build`, `pnpm tauri build`, and `cargo test`. The package build is compile/bundle evidence only; it is not packaged installed-app smoke.
+- 2026-06-08 Step 4 current evidence rerun passed: focused L4/L2/window-control tests (2 files / 7 tests), shared tooltip/disabled-reason primitive tests (2 files / 9 tests), UI governance (1 file / 8 tests), high-impact component suites (16 files / 37 tests), `pnpm fixtures:check` (71 route entries), `pnpm e2e:a11y` (10 browser tests), `pnpm e2e` (17 browser tests), `pnpm e2e:visual` (2 browser tests), `pnpm verify` (121 test files / 499 tests plus production build), and `cargo test` (20 Rust tests).
+- Native click behavior for minimize, maximize/restore, and close still needs a manual or automated Tauri desktop smoke before this issue is marked fully remediated.
+- 2026-06-08 Step 4 did not run an observed Tauri native window click smoke or packaged installed-app smoke, so the issue remains `confirmed`.
 
 Why it matters:
 This is a desktop-shell baseline failure. Because native decorations are disabled, users cannot discover normal window operations from the app UI. The first-run page is affected as well, which makes the missing controls visible before the user has successfully configured the product.
@@ -642,15 +649,24 @@ Acceptance standard:
 
 ### P2-13 Tooltip affordance coverage is inconsistent and not accessibility/test gated
 
-Status: confirmed
+Status: partial-source-browser-implemented
 
 Evidence:
 - `docs/product-acceptance-standards.md` and `docs/ui-development-standards.md` require icon-only controls to have accessible names and tooltips when their meaning is not obvious.
-- `src/l4-atom/ui/Tooltip.tsx:8-14` renders a visual hover/focus bubble, but it does not generate an id, does not connect the trigger through `aria-describedby`, and has no keyboard/screen-reader contract beyond the visual child remaining focusable.
-- `src/styles/layout.css:252-275` shows the tooltip immediately on `:hover`/`:focus-within`; there is no intentional delay like the user-requested "hover for a short time, then explain" behavior.
-- Only six `IconButton` call sites currently pass `tooltip=`: `GlobalCommandCluster`, `WorkbenchFrame`, `AiPanel`, and `SemanticQAEvidenceDrawer`.
-- Compact controls still use native `title` or hand-written buttons instead of the shared tooltip path, for example `WorkbenchRail.tsx:76-82`, `GraphControlBar.tsx:151-171`, and `GraphTimeline.tsx:52-55`.
-- Existing E2E/a11y tests exercise some keyboard reachability, but `rg` found no test that asserts tooltip visibility delay, tooltip accessible description linkage, or tooltip privacy-scan coverage.
+- 2026-06-08 follow-up source fix: `src/l4-atom/ui/Tooltip.tsx:9-39` now accepts/stabilizes a tooltip id, clones valid trigger children, links them with `aria-describedby`, and renders `role="tooltip"`.
+- 2026-06-08 follow-up source fix: `src/styles/layout.css:274-312` now delays pointer tooltip reveal while keeping focus reveal immediate.
+- 2026-06-08 Step 2 primitive implementation extends the shared `Tooltip` contract with placement variants (`top-end`, `top`, `right`, `bottom`, `left`), viewport-safe wrapping, and focused unit coverage for existing-description merging.
+- `IconButton` no longer emits a native `title` fallback when `tooltip` is omitted. It keeps `aria-label={label}` and can pass `tooltipPlacement` into the shared tooltip path when call sites need edge-aware placement.
+- 2026-06-08 tests now cover shared tooltip linkage/timing: `src/l4-atom/ui/Tooltip.test.tsx`, `e2e/specs/a11y.spec.ts`, and `scripts/ui-governance.test.mjs`.
+- `scripts/ui-governance.test.mjs` removed the `IconButton` native-title allowlist entry, so the shared atom cannot silently regress to native command titles.
+- Titlebar/global shell controls now use the shared `IconButton`/`Tooltip` path, including the new window controls, so the P0 shell no longer adds native `title` tooltip debt.
+- 2026-06-08 Step 3 high-impact control migration moved the planned compact command targets onto the shared path: collapsed `WorkbenchRail` buttons use `Tooltip`; graph refresh/auto-rotate, graph timeline close, and media preview close use `IconButton` with shared tooltips; graph timeline entries are keyboard-operable buttons with `aria-pressed`.
+- `scripts/ui-governance.test.mjs` now removes the migrated command-title allowlist entries for Workbench rail, graph refresh/auto-rotate, and graph timeline close. Fixed-string scans found no production `title={accessibleLabel}`, `title="刷新图谱"`, `title="自动旋转"`, or `title="关闭时间轴"` after the migration.
+- 2026-06-08 suggested-fix follow-up adds browser coverage for migrated graph commands: `e2e/specs/a11y.spec.ts` checks graph refresh, auto-rotate, timeline close tooltip viewport placement, and keyboard activation of graph timeline entries.
+- 2026-06-08 suggested-fix follow-up fixes graph timeline state feedback: `useGraphCommander.highlightTimelineEntry()` now updates `highlightedTimelineId`, so keyboard/pointer activation is reflected through `aria-pressed`.
+- 2026-06-08 Step 4 current evidence rerun passed for the high-impact source/browser scope: shared tooltip tests, UI governance, Workbench rail/graph/media/semantic focused suites, `pnpm e2e:a11y` (10 tests), `pnpm e2e` (17 tests), `pnpm e2e:visual` (2 tests), and `pnpm verify`.
+- Data-display and structural title uses remain classified separately, including `StatusIndicator`, graph fallback cells, trend chart bars, app layout shell title, endpoint raw response heading, and semantic setup card props.
+- Remaining acceptance work: migrate or otherwise contract lower-frequency compact controls outside this slice, and add target-dimension checks for shared controls.
 
 Why it matters:
 The app already has many dense icon and compact controls. If explanations are inconsistent, first-time users must remember icon meanings, infer disabled/pressed state from styling, or rely on browser-native `title` behavior that differs by platform and is not consistently accessible.
@@ -666,14 +682,22 @@ Upgrade the L4 `Tooltip` primitive first, then migrate high-density controls in 
 
 ### P2-14 Disabled controls often lack a visible reason or recovery hint
 
-Status: confirmed
+Status: partial-source-browser-implemented
 
 Evidence:
-- `src/l3-molecule/media/MediaLibrary.tsx:69-78` disables the media refresh button when no conversation is selected or media is loading; the surrounding copy explains the no-chat state only after the user notices the disabled icon.
-- `src/l3-molecule/search/SearchScopeMenu.tsx:22-33` disables the "当前会话" scope when no conversation is available, but does not state why the scope is unavailable or how to enable it.
-- `src/l3-molecule/developer/DbSearchPanel.tsx:40-73` disables the keyword input and search button in privacy mode; the placeholder changes, but the disabled action itself has no reason/hint.
-- `src/l3-molecule/semantic/QAInput.tsx:109-250` disables several scope, history, window/depth, selected-chat, textarea, and send controls based on privacy mode, streaming state, no current contact, or empty selected chats; most disabled reasons are implicit.
-- `src/l3-molecule/graph/GraphAdvancedPanel.tsx` and `src/l3-molecule/graph/GraphQAPanel.tsx` disable many privacy-sensitive fields/actions when privacy mode is on; the disabled state is not paired with per-control reason text.
+- 2026-06-08 follow-up source fix: high-impact disabled controls exposed representative recovery text through `aria-describedby` and local `.sr-only` reason copy in `DbSearchPanel`, `MediaLibrary`, `SearchScopeMenu`, `QAInput`, `GraphAdvancedPanel`, and `GraphQAPanel`.
+- 2026-06-08 Step 2 primitive implementation adds `src/l4-atom/ui/DisabledReason.tsx`, exported from the L4 UI barrel, with explicit/generated ids, child `aria-describedby` merging, existing-description preservation, and `sr-only`, `inline`, and `compact` variants.
+- Existing high-impact local reason blocks now use `DisabledReason` instead of bespoke `p.sr-only` nodes. DB search and media refresh remain screen-reader-only because nearby visible context already explains the prerequisite; search scope uses `compact`; semantic QA, graph advanced, and graph QA use visible `inline` recovery text.
+- 2026-06-08 tests now cover representative disabled-reason cases in `src/l3-molecule/developer/DbSearchPanel.test.tsx`, `src/l3-molecule/media/MediaLibrary.test.tsx`, `src/l3-molecule/search/SearchScopeMenu.test.tsx`, `src/l3-molecule/semantic/QAInput.test.tsx`, `src/l3-molecule/graph/GraphAdvancedPanel.test.tsx`, and `src/l3-molecule/graph/GraphQAPanel.test.tsx`.
+- `src/l4-atom/ui/DisabledReason.test.tsx` covers the primitive contract, and component tests assert the shared variant classes without depending on exact DOM depth.
+- `scripts/ui-governance.test.mjs` now scans disabled JSX blocks in the high-impact files, requires `aria-describedby`, and rejects raw local `p.sr-only` disabled-reason bypasses.
+- 2026-06-08 Step 3 high-impact control migration added shared `DisabledReason` coverage for semantic QA empty/missing-selection/busy states, semantic preview pagination boundaries, Developer DB/API/SQL/Hook/Hermes privacy/loading/missing/incomplete/not-editable states, and Diagnostics redaction-blocked copy/export states.
+- `scripts/ui-governance.test.mjs` now includes `QAInput`, `SemanticIndexPreview`, `DbExplorer`, `EndpointRunner`, `SqlQueryPanel`, `HookConfigPanel`, `HermesBridgePanel`, `DiagnosticCopyButton`, and `DiagnosticsPanel` in the high-impact disabled reason scan.
+- 2026-06-08 suggested-fix follow-up treats `Button loading=` as a disabled state in the high-impact governance scan and adds coverage for Graph QA, Graph Advanced config/ingest/QA, Graph Visualize open, Semantic Preview refresh, and DB Explorer cache loading-disabled controls.
+- 2026-06-08 suggested-fix follow-up adds point-of-need Hook save reasons for configured POST URL / forwarding-list values that would otherwise be cleared by an empty form.
+- 2026-06-08 suggested-fix follow-up masks retained semantic QA entity override labels in privacy mode, preventing visible DOM leakage if privacy is enabled after an entity candidate is selected.
+- 2026-06-08 Step 4 current evidence rerun passed for the high-impact source/browser scope: shared DisabledReason tests, UI governance, high-impact component suites, `pnpm e2e:a11y` (10 tests), `pnpm e2e` (17 tests), `pnpm e2e:visual` (2 tests), and `pnpm verify`.
+- Remaining acceptance work: generalize the pattern to lower-frequency controls and service/permission readiness states outside this slice.
 
 Why it matters:
 Disabled controls without a reason break recognition over recall. Users can see that an action exists but not what prerequisite is missing, whether the app is busy, whether privacy mode is blocking it, or what they should do next.

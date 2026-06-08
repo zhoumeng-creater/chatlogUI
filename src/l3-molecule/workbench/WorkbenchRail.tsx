@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { BarChart3, Bot, DatabaseZap, Images, MessageCircle, MessageSquare, Network, Settings } from "lucide-react";
+import { Tooltip } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
 import { getWorkbenchRailButtonLabel } from "./workbenchAccessibility";
 
@@ -73,17 +74,18 @@ interface RailItemProps {
 function RailItem({ icon, label, badge, showLabel, active = false, onClick }: RailItemProps) {
   const accessibleLabel = getWorkbenchRailButtonLabel(label);
   return (
-    <button
-      type="button"
-      className={classNames("workbench-rail-item", active && "workbench-rail-item--active")}
-      title={accessibleLabel}
-      aria-label={accessibleLabel}
-      aria-current={active ? "page" : undefined}
-      onClick={onClick}
-    >
-      {icon}
-      {showLabel && <span>{label}</span>}
-      {badge && <span className="workbench-rail-item__badge">{badge}</span>}
-    </button>
+    <Tooltip label={accessibleLabel} placement="right">
+      <button
+        type="button"
+        className={classNames("workbench-rail-item", active && "workbench-rail-item--active")}
+        aria-label={accessibleLabel}
+        aria-current={active ? "page" : undefined}
+        onClick={onClick}
+      >
+        {icon}
+        {showLabel && <span>{label}</span>}
+        {badge && <span className="workbench-rail-item__badge">{badge}</span>}
+      </button>
+    </Tooltip>
   );
 }

@@ -356,15 +356,18 @@ export function useGraphCommander() {
   }, []);
 
   const highlightTimelineEntry = useCallback((timelineId: string) => {
-    const { data } = useGraphStore.getState();
+    const graphStore = useGraphStore.getState();
+    const { data } = graphStore;
     if (!data) return;
     const entry = data.timeline.find((_t, i) => `${i}` === timelineId);
-    if (!entry || !entry.source) return;
+    if (!entry) return;
+    graphStore.setHighlightedTimeline(timelineId);
+    if (!entry.source) return;
     const matchedNode = data.nodes.find((n) =>
       n.name.toLowerCase() === entry.source!.toLowerCase()
     );
     if (matchedNode) {
-      useGraphStore.getState().setPulsedNode(matchedNode.id);
+      graphStore.setPulsedNode(matchedNode.id);
       setTimeout(() => useGraphStore.getState().setPulsedNode(null), 4000);
     }
   }, []);

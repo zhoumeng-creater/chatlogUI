@@ -3,39 +3,64 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { findMediaRoute, findRoute, loadMockRouteMap } from "./fixture-loader.mjs";
 
 const HOST = "127.0.0.1";
+const FETCH_FORBIDDEN_PORTS = new Set([
+  1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77,
+  79, 87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 135,
+  137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531,
+  532, 540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720,
+  1723, 2049, 3659, 4045, 4190, 5060, 5061, 6000, 6566, 6665, 6666, 6667, 6668,
+  6669, 6697, 10080,
+]);
 
 export async function startMockChatlogServer({
   rootDir = process.cwd(),
   port = 5030,
 } = {}) {
   const routeMap = await loadMockRouteMap(rootDir);
-  const server = http.createServer((request, response) => {
-    handleRequest(routeMap, request, response).catch((error) => {
-      writeJson(response, 500, {
-        error: "synthetic mock server error",
-        message: error instanceof Error ? error.message : String(error),
+  const maxAttempts = port === 0 ? 8 : 1;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const server = http.createServer((request, response) => {
+      handleRequest(routeMap, request, response).catch((error) => {
+        writeJson(response, 500, {
+          error: "synthetic mock server error",
+          message: error instanceof Error ? error.message : String(error),
+        });
       });
     });
-  });
 
-  await new Promise((resolve, reject) => {
+    await listen(server, port);
+    const address = server.address();
+    const resolvedPort = typeof address === "object" && address ? address.port : port;
+
+    if (port === 0 && FETCH_FORBIDDEN_PORTS.has(resolvedPort)) {
+      await close(server);
+      continue;
+    }
+
+    return {
+      baseUrl: `http://${HOST}:${resolvedPort}`,
+      close: () => close(server),
+    };
+  }
+
+  throw new Error("Could not allocate a fetch-safe mock chatlog server port");
+}
+
+function listen(server, port) {
+  return new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, HOST, () => {
       server.off("error", reject);
       resolve();
     });
   });
+}
 
-  const address = server.address();
-  const resolvedPort = typeof address === "object" && address ? address.port : port;
-
-  return {
-    baseUrl: `http://${HOST}:${resolvedPort}`,
-    close: () =>
-      new Promise((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
-      }),
-  };
+function close(server) {
+  return new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
 }
 
 async function handleRequest(routeMap, request, response) {

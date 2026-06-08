@@ -1,6 +1,9 @@
 export { Button } from "./Button";
+export { DisabledReason } from "./DisabledReason";
+export type { DisabledReasonVariant } from "./DisabledReason";
 export { IconButton } from "./IconButton";
 export { Tooltip } from "./Tooltip";
+export type { TooltipPlacement } from "./Tooltip";
 export { Surface } from "./Surface";
 export { StatusIndicator } from "./StatusIndicator";
 export type { StatusTone } from "./StatusIndicator";
