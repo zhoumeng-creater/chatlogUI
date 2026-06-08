@@ -1,5 +1,6 @@
 import { RefreshCw, RotateCw } from "lucide-react";
 import { Button } from "@l4/ui/Button";
+import { IconButton } from "@l4/ui/IconButton";
 import type { EntityKind, GraphLayoutMode } from "./graphTypes";
 
 const KIND_GROUPS: { label: string; kinds: EntityKind[] }[] = [
@@ -147,28 +148,27 @@ export function GraphControlBar({
 
       <div className="graph-control-bar__divider" />
 
-      <Button
-        variant="ghost"
+      <IconButton
+        icon={<RefreshCw size={14} />}
+        label="刷新图谱"
+        tooltip="刷新图谱"
+        tooltipPlacement="bottom"
         size="sm"
         onClick={onRefresh}
         className="graph-control-bar__icon-button"
-        title="刷新图谱"
-        aria-label="刷新图谱"
-      >
-        <RefreshCw size={14} />
-      </Button>
+      />
 
-      <Button
-        variant={autoRotate ? "secondary" : "ghost"}
+      <IconButton
+        icon={<RotateCw size={14} />}
+        label="自动旋转"
+        tooltip="自动旋转"
+        tooltipPlacement="bottom"
         size="sm"
+        active={autoRotate}
         onClick={onToggleAutoRotate}
         className="graph-control-bar__icon-button"
-        title="自动旋转"
-        aria-label="自动旋转"
         aria-pressed={autoRotate}
-      >
-        <RotateCw size={14} />
-      </Button>
+      />
 
       <div className="graph-control-bar__divider" />
 

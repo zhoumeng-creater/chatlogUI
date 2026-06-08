@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { classNames } from "@/utils/classNames";
-import { Tooltip } from "./Tooltip";
+import { Tooltip, type TooltipPlacement } from "./Tooltip";
 
 type IconButtonSize = "sm" | "md" | "lg";
 
@@ -10,6 +10,7 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: IconButtonSize;
   active?: boolean;
   tooltip?: string;
+  tooltipPlacement?: TooltipPlacement;
 }
 
 export function IconButton({
@@ -18,6 +19,7 @@ export function IconButton({
   size = "md",
   active = false,
   tooltip,
+  tooltipPlacement = "top-end",
   className = "",
   ...props
 }: IconButtonProps) {
@@ -25,7 +27,6 @@ export function IconButton({
     <button
       type="button"
       aria-label={label}
-      title={tooltip ? undefined : label}
       className={classNames(
         "ui-icon-button",
         `ui-icon-button--${size}`,
@@ -38,5 +39,5 @@ export function IconButton({
     </button>
   );
 
-  return tooltip ? <Tooltip label={tooltip}>{button}</Tooltip> : button;
+  return tooltip ? <Tooltip label={tooltip} placement={tooltipPlacement}>{button}</Tooltip> : button;
 }

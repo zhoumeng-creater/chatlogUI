@@ -1,5 +1,5 @@
 import { Database, RefreshCw, Trash2 } from "lucide-react";
-import { Button, Input, Select, Spinner, Typography } from "@l4/ui";
+import { Button, DisabledReason, Input, Select, Spinner, Typography } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
 import type { DbExplorerView } from "@l2/commander/dbExplorerViewModel";
 import type { DeveloperToolsLoadStatus } from "@l2/data-clerk/stores/useDeveloperToolsStore";
@@ -79,6 +79,35 @@ export function DbExplorer({
   onCancelCacheClearConfirmation,
   onConfirmCacheClear,
 }: DbExplorerProps) {
+  const refreshReason = dbFilesStatus === "loading"
+    ? "正在加载数据库文件。完成后可刷新。"
+    : undefined;
+  const refreshReasonId = refreshReason ? "developer-db-refresh-disabled-reason" : undefined;
+  const tableFilterReason = privacyOn
+    ? "隐私模式下不可筛选表数据。关闭隐私模式后可继续筛选。"
+    : undefined;
+  const tableFilterReasonId = tableFilterReason ? "developer-table-filter-privacy-disabled-reason" : undefined;
+  const loadTableReason = getLoadTableReason(view.selectedTable, tableDataStatus);
+  const loadTableReasonId = loadTableReason ? "developer-table-load-disabled-reason" : undefined;
+  const previousPageReason = getTablePagerReason("previous", {
+    tableOffset,
+    tableLimit,
+    rowCount: view.tableData.rowCount,
+    selectedTable: view.selectedTable,
+    status: tableDataStatus,
+  });
+  const nextPageReason = getTablePagerReason("next", {
+    tableOffset,
+    tableLimit,
+    rowCount: view.tableData.rowCount,
+    selectedTable: view.selectedTable,
+    status: tableDataStatus,
+  });
+  const previousPageReasonId = previousPageReason ? "developer-table-previous-disabled-reason" : undefined;
+  const nextPageReasonId = nextPageReason ? "developer-table-next-disabled-reason" : undefined;
+  const cacheReason = cacheStatus === "loading" ? "正在清理缓存。完成后可再次提交。" : undefined;
+  const cacheReasonId = cacheReason ? "developer-cache-clear-disabled-reason" : undefined;
+
   return (
     <div className="developer-db">
       <section className="developer-section developer-section--top" aria-label="数据库文件和表">
@@ -91,15 +120,31 @@ export function DbExplorer({
               {view.dbSummary}
             </Typography>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRefresh}
-            disabled={dbFilesStatus === "loading"}
-            aria-label="刷新数据库文件"
-          >
-            <RefreshCw size={14} />
-          </Button>
+          {refreshReason ? (
+            <DisabledReason id={refreshReasonId} reason={refreshReason} variant="compact">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRefresh}
+                disabled={dbFilesStatus === "loading"}
+                aria-describedby={refreshReasonId}
+                aria-label="刷新数据库文件"
+              >
+                <RefreshCw size={14} />
+              </Button>
+            </DisabledReason>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRefresh}
+              disabled={dbFilesStatus === "loading"}
+              aria-describedby={refreshReasonId}
+              aria-label="刷新数据库文件"
+            >
+              <RefreshCw size={14} />
+            </Button>
+          )}
         </div>
         <div className="developer-db__browser">
           <div className="developer-list" aria-label="数据库文件">
@@ -167,6 +212,7 @@ export function DbExplorer({
             placeholder={privacyOn ? "隐私模式已隐藏关键词" : "keyword"}
             aria-label="表数据关键词"
             disabled={privacyOn}
+            aria-describedby={tableFilterReasonId}
           />
           <Select
             controlSize="sm"
@@ -179,10 +225,33 @@ export function DbExplorer({
             <option value={100}>100</option>
             <option value={200}>200</option>
           </Select>
-          <Button variant="secondary" size="sm" onClick={onLoadTableData} disabled={!view.selectedTable || tableDataStatus === "loading"}>
-            加载
-          </Button>
+          {loadTableReason ? (
+            <DisabledReason id={loadTableReasonId} reason={loadTableReason} variant="compact">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onLoadTableData}
+                disabled={!view.selectedTable || tableDataStatus === "loading"}
+                aria-describedby={loadTableReasonId}
+              >
+                加载
+              </Button>
+            </DisabledReason>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onLoadTableData}
+              disabled={!view.selectedTable || tableDataStatus === "loading"}
+              aria-describedby={loadTableReasonId}
+            >
+              加载
+            </Button>
+          )}
         </div>
+        {tableFilterReason && (
+          <DisabledReason id={tableFilterReasonId} reason={tableFilterReason} variant="compact" />
+        )}
         {view.tableData.rowCount > 0 && (
           <div className="developer-pager">
             <Typography variant="caption" color="var(--text-secondary)">
@@ -190,22 +259,52 @@ export function DbExplorer({
               {tableOffset.toLocaleString()}
             </Typography>
             <div className="developer-pager__actions">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onLoadPreviousTablePage}
-                disabled={tableOffset <= 0 || tableDataStatus === "loading"}
-              >
-                上一页
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onLoadNextTablePage}
-                disabled={!view.selectedTable || view.tableData.rowCount < tableLimit || tableDataStatus === "loading"}
-              >
-                下一页
-              </Button>
+              {previousPageReason ? (
+                <DisabledReason id={previousPageReasonId} reason={previousPageReason} variant="compact">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onLoadPreviousTablePage}
+                    disabled={tableOffset <= 0 || tableDataStatus === "loading"}
+                    aria-describedby={previousPageReasonId}
+                  >
+                    上一页
+                  </Button>
+                </DisabledReason>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onLoadPreviousTablePage}
+                  disabled={tableOffset <= 0 || tableDataStatus === "loading"}
+                  aria-describedby={previousPageReasonId}
+                >
+                  上一页
+                </Button>
+              )}
+              {nextPageReason ? (
+                <DisabledReason id={nextPageReasonId} reason={nextPageReason} variant="compact">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onLoadNextTablePage}
+                    disabled={!view.selectedTable || view.tableData.rowCount < tableLimit || tableDataStatus === "loading"}
+                    aria-describedby={nextPageReasonId}
+                  >
+                    下一页
+                  </Button>
+                </DisabledReason>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onLoadNextTablePage}
+                  disabled={!view.selectedTable || view.tableData.rowCount < tableLimit || tableDataStatus === "loading"}
+                  aria-describedby={nextPageReasonId}
+                >
+                  下一页
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -253,17 +352,64 @@ export function DbExplorer({
               取消
             </Button>
           )}
-          <Button
-            variant={cacheConfirmationPending ? "danger" : "secondary"}
-            size="sm"
-            loading={cacheStatus === "loading"}
-            onClick={cacheConfirmationPending ? onConfirmCacheClear : onRequestCacheClearConfirmation}
-          >
-            <Trash2 size={14} />
-            {cacheConfirmationPending ? "确认清理缓存" : "清理缓存"}
-          </Button>
+          {cacheReason ? (
+            <DisabledReason id={cacheReasonId} reason={cacheReason} variant="compact">
+              <Button
+                variant={cacheConfirmationPending ? "danger" : "secondary"}
+                size="sm"
+                loading={cacheStatus === "loading"}
+                aria-describedby={cacheReasonId}
+                onClick={cacheConfirmationPending ? onConfirmCacheClear : onRequestCacheClearConfirmation}
+              >
+                <Trash2 size={14} />
+                {cacheConfirmationPending ? "确认清理缓存" : "清理缓存"}
+              </Button>
+            </DisabledReason>
+          ) : (
+            <Button
+              variant={cacheConfirmationPending ? "danger" : "secondary"}
+              size="sm"
+              loading={cacheStatus === "loading"}
+              aria-describedby={cacheReasonId}
+              onClick={cacheConfirmationPending ? onConfirmCacheClear : onRequestCacheClearConfirmation}
+            >
+              <Trash2 size={14} />
+              {cacheConfirmationPending ? "确认清理缓存" : "清理缓存"}
+            </Button>
+          )}
         </div>
       </section>
     </div>
   );
+}
+
+function getLoadTableReason(
+  selectedTable: string | null,
+  status: DeveloperToolsLoadStatus,
+): string | undefined {
+  if (status === "loading") return "正在加载表数据。完成后可再次加载。";
+  if (!selectedTable) return "请先选择数据库表。选择表后可加载数据。";
+  return undefined;
+}
+
+function getTablePagerReason(
+  direction: "previous" | "next",
+  {
+    tableOffset,
+    tableLimit,
+    rowCount,
+    selectedTable,
+    status,
+  }: {
+    tableOffset: number;
+    tableLimit: number;
+    rowCount: number;
+    selectedTable: string | null;
+    status: DeveloperToolsLoadStatus;
+  },
+): string | undefined {
+  if (status === "loading") return "正在加载表数据。完成后可翻页。";
+  if (!selectedTable) return "请先选择数据库表。";
+  if (direction === "previous") return tableOffset <= 0 ? "当前已经是第一页。" : undefined;
+  return rowCount < tableLimit ? "当前没有下一页。" : undefined;
 }

@@ -10,6 +10,20 @@ export type { SidecarLogPayload } from "./listenSidecarLogs";
 export { exportDiagnosticsReport } from "./exportDiagnostics";
 export type { ExportDiagnosticsPayload, ExportDiagnosticsLine } from "./exportDiagnostics";
 export { copyTextToClipboard } from "./clipboard";
+export {
+  closeCurrentWindow,
+  listenCurrentWindowStateChange,
+  minimizeCurrentWindow,
+  readCurrentWindowMaximized,
+  toggleMaximizeCurrentWindow,
+} from "./windowControls";
+export type {
+  WindowControlAction,
+  WindowControlFailureReason,
+  WindowControlResult,
+  WindowMaximizedResult,
+  WindowStateChangeUnlisten,
+} from "./windowControls";
 export type { ServerConfigDraft, ConfigValidationError } from "./chatlogConfig";
 export {
   importDataDirConfig,

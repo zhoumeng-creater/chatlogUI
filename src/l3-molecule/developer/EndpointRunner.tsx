@@ -1,5 +1,5 @@
 import { Play, ShieldCheck } from "lucide-react";
-import { Button, Input, Select, Spinner, Typography } from "@l4/ui";
+import { Button, DisabledReason, Input, Select, Spinner, Typography } from "@l4/ui";
 import type { EndpointCatalogEntry } from "@l4/network";
 import type { EndpointRunnerView } from "@l2/commander/endpointRunnerViewModel";
 import type { DeveloperToolsLoadStatus } from "@l2/data-clerk/stores/useDeveloperToolsStore";
@@ -39,6 +39,10 @@ export function EndpointRunner({
   onRun,
 }: EndpointRunnerProps) {
   const requiresConfirmation = view.selectedEntry?.requiresConfirmation === true;
+  const runReason = getEndpointRunDisabledReason(status, view.canRun, requiresConfirmation);
+  const runReasonId = runReason ? "developer-api-run-disabled-reason" : undefined;
+  const cancelReason = status === "loading" ? "正在运行 API。完成后可取消下一步操作。" : undefined;
+  const cancelReasonId = cancelReason ? "developer-api-cancel-disabled-reason" : undefined;
 
   return (
     <div className="developer-api" aria-label="本机 API 调试器">
@@ -100,26 +104,69 @@ export function EndpointRunner({
 
         <div className="developer-api__actions">
           {requiresConfirmation && confirmationPending && (
-            <Button variant="ghost" size="sm" onClick={onCancelConfirmation} disabled={status === "loading"}>
-              取消
+            cancelReason ? (
+              <DisabledReason id={cancelReasonId} reason={cancelReason} variant="compact">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onCancelConfirmation}
+                  disabled={status === "loading"}
+                  aria-describedby={cancelReasonId}
+                >
+                  取消
+                </Button>
+              </DisabledReason>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onCancelConfirmation}
+                disabled={status === "loading"}
+                aria-describedby={cancelReasonId}
+              >
+                取消
+              </Button>
+            )
+          )}
+          {runReason ? (
+            <DisabledReason id={runReasonId} reason={runReason} variant="compact">
+              <Button
+                variant={requiresConfirmation && confirmationPending ? "danger" : "secondary"}
+                size="sm"
+                loading={status === "loading"}
+                disabled={status === "loading" || (!view.canRun && !requiresConfirmation)}
+                aria-describedby={runReasonId}
+                onClick={() => {
+                  if (requiresConfirmation && !confirmationPending) {
+                    onRequestConfirmation();
+                    return;
+                  }
+                  onRun(requiresConfirmation);
+                }}
+              >
+                <Play size={14} />
+                {requiresConfirmation ? (confirmationPending ? "确认运行" : "需要确认") : "运行"}
+              </Button>
+            </DisabledReason>
+          ) : (
+            <Button
+              variant={requiresConfirmation && confirmationPending ? "danger" : "secondary"}
+              size="sm"
+              loading={status === "loading"}
+              disabled={status === "loading" || (!view.canRun && !requiresConfirmation)}
+              aria-describedby={runReasonId}
+              onClick={() => {
+                if (requiresConfirmation && !confirmationPending) {
+                  onRequestConfirmation();
+                  return;
+                }
+                onRun(requiresConfirmation);
+              }}
+            >
+              <Play size={14} />
+              {requiresConfirmation ? (confirmationPending ? "确认运行" : "需要确认") : "运行"}
             </Button>
           )}
-          <Button
-            variant={requiresConfirmation && confirmationPending ? "danger" : "secondary"}
-            size="sm"
-            loading={status === "loading"}
-            disabled={status === "loading" || (!view.canRun && !requiresConfirmation)}
-            onClick={() => {
-              if (requiresConfirmation && !confirmationPending) {
-                onRequestConfirmation();
-                return;
-              }
-              onRun(requiresConfirmation);
-            }}
-          >
-            <Play size={14} />
-            {requiresConfirmation ? (confirmationPending ? "确认运行" : "需要确认") : "运行"}
-          </Button>
         </div>
 
         <RawResponsePreview
@@ -151,6 +198,16 @@ export function EndpointRunner({
   );
 }
 
+function getEndpointRunDisabledReason(
+  status: DeveloperToolsLoadStatus,
+  canRun: boolean,
+  requiresConfirmation: boolean,
+): string | undefined {
+  if (status === "loading") return "正在运行 API。完成后可再次运行。";
+  if (!canRun && !requiresConfirmation) return "请先补全必填参数。补全参数后可运行。";
+  return undefined;
+}
+
 function EndpointParamForm({
   entry,
   values,
@@ -169,6 +226,9 @@ function EndpointParamForm({
       </Typography>
     );
   }
+
+  const privacyReasonId = privacyOn ? "developer-endpoint-param-privacy-disabled-reason" : undefined;
+  const hasDisabledTextParam = privacyOn && entry.params.some((param) => param.kind === "text");
 
   return (
     <div className="developer-param-grid" aria-label="API 参数">
@@ -215,6 +275,7 @@ function EndpointParamForm({
               type={param.kind === "number" ? "number" : "text"}
               value={formatEndpointParamInputValue(param, value, privacyOn)}
               disabled={shouldDisableEndpointParamInput(param, privacyOn)}
+              aria-describedby={param.kind === "text" ? privacyReasonId : undefined}
               placeholder={endpointParamPlaceholder(param, privacyOn)}
               onChange={(event) =>
                 onParamChange(
@@ -230,6 +291,13 @@ function EndpointParamForm({
           </label>
         );
       })}
+      {hasDisabledTextParam && (
+        <DisabledReason
+          id={privacyReasonId}
+          reason="隐私模式下不可编辑敏感文本参数。关闭隐私模式后可修改。"
+          variant="compact"
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Bell, FileText, Image, MessageSquare, RefreshCw, Star, Users } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Button, SegmentedControl, Spinner, Typography } from "@l4/ui";
+import { Button, DisabledReason, SegmentedControl, Spinner, Typography } from "@l4/ui";
 import type {
   MediaAttachment,
   MediaFavoriteItem,
@@ -56,6 +56,7 @@ export function MediaLibrary({
   const [activeTab, setActiveTab] = useState<MediaTab>("attachments");
   const mediaCounts = useMemo(() => summarizeMediaCounts(attachments), [attachments]);
   const totalItems = attachments.length + favorites.length + members.length + unread.total + newMessages.length;
+  const refreshDisabledReasonId = !currentChat ? "media-library-refresh-disabled-reason" : undefined;
 
   return (
     <aside className="media-library" aria-label="媒体与扩展">
@@ -73,11 +74,18 @@ export function MediaLibrary({
           size="sm"
           onClick={onRetry}
           disabled={!currentChat || status === "loading"}
+          aria-describedby={refreshDisabledReasonId}
           aria-label="刷新媒体与扩展"
         >
           <RefreshCw size={14} />
         </Button>
       </div>
+      {!currentChat && (
+        <DisabledReason
+          id={refreshDisabledReasonId}
+          reason="先选择一个会话。选择会话后可刷新媒体与扩展。"
+        />
+      )}
 
       {!currentChat ? (
         <div className="workbench-empty-state">

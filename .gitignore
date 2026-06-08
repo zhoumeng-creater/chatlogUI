@@ -62,6 +62,10 @@ docs/agent-workflow/
 docs/superpowers/
 docs/reviews/
 docs/
+!docs/
+docs/*
+!docs/product-acceptance-standards.md
+!docs/ui-development-standards.md
 specs/
 !e2e/specs/
 !e2e/specs/**

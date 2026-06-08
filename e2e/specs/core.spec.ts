@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { assertNoForbiddenVisibleText } from "../utils/privacy-scan";
 import { setDesktop, setNarrow } from "../utils/viewport";
+import {
+  expectWindowControlsDoNotOverlapMainContent,
+  expectWindowControlsVisible,
+  expectWindowControlTargets,
+} from "../utils/window-controls";
 import { expectStableSyntheticPage, openSyntheticWorkbench } from "../utils/workbench";
 
 test.describe("core synthetic routes", () => {
@@ -8,7 +13,7 @@ test.describe("core synthetic routes", () => {
     await setDesktop(page);
     await page.goto("/");
 
-    await expect(page.getByText("设置中心")).toBeVisible();
+    await expect(page.getByText("连接本地聊天数据服务")).toBeVisible();
     await expect(page.getByText("诊断信息")).toBeVisible();
     await expect(page.getByText("诊断摘要").first()).toBeVisible();
     await expectStableSyntheticPage(page);
@@ -56,6 +61,58 @@ test.describe("core synthetic routes", () => {
     await expect(page.getByText("诊断摘要").first()).toBeVisible();
     await page.getByRole("button", { name: "检查更新" }).click();
     await expect(page.getByText("已是最新版本")).toBeVisible();
+    await expectStableSyntheticPage(page);
+  });
+});
+
+test.describe("desktop shell controls", () => {
+  test("setup route exposes visible window controls at desktop and narrow widths", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/");
+    await expectWindowControlsVisible(page);
+    await expectWindowControlTargets(page);
+    await expectWindowControlsDoNotOverlapMainContent(page);
+    await expectStableSyntheticPage(page);
+
+    await setNarrow(page);
+    await page.goto("/");
+    await expectWindowControlsVisible(page);
+    await expectWindowControlTargets(page, true);
+    await expectStableSyntheticPage(page);
+  });
+
+  test("workbench shell exposes window controls without overlapping app content", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await expectWindowControlsVisible(page);
+    await expectWindowControlTargets(page);
+    await expectWindowControlsDoNotOverlapMainContent(page);
+    await expectStableSyntheticPage(page);
+
+    await setNarrow(page);
+    await openSyntheticWorkbench(page);
+    await expectWindowControlsVisible(page);
+    await expectWindowControlTargets(page, true);
+    await expectStableSyntheticPage(page);
+  });
+
+  test("dashboard alias and settings route use the same window-control shell", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/dashboard?codex-smoke=workbench-ready");
+    await expectWindowControlsVisible(page);
+    await expectWindowControlTargets(page);
+    await expectStableSyntheticPage(page);
+
+    await page.goto("/settings");
+    await expectWindowControlsVisible(page);
+    await expectWindowControlTargets(page);
+    await expectWindowControlsDoNotOverlapMainContent(page);
+    await expectStableSyntheticPage(page);
+
+    await setNarrow(page);
+    await page.goto("/settings");
+    await expectWindowControlsVisible(page);
+    await expectWindowControlTargets(page, true);
     await expectStableSyntheticPage(page);
   });
 });
