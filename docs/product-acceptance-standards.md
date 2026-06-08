@@ -189,7 +189,7 @@ Review components both standalone and in their page context.
 | Input | Every input has a label or `aria-label`; placeholder can help but must not be the only accessible name; validation and examples are visible where needed. |
 | Field | Hint/error text renders and should be connected to child inputs through `aria-describedby`; missing binding is an accessibility debt to fix when touched. |
 | Modal/Drawer | Esc closes where safe, outside click behavior is intentional, focus is trapped, and focus returns to the opener. |
-| Tabs | Keyboard operation works, active tab is obvious, labels are short and consistent, and narrow layouts do not wrap module labels into unusable controls. |
+| Tabs | Keyboard operation works, active tab is obvious, labels are short and consistent, and narrow layouts do not wrap module labels into unusable controls. Module labels such as `统计` / `媒体` / `朋友圈` / `开发` / `AI` / `图谱` must remain understandable and keep accessible names even when visually compact. |
 | StatusIndicator | Communicates what is happening, whether it succeeded, and what to do next; not just a colored dot. |
 | Empty State | Explains why content is empty and the next action: refresh, choose contact, build index, configure service, or change filters. |
 | Error State | Supports retry, copy diagnostics, go to Settings Center, or open Developer Tools where appropriate. |
@@ -239,7 +239,7 @@ This is the core product surface. Do not stop at "50 messages render." The first
 | --- | --- |
 | Recent sessions | Sorted by recent time; group/private/public-account/folded session types are correct; nickname, remark, and username priority is correct. |
 | Contacts/groups | If the product promises all contacts/groups, contacts without history sessions can still be found or shown. |
-| History pagination | First page, load more, last page, empty session, and huge group chat work correctly. |
+| History pagination | First page, load more, last page, empty session, and huge group chat work correctly. When the first page is defined as a fixed count such as 50 messages, it must load the most recent messages unless the task explicitly requests another anchor. |
 | Message types | Text, image, video, file, voice, link, system, revoke, red packet, location, and unknown types do not crash. |
 | Sender identity | Group member name, self/other direction, time dividers, and same-day grouping are clear. |
 | Long text | Long messages, line breaks, emoji, URLs, code-like blocks, and mixed Chinese/English do not break layout. |
@@ -375,3 +375,27 @@ Use this order for non-trivial work:
 12. Record residual assumptions and any deferred defects.
 
 If a future requirement is missing from this document, add it rather than relying on memory or chat history.
+
+## 10. Original User Standard Coverage Map
+
+This map preserves the structure of the original product-owner standard so future edits can check that nothing has been weakened or dropped.
+
+| Original standard area | Covered here |
+| --- | --- |
+| Overall project acceptance: user task coverage | Sections 3.1, 3.3, and 7. |
+| Overall project acceptance: state coverage | Sections 2, 3.4, 4.1, 5, 7, and 8. |
+| Overall project acceptance: quality dimensions including ISO/IEC 25010-style functionality, performance, compatibility, security, maintainability, and accessibility | Section 3.5 plus the non-negotiable gates in section 2. |
+| Separate page design and aesthetics acceptance | Section 4. |
+| Required 10-item page score with 0-2 points and a minimum passing score of 16 | Section 4.1. |
+| Component checks for Button, IconButton, Input, Field, Modal/Drawer, Tabs, StatusIndicator, Empty State, and Error State | Section 5 plus `docs/ui-development-standards.md`. |
+| Responsive layout checks for `<720`, `720-980`, `980-1280`, and `>=1280` | Section 6. |
+| Settings Center acceptance | Section 7.1. |
+| Sessions and chat history acceptance, including most-recent first page behavior | Section 7.2. |
+| Search acceptance | Section 7.3. |
+| Media, favorites, members, unread, and new-message acceptance | Section 7.4. |
+| SNS / 朋友圈 acceptance by content type | Section 7.5. |
+| AI semantic index, SSE Q&A, and analysis acceptance | Section 7.6. |
+| Knowledge Graph acceptance | Section 7.7. |
+| Developer tools, diagnostics, export, and privacy acceptance | Section 7.8. |
+| NN/G usability heuristics as project-specific checks | Section 3.2 and `docs/ui-development-standards.md`. |
+| WCAG target-size development standard | `docs/ui-development-standards.md`, with acceptance gate in section 2 and component checks in section 5. |
