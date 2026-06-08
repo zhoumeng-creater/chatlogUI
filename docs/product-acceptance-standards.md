@@ -189,7 +189,7 @@ Review components both standalone and in their page context.
 | Input | Every input has a label or `aria-label`; placeholder can help but must not be the only accessible name; validation and examples are visible where needed. |
 | Field | Hint/error text renders and should be connected to child inputs through `aria-describedby`; missing binding is an accessibility debt to fix when touched. |
 | Modal/Drawer | Esc closes where safe, outside click behavior is intentional, focus is trapped, and focus returns to the opener. |
-| Tabs | Keyboard operation works, active tab is obvious, labels are short and consistent, and narrow layouts do not wrap module labels into unusable controls. Module labels such as `统计` / `媒体` / `朋友圈` / `开发` / `AI` / `图谱` must remain understandable and keep accessible names even when visually compact. |
+| Tabs | Keyboard operation works, active tab is obvious, labels are short and consistent, and narrow layouts do not wrap module labels into unusable controls. Current module labels such as `统计` / `媒体` / `朋友圈` / `开发` / `AI` / `图谱` are useful examples, not a frozen taxonomy; if modules are renamed, added, removed, or reorganized, the same compact-layout and accessible-name requirements apply to the new labels. |
 | StatusIndicator | Communicates what is happening, whether it succeeded, and what to do next; not just a colored dot. |
 | Empty State | Explains why content is empty and the next action: refresh, choose contact, build index, configure service, or change filters. |
 | Error State | Supports retry, copy diagnostics, go to Settings Center, or open Developer Tools where appropriate. |
@@ -233,13 +233,13 @@ Settings Center is the first success gate, not just a launch screen.
 
 ### 7.2 Sessions And Chat History
 
-This is the core product surface. Do not stop at "50 messages render." The first page should be the most recent messages unless a task explicitly asks for a different anchor.
+This is the core product surface. Do not stop at "messages render." If the product offers a recent-history view, the first page normally should show the newest useful slice; if another anchor is intended, the UI, copy, tests, and acceptance notes must make that choice explicit. The earlier "50 messages should be the latest 50" observation is a product review suggestion based on the current implementation, not a permanent hard rule.
 
 | Scenario | Acceptance standard |
 | --- | --- |
 | Recent sessions | Sorted by recent time; group/private/public-account/folded session types are correct; nickname, remark, and username priority is correct. |
 | Contacts/groups | If the product promises all contacts/groups, contacts without history sessions can still be found or shown. |
-| History pagination | First page, load more, last page, empty session, and huge group chat work correctly. When the first page is defined as a fixed count such as 50 messages, it must load the most recent messages unless the task explicitly requests another anchor. |
+| History pagination | First page, load more, last page, empty session, and huge group chat work correctly. For fixed-size first pages such as 50 messages, review whether the intended anchor is "most recent" or something else; the implementation and user-facing copy must match that product decision. |
 | Message types | Text, image, video, file, voice, link, system, revoke, red packet, location, and unknown types do not crash. |
 | Sender identity | Group member name, self/other direction, time dividers, and same-day grouping are clear. |
 | Long text | Long messages, line breaks, emoji, URLs, code-like blocks, and mixed Chinese/English do not break layout. |
@@ -376,11 +376,11 @@ Use this order for non-trivial work:
 
 If a future requirement is missing from this document, add it rather than relying on memory or chat history.
 
-## 10. Original User Standard Coverage Map
+## 10. Source Traceability Notes
 
-This map preserves the structure of the original product-owner standard so future edits can check that nothing has been weakened or dropped.
+This non-normative map preserves where the product-owner inputs landed so future edits can check for accidental omissions. It is not an additional acceptance checklist and does not freeze examples, temporary findings, or suggestions. If this map conflicts with the normative sections above, update the map rather than weakening the standards.
 
-| Original standard area | Covered here |
+| Source area | Covered here |
 | --- | --- |
 | Overall project acceptance: user task coverage | Sections 3.1, 3.3, and 7. |
 | Overall project acceptance: state coverage | Sections 2, 3.4, 4.1, 5, 7, and 8. |
@@ -390,7 +390,7 @@ This map preserves the structure of the original product-owner standard so futur
 | Component checks for Button, IconButton, Input, Field, Modal/Drawer, Tabs, StatusIndicator, Empty State, and Error State | Section 5 plus `docs/ui-development-standards.md`. |
 | Responsive layout checks for `<720`, `720-980`, `980-1280`, and `>=1280` | Section 6. |
 | Settings Center acceptance | Section 7.1. |
-| Sessions and chat history acceptance, including most-recent first page behavior | Section 7.2. |
+| Sessions and chat history acceptance, including first-page anchor review | Section 7.2. The "50 messages should be the latest 50" point is treated as a current product review suggestion, not a permanent hard constraint. |
 | Search acceptance | Section 7.3. |
 | Media, favorites, members, unread, and new-message acceptance | Section 7.4. |
 | SNS / 朋友圈 acceptance by content type | Section 7.5. |
