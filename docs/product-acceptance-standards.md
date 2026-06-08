@@ -399,5 +399,6 @@ This non-normative map preserves where the product-owner inputs landed so future
 | Developer tools, diagnostics, export, and privacy acceptance | Section 7.8. |
 | Second follow-up: every page, button, module, panel, route, or workflow must answer the user-perspective questions first | Section 3.1 and review workflow section 9. The document preserves all five listed questions even though the user initially called them four. |
 | Third follow-up: NN/G link must be analyzed and judged instead of merely linked | Section 3.2 analyzes all 10 NN/G heuristics into chatlogUI acceptance consequences; `docs/ui-development-standards.md` turns them into coding-time rules. |
+| Fourth follow-up: WCAG Target Size and NN/G should guide UI development, not only final acceptance/review | `docs/ui-development-standards.md` is the separate development-time reference file. Section 1 interprets WCAG and NN/G sources; sections 2-6 convert them into UI gates, pointer-target rules, coding rules, component standards, and development evidence expectations. |
 | NN/G usability heuristics as project-specific checks | Section 3.2 and `docs/ui-development-standards.md`. |
 | WCAG target-size development standard | `docs/ui-development-standards.md`, with acceptance gate in section 2 and component checks in section 5. |
