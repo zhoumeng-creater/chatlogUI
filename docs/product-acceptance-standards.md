@@ -397,5 +397,7 @@ This map preserves the structure of the original product-owner standard so futur
 | AI semantic index, SSE Q&A, and analysis acceptance | Section 7.6. |
 | Knowledge Graph acceptance | Section 7.7. |
 | Developer tools, diagnostics, export, and privacy acceptance | Section 7.8. |
+| Second follow-up: every page, button, module, panel, route, or workflow must answer the user-perspective questions first | Section 3.1 and review workflow section 9. The document preserves all five listed questions even though the user initially called them four. |
+| Third follow-up: NN/G link must be analyzed and judged instead of merely linked | Section 3.2 analyzes all 10 NN/G heuristics into chatlogUI acceptance consequences; `docs/ui-development-standards.md` turns them into coding-time rules. |
 | NN/G usability heuristics as project-specific checks | Section 3.2 and `docs/ui-development-standards.md`. |
 | WCAG target-size development standard | `docs/ui-development-standards.md`, with acceptance gate in section 2 and component checks in section 5. |
