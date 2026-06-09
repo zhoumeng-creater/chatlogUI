@@ -125,6 +125,18 @@ Use ISO/IEC 25010-style product quality dimensions as a review lens. Do not redu
 | Maintainability | Are L1/L2/L3/L4 responsibilities clear, tests focused, and code changes scoped? |
 | Accessibility | Are labels, focus, keyboard behavior, contrast, and screen-reader names covered? |
 
+### 3.6 Official Source Baseline For Audits
+
+Product audits, UX reviews, and repair baselines should cite these official sources through the chatlogUI-specific rules in this document and `docs/ui-development-standards.md`.
+
+| Source | Official entry | chatlogUI audit use |
+| --- | --- | --- |
+| Nielsen Norman Group | [10 Usability Heuristics for User Interface Design](https://www.nngroup.com/articles/ten-usability-heuristics/) | Use as heuristic review criteria for status visibility, user language, recovery paths, consistency, error prevention, recognition over recall, minimal design, and plain-language error recovery. The concrete adoption is section 3.2. |
+| Microsoft Fluent 2 | [Accessibility](https://fluent2.microsoft.design/accessibility) | Use as the audit baseline for structure, hierarchy, predictable navigation, keyboard/focus management, color contrast, responsive reflow, meaningful text, semantic code, and design accessibility specs. |
+| W3C WCAG 2.2 | [Web Content Accessibility Guidelines 2.2](https://www.w3.org/TR/WCAG22/) | Use the normative criteria for target size, focus visibility, error identification, non-text contrast, name/role/value, keyboard access, and text/content reflow checks. |
+
+Do not paste these standards as generic slogans in reviews. Convert them into the five-question user-perspective check, state coverage, component checks, page score, privacy gates, and module acceptance tables above.
+
 ## 4. Page Design And Aesthetic Acceptance
 
 Functional acceptance and visual/design acceptance are separate gates. A page can be functionally wired and still fail because information hierarchy, density, copy, state design, or responsive behavior is poor.
