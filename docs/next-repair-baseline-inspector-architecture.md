@@ -560,7 +560,204 @@ Setup Center 不是“没有布局”，也不是“完全错误”。它的问�
 | 外部服务 | 有外部服务 mode 和连接动作 | 没有 URL 输入、保存和连接测试分层。 |
 | 高级手动配置 | 能覆盖复杂场景 | 默认暴露大量字段，字段级提示/错误不足，placeholder 有真实路径/`wxid` 形态。 |
 
-### 5.3 Setup Center 应拆成三条清晰路径
+### 5.3 四个核心布局问题
+
+#### 5.3.1 步骤、主操作、状态、诊断同时首屏出现，主次不清
+
+判断：`存在`。
+
+源码证据：
+
+- `SetupCenterView.tsx:18-30`：左侧 `setup-shell__nav` 常驻品牌和 `SetupStepper`。
+- `SetupCenterView.tsx:32-99`：中间 `setup-shell__main` 常驻 hero，并按步骤渲染当前主卡。
+- `SetupCenterView.tsx:101-129`：右侧 `setup-shell__aside` 常驻状态、诊断信息和进入工作台按钮。
+- `layout.css:1497-1504`：`.setup-shell` 桌面三列为 `minmax(184px, 224px) minmax(0, 1fr) minmax(260px, 300px)`。
+- `layout.css:1509-1514`：左侧 nav 和右侧 aside 都使用 `var(--surface-raised)` 背景。
+- `layout.css:1520-1532`：中间主区滚动，右侧 aside 也滚动。
+
+准确分析：
+
+当前桌面结构在源码上是明确的三栏：左步骤、中主任务、右状态/诊断/CTA。三栏本身不是错误，但首启引导页的主任务应该只有一个：“连接本地聊天数据服务，然后进入工作台”。现在三个区域都被设计成高权重区域，首次用户会同时看到步骤、配置、状态、诊断和打开工作台动作，很难判断阅读顺序。
+
+用户影响：
+
+- 用户会把“状态”和“诊断”当成与“选择/配置”同等重要的任务。
+- 右栏的诊断和按钮会削弱中间主卡的主导性。
+- 页面气质更像后台配置面板，而不是首次启动向导。
+
+不应误写为：
+
+- “三栏布局一定不能用”。三栏可以保留，但右侧只能是低干扰的 readiness 摘要，不能承载完整诊断和竞争 CTA。
+- “Setup Center 没有主标题”。当前有 hero，问题是 hero 没有压住右侧信息噪音。
+
+修复方向：
+
+- 首屏只突出一个主任务：连接本地聊天数据服务。
+- 左侧 stepper 降低视觉权重，或在首次路径中改为顶部进度。
+- 右侧只保留简短 readiness 摘要，诊断折叠。
+- 中间主卡底部或页面底部 sticky action bar 承载唯一主 CTA。
+
+#### 5.3.2 诊断信息默认位置太靠前
+
+判断：`存在`。
+
+源码证据：
+
+- `SetupCenterView.tsx:116-126`：右侧常驻 `诊断信息` Surface，并直接渲染 `DiagnosticPanel`。
+- `src/l3-molecule/setup/DiagnosticPanel.tsx:10-12`：Setup 的 `DiagnosticPanel` 只是直接包装 `@l3/diagnostics/DiagnosticsPanel`。
+- `src/l3-molecule/diagnostics/DiagnosticsPanel.tsx:65-120`：完整诊断面板包含诊断摘要、脱敏状态、`report.lines` 列表、复制和导出诊断动作。
+
+准确分析：
+
+诊断面板本身做了脱敏、复制/导出禁用原因、导出成功文件名等安全处理；问题不在于“诊断组件不应该存在”，而在于它被默认放在首次 setup 首屏右栏。诊断属于错误恢复和高级排障路径，不应成为正常首次引导的一部分。
+
+用户影响：
+
+- 首次用户会感觉应用需要调试或内部状态理解，降低产品完成度感。
+- 诊断摘要、lines、复制、导出动作会和“选择目录/连接服务”抢注意力。
+- 用户可能误以为必须先看懂诊断才能继续。
+
+建议展示规则：
+
+```text
+正常状态：
+  当前状态
+  服务：未启动 / 运行中
+  数据库：未就绪 / 已就绪
+  隐私保护：已开启 / 已脱敏
+
+错误状态：
+  无法连接服务 / 数据库未就绪 / 配置识别失败
+  [重试] [查看诊断详情]
+
+展开诊断详情后：
+  完整 DiagnosticPanel
+```
+
+验收要求：
+
+- 没有错误时，不默认渲染完整诊断面板。
+- 诊断详情必须由用户主动展开。
+- 错误状态先给普通语言原因和恢复动作，再给诊断。
+- 诊断复制/导出继续保留脱敏和 fail-closed 策略。
+
+#### 5.3.3 “打开工作台”按钮出现得太随意
+
+判断：`存在`。
+
+源码证据：
+
+- `SetupCenterView.tsx:86-99`：`ready` step 中间主卡显示“打开工作台”按钮。
+- `SetupCenterView.tsx:128-130`：右侧 aside 底部始终渲染按钮，文案来自 `setup.view.workbenchButtonLabel`。
+- `setupCenterViewModel.ts:23-24`：`dbReady` 为 false 时，右侧按钮为 secondary，文案是“稍后配置，打开空工作台”；`dbReady` 为 true 时，按钮为 primary，文案是“打开工作台”。
+
+准确分析：
+
+不是“未就绪时仍显示 primary 打开工作台”。更准确的问题是：未就绪时仍存在一个显眼的右栏 action，并且文案明确允许“打开空工作台”；就绪时中间主卡和右侧 aside 可能形成重复主操作。对首次 setup 来说，这会破坏“完成 setup 再进入工作台”的路径预期。
+
+用户影响：
+
+- 未就绪用户可能绕过设置进入空工作台，然后把空状态理解成产品失败。
+- 就绪用户会看到两个进入工作台动作，不确定哪个是主路径。
+- 右栏 CTA 与中间主卡 CTA 竞争，降低流程确定性。
+
+建议 CTA 规则：
+
+| 状态 | CTA 策略 |
+| --- | --- |
+| 未选择模式/未配置 | 不显示“打开工作台”按钮；显示说明“完成以上步骤后可进入工作台”。 |
+| 服务未启动 | 主按钮是“启动服务”或“连接服务”；进入工作台只作为低权重说明，不是按钮。 |
+| HTTP ready 但 DB 未就绪 | 主按钮是“检查数据库状态/重试”；可提供“查看诊断详情”。 |
+| DB ready | 页面只出现一个 primary：“打开工作台”。 |
+| dev smoke 或排障场景 | 如确实允许空工作台，必须标记为高级/排障动作，并说明会看到空状态。 |
+
+建议布局：
+
+- 主 CTA 固定在当前主任务卡底部，或使用页面底部 sticky action bar。
+- 右侧状态卡不放进入工作台主按钮。
+- 若保留辅助按钮，必须根据 readiness 禁用并给出原因。
+
+#### 5.3.4 设置模式选择和配置导入视觉语言不统一
+
+判断：`存在`。
+
+源码证据：
+
+- `SetupCenterView.tsx` 外层使用项目组件：`Surface / Typography / Button / StatusIndicator`。
+- `SetupModeChooser.tsx:9-36` 混用 Tailwind 原子类：`space-y-4`、`text-lg font-semibold text-gray-800`、`grid gap-3`、`p-4 rounded-lg border-2`、`border-blue-500 bg-blue-50`、`text-sm text-gray-500`。
+- `ConfigImportPanel.tsx:23-45` 混用 Tailwind 原子类和项目 atoms：`space-y-4`、`text-sm text-gray-500`、`text-xs text-gray-400`、`bg-green-50`、`text-green-700`、`bg-red-50` 等。
+- `ManualAdvancedConfigPanel.tsx` 相对更多使用项目 L4 atoms，但仍与前两个 setup panel 的视觉语言不统一。
+
+准确分析：
+
+Setup Center 外框已经进入项目 design system，但内部关键首启组件仍像 Tailwind demo 或后台表单。首次启动页是用户对产品质量的第一印象，混合视觉语言会让用户感觉页面拼接、不稳定、未完成。
+
+用户影响：
+
+- 模式选择卡、导入成功卡、错误卡和项目 `Surface`/`StatusIndicator` 的色彩、圆角、字体层级不一致。
+- 成功/错误状态使用硬编码 Tailwind green/red，与项目 token 和暗色/隐私模式标准不一致。
+- 后续要做 dark/privacy/narrow 验收时，原子类硬编码颜色更容易出现对比和一致性问题。
+
+组件重构方向：
+
+```text
+ChoiceCard
+  用于托管服务 / 外部服务 / 高级配置三类路径选择
+
+ReadinessCard
+  用于服务、数据库、隐私保护、配置摘要
+
+SetupSuccessState
+  用项目 token 表达成功状态，不使用硬编码 green-50/text-green-700
+
+SetupErrorState
+  普通语言原因 + 下一步动作 + 诊断详情入口
+
+SetupDiagnosticsDisclosure
+  默认折叠，错误或用户主动展开时显示完整 DiagnosticPanel
+```
+
+验收要求：
+
+- Setup 页面内部全部使用项目 L4 atoms 或明确的 L3 setup primitives。
+- 去掉硬编码 Tailwind 色值和 demo 风格类。
+- 成功、错误、警告、禁用、加载都使用项目 token。
+- 暗色、隐私模式、窄屏下视觉语义保持一致。
+
+### 5.4 修正后的首启信息层级
+
+Setup Center 的首启页面应按下面优先级组织，而不是把步骤、状态、诊断、CTA 平铺成同级：
+
+| 层级 | 内容 | 显示策略 |
+| --- | --- | --- |
+| 1 | 当前主任务 | 首屏最强：连接本地聊天数据服务。 |
+| 2 | 当前步骤/进度 | 可见但低权重：告诉用户走到哪一步。 |
+| 3 | 当前状态摘要 | 简洁卡片：服务、数据库、隐私保护。 |
+| 4 | 恢复动作 | 只在错误/未就绪时出现：重试、返回、查看诊断详情。 |
+| 5 | 诊断详情 | 默认隐藏，用户主动展开或错误状态下二级展开。 |
+| 6 | 高级配置 | 默认折叠，只给排障或专家用户。 |
+
+首屏推荐结构：
+
+```text
+标题：连接本地聊天数据服务
+说明：选择一种方式连接 chatlog_alpha，数据库就绪后进入工作台。
+
+主卡：
+  推荐：自动导入本机微信配置
+  或：连接已有 chatlog 服务
+  高级：手动配置（折叠）
+
+状态摘要：
+  服务：未启动
+  数据库：未就绪
+  隐私保护：诊断默认脱敏
+
+主 CTA：
+  根据当前任务显示“选择目录”/“连接服务”/“打开工作台”
+```
+
+### 5.5 Setup Center 应拆成三条清晰路径
 
 建议 Setup 不是按“所有配置字段”组织，而是按用户意图组织：
 
@@ -649,7 +846,7 @@ Setup Center 不是“没有布局”，也不是“完全错误”。它的问�
 - 错误只集中在底部。
 - 真实感强的私密路径 placeholder。
 
-### 5.4 建议布局
+### 5.6 建议布局
 
 #### 桌面宽屏
 
@@ -691,7 +888,7 @@ Setup Center 不是“没有布局”，也不是“完全错误”。它的问�
 
 窄屏不能把“状态”完全推到很远的页面底部而不在主任务附近显示简短 readiness，因为用户需要知道为什么不能进入 Workbench。
 
-### 5.5 Setup Center 验收标准
+### 5.7 Setup Center 验收标准
 
 | 场景 | 必须通过 |
 | --- | --- |
@@ -703,6 +900,8 @@ Setup Center 不是“没有布局”，也不是“完全错误”。它的问�
 | 隐私模式 | 路径、`wxid`、key/token、诊断内容全部脱敏。 |
 | 窄屏 | 主操作、状态和错误恢复仍在可理解的顺序中。 |
 | 诊断 | 诊断是恢复路径，不抢主任务；成功文案不显示完整本地路径。 |
+| 主 CTA | 同一时刻只有一个主 CTA；未就绪时不鼓励“打开空工作台”。 |
+| 视觉语言 | Setup 内部组件使用项目 L4 atoms/L3 setup primitives，不混用 Tailwind demo 风格。 |
 
 ## 六、问题优先级与修复顺序
 
@@ -711,10 +910,14 @@ Setup Center 不是“没有布局”，也不是“完全错误”。它的问�
 | P0 | Workbench 一级模块容器混乱 | 直接影响所有主任务入口和用户理解 | 定义 route/page/inspector 架构契约，移除 toolbar 模块 tabs。 |
 | P0 | AI/Media/SNS 被放在 inspector | 功能体量与侧栏空间根本不匹配 | 先建独立 route shell，保留原组件但放到主舞台。 |
 | P0 | Setup 外部服务路径不闭环 | 首次设置承诺与能力不一致 | 外部服务 URL 输入、测试、保存、主 API base URL 收敛。 |
+| P1 | Setup 首屏三栏主次不清 | 步骤、主操作、状态、诊断和 CTA 同屏竞争 | 重构首启信息层级：一个主任务、一个主 CTA、诊断折叠。 |
+| P1 | Setup 诊断默认常驻 | 诊断是排障工具，却占据首屏右栏 | 默认只显示 readiness 摘要，错误时提供“查看诊断详情”。 |
+| P1 | Setup 未就绪 CTA 鼓励打开空工作台 | `dbReady=false` 时仍显示“稍后配置，打开空工作台” | 未就绪时移除显眼进入按钮，改为说明和恢复动作。 |
 | P1 | Developer 默认暴露 | 普通用户被调试概念干扰 | 加开发者模式开关，rail/toolbar/titlebar 默认隐藏。 |
 | P1 | Settings 入口重复 | rail 点击离开 Workbench，标题栏也有设置 | 从 Workbench rail 移除 settings，保留标题栏入口。 |
 | P1 | Graph 只有内部特判 | 方向正确但页面 identity 不清 | 新增 `/graph` route 或明确 Workbench 子 route。 |
 | P1 | Chat inspector 缺少明确“会话详情”模型 | 右侧现在默认“统计数据” | 建 `ConversationInspector`，把 StatsInspector 降级为 quick stats 卡。 |
+| P2 | Setup 内部组件视觉语言混杂 | 首启组件混用 Tailwind 原子类和项目 atoms | 建 `ChoiceCard`、`ReadinessCard`、`SetupErrorState`，用项目 token 替换硬编码色值。 |
 | P2 | Setup 三栏响应式语义不稳定 | 状态与主任务在中窄屏容易脱节 | 将状态摘要靠近主操作，完整诊断折叠。 |
 
 ## 七、后续 PR 拆分建议
@@ -777,13 +980,20 @@ Setup Center 不是“没有布局”，也不是“完全错误”。它的问�
 - 推荐自动导入、外部服务、高级手动配置拆成三条路径。
 - 外部服务 URL 输入和测试。
 - 高级配置默认折叠。
-- 诊断从常驻大面板变为恢复入口。
+- 首屏只突出一个主任务和一个主 CTA。
+- 诊断从常驻大面板变为错误恢复入口。
+- 右栏从“状态 + 诊断 + 打开工作台”降级为 readiness 摘要。
+- 移除未就绪时“稍后配置，打开空工作台”的显眼入口。
+- 用 `ChoiceCard`、`ReadinessCard`、`SetupErrorState`、`SetupDiagnosticsDisclosure` 收敛视觉语言。
 
 验收：
 
 - 首次用户不会被高级字段淹没。
 - 外部服务连接有真实输入、测试、保存和主 API 生效路径。
 - 隐私路径不暴露完整本地路径或 `wxid`。
+- 无错误时不默认展示完整 `DiagnosticPanel`。
+- 未就绪时不鼓励进入空工作台；就绪时只出现一个 primary “打开工作台”。
+- Setup 内部不再混用 Tailwind demo 风格和项目 design system。
 
 ## 八、准确表述边界
 
@@ -798,7 +1008,7 @@ Setup Center 不是“没有布局”，也不是“完全错误”。它的问�
 | SNS | SNS 有 feed/search/notifications/detail，应独立成页。 | “朋友圈只能在聊天页显示”。 |
 | Developer | 开发者工具应保留为高级诊断，但默认隐藏。 | “删除开发者工具”。 |
 | Settings | `/settings` 独立页面合理，rail 内 settings 入口不合理。 | “设置不应该有全局入口”。 |
-| Setup Center | 三栏雏形存在，但任务路径需要重构。 | “设置中心完全没有结构”。 |
+| Setup Center | 三栏雏形存在，但首屏信息层级、诊断位置、CTA 策略、视觉语言需要重构。 | “设置中心完全没有结构”或“三栏布局一定不能用”。 |
 
 ## 九、待补证据
 
