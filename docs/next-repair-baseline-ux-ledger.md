@@ -28,6 +28,7 @@
 专题台账：
 
 - `docs/next-repair-baseline-inspector-architecture.md`：记录右侧 inspector 被当成一级功能容器的问题，重新划分一级页面、上下文 inspector、临时浮层，并分析 Setup Center 布局重构。
+- `docs/next-repair-baseline-overall-repair-plan.md`：记录 `codex/next-repair-baseline` 的总体代码修复计划，覆盖问题全集、阶段依赖、并行边界、验收证据和后续分步骤代码计划顺序。
 
 ## 准确性和完整性记录规则
 
