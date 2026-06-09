@@ -25,6 +25,10 @@
 - Settings 的 AI 配置与 semantic AI 后端配置是两套入口。
 - Media、SNS、Graph、Developer、Diagnostics 入口很多，但部分入口只是状态展示或调试能力，不是普通用户任务闭环。
 
+专题台账：
+
+- `docs/next-repair-baseline-inspector-architecture.md`：记录右侧 inspector 被当成一级功能容器的问题，重新划分一级页面、上下文 inspector、临时浮层，并分析 Setup Center 布局重构。
+
 ## 准确性和完整性记录规则
 
 这份台账不是修复建议清单，而是下一阶段 UX repair 的事实账本。后续拆任务、写 PR、做验收时，必须按下面规则维护：
