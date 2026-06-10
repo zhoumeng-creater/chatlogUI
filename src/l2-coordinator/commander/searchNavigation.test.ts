@@ -34,12 +34,12 @@ describe("resolveSearchHitNavigation", () => {
   it("uses backend username before display chat text when resolving the target conversation", () => {
     const result = resolveSearchHitNavigation({
       message: searchMessage({
-        username: "wxid_backend_target",
+        username: "wxid_synthetic_backend_target",
         chat: "Display label only",
       }),
       conversations: [
         { ...baseConversation, id: "display-conversation", username: "Display label only" },
-        { ...baseConversation, id: "backend-conversation", username: "wxid_backend_target" },
+        { ...baseConversation, id: "backend-conversation", username: "wxid_synthetic_backend_target" },
       ],
       returnRoute: "/search",
       querySnapshot: {
@@ -53,7 +53,7 @@ describe("resolveSearchHitNavigation", () => {
     expect(result).toMatchObject({
       ok: true,
       conversationId: "backend-conversation",
-      chat: "wxid_backend_target",
+      chat: "wxid_synthetic_backend_target",
       anchor: {
         source: "search",
         messageId: "wxid_synthetic_user-42",
@@ -103,7 +103,7 @@ describe("resolveSearchHitNavigation", () => {
   it("returns a privacy-safe error when the conversation cannot be resolved", () => {
     const result = resolveSearchHitNavigation({
       message: searchMessage({
-        username: "wxid_private_missing",
+        username: "wxid_synthetic_private_missing",
         chat: "Private Missing Display",
       }),
       conversations: [],
@@ -121,7 +121,7 @@ describe("resolveSearchHitNavigation", () => {
       reason: "missing-conversation",
       message: "无法打开搜索结果对应的会话，请刷新会话列表后重试。",
     });
-    expect(JSON.stringify(result)).not.toContain("wxid_private_missing");
+    expect(JSON.stringify(result)).not.toContain("wxid_synthetic_private_missing");
     expect(JSON.stringify(result)).not.toContain("Private Missing Display");
   });
 
