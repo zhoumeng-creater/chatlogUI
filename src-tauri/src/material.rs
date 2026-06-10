@@ -1,3 +1,4 @@
+#[cfg(target_os = "windows")]
 use tauri::window::{Effect, EffectsBuilder};
 use tauri::Window;
 
