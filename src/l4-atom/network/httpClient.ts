@@ -35,7 +35,7 @@ export interface RequestJsonOptions extends RequestInit {
 
 export type RequestDiagnosticsOptions = Pick<
   RequestJsonOptions,
-  "diagnostics" | "onDiagnosticEvent" | "serviceBaseUrl"
+  "diagnostics" | "onDiagnosticEvent" | "serviceBaseUrl" | "signal"
 >;
 
 export function withJsonFormat(rawUrl: string): string {
@@ -148,6 +148,7 @@ export function withRequestDiagnostics(
 
   return {
     serviceBaseUrl: options?.serviceBaseUrl,
+    signal: options?.signal,
     diagnostics: {
       ...callerDiagnostics,
       ...diagnostics,

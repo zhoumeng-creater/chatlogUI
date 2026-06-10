@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { DiagnosticEvent } from "./diagnosticEvents";
 import { fetchConversations } from "./fetchContacts";
 import { fetchSearch } from "./fetchSearch";
@@ -122,6 +122,56 @@ describe("fetchContacts url construction", () => {
     expect(new Set(events.map((event) => event.correlationId))).toEqual(
       new Set(["conversation-refresh"]),
     );
+  });
+
+  it("passes caller abort signals through search diagnostics options", async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const originalFetch = globalThis.fetch;
+    type Outcome =
+      | { status: "pending" }
+      | { status: "rejected"; error: unknown }
+      | { status: "resolved" };
+    let outcomePromise: Promise<Outcome> | undefined;
+
+    globalThis.fetch = async (_input, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+
+    try {
+      outcomePromise = fetchSearch(
+        { keyword: "Synthetic abort query", limit: 1 },
+        {
+          signal: controller.signal,
+          diagnostics: { endpointFamily: "search", recoveryHint: "retry" },
+        },
+      ).then(
+        () => ({ status: "resolved" }),
+        (error: unknown) => ({ status: "rejected", error }),
+      );
+      const pendingMarker = new Promise<Outcome>((resolve) => {
+        setTimeout(() => resolve({ status: "pending" }), 1);
+      });
+
+      controller.abort();
+      await vi.advanceTimersByTimeAsync(1);
+
+      await expect(Promise.race([outcomePromise, pendingMarker])).resolves.toMatchObject({
+        status: "rejected",
+        error: {
+          name: "ChatlogHttpError",
+          message: "请求已取消",
+        },
+      });
+    } finally {
+      await vi.advanceTimersByTimeAsync(20000);
+      await outcomePromise;
+      vi.useRealTimers();
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("uses the active service base URL for conversation requests", async () => {
