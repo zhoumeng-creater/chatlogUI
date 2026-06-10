@@ -25,6 +25,9 @@ A page or feature fails acceptance if any of these are true:
 - It is unusable at a narrow viewport or unreadable in dark/privacy mode.
 - It presents raw technical errors such as `HTTP 500`, `undefined`, or internal error codes to ordinary users without a plain-language reason and next step.
 - It cannot provide evidence for the claims made in review or release notes.
+- It leaves verified code repair, UI polish, feature completion, or productization
+  work uncommitted, unpushed, or without a PR unless the product owner explicitly
+  requested a local-only change.
 
 ## 3. Overall Project Acceptance
 
