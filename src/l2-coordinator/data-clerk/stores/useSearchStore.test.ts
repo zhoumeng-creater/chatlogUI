@@ -64,4 +64,39 @@ describe("useSearchStore", () => {
       error: null,
     });
   });
+
+  it("settles discarded active requests without clearing current results", () => {
+    useSearchStore.getState().setResults({
+      totalCount: 40,
+      count: 20,
+      limit: 20,
+      offset: 0,
+      messages: [
+        {
+          id: "message-1",
+          timestamp: 1,
+          content: "Synthetic result",
+          sender: "Synthetic Sender",
+          username: "session_synthetic_001",
+          chat: "Synthetic Session",
+        },
+      ],
+    });
+    useSearchStore.getState().setActiveRequest({
+      ...activeRequest,
+      requestId: "load-more-1",
+      kind: "loadMore",
+      offset: 1,
+    });
+    useSearchStore.getState().setLoading(true);
+
+    useSearchStore.getState().settleActiveRequest("load-more-1");
+
+    expect(useSearchStore.getState()).toMatchObject({
+      activeRequest: null,
+      loading: false,
+      status: "ready",
+    });
+    expect(useSearchStore.getState().results?.messages).toHaveLength(1);
+  });
 });

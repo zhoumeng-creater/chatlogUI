@@ -8,6 +8,7 @@ import {
   expectWindowControlTargets,
 } from "../utils/window-controls";
 import {
+  enablePrivacyMode,
   expectDeveloperEntryHidden,
   expectStableSyntheticPage,
   openSyntheticWorkbench,
@@ -167,6 +168,162 @@ test.describe("core synthetic routes", () => {
     await expectSearchClosedLoop(page);
   });
 
+  test("keeps scoped current-chat search constrained before conversations finish loading", async ({ page }) => {
+    await setDesktop(page);
+    const searchRequests: string[] = [];
+    const sessionsResponse = page.waitForResponse("**/api/v1/sessions**");
+
+    await page.route("**/api/v1/sessions**", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+      await route.continue();
+    });
+    await page.route("**/api/v1/search**", async (route) => {
+      searchRequests.push(route.request().url());
+      await route.continue();
+    });
+
+    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
+    await input.fill("Synthetic search result");
+    await input.press("Enter");
+
+    await expect.poll(() => searchRequests.length).toBe(1);
+    expect(new URL(searchRequests[0]).searchParams.get("chats")).toBe("session_synthetic_001");
+    await sessionsResponse;
+  });
+
+  test("opens a search result with keyboard activation", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/search?codex-smoke=workbench-ready");
+
+    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
+    await input.fill("Synthetic search result");
+    await input.press("Enter");
+
+    const result = page.getByRole("button", { name: /Synthetic search result for UI state only/ });
+    await expect(result).toBeVisible();
+    await result.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(page).toHaveURL(/\/workbench/);
+    await expect(page.getByText("已定位搜索命中")).toBeVisible();
+  });
+
+  test("keeps late search responses from replacing the latest query", async ({ page }) => {
+    await setDesktop(page);
+    await page.route("**/api/v1/search**", async (route) => {
+      const url = new URL(route.request().url());
+      const keyword = url.searchParams.get("keyword") ?? "";
+      if (keyword.includes("old")) {
+        await page.waitForTimeout(900);
+        await route.fulfill({ json: searchResponse([
+          searchMessage({ localId: 3001, content: "Synthetic old stale result" }),
+        ]) }).catch(() => undefined);
+        return;
+      }
+      await route.fulfill({ json: searchResponse([
+        searchMessage({ localId: 3002, content: "Synthetic latest result" }),
+      ]) });
+    });
+
+    await page.goto("/search?codex-smoke=workbench-ready");
+    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
+    await input.fill("old");
+    await input.press("Enter");
+    await input.fill("latest");
+    await input.press("Enter");
+
+    await expect(page.getByText("Synthetic latest result")).toBeVisible();
+    await page.waitForTimeout(1_000);
+    await expect(page.getByText("Synthetic old stale result")).toHaveCount(0);
+  });
+
+  test("does not append a stale load-more page after changing filters", async ({ page }) => {
+    await setDesktop(page);
+    await page.route("**/api/v1/search**", async (route) => {
+      const url = new URL(route.request().url());
+      const offset = Number(url.searchParams.get("offset") ?? "0");
+      const msgType = url.searchParams.get("msg_type");
+      if (msgType === "3") {
+        await route.fulfill({ json: searchResponse([
+          searchMessage({ localId: 4101, content: "Synthetic image filtered result" }),
+        ]) });
+        return;
+      }
+      if (offset === 20) {
+        await page.waitForTimeout(900);
+        await route.fulfill({ json: searchResponse([
+          searchMessage({ localId: 4020, content: "Synthetic stale page result" }),
+        ], { totalCount: 40, offset: 20 }) }).catch(() => undefined);
+        return;
+      }
+      await route.fulfill({
+        json: searchResponse(
+          Array.from({ length: 20 }, (_, index) =>
+            searchMessage({ localId: 4000 + index, content: `Synthetic first page result ${index}` }),
+          ),
+          { totalCount: 40 },
+        ),
+      });
+    });
+
+    await page.goto("/search?codex-smoke=workbench-ready");
+    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
+    await input.fill("paged");
+    await input.press("Enter");
+    await expect(page.getByText("Synthetic first page result 0")).toBeVisible();
+
+    await page.getByRole("button", { name: "加载更多搜索结果" }).click();
+    await page.getByRole("button", { name: "图片" }).click();
+
+    await expect(page.getByText("Synthetic image filtered result")).toBeVisible();
+    await page.waitForTimeout(1_000);
+    await expect(page.getByText("Synthetic stale page result")).toHaveCount(0);
+  });
+
+  test("shows a recoverable message when the search anchor is missing from history", async ({ page }) => {
+    await setDesktop(page);
+    await page.route("**/api/v1/history**", async (route) => {
+      await route.fulfill({ json: historyResponse([
+        historyMessage({
+          localId: 9001,
+          timestamp: 1767254999,
+          content: "Synthetic nearby nonmatching message",
+        }),
+      ]) });
+    });
+
+    await page.goto("/search?codex-smoke=workbench-ready");
+    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
+    await input.fill("Synthetic search result");
+    await input.press("Enter");
+    await page.locator(".search-result-row").filter({ hasText: "Synthetic search result for UI state only" }).click();
+
+    await expect(page).toHaveURL(/\/workbench/);
+    await expect(page.getByText("已打开会话，但未能精确定位命中消息")).toBeVisible();
+    await expect(page.getByRole("button", { name: "返回搜索结果" })).toBeVisible();
+  });
+
+  test("keeps privacy-on search snippets and hit context masked", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/search?codex-smoke=workbench-ready");
+    await enablePrivacyMode(page);
+
+    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
+    await input.fill("合同");
+    await input.press("Enter");
+
+    await expect(page.getByText("Synthetic search result for UI state only")).toHaveCount(0);
+    const result = page.locator(".search-result-row").first();
+    await expect(result).toContainText(/\*{3,}/);
+    await result.click();
+
+    await expect(page).toHaveURL(/\/workbench/);
+    await expect(page.getByText("Synthetic message for UI state only")).toHaveCount(0);
+    await expect(page.locator(".message-row--search-hit")).toBeVisible();
+    await assertNoForbiddenVisibleText(page);
+  });
+
   test("settings route renders without synthetic privacy leakage", async ({ page }) => {
     await setDesktop(page);
     await page.goto("/settings");
@@ -204,6 +361,61 @@ async function expectSearchClosedLoop(page: import("@playwright/test").Page) {
   await expect(result).toBeVisible();
   await expect(result).toHaveAttribute("aria-current", "true");
   await expectStableSyntheticPage(page);
+}
+
+function searchResponse(
+  messages: ReturnType<typeof searchMessage>[],
+  options: { totalCount?: number; offset?: number; limit?: number } = {},
+) {
+  const limit = options.limit ?? 20;
+  const offset = options.offset ?? 0;
+  return {
+    total_count: options.totalCount ?? messages.length,
+    count: messages.length,
+    limit,
+    offset,
+    messages,
+  };
+}
+
+function searchMessage(overrides: { localId?: number; content?: string } = {}) {
+  return {
+    ...historyMessage({
+      localId: 1001,
+      content: "Synthetic search result for UI state only",
+      ...overrides,
+    }),
+    chat: "session_synthetic_001",
+    username: "session_synthetic_001",
+  };
+}
+
+function historyResponse(messages: ReturnType<typeof historyMessage>[]) {
+  return {
+    chat: "session_synthetic_001",
+    username: "session_synthetic_001",
+    is_group: false,
+    chat_type: "private",
+    total_count: messages.length,
+    count: messages.length,
+    limit: 50,
+    offset: 0,
+    messages,
+  };
+}
+
+function historyMessage(
+  overrides: { localId?: number; timestamp?: number; content?: string } = {},
+) {
+  const timestamp = overrides.timestamp ?? 1767254400;
+  return {
+    local_id: overrides.localId ?? 1001,
+    timestamp,
+    time: timestamp === 1767254400 ? "2026-01-01 08:00" : "2026-01-01 08:09",
+    sender: "contact_synthetic_001",
+    type: "text",
+    content: overrides.content ?? "Synthetic message for UI state only",
+  };
 }
 
 async function installTauriSetupConfigMock(page: import("@playwright/test").Page) {

@@ -16,26 +16,29 @@ import {
   mergeSearchResults,
 } from "./searchRequest";
 import { clearSearchSession } from "./searchSession";
+import { resolveSearchScopeChat } from "./searchWorkspaceContext";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 const SEARCH_PAGE_SIZE = 20;
 
-function getScopedChat(): string | null {
+function getScopedChat(scopedChat?: string | null): string | null {
   const { scope } = useSearchStore.getState();
-  if (scope !== "current") return null;
-
   const { conversations, selectedConversationId } = useChatStore.getState();
-  const conversation = conversations.find((item) => item.id === selectedConversationId);
-  return conversation?.username ?? null;
+  return resolveSearchScopeChat({
+    scope,
+    scopedChat,
+    conversations,
+    selectedConversationId,
+  });
 }
 
-function getCurrentRequestState() {
+function getCurrentRequestState(scopedChat?: string | null) {
   const state = useSearchStore.getState();
   return {
     query: state.query,
     activeFilter: state.activeFilter,
     scope: state.scope,
-    scopeChat: getScopedChat(),
+    scopeChat: getScopedChat(scopedChat),
   };
 }
 
@@ -43,8 +46,13 @@ function isCancelledSearchError(error: unknown): boolean {
   return error instanceof ChatlogHttpError && error.status === null && error.message === "请求已取消";
 }
 
-export function useSearchCommander() {
+interface SearchCommanderOptions {
+  scopedChat?: string | null;
+}
+
+export function useSearchCommander(options: SearchCommanderOptions = {}) {
   const store = useSearchStore();
+  const scopedChat = options.scopedChat ?? null;
   const activeControllerRef = useRef<AbortController | null>(null);
   const requestCounterRef = useRef(0);
 
@@ -70,7 +78,7 @@ export function useSearchCommander() {
       return;
     }
     cancelActiveRequest();
-    const scopeChat = getScopedChat();
+    const scopeChat = getScopedChat(scopedChat);
     const requestId = createRequestId("search");
     const controller = new AbortController();
     const { scope } = useSearchStore.getState();
@@ -107,12 +115,12 @@ export function useSearchCommander() {
           signal: controller.signal,
         },
       );
-      if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(), useSearchStore.getState().activeRequest?.requestId)) {
+      if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(scopedChat), useSearchStore.getState().activeRequest?.requestId)) {
         return;
       }
       useSearchStore.getState().setResults(result as unknown as SearchResults);
     } catch (error) {
-      if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(), useSearchStore.getState().activeRequest?.requestId)) {
+      if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(scopedChat), useSearchStore.getState().activeRequest?.requestId)) {
         return;
       }
       if (isCancelledSearchError(error)) {
@@ -125,7 +133,7 @@ export function useSearchCommander() {
         activeControllerRef.current = null;
       }
     }
-  }, [cancelActiveRequest, createRequestId]);
+  }, [cancelActiveRequest, createRequestId, scopedChat]);
 
   const debouncedSearchRef = useRef(
     debounce((keyword: string) => {
@@ -184,7 +192,7 @@ export function useSearchCommander() {
     if (loading || !results || results.messages.length >= results.totalCount) return;
 
     const nextOffset = getNextSearchOffset(results);
-    const scopeChat = getScopedChat();
+    const scopeChat = getScopedChat(scopedChat);
     const requestId = createRequestId("loadMore");
     const controller = new AbortController();
     const snapshot = createSearchRequestSnapshot({
@@ -220,32 +228,43 @@ export function useSearchCommander() {
           signal: controller.signal,
         },
       );
-      useSearchStore.setState((state) => ({
-        ...(canMergeSearchPage(
+      useSearchStore.setState((state) => {
+        const canMerge = canMergeSearchPage(
           snapshot,
           {
             query: state.query,
             activeFilter: state.activeFilter,
             scope: state.scope,
-            scopeChat: getScopedChat(),
+            scopeChat: getScopedChat(scopedChat),
             results: state.results,
           },
           newResult as unknown as SearchResults,
           state.activeRequest?.requestId,
-        )
-          ? {
-              results: state.results
-                ? mergeSearchResults(state.results, newResult as unknown as SearchResults)
-                : (newResult as unknown as SearchResults),
-              activeRequest: null,
-              loading: false,
-              error: null,
-              status: "ready" as const,
-            }
-          : {}),
-      }));
+        );
+        if (canMerge) {
+          return {
+            results: state.results
+              ? mergeSearchResults(state.results, newResult as unknown as SearchResults)
+              : (newResult as unknown as SearchResults),
+            activeRequest: null,
+            loading: false,
+            error: null,
+            status: "ready" as const,
+          };
+        }
+        if (state.activeRequest?.requestId !== snapshot.requestId) {
+          return {};
+        }
+        return {
+          activeRequest: null,
+          loading: false,
+          status: state.results
+            ? (state.results.messages.length > 0 ? "ready" as const : "empty" as const)
+            : "idle" as const,
+        };
+      });
     } catch (error) {
-      if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(), useSearchStore.getState().activeRequest?.requestId)) {
+      if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(scopedChat), useSearchStore.getState().activeRequest?.requestId)) {
         return;
       }
       if (isCancelledSearchError(error)) {
@@ -258,7 +277,7 @@ export function useSearchCommander() {
         activeControllerRef.current = null;
       }
     }
-  }, [createRequestId]);
+  }, [createRequestId, scopedChat]);
 
   return {
     ...store,

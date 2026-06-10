@@ -51,6 +51,7 @@ interface SearchState {
   setActiveResultId: (id: string | null) => void;
   setActiveRequest: (request: SearchActiveRequest) => void;
   clearActiveRequest: (requestId?: string | null) => void;
+  settleActiveRequest: (requestId?: string | null) => void;
   setResults: (results: SearchResults | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -79,6 +80,18 @@ export const useSearchStore = create<SearchState>((set) => ({
       return {};
     }
     return { activeRequest: null };
+  }),
+  settleActiveRequest: (requestId) => set((state) => {
+    if (requestId && state.activeRequest?.requestId !== requestId) {
+      return {};
+    }
+    return {
+      activeRequest: null,
+      loading: false,
+      status: state.results
+        ? (state.results.messages.length > 0 ? "ready" : "empty")
+        : "idle",
+    };
   }),
   setResults: (results) => set({
     results,

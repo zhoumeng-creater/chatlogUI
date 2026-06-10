@@ -309,4 +309,16 @@ describe("UI governance", () => {
     expect(workbenchContentCss).toContain(".search-workspace__results .search-result-pane");
     expect(workbenchContentCss).toContain("max-height: none");
   });
+
+  it("keeps search-hit navigation orchestration out of L1 pages", async () => {
+    const searchView = await readFile("src/l1-entry/pages/SearchView.tsx", "utf8");
+    const forbiddenMarkers = [
+      "resolveSearchHitNavigation",
+      "chat.selectAndLoadAtAnchor",
+      "search.setError(target.message)",
+    ];
+
+    const foundMarkers = forbiddenMarkers.filter((marker) => searchView.includes(marker));
+    expect(foundMarkers).toEqual([]);
+  });
 });

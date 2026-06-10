@@ -1,29 +1,11 @@
-import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useSearchCommander } from "@l2/commander/useSearchCommander";
-import { resolveSearchHitNavigation } from "@l2/commander/searchNavigation";
-import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import { useSearchWorkspaceCommander } from "@l2/commander/useSearchWorkspaceCommander";
 import { FilterBar } from "@l3/search/FilterBar";
 import { GlobalSearch } from "@l3/search/GlobalSearch";
 import { SearchResults } from "@l3/search/SearchResults";
 import { Typography } from "@l4/ui";
 
 export function SearchView() {
-  const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const scopedChat = params.get("chat");
-  const scopedScope = params.get("scope");
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { chat, currentConversation } = useScopedWorkspaceConversation(scopedChat);
-  const search = useSearchCommander();
-  const { changeScope } = search;
-
-  useEffect(() => {
-    if (scopedScope === "currentChat") {
-      changeScope("current");
-    }
-  }, [changeScope, scopedScope]);
+  const { currentConversation, openResult, privacyOn, search } = useSearchWorkspaceCommander();
 
   return (
     <div className="workspace-page search-workspace">
@@ -60,25 +42,7 @@ export function SearchView() {
             activeResultId={search.activeResultId}
             privacyOn={privacyOn}
             onSetActiveResultId={search.setActiveResultId}
-            onOpenResult={(message) => {
-              const target = resolveSearchHitNavigation({
-                message,
-                conversations: chat.conversations,
-                returnRoute: withSmokeQuery("/search"),
-                querySnapshot: {
-                  query: search.query,
-                  filter: search.activeFilter,
-                  scope: search.scope,
-                  scopeChat: scopedChat,
-                },
-              });
-              if (!target.ok) {
-                search.setError(target.message);
-                return;
-              }
-              void chat.selectAndLoadAtAnchor(target)
-                .then(() => navigate(withSmokeQuery("/workbench")));
-            }}
+            onOpenResult={(message) => void openResult(message)}
             onLoadMoreResults={() => void search.loadMoreResults()}
             onExecuteSearch={search.executeSearch}
             onClearSearch={search.clearSearch}
@@ -87,11 +51,4 @@ export function SearchView() {
       </section>
     </div>
   );
-}
-
-function withSmokeQuery(route: string): string {
-  if (typeof window === "undefined") return route;
-  return new URLSearchParams(window.location.search).get("codex-smoke") === "workbench-ready"
-    ? `${route}?codex-smoke=workbench-ready`
-    : route;
 }
