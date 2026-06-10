@@ -46,6 +46,7 @@ export function useWorkbenchCommander() {
     [conversations, selectedConversationId],
   );
   const currentChat = currentConversation?.username ?? "";
+  const returnToSearchRoute = chat.returnToSearch?.returnRoute ?? "";
   const resolvedSinglePaneView = resolveSinglePaneView(
     layout.mode,
     selectedConversationId,
@@ -104,6 +105,11 @@ export function useWorkbenchCommander() {
     [currentChat, currentConversation?.displayName, navigate],
   );
 
+  const returnToSearchResults = useCallback(() => {
+    if (!returnToSearchRoute) return;
+    navigate(returnToSearchRoute);
+  }, [navigate, returnToSearchRoute]);
+
   return {
     chat,
     stats,
@@ -126,5 +132,6 @@ export function useWorkbenchCommander() {
     openMedia: () => openScopedWorkspace("media"),
     openAi: () => openScopedWorkspace("ai"),
     openGraph: () => openScopedWorkspace("graph"),
+    returnToSearchResults,
   };
 }

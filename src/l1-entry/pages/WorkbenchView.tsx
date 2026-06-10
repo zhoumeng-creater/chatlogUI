@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useWorkbenchCommander } from "@l2/commander/useWorkbenchCommander";
 import { ContactList } from "@l3/chat/ContactList";
 import { ChatView } from "@l3/chat/ChatView";
@@ -5,8 +6,27 @@ import { ConversationInspector } from "@l3/workbench/ConversationInspector";
 import { WorkbenchFrame } from "@l3/workbench/WorkbenchFrame";
 import { Button, Typography } from "@l4/ui";
 
+function getSearchAnchorStatusText(status: string): string {
+  if (status === "loading") return "正在定位搜索命中";
+  if (status === "hit") return "已定位搜索命中";
+  if (status === "missing") return "已打开会话，但未能精确定位命中消息";
+  if (status === "error") return "已打开会话，但命中附近记录加载失败";
+  if (status === "cancelled") return "搜索定位已取消";
+  return "可返回搜索结果";
+}
+
 export function WorkbenchView() {
   const workbench = useWorkbenchCommander();
+  const highlightedMessageId = workbench.chat.highlightedMessageId;
+  const clearHighlightedMessage = workbench.chat.clearHighlightedMessage;
+
+  useEffect(() => {
+    if (!highlightedMessageId) return;
+    const timeout = window.setTimeout(() => {
+      clearHighlightedMessage();
+    }, 3500);
+    return () => window.clearTimeout(timeout);
+  }, [clearHighlightedMessage, highlightedMessageId]);
 
   const conversationList = (
     <ContactList
@@ -34,6 +54,8 @@ export function WorkbenchView() {
         messagesStatus={workbench.chat.messagesStatus}
         messagesError={workbench.chat.messagesError}
         messagesTotalCount={workbench.chat.messagesTotalCount}
+        activeAnchor={workbench.chat.activeAnchor}
+        highlightedMessageId={workbench.chat.highlightedMessageId}
         privacyOn={workbench.privacyOn}
         onLoadHistory={(chat) => void workbench.chat.loadHistory(chat)}
         onLoadMoreHistory={(chat) => void workbench.chat.loadMoreHistory(chat)}
@@ -45,7 +67,7 @@ export function WorkbenchView() {
       layout={workbench.layout}
       conversationList={conversationList}
       toolbar={(
-        <div className="workbench-chat-toolbar">
+        <div className={`workbench-chat-toolbar${workbench.chat.returnToSearch ? " workbench-chat-toolbar--with-search-return" : ""}`}>
           <div className="workbench-chat-toolbar__title">
             <Typography variant="label" weight={700}>
               {workbench.toolbarConversationTitle}
@@ -79,6 +101,16 @@ export function WorkbenchView() {
               </Button>
             )}
           </div>
+          {workbench.chat.returnToSearch && (
+            <div className="workbench-search-return" role="status">
+              <Typography variant="caption" color="var(--text-secondary)">
+                {getSearchAnchorStatusText(workbench.chat.anchorStatus)}
+              </Typography>
+              <Button variant="secondary" size="sm" onClick={workbench.returnToSearchResults}>
+                返回搜索结果
+              </Button>
+            </div>
+          )}
         </div>
       )}
       inspectorTitle={workbench.inspectorTitle}

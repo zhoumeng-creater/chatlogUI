@@ -696,6 +696,11 @@
   gap: var(--space-3);
 }
 
+.workbench-chat-toolbar--with-search-return {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
 .workbench-chat-toolbar__title {
   display: flex;
   min-width: 0;
@@ -710,6 +715,19 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+.workbench-search-return {
+  display: flex;
+  flex: 1 0 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  background: var(--surface-subtle);
 }
 
 .conversation-inspector {

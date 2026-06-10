@@ -218,6 +218,10 @@
   width: 100%;
 }
 
+.message-list__virtual-row--search-hit {
+  z-index: 1;
+}
+
 .message-date-divider {
   display: flex;
   justify-content: center;
@@ -269,6 +273,27 @@
   width: 100%;
   max-width: none;
   background: var(--surface-base);
+}
+
+.message-row--search-hit .message-bubble {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-base));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.message-row--self.message-row--search-hit .message-bubble {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--surface-base) 55%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .message-row--search-hit .message-bubble {
+    transition:
+      border-color var(--duration-fast) var(--easing-standard),
+      background-color var(--duration-fast) var(--easing-standard),
+      box-shadow var(--duration-fast) var(--easing-standard);
+  }
 }
 
 .message-meta {

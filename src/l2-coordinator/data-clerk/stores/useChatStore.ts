@@ -101,6 +101,7 @@ interface ChatActions {
   setAnchorMissing: () => void;
   setAnchorError: (error: string) => void;
   setAnchorCancelled: () => void;
+  clearHighlightedMessage: () => void;
   clearAnchor: () => void;
   resetChat: () => void;
 }
@@ -217,6 +218,7 @@ export const useChatStore = create<ChatStore>((set) => ({
       highlightedMessageId: null,
       anchorError: null,
     }),
+  clearHighlightedMessage: () => set({ highlightedMessageId: null }),
   clearAnchor: () => set(clearedAnchorState),
   resetChat: () =>
     set({

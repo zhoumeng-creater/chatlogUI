@@ -1,9 +1,19 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button, Spinner, Typography } from "@l4/ui";
-import type { ChatMessage, Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
+import type {
+  ChatMessage,
+  ChatMessageAnchor,
+  Conversation,
+  LoadStatus,
+} from "@l2/data-clerk/stores/useChatStore";
+import { classNames } from "@/utils/classNames";
 import { MessageBubble } from "./MessageBubble";
-import { buildTranscriptRows, estimateTranscriptRowHeight } from "./transcriptRows";
+import {
+  buildTranscriptRows,
+  estimateTranscriptRowHeight,
+  findTranscriptMessageRowIndex,
+} from "./transcriptRows";
 
 interface MessageListProps {
   conversation: Conversation | undefined;
@@ -12,6 +22,8 @@ interface MessageListProps {
   messagesHasMore: boolean;
   messagesStatus: LoadStatus;
   messagesError: string | null;
+  activeAnchor: ChatMessageAnchor | null;
+  highlightedMessageId: string | null;
   privacyOn: boolean;
   onLoadHistory: (chat: string) => void;
   onLoadMoreHistory: (chat: string) => void;
@@ -24,6 +36,8 @@ export function MessageList({
   messagesHasMore,
   messagesStatus,
   messagesError,
+  activeAnchor,
+  highlightedMessageId,
   privacyOn,
   onLoadHistory,
   onLoadMoreHistory,
@@ -31,6 +45,13 @@ export function MessageList({
   const activeChat = conversation?.username || "";
   const containerRef = useRef<HTMLDivElement>(null);
   const rows = useMemo(() => buildTranscriptRows(messages), [messages]);
+  const highlightedRowIndex = useMemo(() => {
+    if (!highlightedMessageId && !activeAnchor) return null;
+    return findTranscriptMessageRowIndex(rows, {
+      messageId: highlightedMessageId ?? activeAnchor?.messageId ?? null,
+      localId: activeAnchor?.localId ?? null,
+    });
+  }, [activeAnchor, highlightedMessageId, rows]);
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => containerRef.current,
@@ -38,6 +59,11 @@ export function MessageList({
     getItemKey: (index) => rows[index]?.id ?? index,
     overscan: 8,
   });
+
+  useEffect(() => {
+    if (highlightedRowIndex === null) return;
+    rowVirtualizer.scrollToIndex(highlightedRowIndex, { align: "center" });
+  }, [highlightedRowIndex, rowVirtualizer]);
 
   if (!conversation) {
     return (
@@ -110,19 +136,29 @@ export function MessageList({
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];
             if (!row) return null;
+            const isHighlighted = row.kind === "message" && row.message.id === highlightedMessageId;
 
             return (
               <div
                 key={virtualRow.key}
                 data-index={virtualRow.index}
+                data-message-id={row.kind === "message" ? row.message.id : undefined}
+                data-local-id={row.kind === "message" ? row.message.localId : undefined}
                 ref={rowVirtualizer.measureElement}
-                className="message-list__virtual-row"
+                className={classNames(
+                  "message-list__virtual-row",
+                  isHighlighted && "message-list__virtual-row--search-hit",
+                )}
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
                 {row.kind === "date" ? (
                   <div className="message-date-divider">{row.dateLabel}</div>
                 ) : (
-                  <MessageBubble message={row.message} privacyOn={privacyOn} />
+                  <MessageBubble
+                    message={row.message}
+                    privacyOn={privacyOn}
+                    highlighted={isHighlighted}
+                  />
                 )}
               </div>
             );
