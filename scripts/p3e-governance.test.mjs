@@ -13,6 +13,8 @@ async function exists(path) {
 
 async function collectSourceFiles(dir) {
   const files = [];
+  if (!await exists(dir)) return files;
+
   const items = await readdir(dir, { withFileTypes: true });
 
   for (const item of items) {
