@@ -75,7 +75,7 @@ export function SearchView() {
               search.setError(target.message);
               return;
             }
-            void chat.selectAndLoad(target.conversationId, target.chat)
+            void chat.selectAndLoadAtAnchor(target)
               .then(() => navigate(withSmokeQuery("/workbench")));
           }}
           onLoadMoreResults={() => void search.loadMoreResults()}

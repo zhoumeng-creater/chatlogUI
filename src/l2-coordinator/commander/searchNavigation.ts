@@ -1,5 +1,9 @@
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
-import type { Conversation } from "@/l2-coordinator/data-clerk/stores/useChatStore";
+import type {
+  ChatMessageAnchor,
+  ChatReturnToSearch,
+  Conversation,
+} from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import type { SearchScope } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
 
 export interface SearchHitMessage {
@@ -20,20 +24,10 @@ export interface SearchQuerySnapshot {
   scopeChat: string | null;
 }
 
-export interface SearchReturnContext {
-  returnRoute: string;
-  activeResultId: string;
-  querySnapshot: SearchQuerySnapshot;
-  sourceConversationId: string | null;
-}
+export type SearchReturnContext = ChatReturnToSearch;
 
-export interface SearchHitAnchor {
+export interface SearchHitAnchor extends ChatMessageAnchor {
   source: "search";
-  chat: string;
-  messageId: string;
-  localId: number | null;
-  timestamp: number | null;
-  time: string | null;
 }
 
 export type SearchHitNavigationResult =

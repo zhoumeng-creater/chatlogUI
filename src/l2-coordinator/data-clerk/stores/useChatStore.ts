@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 import type { MediaAttachment } from "./useMediaStore";
 
 export interface Conversation {
@@ -37,6 +38,29 @@ export interface ChatMessage {
 }
 
 export type LoadStatus = "idle" | "loading" | "ready" | "empty" | "error";
+export type ChatAnchorStatus = "idle" | "loading" | "hit" | "missing" | "error" | "cancelled";
+export type ChatAnchorSource = "search" | "media" | "ai" | "graph" | "sns";
+
+export interface ChatMessageAnchor {
+  source: ChatAnchorSource;
+  chat: string;
+  messageId: string;
+  localId: number | null;
+  timestamp: number | null;
+  time: string | null;
+}
+
+export interface ChatReturnToSearch {
+  returnRoute: string;
+  activeResultId: string;
+  querySnapshot: {
+    query: string;
+    filter: SearchFilterType;
+    scope: "all" | "current";
+    scopeChat: string | null;
+  };
+  sourceConversationId: string | null;
+}
 
 interface ChatState {
   conversations: Conversation[];
@@ -52,6 +76,11 @@ interface ChatState {
   messagesOffset: number;
   messagesStatus: LoadStatus;
   messagesError: string | null;
+  anchorStatus: ChatAnchorStatus;
+  activeAnchor: ChatMessageAnchor | null;
+  highlightedMessageId: string | null;
+  returnToSearch: ChatReturnToSearch | null;
+  anchorError: string | null;
 }
 
 interface ChatActions {
@@ -67,6 +96,12 @@ interface ChatActions {
   appendMessages: (messages: ChatMessage[], offset: number, hasMore?: boolean) => void;
   setMessagesLoading: (loading: boolean) => void;
   setMessagesError: (error: string) => void;
+  setAnchorLoading: (anchor: ChatMessageAnchor, returnToSearch: ChatReturnToSearch) => void;
+  setAnchorHit: (messageId: string) => void;
+  setAnchorMissing: () => void;
+  setAnchorError: (error: string) => void;
+  setAnchorCancelled: () => void;
+  clearAnchor: () => void;
   resetChat: () => void;
 }
 
@@ -86,6 +121,19 @@ const initialState: ChatState = {
   messagesOffset: 0,
   messagesStatus: "idle",
   messagesError: null,
+  anchorStatus: "idle",
+  activeAnchor: null,
+  highlightedMessageId: null,
+  returnToSearch: null,
+  anchorError: null,
+};
+
+const clearedAnchorState = {
+  anchorStatus: "idle" as const,
+  activeAnchor: null,
+  highlightedMessageId: null,
+  returnToSearch: null,
+  anchorError: null,
 };
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -110,6 +158,7 @@ export const useChatStore = create<ChatStore>((set) => ({
       messagesOffset: 0,
       messagesStatus: "idle",
       messagesError: null,
+      ...clearedAnchorState,
     }),
   setMessages: (messages, totalCount, offset, hasMore = false) =>
     set({
@@ -136,6 +185,39 @@ export const useChatStore = create<ChatStore>((set) => ({
   setMessagesLoading: (loading) => set({ messagesLoading: loading, messagesStatus: "loading" }),
   setMessagesError: (error) =>
     set({ messagesLoading: false, messagesStatus: "error", messagesError: error }),
+  setAnchorLoading: (activeAnchor, returnToSearch) =>
+    set({
+      anchorStatus: "loading",
+      activeAnchor,
+      highlightedMessageId: null,
+      returnToSearch,
+      anchorError: null,
+    }),
+  setAnchorHit: (highlightedMessageId) =>
+    set({
+      anchorStatus: "hit",
+      highlightedMessageId,
+      anchorError: null,
+    }),
+  setAnchorMissing: () =>
+    set({
+      anchorStatus: "missing",
+      highlightedMessageId: null,
+      anchorError: null,
+    }),
+  setAnchorError: (anchorError) =>
+    set({
+      anchorStatus: "error",
+      highlightedMessageId: null,
+      anchorError,
+    }),
+  setAnchorCancelled: () =>
+    set({
+      anchorStatus: "cancelled",
+      highlightedMessageId: null,
+      anchorError: null,
+    }),
+  clearAnchor: () => set(clearedAnchorState),
   resetChat: () =>
     set({
       selectedConversationId: null,
@@ -145,5 +227,6 @@ export const useChatStore = create<ChatStore>((set) => ({
       messagesOffset: 0,
       messagesStatus: "idle",
       messagesError: null,
+      ...clearedAnchorState,
     }),
 }));
