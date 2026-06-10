@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSearchCommander } from "@l2/commander/useSearchCommander";
+import { resolveSearchHitNavigation } from "@l2/commander/searchNavigation";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { FilterBar } from "@l3/search/FilterBar";
@@ -58,8 +59,24 @@ export function SearchView() {
           activeResultId={search.activeResultId}
           privacyOn={privacyOn}
           onSetActiveResultId={search.setActiveResultId}
-          onSelectAndLoad={(conversationId, chatName) => {
-            void chat.selectAndLoad(conversationId, chatName).then(() => navigate(withSmokeQuery("/workbench")));
+          onOpenResult={(message) => {
+            const target = resolveSearchHitNavigation({
+              message,
+              conversations: chat.conversations,
+              returnRoute: withSmokeQuery("/search"),
+              querySnapshot: {
+                query: search.query,
+                filter: search.activeFilter,
+                scope: search.scope,
+                scopeChat: scopedChat,
+              },
+            });
+            if (!target.ok) {
+              search.setError(target.message);
+              return;
+            }
+            void chat.selectAndLoad(target.conversationId, target.chat)
+              .then(() => navigate(withSmokeQuery("/workbench")));
           }}
           onLoadMoreResults={() => void search.loadMoreResults()}
           onExecuteSearch={search.executeSearch}

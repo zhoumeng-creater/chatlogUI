@@ -23,6 +23,7 @@ export interface SearchResults {
   offset: number;
   messages: {
     id: string;
+    localId?: number;
     timestamp: number;
     time?: string;
     content: string;

@@ -60,7 +60,15 @@ export interface SearchResults {
   count: number;
   limit: number;
   offset: number;
-  messages: { id: string; timestamp: number; content: string; sender: string; username: string; chat: string }[];
+  messages: {
+    id: string;
+    localId?: number;
+    timestamp: number;
+    content: string;
+    sender: string;
+    username: string;
+    chat: string;
+  }[];
 }
 
 export interface SearchRequestSnapshot {

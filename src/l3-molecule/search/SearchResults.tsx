@@ -10,7 +10,7 @@ interface SearchResultsProps {
   activeResultId: string | null;
   privacyOn: boolean;
   onSetActiveResultId: (id: string | null) => void;
-  onSelectAndLoad: (conversationId: string, chat: string) => void;
+  onOpenResult: (message: SearchResultsData["messages"][number]) => void;
   onLoadMoreResults: () => void;
   onExecuteSearch: (query: string) => void;
   onClearSearch: () => void;
@@ -25,7 +25,7 @@ export function SearchResults({
   activeResultId,
   privacyOn,
   onSetActiveResultId,
-  onSelectAndLoad,
+  onOpenResult,
   onLoadMoreResults,
   onExecuteSearch,
   onClearSearch,
@@ -40,10 +40,8 @@ export function SearchResults({
       activeResultId={activeResultId}
       privacyOn={privacyOn}
       onOpenResult={(message) => {
-        const chat = message.username || message.chat;
-        if (!chat) return;
         onSetActiveResultId(message.id);
-        onSelectAndLoad(chat, chat);
+        onOpenResult(message);
       }}
       onLoadMore={onLoadMoreResults}
       onRetry={() => onExecuteSearch(query)}
