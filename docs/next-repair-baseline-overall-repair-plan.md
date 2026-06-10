@@ -91,14 +91,14 @@
 
 ## 5. 阶段 0：修复治理与证据账本
 
-目的：让后续每个修复 PR 都能追溯到问题、验收标准和证据，不再靠口头判断。
+目的：让后续每个修复单元都能追溯到问题、验收标准和证据，不再靠口头判断；PR 只在明确需要远端审查、协作、CI 或发布治理证据时使用。
 
 主要工作：
 
 - 保持 `docs/next-repair-baseline-ux-ledger.md` 作为主问题账本。
 - 保持 `docs/next-repair-baseline-inspector-architecture.md` 作为 Workbench 和 SetupCenter 页面结构专题账本。
 - 本文件作为总体计划入口，后续每个分步骤代码修复计划必须引用本文件的阶段编号和问题 ID。
-- 后续每个 PR 必须说明修复了哪些 ID、没有覆盖哪些 ID、需要哪些运行证据。
+- 后续每个修复提交、任务记录或 PR 必须说明修复了哪些 ID、没有覆盖哪些 ID、需要哪些运行证据。
 - 官方 NN/G、Fluent 2、WCAG 2.2 条目已经进入项目验收标准和 UI 开发标准；后续若补充新条目，应只放到标准文件，不散落在业务代码注释里。
 
 可并行性：
@@ -109,7 +109,7 @@
 验收证据：
 
 - 文档链接完整。
-- 每个修复 PR 都能回链到问题 ID。
+- 每个修复提交、任务记录或 PR 都能回链到问题 ID。
 - 没有把源码推断写成运行事实。
 
 ## 6. 阶段 1：共享基础修复
@@ -608,7 +608,7 @@
 | 隐私展示策略、控件尺寸 token、开发者模式 gating | 无需等待页面重构。 | 不要同时改同一全局标题栏或同一 Settings 区块。 |
 | SetupCenter 视觉组件准备与诊断折叠设计 | 阶段 1C 的 atoms 约定明确。 | 外部服务 URL 保存必须等待 1A。 |
 | Analytics、Media、SNS、AI、Graph 页面壳 | 阶段 3 route map 和 nav contract 稳定。 | 每个任务拥有独立文件范围，不重复改 Workbench 主 shell。 |
-| AI SSE、Graph abort、Media task closure、SNS safe open | 页面壳稳定，共享 network/error/overlay 契约稳定。 | 若都需要改通用 http client，应先做共享契约 PR。 |
+| AI SSE、Graph abort、Media task closure、SNS safe open | 页面壳稳定，共享 network/error/overlay 契约稳定。 | 若都需要改通用 http client，应先做共享契约提交；需要远端审查时再开 PR。 |
 | 页面级响应式检查 | 对应页面结构稳定。 | 共享 atoms 已经合并，否则会重复调整。 |
 
 | 不应并行的工作 | 原因 |
@@ -619,23 +619,23 @@
 | overlay/focus primitive 与 SNS 外链确认、semantic confirm、media sheet 临时实现同时进行 | 容易留下多套焦点行为。 |
 | Search 命中跳转和 Media 未读跳转各自定义消息定位 | 必须共用聊天消息锚点和上下文加载模型。 |
 
-## 17. 建议提交与 PR 拆分
+## 17. 建议提交与远端审查拆分
 
-后续每个修复单元都应短中文提交，提交和推送要及时。建议拆分如下：
+后续每个修复单元都应短中文提交，并在需要远端 CI、协作审查、发布证据或用户明确要求时及时推送。PR 不再是默认收口动作；只有在需要远端审查边界时才创建或更新。建议拆分如下：
 
-| 修复单元 | 建议内容 | 是否可独立 PR |
+| 修复单元 | 建议内容 | 远端审查建议 |
 | --- | --- | --- |
-| PR A | base URL/readiness 单一来源、外部服务契约、迁移和测试。 | 是，P0 阻塞项。 |
-| PR B | 隐私展示策略、诊断脱敏、开发者模式 gating 基础。 | 是，可与 PR A 并行但需避免同文件冲突。 |
-| PR C | L4 UI atoms 尺寸、Field ARIA、overlay/focus primitive。 | 是，后续页面重构前置。 |
-| PR D | SetupCenter 三路径重构和外部服务 UI。 | 是，依赖 PR A/C。 |
-| PR E | Workbench route/nav/toolbar/inspector 契约收敛。 | 是，依赖 PR C，最好在模块页面化前独立完成。 |
-| PR F | Search 页面/区域重构、stale guard、命中定位、高亮和返回路径。 | 是，依赖 PR E 和消息锚点方案。 |
-| PR G | Analytics、Media、SNS、AI、Graph 页面壳。 | 可拆 3 到 5 个并行 PR，依赖 PR E。 |
-| PR H | AI、Graph、Media、SNS 任务闭环和可靠性。 | 可按模块拆分，依赖对应页面壳。 |
-| PR I | Settings 配置收敛和返回上下文。 | 是，依赖 AI/Setup 归属决策。 |
-| PR J | 全局可访问性、视觉、响应式、隐私和诊断 audit。 | 可按页面拆，最终需要统一验收。 |
-| PR K | Tauri dev、packaged smoke、release evidence。 | 最终 PR 或 release candidate PR。 |
+| A | base URL/readiness 单一来源、外部服务契约、迁移和测试。 | P0 阻塞项，建议远端 CI 或 review；不强制 PR。 |
+| B | 隐私展示策略、诊断脱敏、开发者模式 gating 基础。 | 可与 A 并行但需避免同文件冲突；协作时再开 PR。 |
+| C | L4 UI atoms 尺寸、Field ARIA、overlay/focus primitive。 | 后续页面重构前置；需要共享审查时再开 PR。 |
+| D | SetupCenter 三路径重构和外部服务 UI。 | 依赖 A/C；可本地完成后按需推送审查。 |
+| E | Workbench route/nav/toolbar/inspector 契约收敛。 | 依赖 C，最好作为独立提交序列；按需 PR。 |
+| F | Search 页面/区域重构、stale guard、命中定位、高亮和返回路径。 | 依赖 E 和消息锚点方案；需要 CI 证据时推送/PR。 |
+| G | Analytics、Media、SNS、AI、Graph 页面壳。 | 可按模块拆提交；多人并行或高冲突时再拆 PR。 |
+| H | AI、Graph、Media、SNS 任务闭环和可靠性。 | 可按模块拆提交；高风险模块按需 PR。 |
+| I | Settings 配置收敛和返回上下文。 | 依赖 AI/Setup 归属决策；按需 PR。 |
+| J | 全局可访问性、视觉、响应式、隐私和诊断 audit。 | 可按页面拆提交，最终需要统一验收记录。 |
+| K | Tauri dev、packaged smoke、release evidence。 | 发布候选或 release gate 通常需要远端审查；按发布要求决定 PR。 |
 
 ## 18. 分阶段验证命令与证据
 

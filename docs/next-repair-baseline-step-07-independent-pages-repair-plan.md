@@ -2,7 +2,7 @@
 
 日期：2026-06-11  
 适用分支：`codex/next-repair-baseline` 当前工作树  
-计划性质：代码修复计划，不包含完整生产代码；后续实现必须以测试、浏览器证据、及时中文提交、及时推送和 PR 更新收口。
+计划性质：代码修复计划，不包含完整生产代码；后续实现必须以测试、浏览器证据、及时中文提交和清晰记录收口。推送和 PR 只在用户明确要求、需要远端 CI/协作审查或发布治理证据时执行。
 
 ## 1. 结论
 
@@ -12,7 +12,7 @@ Step 07 的目标不是再重复 Step 05 已完成的路由壳搭建，而是把
 - `/analytics`、`/media`、`/sns`、`/ai`、`/graph` 已有 canonical route 和 `ReadyWorkspaceShellView`，但当前多为薄壳，仍依赖旧模块组件和当前会话隐式状态。
 - Step 07 要为每个独立页面补齐清晰的用户任务、首要动作、scope/focus/source 深链规则、加载/空/错误/成功/取消/隐私状态、滚动所有权、窄屏行为和页面级验收证据。
 - Workbench inspector 必须继续只做上下文摘要和深链，不能把完整 Media、SNS、AI、Graph、Analytics 工作台塞回右侧栏。
-- 每个模块页面是可独立交付的修复单元。实现时必须分单元完成 focused tests、中文短提交、推送，并创建或更新 draft PR；不能等所有页面都修完后一次性提交合并。
+- 每个模块页面是可独立交付的修复单元。实现时必须分单元完成 focused tests 和中文短提交；不能等所有页面都修完后一次性提交合并。只有在需要远端 CI、协作审查、发布证据或用户明确要求时才推送并创建或更新 draft PR。
 
 本步骤容易和总体计划里的“阶段 7：Settings 与配置收敛”混淆。按当前分步骤顺序，Step 07 指“拆独立页面和页面级收敛”；Settings 配置归属收敛仍作为后续单独步骤处理，除非 AI 页面配置归属会直接影响本步骤验收。
 
@@ -213,7 +213,7 @@ Step 07 目标：
 | 图表状态 | `DashboardOverview`、`TrendChart`、`TopContactCard` | 空数据、部分数据、隐私遮蔽不破布局 |
 | 证据 | Vitest、core/a11y/visual smoke | `/analytics` desktop/narrow 可用 |
 
-建议提交：`收敛统计独立页范围状态`。提交后立即推送并更新 draft PR。
+建议提交：`收敛统计独立页范围状态`。提交后记录验证证据；如需远端 CI/协作审查或用户要求，再推送并更新 draft PR。
 
 ### 8.2 Media / 媒体
 
@@ -341,7 +341,7 @@ Step 07 目标：
 - Primary rail 不出现 settings/developer。
 - Search 结果不回到 Workbench toolbar。
 
-建议提交：`保护独立页面导航基线`。完成 focused governance 后提交并推送。
+建议提交：`保护独立页面导航基线`。完成 focused governance 后提交；如需远端 CI/协作审查或用户要求，再推送。
 
 ### 任务 2：通用页面状态和 scope 合同
 
@@ -509,16 +509,16 @@ Step 07 目标：
 | SNS safe-open 和其它外部打开各写临时确认 | 必须复用共享 overlay/focus 和系统打开策略 |
 | Graph request guard 与通用 HTTP signal 大改混在页面样式提交里 | 容易难以 review 和回滚 |
 
-### 11.3 提交和 PR 节奏
+### 11.3 提交、推送和 PR 节奏
 
 必须执行：
 
 | 时机 | 要求 |
 | --- | --- |
 | 每个 coherent repair unit 完成 focused tests 后 | 中文短提交，例如 `收敛媒体独立页范围与状态` |
-| 每个提交完成后 | 推送当前分支 |
-| 第一段实现完成后 | 创建或更新 draft PR |
-| 后续每个模块完成后 | 更新 PR 描述中的范围、验证、剩余风险 |
+| 每个提交完成后 | 记录验证证据；需要远端 CI、协作审查、发布证据或用户要求时再推送当前分支 |
+| 第一段实现完成后 | 默认本地提交和记录；只有必要时创建或更新 draft PR |
+| 后续每个模块完成后 | 更新任务记录或最终报告中的范围、验证、剩余风险；如已启用 PR，也同步更新 PR 描述 |
 | 出现 unrelated tracked changes 时 | 只 stage 当前任务文件；不要 revert 用户或其它任务改动 |
 
 不允许：
@@ -546,7 +546,7 @@ Step 07 目标：
 | 文件存在和大小 | `Get-Item docs\next-repair-baseline-step-07-independent-pages-repair-plan.md` |
 | 未完成标记扫描 | 使用 ripgrep 扫描常见英文和中文未完成标记；扫描结果必须为空 |
 | 代码块扫描 | `rg -n "^```" docs\next-repair-baseline-step-07-independent-pages-repair-plan.md` |
-| 关键章节扫描 | `rg -n "Analytics|Media|SNS|AI|Graph|及时|推送|draft PR|隐私|窄屏|request guard" docs\next-repair-baseline-step-07-independent-pages-repair-plan.md` |
+| 关键章节扫描 | `rg -n "Analytics|Media|SNS|AI|Graph|及时|推送|按需|draft PR|隐私|窄屏|request guard" docs\next-repair-baseline-step-07-independent-pages-repair-plan.md` |
 
 后续代码实现的基础验证：
 
@@ -564,12 +564,12 @@ Step 07 目标：
 Step 07 规划文档完成条件：
 
 - 本文件存在于 `docs/next-repair-baseline-step-07-independent-pages-repair-plan.md`。
-- 文档覆盖当前进度、源码事实、五问、非目标、模块目标、任务拆分、文件范围、并行边界、验收矩阵、验证命令、提交/推送/PR 节奏。
+- 文档覆盖当前进度、源码事实、五问、非目标、模块目标、任务拆分、文件范围、并行边界、验收矩阵、验证命令、提交/按需推送/按需 PR 节奏。
 - 文档不包含完整生产代码和 markdown 代码块。
 - 文档无未完成标记。
-- 文档明确要求小步中文提交、及时推送、draft PR 创建或更新。
+- 文档明确要求小步中文提交，并把推送、draft PR 创建或更新限定为用户要求、远端 CI、协作审查或发布治理需要时的按需动作。
 - 文档被 force-add 到 git，因为当前 `.gitignore` 默认忽略 `docs/*`。
-- 提交已推送到 `origin/codex/next-repair-baseline`。
+- 如本次文档工作需要远端审查或用户要求，提交已推送到 `origin/codex/next-repair-baseline`；否则保留本地提交和验证记录即可。
 
 后续 Step 07 代码实现完成条件：
 
@@ -579,4 +579,4 @@ Step 07 规划文档完成条件：
 - Search 闭环不回退。
 - 无后端合同、Tauri CSP/capability、隐私诊断边界的非授权变化。
 - focused tests、lint、typecheck、相关 E2E/a11y/visual/privacy 证据通过。
-- 每个 coherent repair unit 已中文提交、推送，并更新 draft PR。
+- 每个 coherent repair unit 已中文提交并记录验证证据；如果用户要求或需要远端 CI/协作审查/发布治理，已推送并更新 draft PR。

@@ -26,8 +26,10 @@ A page or feature fails acceptance if any of these are true:
 - It presents raw technical errors such as `HTTP 500`, `undefined`, or internal error codes to ordinary users without a plain-language reason and next step.
 - It cannot provide evidence for the claims made in review or release notes.
 - It leaves verified code repair, UI polish, feature completion, or productization
-  work uncommitted, unpushed, or without a PR unless the product owner explicitly
-  requested a local-only change.
+  work without recorded evidence, without an intentional commit decision, or
+  without the requested remote handoff. A PR is required only when the product
+  owner asks for one, when CI/remote review is needed, or when release governance
+  requires a review artifact.
 
 ## 3. Overall Project Acceptance
 
