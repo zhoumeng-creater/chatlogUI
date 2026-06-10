@@ -275,4 +275,25 @@ describe("UI governance", () => {
 
     expect(demoClassUsages).toEqual([]);
   });
+
+  it("keeps Workbench toolbar and inspector from regressing into full workspace containers", async () => {
+    const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+    const forbiddenWorkbenchViewMarkers = [
+      "workbench-frame__module-tabs",
+      "<SearchResults",
+      "function InspectorContent",
+      "<MediaLibrary",
+      "<SnsModule",
+      "<DeveloperToolsModule",
+      "<LazyAiPanel",
+    ];
+
+    const foundMarkers = forbiddenWorkbenchViewMarkers.filter((marker) => workbenchView.includes(marker));
+    expect(foundMarkers).toEqual([]);
+
+    const toolbarRule = layoutCss.match(/\.workbench-frame__toolbar\s*\{[\s\S]*?\}/)?.[0] ?? "";
+    expect(toolbarRule).not.toContain("max-height");
+    expect(toolbarRule).not.toContain("overflow: auto");
+  });
 });

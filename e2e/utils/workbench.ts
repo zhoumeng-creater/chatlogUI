@@ -21,17 +21,20 @@ export async function openSyntheticWorkbench(page: Page) {
 }
 
 export async function openWorkbenchModule(page: Page, label: string) {
-  const railButtons = page.getByRole("button", { name: `打开${label}模块` });
-  const count = await railButtons.count();
-  for (let index = 0; index < count; index += 1) {
-    const button = railButtons.nth(index);
-    if (await button.isVisible()) {
-      await button.click();
-      return;
+  for (const accessibleName of [`打开${label}`, `打开${label}模块`, label]) {
+    const exact = accessibleName === label;
+    const buttons = page.getByRole("button", { name: accessibleName, exact });
+    const count = await buttons.count();
+    for (let index = 0; index < count; index += 1) {
+      const button = buttons.nth(index);
+      if (await button.isVisible()) {
+        await button.click();
+        return;
+      }
     }
   }
 
-  await page.getByRole("button", { name: label, exact: true }).click();
+  throw new Error(`Cannot find visible workbench navigation button for ${label}`);
 }
 
 export async function enablePrivacyMode(page: Page) {
@@ -42,6 +45,7 @@ export async function enablePrivacyMode(page: Page) {
 }
 
 export async function expectDeveloperEntryHidden(page: Page) {
+  await expect(page.getByRole("button", { name: "打开开发" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "打开开发模块" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "开发", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "开发者控制台" })).toHaveCount(0);

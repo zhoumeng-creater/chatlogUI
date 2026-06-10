@@ -10,9 +10,10 @@ import {
 
 test.describe("advanced synthetic modules", () => {
   test.beforeEach(async ({ page }) => {
-    await enableDeveloperEntryForTest(page);
     await setDesktop(page);
     await openSyntheticWorkbench(page);
+    await page.getByRole("button", { name: /Synthetic Session Alpha/ }).first().click();
+    await expect(page.getByLabel("会话工作区").getByText("Synthetic message for UI state only")).toBeVisible();
   });
 
   test("opens media and SNS modules with synthetic fixture data", async ({ page }) => {
@@ -27,25 +28,15 @@ test.describe("advanced synthetic modules", () => {
     await expectStableSyntheticPage(page);
   });
 
-  test("opens Developer DB/API/Hook/MCP surfaces", async ({ page }) => {
-    await openWorkbenchModule(page, "开发");
-    await expect(page.getByRole("complementary", { name: "开发者工具" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "DB Explorer" })).toBeVisible();
-    await page.getByRole("button", { name: /MSG0\.db message/ }).click();
-    await expect(page.getByText("SyntheticMessages")).toBeVisible();
+  test("keeps developer diagnostics as an explicit shell-level entry", async ({ page }) => {
+    await enableDeveloperEntryForTest(page);
+    await page.goto("/workbench?codex-smoke=workbench-ready");
 
-    await page.getByRole("button", { name: "API Runner" }).click();
-    await expect(page.getByLabel("本机 API 调试器")).toBeVisible();
-    await expect(page.getByText("local-sidecar allowlist")).toBeVisible();
-
-    await page.getByRole("button", { name: "Hook" }).click();
-    await expect(page.getByLabel("Hook 事件流")).toBeVisible();
-    await page.getByRole("button", { name: "监听" }).click();
-    await expect(page.getByText("Hook Events")).toBeVisible();
-
-    await page.getByRole("button", { name: "MCP" }).click();
-    await expect(page.getByText("MCP Inventory")).toBeVisible();
-    await expect(page.getByLabel("MCP 工具")).toBeVisible();
+    await expect(page.getByRole("button", { name: "打开开发" })).toHaveCount(0);
+    await page.getByRole("button", { name: "开发者控制台" }).click();
+    await expect(page.locator(".dev-console").getByText("开发者控制台")).toBeVisible();
+    await expect(page.getByLabel("诊断事件摘要")).toBeVisible();
+    await expect(page.getByLabel("诊断事件筛选")).toBeVisible();
     await expectStableSyntheticPage(page);
   });
 
@@ -78,14 +69,12 @@ test.describe("advanced synthetic modules", () => {
     await expect(page.getByRole("dialog", { name: "确认删除语义索引？" })).toBeVisible();
     await page.getByRole("button", { name: "确认" }).click();
 
-    await expect(page.getByRole("button", { name: "搜索" })).toBeVisible();
-    await page.getByRole("button", { name: "搜索" }).click();
+    await expect(page.getByRole("button", { name: "搜索", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "搜索", exact: true }).click();
     await page.getByLabel("语义搜索").fill("synthetic semantic discovery");
     await expect(page.getByText("1 条结果 / 2 条候选 / 7d / standard / rerank 已应用")).toBeVisible();
     const semanticResult = page.locator(".semantic-search__results").getByRole("button", { name: /Synthetic Session Alpha/ });
     await expect(semanticResult).toBeVisible();
-    await semanticResult.click();
-    await expect(page.getByLabel("会话工作区").getByText("Synthetic message for UI state only")).toBeVisible();
 
     await page.getByRole("button", { name: "分析" }).click();
     await expect(page.getByText("Synthetic topics summary")).toBeVisible();

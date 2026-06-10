@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { openSyntheticWorkbench } from "../utils/workbench";
+import { openSyntheticWorkbench, openWorkbenchModule } from "../utils/workbench";
 import { hasPageHorizontalOverflow, setDesktop, setNarrow } from "../utils/viewport";
 
 test("P3-C semantic discovery sends filters, navigates by backend chat, and filters preview", async ({ page }) => {
   await setDesktop(page);
   await openSyntheticWorkbench(page);
   await page.getByText("Synthetic Session Alpha").first().click();
-  await page.getByRole("button", { name: "AI", exact: true }).click();
+  await openWorkbenchModule(page, "AI");
   const semanticPanel = page.getByLabel("语义发现");
 
   await page.getByRole("button", { name: "搜索", exact: true }).click();
@@ -108,7 +108,7 @@ test("P3-C semantic discovery shows edge states at narrow width without page ove
 
   await openSyntheticWorkbench(page);
   await page.getByText("Synthetic Session Alpha").first().click();
-  await page.getByRole("button", { name: "AI", exact: true }).click();
+  await openWorkbenchModule(page, "AI");
   const semanticPanel = page.getByLabel("语义发现");
 
   await page.getByRole("button", { name: "搜索", exact: true }).click();

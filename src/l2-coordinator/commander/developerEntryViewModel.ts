@@ -1,9 +1,7 @@
-import type { WorkbenchModule } from "./workbenchViewModel";
-
 export interface DeveloperEntryPolicyInput {
   developerMode: boolean;
   developerEntryOverride?: boolean;
-  activeModule: WorkbenchModule;
+  activeModule: string;
 }
 
 export interface DeveloperTitlebarAction {
@@ -17,7 +15,7 @@ export interface DeveloperEntryPolicy {
   includeRailModule: boolean;
   includeToolbarAction: boolean;
   renderDeveloperInspector: boolean;
-  safeActiveModule: WorkbenchModule;
+  safeActiveModule: string;
 }
 
 export function deriveDeveloperEntryPolicy(input: DeveloperEntryPolicyInput): DeveloperEntryPolicy {

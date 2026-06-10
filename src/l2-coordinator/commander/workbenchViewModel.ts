@@ -3,7 +3,7 @@ import type { GraphModuleView } from "./graphViewModel";
 import type { WorkbenchLayout, WorkbenchMode } from "./workbenchLayout";
 import type { CompactSemanticStatus } from "./semanticViewModel";
 
-export type WorkbenchModule = "chat" | "stats" | "media" | "sns" | "developer" | "ai" | "graph" | "settings";
+export type WorkbenchModule = "chat" | "stats" | "media" | "sns" | "ai" | "graph";
 export type SinglePaneView = "list" | "detail";
 
 export interface WorkbenchRailItemState {
@@ -16,7 +16,6 @@ export interface WorkbenchRailItemState {
 export type WorkbenchModuleBadges = Partial<Record<WorkbenchModule, string>>;
 export type MediaModuleBadgeStatus = "idle" | "loading" | "ready" | "empty" | "error";
 export type SnsModuleBadgeStatus = "idle" | "loading" | "ready" | "empty" | "error";
-export type DeveloperModuleBadgeStatus = "idle" | "loading" | "ready" | "empty" | "error";
 
 export interface WorkbenchShellViewInput {
   profile: SetupProfileSummary | null;
@@ -45,7 +44,6 @@ const RAIL_MODULES: { module: WorkbenchModule; label: string }[] = [
   { module: "stats", label: "统计" },
   { module: "media", label: "媒体" },
   { module: "sns", label: "朋友圈" },
-  { module: "developer", label: "开发" },
   { module: "ai", label: "AI" },
   { module: "graph", label: "图谱" },
 ];
@@ -83,22 +81,19 @@ export function resolveWorkbenchLayoutForModule(
     };
   }
 
-  const railColumn = layout.sidebarLabels ? "var(--sidebar-expanded)" : "var(--sidebar-collapsed)";
   return {
     ...layout,
     showConversationList: false,
     inspectorMode: "hidden",
-    gridTemplateColumns: `${railColumn} minmax(0, 1fr)`,
+    gridTemplateColumns: "minmax(0, 1fr)",
   };
 }
 
 export function buildWorkbenchRailItems(
   activeModule: WorkbenchModule,
   badges: WorkbenchModuleBadges = {},
-  options: { includeDeveloperTools?: boolean } = {},
 ): WorkbenchRailItemState[] {
   return RAIL_MODULES
-    .filter((item) => options.includeDeveloperTools === true || item.module !== "developer")
     .map((item) => ({
     ...item,
     active: item.module === activeModule,
@@ -119,16 +114,10 @@ export function buildWorkbenchModuleBadges(input: {
     feedCount: number;
     notificationCount: number;
   };
-  developer?: {
-    status: DeveloperModuleBadgeStatus;
-    dbFileCount: number;
-    runnerHistoryCount: number;
-  };
 }): WorkbenchModuleBadges {
   return {
     media: input.media ? mediaBadge(input.media) : undefined,
     sns: input.sns ? snsBadge(input.sns) : undefined,
-    developer: input.developer ? developerBadge(input.developer) : undefined,
     ai: input.semanticStatus ? semanticBadge(input.semanticStatus.label) : undefined,
     graph: graphBadge(input.graphView.kind),
   };
@@ -169,28 +158,12 @@ export function formatWorkbenchConversationTitle(
   return displayName || "未命名会话";
 }
 
-export function getInspectorTitle(module: WorkbenchModule): string {
-  switch (module) {
-    case "ai":
-      return "AI 分析";
-    case "graph":
-      return "知识图谱";
-    case "settings":
-      return "设置";
-    case "media":
-      return "媒体与扩展";
-    case "sns":
-      return "朋友圈";
-    case "developer":
-      return "开发者工具";
-    case "chat":
-    case "stats":
-      return "统计数据";
-  }
+export function getInspectorTitle(_module: WorkbenchModule): string {
+  return "会话详情";
 }
 
-export function isInspectorModule(module: WorkbenchModule): boolean {
-  return module === "stats" || module === "media" || module === "sns" || module === "developer" || module === "ai";
+export function isInspectorModule(_module: WorkbenchModule): boolean {
+  return false;
 }
 
 function semanticBadge(label: string): string {
@@ -241,19 +214,6 @@ function snsBadge(input: {
   if (input.status === "error") return "异常";
   if (input.notificationCount > 0) return `${Math.min(input.notificationCount, 99)}通知`;
   if (input.feedCount > 0) return `${Math.min(input.feedCount, 99)}条`;
-  if (input.status === "empty") return "无数据";
-  return undefined;
-}
-
-function developerBadge(input: {
-  status: DeveloperModuleBadgeStatus;
-  dbFileCount: number;
-  runnerHistoryCount: number;
-}): string | undefined {
-  if (input.status === "loading") return "加载中";
-  if (input.status === "error") return "异常";
-  if (input.dbFileCount > 0) return `${Math.min(input.dbFileCount, 99)}库`;
-  if (input.runnerHistoryCount > 0) return "API";
   if (input.status === "empty") return "无数据";
   return undefined;
 }

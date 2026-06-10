@@ -45,7 +45,7 @@ describe("workbenchViewModel", () => {
     expect(resolveWorkbenchLayoutForModule(layout("wide"), "graph")).toMatchObject({
       showConversationList: false,
       inspectorMode: "hidden",
-      gridTemplateColumns: "var(--sidebar-expanded) minmax(0, 1fr)",
+      gridTemplateColumns: "minmax(0, 1fr)",
     });
 
     expect(resolveWorkbenchLayoutForModule(layout("single"), "graph")).toMatchObject({
@@ -55,31 +55,14 @@ describe("workbenchViewModel", () => {
     });
   });
 
-  it("marks exactly one rail item active and hides Developer by default", () => {
+  it("marks exactly one legacy workbench rail item active without developer or settings destinations", () => {
     const modules: WorkbenchModule[] = ["chat", "stats", "media", "sns", "ai", "graph"];
 
     for (const module of modules) {
       const items = buildWorkbenchRailItems(module);
       expect(items.filter((item) => item.active).map((item) => item.module)).toEqual([module]);
+      expect(items.map((item) => item.module)).toEqual(modules);
     }
-
-    expect(buildWorkbenchRailItems("developer").map((item) => item.module)).toEqual(modules);
-    expect(buildWorkbenchRailItems("developer").some((item) => item.module === "developer")).toBe(false);
-  });
-
-  it("includes Developer rail entry only when explicitly allowed", () => {
-    const items = buildWorkbenchRailItems("developer", {}, { includeDeveloperTools: true });
-
-    expect(items.map((item) => item.module)).toEqual([
-      "chat",
-      "stats",
-      "media",
-      "sns",
-      "developer",
-      "ai",
-      "graph",
-    ]);
-    expect(items.find((item) => item.module === "developer")?.active).toBe(true);
   });
 
   it("adds compact semantic and graph module badges without changing rail order", () => {
@@ -102,65 +85,23 @@ describe("workbenchViewModel", () => {
         feedCount: 2,
         notificationCount: 1,
       },
-      developer: {
-        status: "ready",
-        dbFileCount: 3,
-        runnerHistoryCount: 1,
-      },
     });
 
-    const items = buildWorkbenchRailItems("ai", badges, { includeDeveloperTools: false });
+    const items = buildWorkbenchRailItems("ai", badges);
 
     expect(items.map((item) => item.module)).toEqual(["chat", "stats", "media", "sns", "ai", "graph"]);
     expect(items.find((item) => item.module === "sns")?.badge).toBe("1通知");
-    expect(items.find((item) => item.module === "developer")).toBeUndefined();
     expect(items.find((item) => item.module === "ai")?.badge).toBe("就绪");
     expect(items.find((item) => item.module === "graph")?.badge).toBe("过大");
   });
 
-  it("keeps Developer badges only when the Developer module is visible", () => {
-    const badges = buildWorkbenchModuleBadges({
-      semanticStatus: null,
-      graphView: {
-        kind: "idle",
-        blocksCoreWorkbench: false,
-        canVisualize: false,
-        shouldMountCanvas: false,
-        message: "",
-        tabs: [],
-        tableRows: [],
-        groupedSections: [],
-        timelineWorkbench: { rows: [] },
-        detailInspector: null,
-      },
-      developer: {
-        status: "ready",
-        dbFileCount: 3,
-        runnerHistoryCount: 1,
-      },
-    });
+  it("does not classify full workspace destinations as chat inspector modules", () => {
+    for (const module of ["stats", "media", "sns", "ai", "graph"] as WorkbenchModule[]) {
+      expect(isInspectorModule(module)).toBe(false);
+      expect(getInspectorTitle(module)).not.toMatch(/媒体与扩展|朋友圈|AI 分析|开发者工具|知识图谱|设置/);
+    }
 
-    expect(buildWorkbenchRailItems("chat", badges, { includeDeveloperTools: false })).not.toContainEqual(
-      expect.objectContaining({ module: "developer" }),
-    );
-    expect(buildWorkbenchRailItems("chat", badges, { includeDeveloperTools: true })).toContainEqual(
-      expect.objectContaining({ module: "developer", badge: "3库" }),
-    );
-  });
-
-  it("keeps graph as a primary workspace module instead of an inspector module", () => {
-    expect(getInspectorTitle("stats")).toBe("统计数据");
-    expect(getInspectorTitle("media")).toBe("媒体与扩展");
-    expect(getInspectorTitle("sns")).toBe("朋友圈");
-    expect(getInspectorTitle("developer")).toBe("开发者工具");
-    expect(getInspectorTitle("ai")).toBe("AI 分析");
-
-    expect(isInspectorModule("stats")).toBe(true);
-    expect(isInspectorModule("media")).toBe(true);
-    expect(isInspectorModule("sns")).toBe(true);
-    expect(isInspectorModule("developer")).toBe(true);
-    expect(isInspectorModule("ai")).toBe(true);
-    expect(isInspectorModule("graph")).toBe(false);
+    expect(getInspectorTitle("chat")).toBe("会话详情");
   });
 
   it("moves the workbench gate copy and status decision into the L2 view model", () => {

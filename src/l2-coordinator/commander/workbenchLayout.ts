@@ -31,7 +31,7 @@ export function getWorkbenchLayout(viewportWidth: number): WorkbenchLayout {
       showConversationList: true,
       inspectorMode: "drawer",
       gridTemplateColumns:
-        "var(--sidebar-collapsed) minmax(220px, var(--conversation-list-width-compact)) minmax(0, 1fr)",
+        "minmax(220px, var(--conversation-list-width-compact)) minmax(0, 1fr)",
     };
   }
 
@@ -42,7 +42,7 @@ export function getWorkbenchLayout(viewportWidth: number): WorkbenchLayout {
       showConversationList: true,
       inspectorMode: "inline",
       gridTemplateColumns:
-        "var(--sidebar-collapsed) minmax(220px, var(--conversation-list-width-compact)) minmax(0, 1fr) minmax(260px, var(--inspector-width-compact))",
+        "minmax(220px, var(--conversation-list-width-compact)) minmax(0, 1fr) minmax(260px, var(--inspector-width-compact))",
     };
   }
 
@@ -52,6 +52,6 @@ export function getWorkbenchLayout(viewportWidth: number): WorkbenchLayout {
     showConversationList: true,
     inspectorMode: "inline",
     gridTemplateColumns:
-      "var(--sidebar-expanded) var(--conversation-list-width) minmax(0, 1fr) var(--inspector-width)",
+      "var(--conversation-list-width) minmax(0, 1fr) var(--inspector-width)",
   };
 }

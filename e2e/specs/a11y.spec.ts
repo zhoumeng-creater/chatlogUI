@@ -8,7 +8,6 @@ import {
   expectWindowControlsVisible,
 } from "../utils/window-controls";
 import {
-  enableDeveloperEntryForTest,
   enablePrivacyMode,
   openSyntheticWorkbench,
   openWorkbenchModule,
@@ -46,13 +45,12 @@ async function expectCommandTooltipInsideViewport(page: Page, buttonName: string
 
 test.describe("accessibility and keyboard gate", () => {
   test("passes axe critical/serious checks on representative routes", async ({ page }) => {
-    await enableDeveloperEntryForTest(page);
     await setDesktop(page);
     await openSyntheticWorkbench(page);
     await expectNoCriticalA11yViolations(page);
 
-    await openWorkbenchModule(page, "开发");
-    await expect(page.getByRole("complementary", { name: "开发者工具" }).first()).toBeVisible();
+    await openWorkbenchModule(page, "搜索");
+    await expect(page.getByLabel("搜索工作区")).toBeVisible();
     await expectNoCriticalA11yViolations(page);
 
     await page.goto("/settings");
@@ -61,22 +59,16 @@ test.describe("accessibility and keyboard gate", () => {
   });
 
   test("keeps rail, tabs, stream controls, and graph explicit-load keyboard reachable", async ({ page }) => {
-    await enableDeveloperEntryForTest(page);
     await setDesktop(page);
     await openSyntheticWorkbench(page);
 
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: "开启隐私模式" })).toBeFocused();
 
-    await openWorkbenchModule(page, "开发");
-    await page.getByRole("button", { name: "Hook" }).focus();
+    await page.getByRole("button", { name: "打开图谱" }).focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByLabel("Hook 事件流")).toBeVisible();
-    await page.getByRole("button", { name: "监听" }).focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByText("Hook Events")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "图谱" })).toBeVisible();
 
-    await openWorkbenchModule(page, "图谱");
     await page.getByRole("button", { name: /Synthetic Entity Alpha mentioned Synthetic Topic Alpha/ }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("complementary", { name: "图谱详情" })).toContainText("已支持");
@@ -123,16 +115,19 @@ test.describe("accessibility and keyboard gate", () => {
   });
 
   test("traps and restores focus for narrow inspector drawers", async ({ page }) => {
-    await enableDeveloperEntryForTest(page);
     await setNarrow(page);
     await openSyntheticWorkbench(page);
 
-    const developerButton = page.getByRole("button", { name: "开发", exact: true });
-    await developerButton.scrollIntoViewIfNeeded();
-    await developerButton.focus();
+    const conversationButton = page.getByRole("button", { name: /Synthetic Session Alpha/ }).first();
+    await conversationButton.focus();
     await page.keyboard.press("Enter");
 
-    const drawer = page.getByRole("dialog", { name: "开发者工具" });
+    const detailsButton = page.getByRole("button", { name: "会话详情", exact: true });
+    await expect(detailsButton).toBeVisible();
+    await detailsButton.focus();
+    await page.keyboard.press("Enter");
+
+    const drawer = page.getByRole("dialog", { name: "会话详情" });
     await expect(drawer).toBeVisible();
     await expect(page.getByRole("button", { name: "关闭侧栏" })).toBeFocused();
 
@@ -143,7 +138,7 @@ test.describe("accessibility and keyboard gate", () => {
 
     await page.keyboard.press("Escape");
     await expect(drawer).toHaveCount(0);
-    await expect(developerButton).toBeFocused();
+    await expect(detailsButton).toBeFocused();
   });
 
   test("keeps desktop shell window controls keyboard reachable", async ({ page }) => {

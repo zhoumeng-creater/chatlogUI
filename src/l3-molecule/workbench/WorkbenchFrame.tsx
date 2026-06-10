@@ -12,7 +12,6 @@ import {
 
 interface WorkbenchFrameProps {
   layout: WorkbenchLayout;
-  rail: ReactNode;
   conversationList: ReactNode;
   toolbar: ReactNode;
   inspector: ReactNode;
@@ -24,7 +23,6 @@ interface WorkbenchFrameProps {
 
 export function WorkbenchFrame({
   layout,
-  rail,
   conversationList,
   toolbar,
   inspector,
@@ -66,12 +64,6 @@ export function WorkbenchFrame({
         data-mode={layout.mode}
         style={{ gridTemplateColumns: layout.gridTemplateColumns }}
       >
-        {layout.mode !== "single" && (
-          <aside className="workbench-frame__rail" aria-label="工作台导航">
-            {rail}
-          </aside>
-        )}
-
         {layout.showConversationList && (
           <aside className="workbench-frame__list" aria-label="会话列表">
             {conversationList}

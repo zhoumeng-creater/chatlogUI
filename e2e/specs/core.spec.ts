@@ -105,12 +105,12 @@ test.describe("core synthetic routes", () => {
     await setDesktop(page);
     await openSyntheticWorkbench(page);
 
-    await expect(page.getByRole("button", { name: "打开统计模块" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开媒体模块" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开朋友圈模块" })).toBeVisible();
+    await expect(page.getByLabel("一级工作区导航")).toBeVisible();
+    for (const label of ["会话", "搜索", "媒体", "朋友圈", "统计", "AI", "图谱"]) {
+      await expect(page.getByRole("button", { name: `打开${label}` })).toBeVisible();
+    }
     await expectDeveloperEntryHidden(page);
-    await expect(page.getByRole("button", { name: "打开AI模块" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开图谱模块" })).toBeVisible();
+    await expect(page.locator(".workbench-frame__module-tabs")).toHaveCount(0);
     await expectStableSyntheticPage(page);
   });
 
@@ -118,6 +118,7 @@ test.describe("core synthetic routes", () => {
     await setNarrow(page);
     await openSyntheticWorkbench(page);
 
+    await expect(page.getByLabel("一级工作区导航")).toBeVisible();
     await expect(page.getByLabel("会话列表")).toBeVisible();
     await expectStableSyntheticPage(page);
   });
@@ -126,9 +127,36 @@ test.describe("core synthetic routes", () => {
     await setDesktop(page);
     await page.goto("/dashboard?codex-smoke=workbench-ready");
 
-    await expect(page.getByLabel("工作台导航")).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开会话模块" })).toBeVisible();
+    await expect(page.getByLabel("一级工作区导航")).toBeVisible();
+    await expect(page.getByRole("button", { name: "打开会话" })).toBeVisible();
     await assertNoForbiddenVisibleText(page);
+  });
+
+  test("renders primary workspace routes as independent surfaces", async ({ page }) => {
+    await setDesktop(page);
+
+    const routes = [
+      { path: "/search", nav: "搜索", label: "搜索工作区" },
+      { path: "/media", nav: "媒体", text: "当前阶段聚焦当前会话媒体" },
+      { path: "/sns", nav: "朋友圈", text: "浏览 timeline、通知和搜索结果" },
+      { path: "/analytics", nav: "统计", text: "选择会话后查看统计" },
+      { path: "/ai", nav: "AI", text: "语义索引、问答、语义搜索和证据" },
+      { path: "/graph", nav: "图谱", text: "图谱画布、摘要、节点详情和问答" },
+    ];
+
+    for (const route of routes) {
+      await page.goto(`${route.path}?codex-smoke=workbench-ready`);
+      await expect(page.getByLabel("一级工作区导航")).toBeVisible();
+      await expect(page.getByRole("button", { name: `打开${route.nav}` })).toHaveAttribute("aria-current", "page");
+      if (route.label) {
+        await expect(page.getByLabel(route.label)).toBeVisible();
+      }
+      if (route.text) {
+        await expect(page.getByText(route.text)).toBeVisible();
+      }
+      await expectDeveloperEntryHidden(page);
+      await expectStableSyntheticPage(page);
+    }
   });
 
   test("settings route renders without synthetic privacy leakage", async ({ page }) => {
