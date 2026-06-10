@@ -7,6 +7,10 @@ import { WindowControlCluster } from "./WindowControlCluster";
 interface AppShellView {
   title: string;
   privacyOn: boolean;
+  developerConsoleAction: {
+    label: string;
+    tooltip: string;
+  } | null;
   windowControls: {
     minimizeLabel: string;
     toggleMaximizeLabel: string;
@@ -17,7 +21,7 @@ interface AppShellView {
 
 interface AppShellActions {
   togglePrivacy: () => void;
-  toggleConsole: () => void;
+  toggleConsole?: () => void;
   openSettings: () => void;
   minimizeWindow: () => void;
   toggleMaximizeWindow: () => void;
@@ -40,7 +44,14 @@ export function AppLayout({ children, shell, actions }: AppLayoutProps) {
           <GlobalCommandCluster
             privacyOn={shell.privacyOn}
             onTogglePrivacy={actions.togglePrivacy}
-            onToggleConsole={actions.toggleConsole}
+            developerConsoleAction={
+              shell.developerConsoleAction && actions.toggleConsole
+                ? {
+                    ...shell.developerConsoleAction,
+                    onClick: actions.toggleConsole,
+                  }
+                : undefined
+            }
             onOpenSettings={actions.openSettings}
           />
         )}

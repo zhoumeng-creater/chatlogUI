@@ -8,7 +8,6 @@ import {
   readCurrentWindowMaximized,
   toggleMaximizeCurrentWindow,
 } from "@l4/system/windowControls";
-import { useDevConsoleStore } from "@l2/data-clerk/stores/useDevConsoleStore";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { maskDiagnosticText } from "@/utils/maskSecrets";
 import { deriveAppShellView } from "./appShellViewModel";
@@ -19,7 +18,6 @@ export function useAppShellCommander(title: string) {
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
   const windowMaterial = useSettingsStore((state) => state.settings.windowMaterial);
   const togglePrivacy = useSettingsStore((state) => state.togglePrivacy);
-  const toggleConsole = useDevConsoleStore((state) => state.toggle);
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -81,7 +79,7 @@ export function useAppShellCommander(title: string) {
     view: deriveAppShellView({ title, privacyOn, windowMaterial, isMaximized }),
     actions: {
       togglePrivacy,
-      toggleConsole,
+      toggleConsole: undefined,
       openSettings: () => navigate("/settings"),
       minimizeWindow: () => {
         void minimizeCurrentWindow();

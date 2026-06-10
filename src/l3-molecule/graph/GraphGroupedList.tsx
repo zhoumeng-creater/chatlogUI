@@ -48,33 +48,34 @@ export function GraphGroupedList({
               const display = displayRow(row, privacyOn);
               const selected = selectedItemId === row.id;
               return (
-                <button
-                  key={row.id}
-                  type="button"
-                  className={
-                    selected
-                      ? "graph-grouped-list__row graph-grouped-list__row--selected"
-                      : "graph-grouped-list__row"
-                  }
-                  aria-pressed={selected}
-                  onClick={() => onSelect(row.id)}
-                >
-                  <span className="graph-grouped-list__row-main">
-                    <Typography variant="label" weight={700}>
-                      {display.label}
-                    </Typography>
-                    <Typography variant="caption" color="var(--text-secondary)">
-                      {display.detail}
-                    </Typography>
-                  </span>
-                  <span className="graph-grouped-list__meta">
-                    {row.meta.slice(0, 3).map((item) => (
-                      <span className="graph-chip" key={item}>
-                        {item}
-                      </span>
-                    ))}
-                  </span>
-                </button>
+                <div key={row.id} className="graph-grouped-list__row-item" role="listitem">
+                  <button
+                    type="button"
+                    className={
+                      selected
+                        ? "graph-grouped-list__row graph-grouped-list__row--selected"
+                        : "graph-grouped-list__row"
+                    }
+                    aria-pressed={selected}
+                    onClick={() => onSelect(row.id)}
+                  >
+                    <span className="graph-grouped-list__row-main">
+                      <Typography variant="label" weight={700}>
+                        {display.label}
+                      </Typography>
+                      <Typography variant="caption" color="var(--text-secondary)">
+                        {display.detail}
+                      </Typography>
+                    </span>
+                    <span className="graph-grouped-list__meta">
+                      {row.meta.slice(0, 3).map((item) => (
+                        <span className="graph-chip" key={item}>
+                          {item}
+                        </span>
+                      ))}
+                    </span>
+                  </button>
+                </div>
               );
             })}
           </div>

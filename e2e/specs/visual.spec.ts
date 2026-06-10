@@ -15,12 +15,6 @@ test.describe("visual regression synthetic states", () => {
       fullPage: true,
     });
 
-    await openWorkbenchModule(page, "开发");
-    await page.getByRole("button", { name: "Hook" }).click();
-    await expect(page).toHaveScreenshot("developer-hook-desktop.png", {
-      fullPage: true,
-    });
-
     await openWorkbenchModule(page, "AI");
     await expect(page.getByLabel("语义索引中心")).toBeVisible();
     await expect(page).toHaveScreenshot("semantic-index-center-desktop.png", {
@@ -59,6 +53,7 @@ test.describe("visual regression synthetic states", () => {
     await setNarrow(page);
     await openSyntheticWorkbench(page);
     await enablePrivacyMode(page);
+    await page.mouse.move(360, 500);
 
     await expect(page).toHaveScreenshot("workbench-privacy-narrow.png", {
       fullPage: true,

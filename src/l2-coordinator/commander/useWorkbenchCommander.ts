@@ -13,8 +13,8 @@ import { useSearchCommander } from "./useSearchCommander";
 import { useSnsCommander } from "./useSnsCommander";
 import { useStatsCommander } from "./useStatsCommander";
 import { getWorkbenchLayout } from "./workbenchLayout";
+import { getWorkbenchInspectorTitle } from "./workbenchInformationArchitecture";
 import {
-  getInspectorTitle,
   isInspectorModule,
   resolveSinglePaneView,
   resolveWorkbenchLayoutForModule,
@@ -264,10 +264,11 @@ export function useWorkbenchCommander() {
     privacyOn,
     currentChat,
     inspectorOpen,
-    inspectorTitle: getInspectorTitle(inspectorModule),
+    inspectorTitle: getWorkbenchInspectorTitle(),
     moduleBadges,
     railItems,
     openConversationList,
+    openInspector: () => setInspectorOpen(true),
     handleConversationOpened,
     selectModule,
     retryStats,

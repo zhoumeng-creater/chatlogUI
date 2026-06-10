@@ -9,13 +9,13 @@ test.describe("P3-E privacy diagnostics closeout", () => {
     page,
   }) => {
     const privacyGuard = installPrivacyLeakGuard(page);
-    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
-      origin: "http://127.0.0.1:5173",
-    });
 
     await setDesktop(page);
     await openSyntheticWorkbench(page);
     await enablePrivacyMode(page);
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+      origin: new URL(page.url()).origin,
+    });
 
     await openWorkbenchModule(page, "AI");
     const qaTextarea = page.locator(".qa-input__textarea");

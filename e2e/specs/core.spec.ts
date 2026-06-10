@@ -6,7 +6,12 @@ import {
   expectWindowControlsVisible,
   expectWindowControlTargets,
 } from "../utils/window-controls";
-import { expectStableSyntheticPage, openSyntheticWorkbench } from "../utils/workbench";
+import {
+  expectPrimaryWorkspaceRail,
+  expectStableSyntheticPage,
+  openSyntheticWorkbench,
+  openSyntheticWorkspace,
+} from "../utils/workbench";
 
 test.describe("core synthetic routes", () => {
   test("renders setup center with local diagnostics summary", async ({ page }) => {
@@ -23,12 +28,9 @@ test.describe("core synthetic routes", () => {
     await setDesktop(page);
     await openSyntheticWorkbench(page);
 
-    await expect(page.getByRole("button", { name: "打开统计模块" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开媒体模块" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开朋友圈模块" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开开发模块" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开AI模块" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开图谱模块" })).toBeVisible();
+    await expectPrimaryWorkspaceRail(page);
+    await expect(page.getByText("会话详情")).toBeVisible();
+    await expect(page.locator(".workbench-frame__module-tabs")).toHaveCount(0);
     await expectStableSyntheticPage(page);
   });
 
@@ -44,10 +46,30 @@ test.describe("core synthetic routes", () => {
     await setDesktop(page);
     await page.goto("/dashboard?codex-smoke=workbench-ready");
 
-    await expect(page.getByLabel("工作台导航")).toBeVisible();
-    await expect(page.getByRole("button", { name: "打开会话模块" })).toBeVisible();
+    await expect(page).toHaveURL(/\/workbench/);
+    await expectPrimaryWorkspaceRail(page);
     await assertNoForbiddenVisibleText(page);
   });
+
+  const canonicalRoutes = [
+    ["/search", "搜索"],
+    ["/analytics", "统计"],
+    ["/media", "媒体"],
+    ["/sns", "朋友圈"],
+    ["/ai", "AI"],
+    ["/graph", "图谱"],
+  ] as const;
+
+  for (const [href, heading] of canonicalRoutes) {
+    test(`canonical ${href} route exposes the shared primary rail`, async ({ page }) => {
+      await setDesktop(page);
+      await openSyntheticWorkspace(page, href);
+
+      await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+      await expectPrimaryWorkspaceRail(page);
+      await expectStableSyntheticPage(page);
+    });
+  }
 
   test("settings route renders without synthetic privacy leakage", async ({ page }) => {
     await setDesktop(page);

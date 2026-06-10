@@ -73,24 +73,14 @@ export function resolveWorkbenchLayoutForModule(
   layout: WorkbenchLayout,
   module: WorkbenchModule,
 ): WorkbenchLayout {
-  if (module !== "graph") return layout;
-
-  if (layout.mode === "single") {
-    return {
-      ...layout,
-      showConversationList: false,
-      inspectorMode: "hidden",
-      gridTemplateColumns: "minmax(0, 1fr)",
-    };
-  }
-
-  const railColumn = layout.sidebarLabels ? "var(--sidebar-expanded)" : "var(--sidebar-collapsed)";
-  return {
-    ...layout,
-    showConversationList: false,
-    inspectorMode: "hidden",
-    gridTemplateColumns: `${railColumn} minmax(0, 1fr)`,
-  };
+  return module === "graph"
+    ? {
+        ...layout,
+        showConversationList: false,
+        inspectorMode: "hidden",
+        gridTemplateColumns: "minmax(0, 1fr)",
+      }
+    : layout;
 }
 
 export function buildWorkbenchRailItems(

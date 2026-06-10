@@ -229,4 +229,29 @@ describe("UI governance", () => {
 
     expect(localReasonBypasses).toEqual([]);
   });
+
+  it("keeps Workbench toolbar from becoming a module or search-results container", async () => {
+    const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+    const toolbarRule = layoutCss.match(/\.workbench-frame__toolbar\s*\{(?<body>[^}]*)\}/m)?.groups?.body ?? "";
+
+    expect(workbenchView).not.toContain("workbench-frame__module-tabs");
+    expect(workbenchView).not.toContain("<SearchResults");
+    expect(workbenchView).not.toContain("selectModule(\"media\")");
+    expect(workbenchView).not.toContain("selectModule(\"sns\")");
+    expect(workbenchView).not.toContain("selectModule(\"developer\")");
+    expect(workbenchView).not.toContain("selectModule(\"ai\")");
+    expect(toolbarRule).not.toContain("overflow: auto");
+    expect(toolbarRule).not.toContain("max-height");
+  });
+
+  it("keeps full workspace modules out of the Workbench inspector container", async () => {
+    const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
+
+    expect(workbenchView).not.toContain("function InspectorContent");
+    expect(workbenchView).not.toContain("<MediaLibrary");
+    expect(workbenchView).not.toContain("<SnsModule");
+    expect(workbenchView).not.toContain("<DeveloperToolsModule");
+    expect(workbenchView).not.toContain("<LazyAiPanel");
+  });
 });

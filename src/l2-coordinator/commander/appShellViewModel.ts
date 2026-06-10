@@ -20,6 +20,10 @@ export interface AppShellView {
   title: string;
   privacyOn: boolean;
   windowMaterial: WindowMaterial;
+  developerConsoleAction: {
+    label: string;
+    tooltip: string;
+  } | null;
   windowControls: AppShellWindowControlsView;
 }
 
@@ -30,6 +34,7 @@ export function deriveAppShellView(input: AppShellViewInput): AppShellView {
     title: input.title,
     privacyOn: input.privacyOn,
     windowMaterial: input.windowMaterial,
+    developerConsoleAction: null,
     windowControls: {
       minimizeLabel: "最小化窗口",
       maximizeLabel: "最大化窗口",

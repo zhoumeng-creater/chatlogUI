@@ -10,6 +10,7 @@ export { useDeveloperToolsCommander } from "./useDeveloperToolsCommander";
 export { useHookCommander } from "./useHookCommander";
 export { useMcpCommander } from "./useMcpCommander";
 export { useSettingsCommander } from "./useSettingsCommander";
+export { usePrivacyCommander } from "./usePrivacyCommander";
 export { useSetupCommander } from "./useSetupCommander";
 export type { SetupCommander } from "./useSetupCommander";
 export { useSetupCenterCommander } from "./useSetupCenterCommander";

@@ -45,7 +45,7 @@ describe("workbenchViewModel", () => {
     expect(resolveWorkbenchLayoutForModule(layout("wide"), "graph")).toMatchObject({
       showConversationList: false,
       inspectorMode: "hidden",
-      gridTemplateColumns: "var(--sidebar-expanded) minmax(0, 1fr)",
+      gridTemplateColumns: "minmax(0, 1fr)",
     });
 
     expect(resolveWorkbenchLayoutForModule(layout("single"), "graph")).toMatchObject({

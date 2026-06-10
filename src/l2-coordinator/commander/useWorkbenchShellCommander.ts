@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import { useSetupCommander } from "./useSetupCommander";
+import { isWorkbenchReadySmokeSearch } from "./workbenchInformationArchitecture";
 import { deriveWorkbenchShellView } from "./workbenchViewModel";
 
 export function useWorkbenchShellCommander() {
@@ -29,6 +30,5 @@ export function useWorkbenchShellCommander() {
 
 function readDevWorkbenchSmokeOverride(): boolean {
   if (!import.meta.env.DEV || typeof window === "undefined") return false;
-  const params = new URLSearchParams(window.location.search);
-  return params.get("codex-smoke") === "workbench-ready";
+  return isWorkbenchReadySmokeSearch(window.location.search);
 }

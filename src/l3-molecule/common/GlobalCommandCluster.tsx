@@ -4,14 +4,18 @@ import { IconButton } from "@l4/ui";
 interface GlobalCommandClusterProps {
   privacyOn: boolean;
   onTogglePrivacy: () => void;
-  onToggleConsole: () => void;
+  developerConsoleAction?: {
+    label: string;
+    tooltip: string;
+    onClick: () => void;
+  };
   onOpenSettings: () => void;
 }
 
 export function GlobalCommandCluster({
   privacyOn,
   onTogglePrivacy,
-  onToggleConsole,
+  developerConsoleAction,
   onOpenSettings,
 }: GlobalCommandClusterProps) {
   return (
@@ -24,13 +28,15 @@ export function GlobalCommandCluster({
         icon={privacyOn ? <Lock size={16} /> : <Unlock size={16} />}
         onClick={onTogglePrivacy}
       />
-      <IconButton
-        label="开发者控制台"
-        tooltip="打开开发者控制台"
-        tooltipPlacement="bottom"
-        icon={<Terminal size={16} />}
-        onClick={onToggleConsole}
-      />
+      {developerConsoleAction && (
+        <IconButton
+          label={developerConsoleAction.label}
+          tooltip={developerConsoleAction.tooltip}
+          tooltipPlacement="bottom"
+          icon={<Terminal size={16} />}
+          onClick={developerConsoleAction.onClick}
+        />
+      )}
       <IconButton
         label="设置"
         tooltip="打开设置"

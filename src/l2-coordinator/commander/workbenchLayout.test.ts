@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getWorkbenchLayout } from "./workbenchLayout";
 
 describe("getWorkbenchLayout", () => {
-  it("uses an expanded four-zone layout on wide desktop screens", () => {
+  it("uses an expanded chat workbench layout after the primary rail moved to the ready workspace shell", () => {
     const layout = getWorkbenchLayout(1440);
 
     expect(layout.mode).toBe("wide");
@@ -10,7 +10,7 @@ describe("getWorkbenchLayout", () => {
     expect(layout.showConversationList).toBe(true);
     expect(layout.inspectorMode).toBe("inline");
     expect(layout.gridTemplateColumns).toBe(
-      "var(--sidebar-expanded) var(--conversation-list-width) minmax(0, 1fr) var(--inspector-width)",
+      "var(--conversation-list-width) minmax(0, 1fr) var(--inspector-width)",
     );
   });
 
@@ -23,7 +23,7 @@ describe("getWorkbenchLayout", () => {
     expect(layout.inspectorMode).toBe("inline");
     expect(layout.gridTemplateColumns).not.toContain("23vw");
     expect(layout.gridTemplateColumns).toBe(
-      "var(--sidebar-collapsed) minmax(220px, var(--conversation-list-width-compact)) minmax(0, 1fr) minmax(260px, var(--inspector-width-compact))",
+      "minmax(220px, var(--conversation-list-width-compact)) minmax(0, 1fr) minmax(260px, var(--inspector-width-compact))",
     );
   });
 
@@ -35,7 +35,7 @@ describe("getWorkbenchLayout", () => {
     expect(layout.showConversationList).toBe(true);
     expect(layout.inspectorMode).toBe("drawer");
     expect(layout.gridTemplateColumns).toBe(
-      "var(--sidebar-collapsed) minmax(220px, var(--conversation-list-width-compact)) minmax(0, 1fr)",
+      "minmax(220px, var(--conversation-list-width-compact)) minmax(0, 1fr)",
     );
   });
 

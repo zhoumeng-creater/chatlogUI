@@ -10,6 +10,7 @@ import {
 import {
   enablePrivacyMode,
   openSyntheticWorkbench,
+  openSyntheticWorkspace,
   openWorkbenchModule,
 } from "../utils/workbench";
 
@@ -49,8 +50,8 @@ test.describe("accessibility and keyboard gate", () => {
     await openSyntheticWorkbench(page);
     await expectNoCriticalA11yViolations(page);
 
-    await openWorkbenchModule(page, "开发");
-    await expect(page.getByRole("complementary", { name: "开发者工具" }).first()).toBeVisible();
+    await openWorkbenchModule(page, "图谱");
+    await expect(page.getByLabel("知识图谱模块")).toBeVisible();
     await expectNoCriticalA11yViolations(page);
 
     await page.goto("/settings");
@@ -64,14 +65,6 @@ test.describe("accessibility and keyboard gate", () => {
 
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: "开启隐私模式" })).toBeFocused();
-
-    await openWorkbenchModule(page, "开发");
-    await page.getByRole("button", { name: "Hook" }).focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByLabel("Hook 事件流")).toBeVisible();
-    await page.getByRole("button", { name: "监听" }).focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByText("Hook Events")).toBeVisible();
 
     await openWorkbenchModule(page, "图谱");
     await page.getByRole("button", { name: /Synthetic Entity Alpha mentioned Synthetic Topic Alpha/ }).focus();
@@ -99,36 +92,27 @@ test.describe("accessibility and keyboard gate", () => {
     privacyGuard.assertNoLeaks();
   });
 
-  test("keeps semantic QA evidence reachable and dismissible by keyboard", async ({ page }) => {
+  test("keeps the independent AI workspace reachable without workbench inspector coupling", async ({ page }) => {
     await setDesktop(page);
-    await openSyntheticWorkbench(page);
-    await openWorkbenchModule(page, "AI");
+    await openSyntheticWorkspace(page, "/ai");
 
-    await page.locator(".qa-input__textarea").fill("synthetic completed qa a11y");
-    await page.getByRole("button", { name: /发送/ }).click();
-    const evidenceButton = page.getByRole("button", { name: "证据" });
-    await expect(evidenceButton).toBeVisible();
-
-    await evidenceButton.focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("complementary", { name: "问答证据" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "关闭证据" })).toBeFocused();
+    await expect(page.getByRole("heading", { name: "AI" })).toBeVisible();
+    await expect(page.getByLabel("AI smoke state")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "就绪工作区导航" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "会话详情", exact: true })).toHaveCount(0);
     await expectNoCriticalA11yViolations(page);
-
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("complementary", { name: "问答证据" })).toHaveCount(0);
   });
 
   test("traps and restores focus for narrow inspector drawers", async ({ page }) => {
     await setNarrow(page);
     await openSyntheticWorkbench(page);
 
-    const developerButton = page.getByRole("button", { name: "开发", exact: true });
-    await developerButton.scrollIntoViewIfNeeded();
-    await developerButton.focus();
+    const inspectorButton = page.getByRole("button", { name: "会话详情", exact: true });
+    await inspectorButton.scrollIntoViewIfNeeded();
+    await inspectorButton.focus();
     await page.keyboard.press("Enter");
 
-    const drawer = page.getByRole("dialog", { name: "开发者工具" });
+    const drawer = page.getByRole("dialog", { name: "会话详情" });
     await expect(drawer).toBeVisible();
     await expect(page.getByRole("button", { name: "关闭侧栏" })).toBeFocused();
 
@@ -139,7 +123,7 @@ test.describe("accessibility and keyboard gate", () => {
 
     await page.keyboard.press("Escape");
     await expect(drawer).toHaveCount(0);
-    await expect(developerButton).toBeFocused();
+    await expect(inspectorButton).toBeFocused();
   });
 
   test("keeps desktop shell window controls keyboard reachable", async ({ page }) => {
@@ -189,8 +173,7 @@ test.describe("accessibility and keyboard gate", () => {
 
   test("keeps migrated graph command tooltips and timeline entries keyboard-operable", async ({ page }) => {
     await setDesktop(page);
-    await openSyntheticWorkbench(page);
-    await openWorkbenchModule(page, "图谱");
+    await openSyntheticWorkspace(page, "/graph");
 
     await page.getByRole("tab", { name: "可视化" }).click();
     await page.getByRole("button", { name: "打开可视化" }).click();
