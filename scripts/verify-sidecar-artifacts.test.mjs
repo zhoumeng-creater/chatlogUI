@@ -105,6 +105,32 @@ describe("verifySidecarArtifacts", () => {
     expect(result.errors.join("\n")).toContain("checksum mismatch");
   });
 
+  it("allows check-mode placeholders even when they sit at a release artifact path", async () => {
+    const expectedBinaryName = "chatlog_alpha-x86_64-pc-windows-msvc.exe";
+    const { root, target, binaryName } = await createWorkspace({
+      entry: {
+        releaseAllowed: true,
+        checkModeAllowed: true,
+        source: { type: "none", path: "", releaseAllowed: false },
+        artifact: {
+          path: `src-tauri/binaries/${expectedBinaryName}`,
+          sha256: sha256("release artifact"),
+        },
+      },
+    });
+    await mkdir(join(root, "src-tauri", "binaries"), { recursive: true });
+    await writeFile(join(root, "src-tauri", "binaries", binaryName), "CI placeholder", "utf8");
+
+    const result = await verifySidecarArtifacts({ rootDir: root, mode: "check", target });
+
+    expect(result.ok).toBe(true);
+    expect(result.entries[0]).toMatchObject({
+      sourceKind: "check-placeholder",
+      sha256: sha256("CI placeholder"),
+    });
+    expect(result.warnings.join("\n")).toContain("check-mode placeholder");
+  });
+
   it("records checksum evidence for a verified release artifact", async () => {
     const artifact = "verified artifact";
     const expectedBinaryName = "chatlog_alpha-x86_64-pc-windows-msvc.exe";

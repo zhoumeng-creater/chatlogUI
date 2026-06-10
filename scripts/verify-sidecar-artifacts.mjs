@@ -116,12 +116,13 @@ async function verifyTarget(rootDir, entry, mode, errors, warnings, options = {}
 
   const sourceExists = sourcePath ? await directoryExists(join(rootDir, sourcePath)) : false;
   let artifact = artifactPath ? await inspectArtifact(join(rootDir, artifactPath)) : null;
+  let artifactChecksumMismatch = false;
   if (artifact?.exists) {
     evidence.sha256 = artifact.sha256;
     if (!expectedSha) {
       warnings.push(`${target}: artifact exists but manifest has no sha256`);
     } else if (artifact.sha256 !== expectedSha) {
-      errors.push(`${target}: checksum mismatch for ${artifactPath}`);
+      artifactChecksumMismatch = true;
     }
   }
 
@@ -148,6 +149,9 @@ async function verifyTarget(rootDir, entry, mode, errors, warnings, options = {}
   }
 
   if (mode === "release") {
+    if (artifactChecksumMismatch) {
+      errors.push(`${target}: checksum mismatch for ${artifactPath}`);
+    }
     if (!releaseAllowed) {
       errors.push(`${target}: target is not allowed for release`);
       return evidence;
@@ -182,6 +186,9 @@ async function verifyTarget(rootDir, entry, mode, errors, warnings, options = {}
     evidence.sourceKind = "check-placeholder";
     warnings.push(`${target}: check-mode placeholder is allowed; this is not release evidence`);
     return evidence;
+  }
+  if (artifactChecksumMismatch) {
+    errors.push(`${target}: checksum mismatch for ${artifactPath}`);
   }
 
   errors.push(`${target}: check mode needs source, artifact, or checkModeAllowed=true`);
