@@ -381,6 +381,12 @@
   background: var(--surface-base);
 }
 
+.search-workspace__results .search-result-pane {
+  max-height: none;
+  min-height: 0;
+  flex: 1;
+}
+
 .search-result-row {
   display: block;
   width: 100%;

@@ -267,7 +267,7 @@
       "offset": 0,
       "messages": [
         {
-          "local_id": 2001,
+          "local_id": 1001,
           "timestamp": 1767254400,
           "time": "2026-01-01 08:00",
           "chat": "session_synthetic_001",

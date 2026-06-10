@@ -296,4 +296,17 @@ describe("UI governance", () => {
     expect(toolbarRule).not.toContain("max-height");
     expect(toolbarRule).not.toContain("overflow: auto");
   });
+
+  it("keeps search results on the primary search page with full-height ownership", async () => {
+    const searchView = await readFile("src/l1-entry/pages/SearchView.tsx", "utf8");
+    const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+    const workbenchContentCss = await readFile("src/styles/workbench-content.css", "utf8");
+
+    expect(searchView).toContain("search-workspace__results");
+    expect(workbenchView).not.toContain("<SearchResults");
+    expect(layoutCss).toContain(".search-workspace__results");
+    expect(workbenchContentCss).toContain(".search-workspace__results .search-result-pane");
+    expect(workbenchContentCss).toContain("max-height: none");
+  });
 });

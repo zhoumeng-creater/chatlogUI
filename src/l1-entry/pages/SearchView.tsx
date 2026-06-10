@@ -50,38 +50,40 @@ export function SearchView() {
           onChangeScope={search.changeScope}
         />
         <FilterBar activeFilter={search.activeFilter} onFilterChange={search.changeFilter} />
-        <SearchResults
-          query={search.query}
-          results={search.results}
-          status={search.status}
-          loading={search.loading}
-          error={search.error}
-          activeResultId={search.activeResultId}
-          privacyOn={privacyOn}
-          onSetActiveResultId={search.setActiveResultId}
-          onOpenResult={(message) => {
-            const target = resolveSearchHitNavigation({
-              message,
-              conversations: chat.conversations,
-              returnRoute: withSmokeQuery("/search"),
-              querySnapshot: {
-                query: search.query,
-                filter: search.activeFilter,
-                scope: search.scope,
-                scopeChat: scopedChat,
-              },
-            });
-            if (!target.ok) {
-              search.setError(target.message);
-              return;
-            }
-            void chat.selectAndLoadAtAnchor(target)
-              .then(() => navigate(withSmokeQuery("/workbench")));
-          }}
-          onLoadMoreResults={() => void search.loadMoreResults()}
-          onExecuteSearch={search.executeSearch}
-          onClearSearch={search.clearSearch}
-        />
+        <div className="search-workspace__results">
+          <SearchResults
+            query={search.query}
+            results={search.results}
+            status={search.status}
+            loading={search.loading}
+            error={search.error}
+            activeResultId={search.activeResultId}
+            privacyOn={privacyOn}
+            onSetActiveResultId={search.setActiveResultId}
+            onOpenResult={(message) => {
+              const target = resolveSearchHitNavigation({
+                message,
+                conversations: chat.conversations,
+                returnRoute: withSmokeQuery("/search"),
+                querySnapshot: {
+                  query: search.query,
+                  filter: search.activeFilter,
+                  scope: search.scope,
+                  scopeChat: scopedChat,
+                },
+              });
+              if (!target.ok) {
+                search.setError(target.message);
+                return;
+              }
+              void chat.selectAndLoadAtAnchor(target)
+                .then(() => navigate(withSmokeQuery("/workbench")));
+            }}
+            onLoadMoreResults={() => void search.loadMoreResults()}
+            onExecuteSearch={search.executeSearch}
+            onClearSearch={search.clearSearch}
+          />
+        </div>
       </section>
     </div>
   );

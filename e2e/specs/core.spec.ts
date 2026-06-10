@@ -159,6 +159,14 @@ test.describe("core synthetic routes", () => {
     }
   });
 
+  test("opens a search result at its chat hit and returns to the result list", async ({ page }) => {
+    await setDesktop(page);
+    await expectSearchClosedLoop(page);
+
+    await setNarrow(page);
+    await expectSearchClosedLoop(page);
+  });
+
   test("settings route renders without synthetic privacy leakage", async ({ page }) => {
     await setDesktop(page);
     await page.goto("/settings");
@@ -174,6 +182,29 @@ test.describe("core synthetic routes", () => {
     await expectStableSyntheticPage(page);
   });
 });
+
+async function expectSearchClosedLoop(page: import("@playwright/test").Page) {
+  await page.goto("/search?codex-smoke=workbench-ready");
+
+  const input = page.getByRole("textbox", { name: "搜索聊天记录" });
+  await input.fill("Synthetic search result");
+  await input.press("Enter");
+
+  const result = page.locator(".search-result-row").filter({ hasText: "Synthetic search result for UI state only" });
+  await expect(result).toBeVisible();
+  await result.click();
+
+  await expect(page).toHaveURL(/\/workbench/);
+  await expect(page.getByText("已定位搜索命中")).toBeVisible();
+  await expect(page.locator(".message-row--search-hit")).toBeVisible();
+  await expect(page.locator("[data-local-id='1001']")).toBeVisible();
+
+  await page.getByRole("button", { name: "返回搜索结果" }).click();
+  await expect(page).toHaveURL(/\/search/);
+  await expect(result).toBeVisible();
+  await expect(result).toHaveAttribute("aria-current", "true");
+  await expectStableSyntheticPage(page);
+}
 
 async function installTauriSetupConfigMock(page: import("@playwright/test").Page) {
   await page.addInitScript(() => {
