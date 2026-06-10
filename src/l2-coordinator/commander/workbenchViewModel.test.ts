@@ -30,8 +30,8 @@ describe("workbenchViewModel", () => {
   });
 
   it("keeps a selected conversation in detail until the user returns to the list", () => {
-    expect(resolveSinglePaneView("single", "wxid_a", "detail")).toBe("detail");
-    expect(resolveSinglePaneView("single", "wxid_a", "list")).toBe("list");
+    expect(resolveSinglePaneView("single", "wxid_synthetic_a", "detail")).toBe("detail");
+    expect(resolveSinglePaneView("single", "wxid_synthetic_a", "list")).toBe("list");
   });
 
   it("does not replace the main content with the list outside single-pane mode", () => {
@@ -55,8 +55,8 @@ describe("workbenchViewModel", () => {
     });
   });
 
-  it("marks exactly one rail item active and includes P4-D Developer entry after SNS", () => {
-    const modules: WorkbenchModule[] = ["chat", "stats", "media", "sns", "developer", "ai", "graph", "settings"];
+  it("marks exactly one rail item active and hides Developer by default", () => {
+    const modules: WorkbenchModule[] = ["chat", "stats", "media", "sns", "ai", "graph"];
 
     for (const module of modules) {
       const items = buildWorkbenchRailItems(module);
@@ -64,6 +64,22 @@ describe("workbenchViewModel", () => {
     }
 
     expect(buildWorkbenchRailItems("developer").map((item) => item.module)).toEqual(modules);
+    expect(buildWorkbenchRailItems("developer").some((item) => item.module === "developer")).toBe(false);
+  });
+
+  it("includes Developer rail entry only when explicitly allowed", () => {
+    const items = buildWorkbenchRailItems("developer", {}, { includeDeveloperTools: true });
+
+    expect(items.map((item) => item.module)).toEqual([
+      "chat",
+      "stats",
+      "media",
+      "sns",
+      "developer",
+      "ai",
+      "graph",
+    ]);
+    expect(items.find((item) => item.module === "developer")?.active).toBe(true);
   });
 
   it("adds compact semantic and graph module badges without changing rail order", () => {
@@ -93,13 +109,43 @@ describe("workbenchViewModel", () => {
       },
     });
 
-    const items = buildWorkbenchRailItems("ai", badges);
+    const items = buildWorkbenchRailItems("ai", badges, { includeDeveloperTools: false });
 
-    expect(items.map((item) => item.module)).toEqual(["chat", "stats", "media", "sns", "developer", "ai", "graph", "settings"]);
+    expect(items.map((item) => item.module)).toEqual(["chat", "stats", "media", "sns", "ai", "graph"]);
     expect(items.find((item) => item.module === "sns")?.badge).toBe("1通知");
-    expect(items.find((item) => item.module === "developer")?.badge).toBe("3库");
+    expect(items.find((item) => item.module === "developer")).toBeUndefined();
     expect(items.find((item) => item.module === "ai")?.badge).toBe("就绪");
     expect(items.find((item) => item.module === "graph")?.badge).toBe("过大");
+  });
+
+  it("keeps Developer badges only when the Developer module is visible", () => {
+    const badges = buildWorkbenchModuleBadges({
+      semanticStatus: null,
+      graphView: {
+        kind: "idle",
+        blocksCoreWorkbench: false,
+        canVisualize: false,
+        shouldMountCanvas: false,
+        message: "",
+        tabs: [],
+        tableRows: [],
+        groupedSections: [],
+        timelineWorkbench: { rows: [] },
+        detailInspector: null,
+      },
+      developer: {
+        status: "ready",
+        dbFileCount: 3,
+        runnerHistoryCount: 1,
+      },
+    });
+
+    expect(buildWorkbenchRailItems("chat", badges, { includeDeveloperTools: false })).not.toContainEqual(
+      expect.objectContaining({ module: "developer" }),
+    );
+    expect(buildWorkbenchRailItems("chat", badges, { includeDeveloperTools: true })).toContainEqual(
+      expect.objectContaining({ module: "developer", badge: "3库" }),
+    );
   });
 
   it("keeps graph as a primary workspace module instead of an inspector module", () => {
@@ -135,7 +181,7 @@ describe("workbenchViewModel", () => {
 
     expect(
       deriveWorkbenchShellView({
-        profile: profileSummary(),
+        profile: profileSummary({ mode: "managed", source: "manual-advanced" }),
         httpReady: true,
         dbReady: false,
         devSmokeReady: false,
@@ -146,6 +192,18 @@ describe("workbenchViewModel", () => {
       statusTone: "warning",
       title: "服务尚未完全就绪",
       message: "服务已启动但数据库尚未就绪，请稍候。",
+    });
+
+    expect(
+      deriveWorkbenchShellView({
+        profile: profileSummary({ mode: "external", source: "external-service" }),
+        httpReady: false,
+        dbReady: false,
+        devSmokeReady: false,
+      }),
+    ).toMatchObject({
+      renderWorkbench: false,
+      message: "无法连接已配置的本机 chatlog 服务，请在设置中心检查服务地址或服务进程。",
     });
   });
 
@@ -171,7 +229,7 @@ describe("workbenchViewModel", () => {
   });
 });
 
-function profileSummary(): SetupProfileSummary {
+function profileSummary(overrides: Partial<SetupProfileSummary> = {}): SetupProfileSummary {
   return {
     mode: "managed",
     source: "manual-advanced",
@@ -186,5 +244,6 @@ function profileSummary(): SetupProfileSummary {
     hasDataKey: false,
     hasImgKey: false,
     lastValidatedAt: null,
+    ...overrides,
   };
 }

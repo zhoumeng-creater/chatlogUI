@@ -92,13 +92,13 @@ describe("search request helpers", () => {
       filter: "text",
       limit: 20,
       offset: 0,
-      scopeChat: "wxid_a",
+      scopeChat: "wxid_synthetic_a",
     })).toEqual({
       keyword: "合同",
       limit: 20,
       offset: 0,
       msgType: "1",
-      chats: ["wxid_a"],
+      chats: ["wxid_synthetic_a"],
     });
   });
 

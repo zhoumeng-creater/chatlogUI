@@ -1,4 +1,5 @@
-import { GRAPH_BASE_URL, GRAPH_FETCH_TIMEOUT_MS } from "@/utils/constants";
+import { GRAPH_FETCH_TIMEOUT_MS } from "@/utils/constants";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -23,7 +24,7 @@ import {
 export async function fetchGraphConfig(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphConfigView> {
-  const raw = await requestJson(`${GRAPH_BASE_URL}/api/v1/graph/config?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/graph/config?format=json", diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "graph_config",
@@ -37,7 +38,7 @@ export async function saveGraphConfig(
   draft: GraphConfigDraft,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphConfigView> {
-  const raw = await requestJson(`${GRAPH_BASE_URL}/api/v1/graph/config?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/graph/config?format=json", diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
     headers: { "Content-Type": "application/json" },
@@ -71,7 +72,7 @@ export async function askGraphQA(
   draft: GraphQADraft,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphQAResponseView> {
-  const raw = await requestJson(`${GRAPH_BASE_URL}/api/v1/graph/qa?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/graph/qa?format=json", diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: 45000,
     headers: { "Content-Type": "application/json" },
@@ -89,7 +90,7 @@ async function ingestGraph(
   draft: GraphIngestDraft,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphIngestResult> {
-  const raw = await requestJson(`${GRAPH_BASE_URL}/api/v1/graph/ingest/${kind}?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl(`/api/v1/graph/ingest/${kind}?format=json`, diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: 30000,
     headers: { "Content-Type": "application/json" },

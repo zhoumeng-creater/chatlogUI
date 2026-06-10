@@ -37,6 +37,7 @@ export function WorkbenchShellView() {
           status={shell.sidecarStatus}
           httpReady={shell.view.effectiveHttpReady}
           dbReady={shell.view.effectiveDbReady}
+          serviceLabel={shell.serviceLabel}
         />
       </div>
     </AppLayout>

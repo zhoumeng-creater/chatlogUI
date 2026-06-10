@@ -35,7 +35,7 @@ describe("streamQA", () => {
       streamQA(
         {
           query: "What changed?",
-          chat: "wxid_a",
+          chat: "wxid_synthetic_a",
           scope: "contact",
           retrievalDepth: "deep",
           sourceLimit: 4,
@@ -50,7 +50,7 @@ describe("streamQA", () => {
 
     expect(capturedBody).toEqual({
       query: "What changed?",
-      chat: "wxid_a",
+      chat: "wxid_synthetic_a",
       retrieval_depth: "deep",
       source_limit: 4,
     });

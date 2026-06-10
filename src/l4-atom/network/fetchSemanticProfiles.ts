@@ -1,4 +1,4 @@
-import { AI_BASE_URL } from '@/utils/constants';
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -16,7 +16,7 @@ export async function fetchSemanticProfiles(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticProfilesView> {
   const { chat, window } = normalizeSemanticProfilesRequest(input);
-  const url = new URL(`${AI_BASE_URL}/api/v1/semantic/profiles`);
+  const url = new URL(buildChatlogApiUrl("/api/v1/semantic/profiles", diagnosticOptions?.serviceBaseUrl));
   if (chat) url.searchParams.set('chat', chat);
   if (window) url.searchParams.set('window', window);
 

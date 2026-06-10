@@ -51,7 +51,7 @@ describe("diagnosticEvents", () => {
         level: "error",
         category: "http.error",
         summary:
-          "request failed data_key=raw-secret token=raw-token C:\\Users\\Alice\\WeChat Files\\wxid_private",
+          "request failed data_key=raw-secret token=raw-token C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_private",
         attributes: {
           endpointFamily: "media",
           responseBody: "private response body",
@@ -66,7 +66,7 @@ describe("diagnosticEvents", () => {
     expect(event.summary).not.toContain("raw-secret");
     expect(event.summary).not.toContain("raw-token");
     expect(event.summary).not.toContain("Alice");
-    expect(event.summary).not.toContain("wxid_private");
+    expect(event.summary).not.toContain("wxid_synthetic_private");
     expect(event.attributes).toEqual({
       endpointFamily: "media",
       status: 500,

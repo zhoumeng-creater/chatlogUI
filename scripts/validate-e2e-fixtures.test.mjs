@@ -276,7 +276,7 @@ describe("validateFixtureWorkspace", () => {
           "/health": {
             status: "ok",
             leakedToken: "Bearer abcdefghijklmnopqrstuvwx1234567890",
-            leakedPath: "C:\\Users\\Alice\\WeChat Files\\wxid_real",
+            leakedPath: "C:\\Users\\SyntheticLeak\\WeChat Files\\wxid_synthetic_real",
           },
           "/api/v1/sessions": { sessions: [] },
         },
@@ -287,7 +287,7 @@ describe("validateFixtureWorkspace", () => {
 
     expect(result.ok).toBe(false);
     expect(result.errors.join("\n")).toContain("Bearer");
-    expect(result.errors.join("\n")).toContain("C:\\Users\\Alice");
+    expect(result.errors.join("\n")).toContain("C:\\Users\\SyntheticLeak");
   });
 
   it("fails when an advanced fixture family lacks success plus edge contract states", async () => {

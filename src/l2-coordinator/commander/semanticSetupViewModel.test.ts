@@ -66,7 +66,7 @@ describe("semantic setup draft view model", () => {
 
   it("builds full backend-shaped config and connection-test payloads from draft values", () => {
     const draft = createSemanticSetupDraft(savedDeepSeekConfig());
-    draft.deepseekApiKeyInput = "sk-new-deepseek";
+    draft.deepseekApiKeyInput = "sk-synthetic-new-deepseek";
     draft.chatTemperature = 0.4;
     draft.indexWorkers = 2;
 
@@ -78,7 +78,7 @@ describe("semantic setup draft view model", () => {
       embedding_provider: "ollama",
       rerank_provider: "ollama",
       chat_provider: "deepseek",
-      deepseek_api_key: "sk-new-deepseek",
+      deepseek_api_key: "sk-synthetic-new-deepseek",
       chat_temperature: 0.4,
       index_workers: 2,
     });
@@ -87,7 +87,7 @@ describe("semantic setup draft view model", () => {
       embedding_provider: "ollama",
       rerank_provider: "ollama",
       chat_provider: "deepseek",
-      deepseek_api_key: "sk-new-deepseek",
+      deepseek_api_key: "sk-synthetic-new-deepseek",
     });
   });
 

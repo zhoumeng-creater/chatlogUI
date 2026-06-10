@@ -23,7 +23,7 @@ describe("applyWindowMaterial", () => {
   it("reports failures through a callback without logging raw errors", async () => {
     const failures: unknown[] = [];
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const error = new Error("C:\\Users\\Alice\\raw-material-failure");
+    const error = new Error("C:\\Users\\Synthetic\\raw-material-failure");
 
     canInvokeTauriCommandMock.mockReturnValue(true);
     invokeMock.mockRejectedValue(error);

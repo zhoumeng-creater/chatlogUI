@@ -1,10 +1,12 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
+import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import { useAiCommander } from "./useAiCommander";
 import { useSetupCommander } from "./useSetupCommander";
 import { useSettingsCommander } from "./useSettingsCommander";
 import { useUpdateCommander } from "./useUpdateCommander";
 import { useDiagnosticsCommander } from "./useDiagnosticsCommander";
+import { getActiveChatlogServiceSummary } from "./chatlogRequestContext";
 
 export function useSettingsPageCommander() {
   const settings = useSettingsCommander();
@@ -12,6 +14,11 @@ export function useSettingsPageCommander() {
   const update = useUpdateCommander();
   const diagnostics = useDiagnosticsCommander();
   const sidecarStatus = useAppStore((s) => s.sidecarStatus);
+  const setupProfile = useSetupStore((s) => s.profile);
+  const activeService = useMemo(
+    () => getActiveChatlogServiceSummary(setupProfile),
+    [setupProfile],
+  );
   const { indexStatus } = useAiCommander();
   const [updateStatusText, setUpdateStatusText] = useState("");
 
@@ -34,6 +41,7 @@ export function useSettingsPageCommander() {
   return {
     ...settings,
     sidecarStatus,
+    serviceLabel: activeService.serviceLabel,
     indexStatus,
     chooseDataDirectory,
     checkForUpdates,

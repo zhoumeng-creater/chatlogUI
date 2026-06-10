@@ -1,13 +1,11 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import type { RawHistoryResponse } from "./chatlogRawTypes";
 import { adaptHistoryResponse } from "./chatlogAdapters";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export interface FetchHistoryOptions {
   chat: string;
@@ -41,7 +39,7 @@ export async function fetchHistory(
   if (options.hasMedia !== undefined) params.set("has_media", options.hasMedia ? "1" : "0");
 
   const raw = await requestJson<RawHistoryResponse>(
-    `${BASE_URL}/api/v1/history?${params.toString()}`,
+    buildChatlogApiUrl(`/api/v1/history?${params.toString()}`, diagnosticOptions?.serviceBaseUrl),
     {
       timeoutMs: 30000,
       ...withRequestDiagnostics(diagnosticOptions, {

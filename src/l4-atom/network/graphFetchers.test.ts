@@ -102,6 +102,25 @@ describe("graph REST atoms", () => {
     expect(JSON.stringify(events[0])).not.toContain("Synthetic private message");
     expect(JSON.stringify(events[0])).not.toContain("wxid_synthetic");
   });
+
+  it("uses the supplied active service base URL for graph requests", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        urls.push(String(input));
+        return json({ entities: [], relations: [], events: [], facts: [] });
+      }),
+    );
+
+    await fetchGraphQuery(
+      { keyword: "Alice" },
+      undefined,
+      { serviceBaseUrl: "http://127.0.0.1:6041" },
+    );
+
+    expect(new URL(urls[0]).origin).toBe("http://127.0.0.1:6041");
+  });
 });
 
 function json(value: unknown): Response {

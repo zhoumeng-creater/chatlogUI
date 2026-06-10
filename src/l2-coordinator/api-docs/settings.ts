@@ -1,6 +1,6 @@
 export type ThemeMode = "system" | "light" | "dark";
 export type WindowMaterial = "vibrancy" | "mica" | "acrylic" | "none";
-export type SettingsCategory = "ai" | "appearance" | "data" | "about";
+export type SettingsCategory = "ai" | "appearance" | "data" | "advanced" | "about";
 export type FontSize = "small" | "medium" | "large";
 
 export interface SettingsState {
@@ -15,6 +15,7 @@ export interface SettingsState {
   wxDataPath: string;
   sidecarPort: number;
   privacyOn: boolean;
+  developerMode: boolean;
 }
 
 export const SETTINGS_DEFAULTS: SettingsState = {
@@ -29,4 +30,5 @@ export const SETTINGS_DEFAULTS: SettingsState = {
   wxDataPath: "",
   sidecarPort: 5030,
   privacyOn: false,
+  developerMode: false,
 };

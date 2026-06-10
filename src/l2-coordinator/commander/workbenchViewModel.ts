@@ -48,7 +48,6 @@ const RAIL_MODULES: { module: WorkbenchModule; label: string }[] = [
   { module: "developer", label: "开发" },
   { module: "ai", label: "AI" },
   { module: "graph", label: "图谱" },
-  { module: "settings", label: "设置" },
 ];
 
 export function resolveSinglePaneView(
@@ -96,8 +95,11 @@ export function resolveWorkbenchLayoutForModule(
 export function buildWorkbenchRailItems(
   activeModule: WorkbenchModule,
   badges: WorkbenchModuleBadges = {},
+  options: { includeDeveloperTools?: boolean } = {},
 ): WorkbenchRailItemState[] {
-  return RAIL_MODULES.map((item) => ({
+  return RAIL_MODULES
+    .filter((item) => options.includeDeveloperTools === true || item.module !== "developer")
+    .map((item) => ({
     ...item,
     active: item.module === activeModule,
     badge: badges[item.module],
@@ -136,6 +138,7 @@ export function deriveWorkbenchShellView(input: WorkbenchShellViewInput): Workbe
   const renderWorkbench = input.dbReady || input.devSmokeReady === true;
   const effectiveHttpReady = input.httpReady || input.devSmokeReady === true;
   const effectiveDbReady = input.dbReady || input.devSmokeReady === true;
+  const externalMode = input.profile?.mode === "external";
 
   return {
     renderWorkbench,
@@ -147,7 +150,9 @@ export function deriveWorkbenchShellView(input: WorkbenchShellViewInput): Workbe
     message: !input.profile
       ? "请先完成设置中心的基本配置后再进入工作台。"
       : !effectiveHttpReady
-        ? "chatlog_alpha 服务尚未启动，请在设置中心启动服务。"
+        ? externalMode
+          ? "无法连接已配置的本机 chatlog 服务，请在设置中心检查服务地址或服务进程。"
+          : "chatlog_alpha 服务尚未启动，请在设置中心启动服务。"
         : "服务已启动但数据库尚未就绪，请稍候。",
     setupLinkLabel: "前往设置中心",
   };

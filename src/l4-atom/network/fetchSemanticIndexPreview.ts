@@ -1,4 +1,4 @@
-import { AI_BASE_URL } from "@/utils/constants";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -21,7 +21,7 @@ export async function fetchSemanticIndexPreview(
   options: FetchSemanticIndexPreviewOptions = {},
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticIndexPreviewView> {
-  const url = new URL(`${AI_BASE_URL}/api/v1/semantic/index/preview`);
+  const url = new URL(buildChatlogApiUrl("/api/v1/semantic/index/preview", diagnosticOptions?.serviceBaseUrl));
   url.searchParams.set("format", "json");
   if (options.kind) url.searchParams.set("kind", options.kind);
   if (options.talker) url.searchParams.set("talker", options.talker);

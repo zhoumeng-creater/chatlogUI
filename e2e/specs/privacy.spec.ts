@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 import { assertNoForbiddenVisibleText, installPrivacyLeakGuard } from "../utils/privacy-scan";
 import { setDesktop, setNarrow } from "../utils/viewport";
 import {
+  enableDeveloperEntryForTest,
   enablePrivacyMode,
+  expectDeveloperEntryHidden,
   expectStableSyntheticPage,
   openSyntheticWorkbench,
   openWorkbenchModule,
@@ -12,6 +14,7 @@ test.describe("privacy mode synthetic browser gate", () => {
   test("masks workbench, media, SNS, developer, semantic, and graph surfaces", async ({ page }) => {
     const privacyGuard = installPrivacyLeakGuard(page);
 
+    await enableDeveloperEntryForTest(page);
     await setDesktop(page);
     await openSyntheticWorkbench(page);
     await enablePrivacyMode(page);
@@ -71,7 +74,8 @@ test.describe("privacy mode synthetic browser gate", () => {
     await enablePrivacyMode(page);
 
     await expect(page.getByLabel("会话列表").first()).toBeVisible();
-    for (const label of ["统计", "媒体", "朋友圈", "开发", "AI", "图谱"]) {
+    await expectDeveloperEntryHidden(page);
+    for (const label of ["统计", "媒体", "朋友圈", "AI", "图谱"]) {
       await expect(page.getByRole("button", { name: label, exact: true })).toHaveCSS("white-space", "nowrap");
     }
     await expectStableSyntheticPage(page);

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Trash2, X } from "lucide-react";
 import { Typography } from "@l4/ui/Typography";
 import { Button } from "@l4/ui/Button";
+import { formatExportPathSummary } from "@/utils/privacyDisplay";
 
 type DiagnosticSourceFilter = "all" | "http" | "sidecar" | "tauri" | "ui" | "updater" | "release";
 type DiagnosticLevelFilter = "all" | "debug" | "info" | "warn" | "error";
@@ -98,7 +99,7 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
 
   const handleExport = async () => {
     const path = await actions.exportLogs();
-    setStatusMessage(path ? `诊断已导出到: ${path}` : "诊断导出失败，请检查脱敏状态。");
+    setStatusMessage(formatDevConsoleExportStatus(path));
   };
 
   if (!view.visible) return null;
@@ -284,6 +285,12 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
       )}
     </div>
   );
+}
+
+export function formatDevConsoleExportStatus(path: string | null): string {
+  if (!path) return "诊断导出失败，请检查脱敏状态。";
+  const summary = formatExportPathSummary(path);
+  return summary === "诊断已导出" ? summary : `诊断已导出：${summary}`;
 }
 
 function getSourceLabel(source: string): string {

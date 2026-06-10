@@ -8,12 +8,12 @@ describe("createSemanticSSEParser", () => {
     expect(parser.push('event: delta\ndata: {"text":"partial"}\n\n')).toEqual([
       { type: "delta", text: "partial" },
     ]);
-    expect(parser.push('event: done\ndata: {"answer":"final","evidence":[{"chat":"wxid_a"}],"reason":"done"}\n\n')).toEqual([
+    expect(parser.push('event: done\ndata: {"answer":"final","evidence":[{"chat":"wxid_synthetic_a"}],"reason":"done"}\n\n')).toEqual([
       {
         type: "done",
         payload: {
           answer: "final",
-          evidence: [{ chat: "wxid_a" }],
+          evidence: [{ chat: "wxid_synthetic_a" }],
           reason: "done",
           metadata: {},
         },

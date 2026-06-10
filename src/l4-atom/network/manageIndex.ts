@@ -1,4 +1,4 @@
-import { AI_BASE_URL } from '@/utils/constants';
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -13,10 +13,10 @@ export async function manageIndex(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticIndexActionResult> {
   const endpoints: Record<IndexAction, string> = {
-    rebuild: `${AI_BASE_URL}/api/v1/semantic/index/rebuild`,
-    pause: `${AI_BASE_URL}/api/v1/semantic/index/pause`,
-    resume: `${AI_BASE_URL}/api/v1/semantic/index/resume`,
-    clear: `${AI_BASE_URL}/api/v1/semantic/index/clear`,
+    rebuild: buildChatlogApiUrl("/api/v1/semantic/index/rebuild", diagnosticOptions?.serviceBaseUrl),
+    pause: buildChatlogApiUrl("/api/v1/semantic/index/pause", diagnosticOptions?.serviceBaseUrl),
+    resume: buildChatlogApiUrl("/api/v1/semantic/index/resume", diagnosticOptions?.serviceBaseUrl),
+    clear: buildChatlogApiUrl("/api/v1/semantic/index/clear", diagnosticOptions?.serviceBaseUrl),
   };
 
   const data = await requestJson(endpoints[action], {

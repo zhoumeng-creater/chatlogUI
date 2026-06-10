@@ -1,12 +1,10 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   ChatlogHttpError,
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 
 export interface DbReadyResponse {
   ready: boolean;
@@ -18,7 +16,7 @@ export async function fetchDbReady(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<DbReadyResponse> {
   try {
-    const json = await requestJson<{ message?: string; dbCount?: number }>(`${BASE_URL}/api/v1/db`, {
+    const json = await requestJson<{ message?: string; dbCount?: number }>(buildChatlogApiUrl("/api/v1/db", diagnosticOptions?.serviceBaseUrl), {
       timeoutMs: 10000,
       ...withRequestDiagnostics(diagnosticOptions, {
         endpointFamily: "db",

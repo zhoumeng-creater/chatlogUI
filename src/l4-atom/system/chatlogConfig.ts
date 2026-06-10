@@ -33,6 +33,18 @@ export interface ServerConfigPayload {
   save_decrypted_media?: boolean | null;
 }
 
+export interface ExternalConnectionConfigDraft {
+  httpAddr: string;
+  port: number;
+  lastValidatedAt?: string | null;
+}
+
+export interface ExternalConnectionConfigPayload {
+  http_addr: string;
+  port: number;
+  last_validated_at?: string | null;
+}
+
 type RawConfigSummary = Partial<SetupProfileSummary> & {
   source: SetupProfileSummary["source"];
   configDir: string | null;
@@ -59,6 +71,16 @@ export function toServerConfigPayload(config: ServerConfigDraft): ServerConfigPa
     img_key: config.imgKey,
     http_addr: config.httpAddr,
     save_decrypted_media: config.saveDecryptedMedia,
+  };
+}
+
+export function toExternalConnectionConfigPayload(
+  config: ExternalConnectionConfigDraft,
+): ExternalConnectionConfigPayload {
+  return {
+    http_addr: config.httpAddr,
+    port: config.port,
+    last_validated_at: config.lastValidatedAt,
   };
 }
 
@@ -99,6 +121,24 @@ export async function saveManagedServerConfig(
 export async function loadManagedServerConfigSummary(): Promise<SetupProfileSummary | null> {
   const summary = await invoke<RawConfigSummary | null>("load_managed_server_config_summary");
   return summary ? normalizeConfigSummary(summary) : null;
+}
+
+export async function saveExternalConnectionConfig(
+  config: ExternalConnectionConfigDraft,
+): Promise<SetupProfileSummary> {
+  const summary = await invoke<RawConfigSummary>("save_external_connection_config", {
+    config: toExternalConnectionConfigPayload(config),
+  });
+  return normalizeConfigSummary(summary);
+}
+
+export async function loadExternalConnectionConfigSummary(): Promise<SetupProfileSummary | null> {
+  const summary = await invoke<RawConfigSummary | null>("load_external_connection_config_summary");
+  return summary ? normalizeConfigSummary(summary) : null;
+}
+
+export async function clearExternalConnectionConfig(): Promise<void> {
+  await invoke("clear_external_connection_config");
 }
 
 export async function validateManagedServerConfig(

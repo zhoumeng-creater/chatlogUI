@@ -4,6 +4,11 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import {
+  ChatlogEndpointError,
+  buildChatlogApiUrl,
+  normalizeChatlogServiceBaseUrl,
+} from "./chatlogEndpoint";
 
 export interface HealthResponse {
   status?: string;
@@ -18,25 +23,26 @@ export interface DbReadiness {
 }
 
 export function normalizeServiceBaseUrl(value: string): string {
-  const trimmed = value.trim().replace(/\/+$/, "");
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
-  }
-  return `http://${trimmed}`;
+  return normalizeChatlogServiceBaseUrl(value);
 }
 
 export async function fetchHealth(
   baseUrl: string,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<boolean> {
-  const result = await requestJson<HealthResponse>(`${normalizeServiceBaseUrl(baseUrl)}/health`, {
-    timeoutMs: 5000,
-    ...withRequestDiagnostics(diagnosticOptions, {
-      endpointFamily: "health",
-      method: "GET",
-    }),
-  });
-  return result.status === "ok" || result.ok === true;
+  try {
+    const result = await requestJson<HealthResponse>(buildChatlogApiUrl("/health", baseUrl), {
+      timeoutMs: 5000,
+      ...withRequestDiagnostics(diagnosticOptions, {
+        endpointFamily: "health",
+        method: "GET",
+      }),
+    });
+    return result.status === "ok" || result.ok === true;
+  } catch (error) {
+    if (error instanceof ChatlogEndpointError) throw error;
+    return false;
+  }
 }
 
 export async function fetchDbReadiness(
@@ -44,7 +50,7 @@ export async function fetchDbReadiness(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<DbReadiness> {
   try {
-    await requestJson(`${normalizeServiceBaseUrl(baseUrl)}/api/v1/db`, {
+    await requestJson(buildChatlogApiUrl("/api/v1/db", baseUrl), {
       timeoutMs: 10000,
       ...withRequestDiagnostics(diagnosticOptions, {
         endpointFamily: "db",
@@ -57,7 +63,7 @@ export async function fetchDbReadiness(
       return {
         ready: false,
         status: "initializing",
-        message: "服务已启动，但数据库尚未就绪",
+        message: "服务已启动，数据库尚未就绪",
         detail: error.body ?? undefined,
       };
     }
@@ -65,12 +71,33 @@ export async function fetchDbReadiness(
       return {
         ready: false,
         status: error.status === null ? "unreachable" : "error",
-        message: error.message,
+        message: formatReadinessFailureMessage(error, "database"),
         detail: error.body ?? undefined,
       };
     }
-    return { ready: false, status: "error", message: String(error) };
+    return {
+      ready: false,
+      status: "error",
+      message: formatReadinessFailureMessage(error, "database"),
+    };
   }
+}
+
+export function formatReadinessFailureMessage(
+  error: unknown,
+  scope: "service" | "database",
+): string {
+  if (error instanceof ChatlogEndpointError) return error.message;
+
+  if (scope === "service") {
+    return "无法连接到本机 chatlog 服务，请检查服务地址或服务进程后重试。";
+  }
+
+  if (error instanceof ChatlogHttpError && error.status === null) {
+    return "无法连接到数据库状态接口，请确认本机服务仍在运行。";
+  }
+
+  return "数据库状态检查失败，请稍后重试或查看诊断信息。";
 }
 
 export function pollReadiness(

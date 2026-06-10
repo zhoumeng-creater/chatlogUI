@@ -1,13 +1,11 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import type { RawNewMessagesResponse } from "./chatlogRawTypes";
 import { adaptNewMessagesResponse } from "./mediaAdapters";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export interface FetchNewMessagesOptions {
   chat?: string;
@@ -27,7 +25,7 @@ export async function fetchNewMessages(
   const qs = params.toString();
 
   const raw = await requestJson<RawNewMessagesResponse>(
-    `${BASE_URL}/api/v1/new_messages${qs ? "?" + qs : ""}`,
+    buildChatlogApiUrl(`/api/v1/new_messages${qs ? "?" + qs : ""}`, diagnosticOptions?.serviceBaseUrl),
     {
       timeoutMs: 15000,
       ...withRequestDiagnostics(diagnosticOptions, {

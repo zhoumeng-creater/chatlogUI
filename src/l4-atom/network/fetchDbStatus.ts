@@ -1,10 +1,10 @@
-import { HEALTH_CHECK_URL } from "@/utils/constants";
 import {
   ChatlogHttpError,
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 
 interface DbStatusResponse {
   ok: boolean;
@@ -15,7 +15,7 @@ export async function fetchDbStatus(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<DbStatusResponse> {
   try {
-    await requestJson(HEALTH_CHECK_URL, {
+    await requestJson(buildChatlogApiUrl("/health", diagnosticOptions?.serviceBaseUrl), {
       timeoutMs: 5000,
       ...withRequestDiagnostics(diagnosticOptions, {
         endpointFamily: "health",

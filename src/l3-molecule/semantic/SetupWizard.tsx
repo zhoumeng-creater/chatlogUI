@@ -24,7 +24,7 @@ export function SetupWizard({
   privacyOn = false,
 }: SetupWizardProps) {
   return (
-    <SpringModal onClose={onClose}>
+    <SpringModal ariaLabel="语义设置" onClose={onClose}>
       <SemanticSetupCenter
         initialDraft={initialDraft}
         getSetupView={getSetupView}

@@ -53,6 +53,7 @@ export function WorkbenchView() {
         <StatusBar
           status={workbench.sidecarStatus}
           indexStatus={workbench.ai.indexStatus}
+          serviceLabel={workbench.serviceLabel}
         />
       </AppLayout>
     );
@@ -145,13 +146,15 @@ export function WorkbenchView() {
                         >
                           朋友圈
                         </Button>
-                        <Button
-                          variant={workbench.activeModule === "developer" ? "secondary" : "ghost"}
-                          size="sm"
-                          onClick={() => workbench.selectModule("developer")}
-                        >
-                          开发
-                        </Button>
+                        {workbench.developerEntryPolicy.includeToolbarAction && (
+                          <Button
+                            variant={workbench.activeModule === "developer" ? "secondary" : "ghost"}
+                            size="sm"
+                            onClick={() => workbench.selectModule("developer")}
+                          >
+                            开发
+                          </Button>
+                        )}
                         <Button
                           variant={workbench.activeModule === "ai" ? "secondary" : "ghost"}
                           size="sm"
@@ -227,6 +230,7 @@ export function WorkbenchView() {
           status={workbench.sidecarStatus}
           indexStatus={workbench.ai.indexStatus}
           semanticStatus={workbench.ai.compactStatus}
+          serviceLabel={workbench.serviceLabel}
         />
       </div>
     </AppLayout>
@@ -303,7 +307,7 @@ function InspectorContent({ workbench }: InspectorContentProps) {
     );
   }
 
-  if (workbench.inspectorModule === "developer") {
+  if (workbench.developerEntryPolicy.renderDeveloperInspector && workbench.inspectorModule === "developer") {
     return (
       <DeveloperToolsModule
         dbView={workbench.developer.dbView}

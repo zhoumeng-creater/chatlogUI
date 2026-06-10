@@ -31,13 +31,39 @@ describe("setupMachine", () => {
     ).toBe("database");
   });
 
-  it("allows opening an empty workbench before DB is ready", () => {
+  it("blocks opening the ordinary workbench before setup is complete", () => {
     expect(
       deriveWorkbenchAccess({ ...base, httpReady: false, dbReady: false }),
     ).toEqual({
-      allowed: true,
+      allowed: false,
       connected: false,
       reason: "setup-incomplete",
+    });
+  });
+
+  it("blocks opening the ordinary workbench when service or DB readiness is missing", () => {
+    const configured = {
+      ...base,
+      source: "app-managed-server-config" as const,
+      profileComplete: true,
+      configValid: true,
+      portState: "owned" as const,
+    };
+
+    expect(
+      deriveWorkbenchAccess({ ...configured, httpReady: false, dbReady: false }),
+    ).toEqual({
+      allowed: false,
+      connected: false,
+      reason: "service-not-ready",
+    });
+
+    expect(
+      deriveWorkbenchAccess({ ...configured, httpReady: true, dbReady: false }),
+    ).toEqual({
+      allowed: false,
+      connected: false,
+      reason: "db-not-ready",
     });
   });
 

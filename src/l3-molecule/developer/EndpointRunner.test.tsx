@@ -12,7 +12,7 @@ describe("EndpointRunner", () => {
         selectedEndpointId="search"
         endpointParams={{
           keyword: "synthetic private keyword",
-          chat: "wxid_private_chat",
+          chat: "wxid_synthetic_private_chat",
           limit: 50,
         }}
         status="idle"
@@ -27,7 +27,7 @@ describe("EndpointRunner", () => {
     );
 
     expect(html).not.toContain("synthetic private keyword");
-    expect(html).not.toContain("wxid_private_chat");
+    expect(html).not.toContain("wxid_synthetic_private_chat");
     expect(html).toContain("隐私模式已隐藏Keyword");
     expect(html).toContain("value=\"50\"");
   });

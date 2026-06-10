@@ -60,9 +60,9 @@ describe("semantic REST atoms", () => {
             rerank_applied: true,
             results: [
               {
-                talker: "wxid_a",
+                talker: "wxid_synthetic_a",
                 talker_name: "Project room",
-                sender: "wxid_sender",
+                sender: "wxid_synthetic_sender",
                 sender_name: "Alice",
                 content: "alpha",
                 score: 0.8,
@@ -85,7 +85,7 @@ describe("semantic REST atoms", () => {
             count: 1,
             profiles: [
               {
-                sender: "wxid_sender",
+                sender: "wxid_synthetic_sender",
                 sender_name: "Alice",
                 messages: 42,
                 top_keywords: [{ topic: "release", count: 7 }],
@@ -101,7 +101,7 @@ describe("semantic REST atoms", () => {
           return json({ ok: true, accepted: true, status: "running" });
         }
         if (path.endsWith("/api/v1/semantic/qa")) {
-          return json({ answer: "Final answer", evidence: [{ chat: "wxid_a" }], reason: "done" });
+          return json({ answer: "Final answer", evidence: [{ chat: "wxid_synthetic_a" }], reason: "done" });
         }
 
         return json({});
@@ -111,12 +111,12 @@ describe("semantic REST atoms", () => {
     const config = await fetchSemanticConfig();
     await setSemanticConfig({ embedding_provider: "ollama", api_key: "" });
     const indexStatus = await fetchIndexStatus();
-    const search = await fetchSemanticSearch({ query: "alpha", chat: "wxid_a", scope: "contact" });
-    const topics = await fetchSemanticTopics("wxid_a");
-    const profiles = await fetchSemanticProfiles("wxid_a");
+    const search = await fetchSemanticSearch({ query: "alpha", chat: "wxid_synthetic_a", scope: "contact" });
+    const topics = await fetchSemanticTopics("wxid_synthetic_a");
+    const profiles = await fetchSemanticProfiles("wxid_synthetic_a");
     const connection = await testLLMConnection("deepseek", { chat_model: "deepseek-chat" });
     const action = await manageIndex("rebuild");
-    const qa = await fetchSemanticQA({ query: "alpha", chat: "wxid_a", scope: "contact" });
+    const qa = await fetchSemanticQA({ query: "alpha", chat: "wxid_synthetic_a", scope: "contact" });
 
     expect(config?.providers?.chat.provider).toBe("deepseek");
     expect(indexStatus.state).toBe("running");
@@ -138,7 +138,7 @@ describe("semantic REST atoms", () => {
     expect(calls.every((call) => call.url.includes("format=json"))).toBe(true);
 
     const qaBody = JSON.parse(String(calls.find((call) => call.url.includes("/semantic/qa?"))?.init?.body));
-    expect(qaBody).toEqual({ query: "alpha", chat: "wxid_a" });
+    expect(qaBody).toEqual({ query: "alpha", chat: "wxid_synthetic_a" });
   });
 
   it("emits redacted semantic diagnostic events when diagnostics are supplied", async () => {
@@ -174,6 +174,24 @@ describe("semantic REST atoms", () => {
     expect(JSON.stringify(events[0])).not.toContain("wxid_synthetic");
   });
 
+  it("uses the supplied active service base URL for semantic requests", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        urls.push(String(input));
+        return json({ query: "alpha", source_count: 0, count: 0, rerank: false, results: [] });
+      }),
+    );
+
+    await fetchSemanticSearch(
+      { query: "alpha" },
+      { serviceBaseUrl: "http://127.0.0.1:6041" },
+    );
+
+    expect(new URL(urls[0]).origin).toBe("http://127.0.0.1:6041");
+  });
+
   it("sends semantic discovery request parameters without UI-only labels", async () => {
     const urls: string[] = [];
     vi.stubGlobal(
@@ -197,8 +215,8 @@ describe("semantic REST atoms", () => {
     await fetchSemanticSearch({
       query: "alpha",
       limit: 12,
-      chat: "wxid_backend_chat",
-      chats: ["room_a@chatroom", "wxid_b"],
+      chat: "wxid_synthetic_backend_chat",
+      chats: ["room_a@chatroom", "wxid_synthetic_b"],
       window: "30d",
       depth: "deep",
       sourceLimit: 25,
@@ -206,14 +224,14 @@ describe("semantic REST atoms", () => {
       scope: "all",
       chatName: "Project room",
     } as never);
-    await fetchSemanticTopics({ chat: "wxid_backend_chat", window: "30d" } as never);
-    await fetchSemanticProfiles({ chat: "wxid_backend_chat", window: "30d" } as never);
+    await fetchSemanticTopics({ chat: "wxid_synthetic_backend_chat", window: "30d" } as never);
+    await fetchSemanticProfiles({ chat: "wxid_synthetic_backend_chat", window: "30d" } as never);
 
     const searchUrl = new URL(urls.find((url) => url.includes("/semantic/search")) ?? "");
     expect(searchUrl.searchParams.get("query")).toBe("alpha");
     expect(searchUrl.searchParams.get("limit")).toBe("12");
-    expect(searchUrl.searchParams.get("chat")).toBe("wxid_backend_chat");
-    expect(searchUrl.searchParams.get("chats")).toBe("room_a@chatroom,wxid_b");
+    expect(searchUrl.searchParams.get("chat")).toBe("wxid_synthetic_backend_chat");
+    expect(searchUrl.searchParams.get("chats")).toBe("room_a@chatroom,wxid_synthetic_b");
     expect(searchUrl.searchParams.get("window")).toBe("30d");
     expect(searchUrl.searchParams.get("depth")).toBe("deep");
     expect(searchUrl.searchParams.get("source_limit")).toBe("25");
@@ -223,11 +241,11 @@ describe("semantic REST atoms", () => {
     expect(searchUrl.searchParams.has("chat_name")).toBe(false);
 
     const topicsUrl = new URL(urls.find((url) => url.includes("/semantic/topics")) ?? "");
-    expect(topicsUrl.searchParams.get("chat")).toBe("wxid_backend_chat");
+    expect(topicsUrl.searchParams.get("chat")).toBe("wxid_synthetic_backend_chat");
     expect(topicsUrl.searchParams.get("window")).toBe("30d");
 
     const profilesUrl = new URL(urls.find((url) => url.includes("/semantic/profiles")) ?? "");
-    expect(profilesUrl.searchParams.get("chat")).toBe("wxid_backend_chat");
+    expect(profilesUrl.searchParams.get("chat")).toBe("wxid_synthetic_backend_chat");
     expect(profilesUrl.searchParams.get("window")).toBe("30d");
   });
 });

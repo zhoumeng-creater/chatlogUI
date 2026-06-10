@@ -1,13 +1,11 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import type { RawFavoritesResponse } from "./chatlogRawTypes";
 import { adaptFavoriteResponse } from "./mediaAdapters";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export interface FetchFavoritesOptions {
   chat?: string;
@@ -29,7 +27,7 @@ export async function fetchFavorites(
   const qs = params.toString();
 
   const raw = await requestJson<RawFavoritesResponse>(
-    `${BASE_URL}/api/v1/favorites${qs ? "?" + qs : ""}`,
+    buildChatlogApiUrl(`/api/v1/favorites${qs ? "?" + qs : ""}`, diagnosticOptions?.serviceBaseUrl),
     {
       timeoutMs: 15000,
       ...withRequestDiagnostics(diagnosticOptions, {

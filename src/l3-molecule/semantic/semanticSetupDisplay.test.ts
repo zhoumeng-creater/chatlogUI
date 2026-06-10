@@ -31,14 +31,14 @@ describe("semantic setup display helpers", () => {
 
   it("redacts sensitive diagnostic text before semantic setup surfaces render it", () => {
     const message = getSafeSemanticDiagnosticText(
-      "api_key=sk-real-secret token=raw-token message: synthetic-private-message C:\\Users\\Alice\\WeChat Files\\wxid_real",
+      "api_key=sk-synthetic-redaction-token token=raw-token message: synthetic-private-message C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_real",
     );
 
-    expect(message).not.toContain("sk-real-secret");
+    expect(message).not.toContain("sk-synthetic-redaction-token");
     expect(message).not.toContain("raw-token");
     expect(message).not.toContain("synthetic-private-message");
     expect(message).not.toContain("Alice");
-    expect(message).not.toContain("wxid_real");
+    expect(message).not.toContain("wxid_synthetic_real");
     expect(containsSensitiveDiagnosticText(message)).toBe(false);
   });
 });

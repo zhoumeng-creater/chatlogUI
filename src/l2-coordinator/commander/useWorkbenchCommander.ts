@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
 import { useSearchStore } from "@l2/data-clerk/stores/useSearchStore";
+import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { useAiCommander } from "./useAiCommander";
 import { useChatCommander } from "./useChatCommander";
@@ -13,6 +14,8 @@ import { useSearchCommander } from "./useSearchCommander";
 import { useSnsCommander } from "./useSnsCommander";
 import { useStatsCommander } from "./useStatsCommander";
 import { getWorkbenchLayout } from "./workbenchLayout";
+import { getActiveChatlogServiceSummary } from "./chatlogRequestContext";
+import { deriveDeveloperEntryPolicy } from "./developerEntryViewModel";
 import {
   getInspectorTitle,
   isInspectorModule,
@@ -47,6 +50,12 @@ export function useWorkbenchCommander() {
   const sidecarStatus = useAppStore((state) => state.sidecarStatus);
   const errorMessage = useAppStore((state) => state.errorMessage);
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+  const developerMode = useSettingsStore((state) => state.settings.developerMode);
+  const setupProfile = useSetupStore((state) => state.profile);
+  const activeService = useMemo(
+    () => getActiveChatlogServiceSummary(setupProfile),
+    [setupProfile],
+  );
 
   const chat = useChatCommander();
   const search = useSearchCommander();
@@ -81,7 +90,17 @@ export function useWorkbenchCommander() {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const viewportWidth = useViewportWidth();
   const baseLayout = getWorkbenchLayout(viewportWidth);
-  const layout = resolveWorkbenchLayoutForModule(baseLayout, activeModule);
+  const developerEntryPolicy = useMemo(
+    () =>
+      deriveDeveloperEntryPolicy({
+        developerMode,
+        developerEntryOverride: import.meta.env.VITE_ENABLE_DEVELOPER_ENTRY === "true",
+        activeModule,
+      }),
+    [activeModule, developerMode],
+  );
+  const safeActiveModule = developerEntryPolicy.safeActiveModule;
+  const layout = resolveWorkbenchLayoutForModule(baseLayout, safeActiveModule);
 
   const currentConversation = conversations.find(
     (conversation) => conversation.id === selectedConversationId,
@@ -97,9 +116,17 @@ export function useWorkbenchCommander() {
     selectedConversationId,
     singlePaneView,
   );
-  const inspectorModule = activeModule === "chat" || activeModule === "settings" || activeModule === "graph"
+  const inspectorModule = safeActiveModule === "chat" || safeActiveModule === "settings" || safeActiveModule === "graph"
     ? "stats"
-    : activeModule;
+    : safeActiveModule;
+
+  useEffect(() => {
+    if (safeActiveModule !== activeModule) {
+      stopHookStream();
+      setInspectorOpen(false);
+      setActiveModule(safeActiveModule);
+    }
+  }, [activeModule, safeActiveModule, stopHookStream]);
 
   useEffect(() => {
     loadConversations();
@@ -112,22 +139,22 @@ export function useWorkbenchCommander() {
   }, [currentChat, loadAll]);
 
   useEffect(() => {
-    if (activeModule === "media" && currentChat) {
+    if (safeActiveModule === "media" && currentChat) {
       void loadMediaModule(currentChat, currentConversation?.isGroup ?? false);
     }
-  }, [activeModule, currentChat, currentConversation?.isGroup, loadMediaModule]);
+  }, [safeActiveModule, currentChat, currentConversation?.isGroup, loadMediaModule]);
 
   useEffect(() => {
-    if (activeModule === "sns") {
+    if (safeActiveModule === "sns") {
       void loadSnsModule();
     }
-  }, [activeModule, loadSnsModule]);
+  }, [safeActiveModule, loadSnsModule]);
 
   useEffect(() => {
-    if (activeModule === "developer") {
+    if (developerEntryPolicy.renderDeveloperInspector) {
       void loadDeveloperTools();
     }
-  }, [activeModule, loadDeveloperTools]);
+  }, [developerEntryPolicy.renderDeveloperInspector, loadDeveloperTools]);
 
   useEffect(() => {
     if (layout.mode === "single" && !selectedConversationId) {
@@ -189,6 +216,12 @@ export function useWorkbenchCommander() {
       if (module !== "developer") {
         stopHookStream();
       }
+      if (module === "developer" && !developerEntryPolicy.visible) {
+        stopHookStream();
+        setActiveModule("chat");
+        setInspectorOpen(false);
+        return;
+      }
 
       setActiveModule(module);
 
@@ -212,7 +245,7 @@ export function useWorkbenchCommander() {
         setInspectorOpen(true);
       }
     },
-    [ai, graph, openGraph, navigate, stopHookStream],
+    [ai, developerEntryPolicy.visible, graph, openGraph, navigate, stopHookStream],
   );
 
   const moduleBadges = buildWorkbenchModuleBadges({
@@ -234,7 +267,9 @@ export function useWorkbenchCommander() {
       runnerHistoryCount: developer.runnerHistory.length,
     },
   });
-  const railItems = buildWorkbenchRailItems(activeModule, moduleBadges);
+  const railItems = buildWorkbenchRailItems(safeActiveModule, moduleBadges, {
+    includeDeveloperTools: developerEntryPolicy.includeRailModule,
+  });
 
   const retryStats = useCallback(() => {
     if (currentChat) {
@@ -246,6 +281,7 @@ export function useWorkbenchCommander() {
     appPhase,
     sidecarStatus,
     errorMessage,
+    serviceLabel: activeService.serviceLabel,
     chat,
     search,
     stats,
@@ -255,7 +291,7 @@ export function useWorkbenchCommander() {
     ai,
     graph,
     layout,
-    activeModule,
+    activeModule: safeActiveModule,
     inspectorModule,
     singlePaneView: resolvedSinglePaneView,
     conversationListAsMain,
@@ -267,6 +303,7 @@ export function useWorkbenchCommander() {
     inspectorTitle: getInspectorTitle(inspectorModule),
     moduleBadges,
     railItems,
+    developerEntryPolicy,
     openConversationList,
     handleConversationOpened,
     selectModule,

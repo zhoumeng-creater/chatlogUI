@@ -129,7 +129,7 @@
 
 - `src/l3-molecule/settings/DataSettings.tsx:24-29` 直接把 `settings.wxDataPath` 渲染进只读输入框。
 - `src/l3-molecule/setup/ConfigImportPanel.tsx:35-37` 在导入后显示完整 `picked` 目录。
-- `src/l3-molecule/setup/ManualAdvancedConfigPanel.tsx:57-64` 使用 `E:\WeChat Files\wxid_xxx` 作为数据目录 placeholder。
+- `src/l3-molecule/setup/ManualAdvancedConfigPanel.tsx:57-64` 使用 `E:\WeChat Files\wxid_synthetic_xxx` 作为数据目录 placeholder。
 - `src/l3-molecule/common/DevConsole.tsx:99-101` 导出成功文案显示完整路径。
 - 但 `src/l3-molecule/diagnostics/DiagnosticsPanel.tsx` 的 `formatDiagnosticsExportSuccess()` 已只显示文件名，所以设置/Setup 诊断面板这条路径已有局部修复。
 

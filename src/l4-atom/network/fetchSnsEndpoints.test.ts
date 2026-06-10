@@ -110,4 +110,24 @@ describe("P4-C SNS fetchers", () => {
     expect(JSON.stringify(events[0])).not.toContain("sns/media/proxy");
     expect(JSON.stringify(events[0])).not.toContain("key=");
   });
+
+  it("uses the supplied active service base URL for SNS requests", async () => {
+    const urls: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ count: 0, items: [] }), { status: 200 });
+    };
+
+    try {
+      await fetchSnsFeed(
+        { limit: 10 },
+        { serviceBaseUrl: "http://127.0.0.1:6041" },
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(new URL(urls[0]).origin).toBe("http://127.0.0.1:6041");
+  });
 });

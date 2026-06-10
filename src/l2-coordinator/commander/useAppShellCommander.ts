@@ -12,15 +12,28 @@ import { useDevConsoleStore } from "@l2/data-clerk/stores/useDevConsoleStore";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { maskDiagnosticText } from "@/utils/maskSecrets";
 import { deriveAppShellView } from "./appShellViewModel";
+import { deriveDeveloperEntryPolicy } from "./developerEntryViewModel";
 import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
 
 export function useAppShellCommander(title: string) {
   const navigate = useNavigate();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+  const developerMode = useSettingsStore((state) => state.settings.developerMode);
   const windowMaterial = useSettingsStore((state) => state.settings.windowMaterial);
   const togglePrivacy = useSettingsStore((state) => state.togglePrivacy);
   const toggleConsole = useDevConsoleStore((state) => state.toggle);
   const [isMaximized, setIsMaximized] = useState(false);
+  const developerPolicy = deriveDeveloperEntryPolicy({
+    developerMode,
+    developerEntryOverride: import.meta.env.VITE_ENABLE_DEVELOPER_ENTRY === "true",
+    activeModule: "chat",
+  });
+
+  useEffect(() => {
+    if (!developerPolicy.visible) {
+      useDevConsoleStore.getState().setVisible(false);
+    }
+  }, [developerPolicy.visible]);
 
   useEffect(() => {
     void applyWindowMaterial(windowMaterial, {
@@ -78,10 +91,16 @@ export function useAppShellCommander(title: string) {
   }, [refreshMaximizedState]);
 
   return {
-    view: deriveAppShellView({ title, privacyOn, windowMaterial, isMaximized }),
+    view: deriveAppShellView({
+      title,
+      privacyOn,
+      windowMaterial,
+      isMaximized,
+      developerConsoleVisible: developerPolicy.visible,
+    }),
     actions: {
       togglePrivacy,
-      toggleConsole,
+      toggleConsole: developerPolicy.visible ? toggleConsole : undefined,
       openSettings: () => navigate("/settings"),
       minimizeWindow: () => {
         void minimizeCurrentWindow();

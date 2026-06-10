@@ -8,6 +8,7 @@ import {
   expectWindowControlsVisible,
 } from "../utils/window-controls";
 import {
+  enableDeveloperEntryForTest,
   enablePrivacyMode,
   openSyntheticWorkbench,
   openWorkbenchModule,
@@ -45,6 +46,7 @@ async function expectCommandTooltipInsideViewport(page: Page, buttonName: string
 
 test.describe("accessibility and keyboard gate", () => {
   test("passes axe critical/serious checks on representative routes", async ({ page }) => {
+    await enableDeveloperEntryForTest(page);
     await setDesktop(page);
     await openSyntheticWorkbench(page);
     await expectNoCriticalA11yViolations(page);
@@ -59,6 +61,7 @@ test.describe("accessibility and keyboard gate", () => {
   });
 
   test("keeps rail, tabs, stream controls, and graph explicit-load keyboard reachable", async ({ page }) => {
+    await enableDeveloperEntryForTest(page);
     await setDesktop(page);
     await openSyntheticWorkbench(page);
 
@@ -120,6 +123,7 @@ test.describe("accessibility and keyboard gate", () => {
   });
 
   test("traps and restores focus for narrow inspector drawers", async ({ page }) => {
+    await enableDeveloperEntryForTest(page);
     await setNarrow(page);
     await openSyntheticWorkbench(page);
 

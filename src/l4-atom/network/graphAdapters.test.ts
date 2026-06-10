@@ -230,12 +230,12 @@ describe("graph query, timeline, and action adapters", () => {
   it("maps timeline rows and action responses", () => {
     expect(
       adaptGraphTimeline({
-        items: [{ time: 1717000000, type: "fact", title: "Fact", description: "Detail", source: "wxid_a" }],
+        items: [{ time: 1717000000, type: "fact", title: "Fact", description: "Detail", source: "wxid_synthetic_a" }],
         count: 1,
       }),
     ).toEqual({
       count: 1,
-      rows: [{ time: 1717000000, type: "fact", title: "Fact", description: "Detail", source: "wxid_a" }],
+      rows: [{ time: 1717000000, type: "fact", title: "Fact", description: "Detail", source: "wxid_synthetic_a" }],
     });
 
     expect(adaptGraphActionResult({ ok: true, accepted: true, status: "running" })).toEqual({

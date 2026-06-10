@@ -1,12 +1,11 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
 import { classifyReadOnlySql } from "./dbExplorerAdapters";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 const MAX_PREVIEW_LENGTH = 1200;
 
 export type EndpointParamKind = "text" | "number" | "select" | "boolean";
@@ -206,7 +205,7 @@ export async function runEndpointCatalogEntry(
     }
   }
 
-  const url = buildEndpointUrl(entryItem, input.params);
+  const url = buildEndpointUrl(entryItem, input.params, diagnosticOptions?.serviceBaseUrl);
   const started = performance.now();
   const raw = await requestJson<unknown>(url.toString(), {
     method: entryItem.method,
@@ -264,7 +263,11 @@ function validateParams(entryItem: EndpointCatalogEntry, params: RunEndpointInpu
   }
 }
 
-function buildEndpointUrl(entryItem: EndpointCatalogEntry, params: RunEndpointInput["params"]): URL {
+function buildEndpointUrl(
+  entryItem: EndpointCatalogEntry,
+  params: RunEndpointInput["params"],
+  serviceBaseUrl?: string,
+): URL {
   const pathParamNames = new Set<string>();
   let pathTemplate = entryItem.pathTemplate;
   for (const param of entryItem.params) {
@@ -276,7 +279,7 @@ function buildEndpointUrl(entryItem: EndpointCatalogEntry, params: RunEndpointIn
     pathParamNames.add(param.name);
   }
 
-  const url = new URL(pathTemplate, BASE_URL);
+  const url = new URL(buildChatlogApiUrl(pathTemplate, serviceBaseUrl));
   if (url.pathname.startsWith("/api/v1/") || url.pathname === "/health") {
     url.searchParams.set("format", "json");
   }

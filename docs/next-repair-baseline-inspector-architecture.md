@@ -789,7 +789,7 @@ Setup Center 的首启页面应按下面优先级组织，而不是把步骤、�
 
 不应出现：
 
-- `E:\WeChat Files\wxid_xxx` placeholder。
+- `E:\WeChat Files\wxid_synthetic_xxx` placeholder。
 - 完整本地路径。
 - dataKey/imgKey 明文示例。
 - 一整组高级字段。

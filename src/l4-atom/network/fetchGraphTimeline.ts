@@ -1,4 +1,5 @@
-import { GRAPH_BASE_URL, GRAPH_FETCH_TIMEOUT_MS } from "@/utils/constants";
+import { GRAPH_FETCH_TIMEOUT_MS } from "@/utils/constants";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -18,7 +19,7 @@ export async function fetchGraphTimeline(
   params: GraphTimelineParams = {},
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphTimelineView> {
-  const url = new URL(`${GRAPH_BASE_URL}/api/v1/graph/timeline`);
+  const url = new URL(buildChatlogApiUrl("/api/v1/graph/timeline", diagnosticOptions?.serviceBaseUrl));
   if (params.keyword) url.searchParams.set("keyword", params.keyword);
   if (params.window) url.searchParams.set("window", params.window);
   if (params.start) url.searchParams.set("start", params.start);

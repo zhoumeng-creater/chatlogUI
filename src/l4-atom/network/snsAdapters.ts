@@ -1,4 +1,4 @@
-import { SIDECAR_PORT } from "@/utils/constants";
+import { validateChatlogServiceBaseUrl } from "./chatlogEndpoint";
 import type {
   RawSnsArticle,
   RawSnsFeedResponse,
@@ -123,11 +123,7 @@ export function isLocalSnsProxyUrl(value?: string | null): boolean {
 
   try {
     const url = new URL(value);
-    return (
-      url.protocol === "http:" &&
-      (url.host === `127.0.0.1:${SIDECAR_PORT}` || url.host === `localhost:${SIDECAR_PORT}`) &&
-      url.pathname === LOCAL_PROXY_PATH
-    );
+    return validateChatlogServiceBaseUrl(url.origin).ok && url.pathname === LOCAL_PROXY_PATH;
   } catch {
     return false;
   }

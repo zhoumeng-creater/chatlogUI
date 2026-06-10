@@ -90,7 +90,7 @@ describe("deriveSemanticModuleView", () => {
     const view = deriveSemanticModuleView({
       config: readyConfig(),
       indexStatus: indexStatus("error", {
-        lastError: "embedding unavailable at C:\\Users\\Alice\\WeChat Files\\wxid_real api_key=sk-real-secret",
+        lastError: "embedding unavailable at C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_real api_key=sk-synthetic-redaction-token",
       }),
       qaStatus: "idle",
     });
@@ -99,8 +99,8 @@ describe("deriveSemanticModuleView", () => {
     expect(view.blocksCoreWorkbench).toBe(false);
     expect(view.message).toContain("embedding unavailable");
     expect(view.message).not.toContain("Alice");
-    expect(view.message).not.toContain("wxid_real");
-    expect(view.message).not.toContain("sk-real-secret");
+    expect(view.message).not.toContain("wxid_synthetic_real");
+    expect(view.message).not.toContain("sk-synthetic-redaction-token");
   });
 });
 

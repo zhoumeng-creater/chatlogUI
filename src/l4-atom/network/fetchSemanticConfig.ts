@@ -1,4 +1,4 @@
-import { AI_BASE_URL } from '@/utils/constants';
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -11,7 +11,7 @@ export type SemanticConfigDraft = SemanticConfigView | object;
 export async function fetchSemanticConfig(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticConfigView | null> {
-  const data = await requestJson(`${AI_BASE_URL}/api/v1/semantic/config`, {
+  const data = await requestJson(buildChatlogApiUrl("/api/v1/semantic/config", diagnosticOptions?.serviceBaseUrl), {
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "semantic",
       method: "GET",
@@ -24,7 +24,7 @@ export async function setSemanticConfig(
   config: SemanticConfigDraft,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<void> {
-  await requestJson(`${AI_BASE_URL}/api/v1/semantic/config`, {
+  await requestJson(buildChatlogApiUrl("/api/v1/semantic/config", diagnosticOptions?.serviceBaseUrl), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(config),

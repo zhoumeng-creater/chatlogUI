@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { setDesktop, setNarrow } from "../utils/viewport";
 import { expectGraphCanvasReady } from "../utils/graph";
-import { enablePrivacyMode, openSyntheticWorkbench, openWorkbenchModule } from "../utils/workbench";
+import {
+  enableDeveloperEntryForTest,
+  enablePrivacyMode,
+  openSyntheticWorkbench,
+  openWorkbenchModule,
+} from "../utils/workbench";
 
 test.describe("visual regression synthetic states", () => {
   test.beforeEach(async ({ page }) => {
@@ -9,6 +14,7 @@ test.describe("visual regression synthetic states", () => {
   });
 
   test("captures desktop workbench and advanced module states", async ({ page }) => {
+    await enableDeveloperEntryForTest(page);
     await setDesktop(page);
     await openSyntheticWorkbench(page);
     await expect(page).toHaveScreenshot("workbench-ready-desktop.png", {

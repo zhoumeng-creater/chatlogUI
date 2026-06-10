@@ -1,6 +1,7 @@
 import type { SettingsState } from "@/l2-coordinator/api-docs/settings";
 import type { SettingsSaveStatus } from "@l2/data-clerk/stores/useSettingsStore";
 import { Button, Field, Input, StatusIndicator, Surface, Typography } from "@l4/ui";
+import { formatPrivatePathSummary } from "@/utils/privacyDisplay";
 
 interface DataSettingsProps {
   settings: SettingsState;
@@ -21,18 +22,18 @@ export function DataSettings({
 
       <Surface variant="base" className="settings-section">
         <form className="settings-stack" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
-          <Field id="settings-wx-path" label="微信数据路径">
-            <div className="settings-inline">
+          <div className="settings-inline">
+            <Field id="settings-wx-path" label="微信数据路径">
               <Input
                 id="settings-wx-path"
-                value={settings.wxDataPath || "未设置"}
+                value={formatPrivatePathSummary(settings.wxDataPath, "data-dir")}
                 readOnly
               />
-              <Button variant="secondary" size="md" onClick={onChooseDataDirectory}>
-                选择目录
-              </Button>
-            </div>
-          </Field>
+            </Field>
+            <Button variant="secondary" size="md" onClick={onChooseDataDirectory}>
+              选择目录
+            </Button>
+          </div>
           <Field id="settings-data-key" label="数据解密密钥" hint="Data Key 只在设置中心配置，不保存在 UI 设置里。">
             <Input
               id="settings-data-key"

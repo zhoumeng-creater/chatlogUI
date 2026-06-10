@@ -1,4 +1,5 @@
-import { AI_BASE_URL, SEMANTIC_SEARCH_DEFAULT_LIMIT } from '@/utils/constants';
+import { SEMANTIC_SEARCH_DEFAULT_LIMIT } from '@/utils/constants';
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -35,7 +36,7 @@ export async function fetchSemanticSearch(
     sourceLimit,
     rerank,
   } = params;
-  const url = new URL(`${AI_BASE_URL}/api/v1/semantic/search`);
+  const url = new URL(buildChatlogApiUrl("/api/v1/semantic/search", diagnosticOptions?.serviceBaseUrl));
   url.searchParams.set('query', query);
   url.searchParams.set('limit', String(limit));
   if (chat) url.searchParams.set('chat', chat);

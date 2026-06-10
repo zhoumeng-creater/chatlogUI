@@ -2,6 +2,19 @@ import { expect, type Page } from "@playwright/test";
 import { assertNoForbiddenVisibleText } from "./privacy-scan";
 import { hasPageHorizontalOverflow } from "./viewport";
 
+const SETTINGS_STORAGE_KEY = "chatlog_alpha_settings";
+
+export async function enableDeveloperEntryForTest(page: Page) {
+  await page.addInitScript((storageKey) => {
+    const raw = window.localStorage.getItem(storageKey);
+    const settings = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      ...settings,
+      developerMode: true,
+    }));
+  }, SETTINGS_STORAGE_KEY);
+}
+
 export async function openSyntheticWorkbench(page: Page) {
   await page.goto("/workbench?codex-smoke=workbench-ready");
   await expect(page.getByLabel("会话列表").first()).toBeVisible();
@@ -26,6 +39,12 @@ export async function enablePrivacyMode(page: Page) {
   if (await button.isVisible()) {
     await button.click();
   }
+}
+
+export async function expectDeveloperEntryHidden(page: Page) {
+  await expect(page.getByRole("button", { name: "打开开发模块" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "开发", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "开发者控制台" })).toHaveCount(0);
 }
 
 export async function expectStableSyntheticPage(page: Page) {

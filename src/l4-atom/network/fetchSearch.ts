@@ -1,13 +1,11 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import type { RawSearchResponse } from "./chatlogRawTypes";
 import { adaptSearchResponse } from "./chatlogAdapters";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export interface FetchSearchOptions {
   keyword: string;
@@ -35,7 +33,7 @@ export async function fetchSearch(
   if (options.msgType) params.set("msg_type", options.msgType);
 
   const raw = await requestJson<RawSearchResponse>(
-    `${BASE_URL}/api/v1/search?${params.toString()}`,
+    buildChatlogApiUrl(`/api/v1/search?${params.toString()}`, diagnosticOptions?.serviceBaseUrl),
     {
       timeoutMs: 20000,
       ...withRequestDiagnostics(diagnosticOptions, {

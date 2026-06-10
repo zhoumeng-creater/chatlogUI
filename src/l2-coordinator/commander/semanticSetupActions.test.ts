@@ -11,7 +11,7 @@ describe("saveSemanticConfigWithRefetch", () => {
     const savedPayloads: unknown[] = [];
     const refetched = semanticConfig({ apiKeySaved: true, deepseekApiKeySaved: true });
     const draft = createSemanticSetupDraft(semanticConfig({ apiKeySaved: false, deepseekApiKeySaved: true }));
-    draft.apiKeyInput = "sk-new-glm";
+    draft.apiKeyInput = "sk-synthetic-new-glm";
     draft.chatProvider = "glm";
     draft.chatModel = "glm-5.1";
 
@@ -26,7 +26,7 @@ describe("saveSemanticConfigWithRefetch", () => {
     expect(savedPayloads[0]).toMatchObject({
       chat_provider: "glm",
       chat_model: "glm-5.1",
-      api_key: "sk-new-glm",
+      api_key: "sk-synthetic-new-glm",
     });
     expect(result.config.credentials?.apiKeySaved).toBe(true);
     expect(result.config).toBe(refetched);

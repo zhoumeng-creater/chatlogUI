@@ -1,4 +1,4 @@
-import { AI_BASE_URL } from '@/utils/constants';
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -15,7 +15,7 @@ export async function fetchSemanticQA(
   params: SemanticQARequestInput,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticQADonePayload> {
-  const data = await requestJson(`${AI_BASE_URL}/api/v1/semantic/qa`, {
+  const data = await requestJson(buildChatlogApiUrl("/api/v1/semantic/qa", diagnosticOptions?.serviceBaseUrl), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(buildSemanticQARequestPayload(params)),

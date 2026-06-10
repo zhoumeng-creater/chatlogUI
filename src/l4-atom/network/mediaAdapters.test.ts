@@ -49,11 +49,20 @@ describe("mediaAdapters", () => {
     );
   });
 
+  it("accepts direct media URLs from validated loopback service origins", () => {
+    const [attachment] = adaptMediaAttachments({
+      media_type: "image",
+      media_url: "http://127.0.0.1:6041/image/image-secret-key",
+    });
+
+    expect(attachment.directUrl).toBe("http://127.0.0.1:6041/image/image-secret-key");
+  });
+
   it("adapts favorites with attachments and safe display metadata", () => {
     const favorite: RawFavoriteMessage = {
       id: "fav-1",
-      chat: "wxid_private_chat",
-      sender: "wxid_sender",
+      chat: "wxid_synthetic_private_chat",
+      sender: "wxid_synthetic_sender",
       time: "2026-06-02 10:00",
       content: "saved photo",
       type: "image",
@@ -73,7 +82,7 @@ describe("mediaAdapters", () => {
 
   it("adapts members, unread counts, and incremental messages", () => {
     const member: RawMember = {
-      username: "wxid_member",
+      username: "wxid_synthetic_member",
       display: "Alice",
       remark: "",
       nickname: "Ali",
@@ -81,7 +90,7 @@ describe("mediaAdapters", () => {
     const newMessage: RawNewMessage = {
       id: "new-1",
       chat: "room@chatroom",
-      sender: "wxid_sender",
+      sender: "wxid_synthetic_sender",
       time: "2026-06-02 10:10",
       content: "new media",
       media_type: "file",
@@ -89,7 +98,7 @@ describe("mediaAdapters", () => {
     };
 
     expect(adaptMembersResponse({ count: 1, members: [member] }).members[0]).toMatchObject({
-      username: "wxid_member",
+      username: "wxid_synthetic_member",
       displayName: "Alice",
     });
     expect(adaptUnreadResponse({ total: 3, chats: [{ chat: "room@chatroom", count: 3 }] })).toMatchObject({

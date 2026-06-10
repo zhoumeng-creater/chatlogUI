@@ -1,4 +1,5 @@
-import { GRAPH_BASE_URL, GRAPH_FETCH_TIMEOUT_MS } from "@/utils/constants";
+import { GRAPH_FETCH_TIMEOUT_MS } from "@/utils/constants";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -16,7 +17,7 @@ export async function manageGraph(
   const rebuildBody = action === "rebuild" || action === "reset-rebuild"
     ? JSON.stringify({ reset: action === "reset-rebuild" })
     : undefined;
-  const data = await requestJson(`${GRAPH_BASE_URL}/api/v1/graph/${endpoint}`, {
+  const data = await requestJson(buildChatlogApiUrl(`/api/v1/graph/${endpoint}`, diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
     ...(rebuildBody

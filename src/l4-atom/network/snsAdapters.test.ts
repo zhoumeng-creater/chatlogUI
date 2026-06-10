@@ -137,6 +137,7 @@ describe("P4-C SNS adapters", () => {
   it("validates only local SNS proxy URLs", () => {
     expect(isLocalSnsProxyUrl("http://127.0.0.1:5030/api/v1/sns/media/proxy?url=x")).toBe(true);
     expect(isLocalSnsProxyUrl("http://localhost:5030/api/v1/sns/media/proxy?url=x")).toBe(true);
+    expect(isLocalSnsProxyUrl("http://127.0.0.1:6041/api/v1/sns/media/proxy?url=x")).toBe(true);
     expect(isLocalSnsProxyUrl("https://synthetic.invalid/api/v1/sns/media/proxy?url=x")).toBe(false);
     expect(isLocalSnsProxyUrl("http://127.0.0.1:5030/api/v1/history")).toBe(false);
   });

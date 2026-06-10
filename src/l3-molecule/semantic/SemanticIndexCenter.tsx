@@ -3,9 +3,9 @@ import type {
   SemanticIndexActionIntent,
   SemanticIndexCenterView,
 } from "@l2/commander/semanticSetupViewModel";
-import { Button } from "@l4/ui/Button";
 import { ProgressBar } from "@l4/ui/ProgressBar";
 import { Typography } from "@l4/ui/Typography";
+import { SemanticConfirmDialog } from "./SemanticConfirmDialog";
 import { SemanticIndexActionBar } from "./SemanticIndexActionBar";
 import { SemanticIndexStatusPanel } from "./SemanticIndexStatusPanel";
 import { getSafeSemanticDiagnosticText } from "./semanticSetupDisplay";
@@ -78,29 +78,16 @@ export function SemanticIndexCenter({ view, onAction }: SemanticIndexCenterProps
       )}
 
       {confirming && (
-        <div className="semantic-confirm" role="dialog" aria-modal="true" aria-label={confirming.confirmationTitle}>
-          <div className="semantic-confirm__panel">
-            <Typography variant="body" weight={600}>
-              {confirming.confirmationTitle}
-            </Typography>
-            <Typography variant="caption" color="var(--color-text-secondary)">
-              {confirming.confirmationBody}
-            </Typography>
-            <div className="semantic-confirm__actions">
-              <Button variant="ghost" size="sm" onClick={() => setConfirming(null)}>
-                取消
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                loading={busyCommand === confirming.command}
-                onClick={() => performAction(confirming)}
-              >
-                确认
-              </Button>
-            </div>
-          </div>
-        </div>
+        <SemanticConfirmDialog
+          heading={confirming.confirmationTitle}
+          body={confirming.confirmationBody}
+          cancelLabel="取消"
+          confirmLabel="确认"
+          confirmVariant="danger"
+          confirming={busyCommand === confirming.command}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => performAction(confirming)}
+        />
       )}
     </section>
   );

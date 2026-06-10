@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { setDesktop } from "../utils/viewport";
 import { expectGraphCanvasReady } from "../utils/graph";
 import {
+  enableDeveloperEntryForTest,
   expectStableSyntheticPage,
   openSyntheticWorkbench,
   openWorkbenchModule,
@@ -9,6 +10,7 @@ import {
 
 test.describe("advanced synthetic modules", () => {
   test.beforeEach(async ({ page }) => {
+    await enableDeveloperEntryForTest(page);
     await setDesktop(page);
     await openSyntheticWorkbench(page);
   });

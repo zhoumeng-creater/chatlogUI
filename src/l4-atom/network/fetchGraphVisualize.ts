@@ -1,9 +1,9 @@
 import {
-  GRAPH_BASE_URL,
   GRAPH_DEFAULT_LIMIT,
   GRAPH_MAX_LIMIT,
   GRAPH_FETCH_TIMEOUT_MS,
 } from "@/utils/constants";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -25,7 +25,7 @@ export async function fetchGraphVisualize(
 ): Promise<GraphVisualizeView> {
   const { keyword, window, limit = GRAPH_DEFAULT_LIMIT, start, end } = params;
   const cappedLimit = Math.min(limit, GRAPH_MAX_LIMIT);
-  const url = new URL(`${GRAPH_BASE_URL}/api/v1/graph/visualize`);
+  const url = new URL(buildChatlogApiUrl("/api/v1/graph/visualize", diagnosticOptions?.serviceBaseUrl));
   url.searchParams.set("limit", String(cappedLimit));
   if (keyword) url.searchParams.set("keyword", keyword);
   if (window) url.searchParams.set("window", window);
