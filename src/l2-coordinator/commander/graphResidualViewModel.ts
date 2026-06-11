@@ -11,7 +11,7 @@ import type { GraphAdvancedConfirmation } from "@l2/data-clerk/stores/useGraphSt
 
 export type { GraphBusinessDraft, GraphConfigDraft, GraphEventDraft, GraphQADraft };
 
-export type GraphResidualLoadStatus = "idle" | "loading" | "ready" | "empty" | "error";
+export type GraphResidualLoadStatus = "idle" | "loading" | "ready" | "empty" | "error" | "cancelled";
 
 export interface GraphResidualViewInput {
   configStatus: GraphResidualLoadStatus;
