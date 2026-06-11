@@ -186,6 +186,16 @@ describe("UI governance", () => {
     expect(untooltippedIconButtons).toEqual([]);
   });
 
+  it("keeps tooltip bubbles from sticking after pointer activation", async () => {
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+    const iconButton = await readFile("src/l4-atom/ui/IconButton.tsx", "utf8");
+
+    expect(layoutCss).toContain(".ui-tooltip:focus-within .ui-tooltip__bubble");
+    expect(layoutCss).toContain(".ui-tooltip:hover .ui-tooltip__bubble");
+    expect(iconButton).toContain("handlePointerUp");
+    expect(iconButton).toContain("event.currentTarget.blur()");
+  });
+
   it("keeps Tauri current-window APIs owned by L4 system atoms", async () => {
     const files = await collectSourceFiles("src");
     const forbiddenWindowImports = [];
@@ -357,5 +367,46 @@ describe("UI governance", () => {
 
     const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
     expect(workbenchView).not.toContain("<WorkspaceScopeStatus");
+  });
+
+  it("keeps the AI primary page from duplicating primary rail navigation", async () => {
+    const aiWorkspaceView = await readFile("src/l1-entry/pages/AiWorkspaceView.tsx", "utf8");
+    const aiPanel = await readFile("src/l3-molecule/semantic/AiPanel.tsx", "utf8");
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+
+    expect(aiWorkspaceView).not.toContain("onModeChange");
+    expect(aiPanel).not.toContain("onModeChange");
+    expect(aiPanel).not.toContain("PanelMode");
+    expect(aiPanel).not.toContain("semantic-panel__modebar");
+    expect(layoutCss).not.toContain(".semantic-panel__modebar");
+  });
+
+  it("keeps Step 10 visual evidence broad enough for global acceptance claims", async () => {
+    const visualSpec = await readFile("e2e/specs/visual.spec.ts", "utf8");
+    const evidence = await readFile("docs/next-repair-baseline-step-10-global-acceptance-evidence.md", "utf8");
+    const requiredSnapshots = [
+      "setup-center-desktop.png",
+      "settings-about-diagnostics-desktop.png",
+      "media-workspace-desktop.png",
+      "sns-workspace-desktop.png",
+      "settings-privacy-narrow.png",
+    ];
+    const requiredPageScores = [
+      "Setup `/`: 18/20",
+      "Settings `/settings`: 18/20",
+      "Media `/media`: 17/20",
+      "SNS `/sns`: 17/20",
+      "AI `/ai`: 18/20",
+      "Graph `/graph`: 18/20",
+    ];
+
+    for (const snapshot of requiredSnapshots) {
+      expect(visualSpec, snapshot).toContain(snapshot);
+    }
+
+    expect(evidence).toContain("## Page Score And Visual Evidence");
+    for (const score of requiredPageScores) {
+      expect(evidence, score).toContain(score);
+    }
   });
 });

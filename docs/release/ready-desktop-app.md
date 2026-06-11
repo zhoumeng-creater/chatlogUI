@@ -23,7 +23,7 @@ pnpm release:check:updater
 
 Current canonical evidence is recorded in `docs/next-repair-baseline-step-10-global-acceptance-evidence.md`. Historical entries below remain audit context and must not be treated as current proof unless repeated in the Step 10 evidence file.
 
-- Source/UI gates passed: `pnpm fixtures:check`, governance Vitest, `pnpm e2e`, `pnpm e2e:visual`, `pnpm e2e:a11y`, and `pnpm verify`.
+- Source/UI gates passed: `pnpm fixtures:check` (71 route entries), governance Vitest (7 files / 57 tests), `pnpm e2e` (29 tests), `pnpm e2e:visual` (4 tests), `pnpm e2e:a11y` (10 tests), and `pnpm verify` (168 files / 702 tests plus production build).
 - Native gates passed: `cargo test` passed with 22 Rust tests; Tauri dev smoke passed using a temporary `127.0.0.1:5174` dev server because an existing Vite process occupied the default `5173`.
 - Package build passed: `pnpm tauri build` produced current Windows x64 MSI and NSIS artifacts.
 - Windows sidecar release provenance passed for the current target: `pnpm release:check:sidecar:release -- --json` verified `src-tauri/binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe` with SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`.

@@ -2,7 +2,6 @@ import { lazy, Suspense } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAiCommander } from "@l2/commander/useAiCommander";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
 import { Spinner, Typography } from "@l4/ui";
 
@@ -13,13 +12,11 @@ const LazyAiPanel = lazy(() =>
 export function AiWorkspaceView() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { chat, currentConversation, workspaceRouteScope } = useScopedWorkspaceConversation({
+  const { chat, currentConversation, workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
     scope: params.get("scope"),
     scopedChat: params.get("chat"),
     focus: params.get("focus"),
     source: params.get("source"),
-    privacyOn,
     defaultScope: "currentChat",
   });
   const ai = useAiCommander();
@@ -41,7 +38,6 @@ export function AiWorkspaceView() {
       <div className="workspace-page__surface workspace-page__module-surface">
         <Suspense fallback={<div className="panel-loading"><Spinner size={20} label="加载 AI 工作台..." /></div>}>
           <LazyAiPanel
-            mode="ai"
             ai={ai}
             openSetupOnMount={params.get("panel") === "semantic"}
             currentChat={currentConversation?.username ?? ""}
@@ -81,9 +77,6 @@ export function AiWorkspaceView() {
               }
 
               void chat.selectAndLoad(conversation.id, conversation.username).then(() => navigate(withSmokeQuery("/workbench")));
-            }}
-            onModeChange={(mode) => {
-              if (mode === "stats") navigate(withSmokeQuery("/analytics"));
             }}
           />
         </Suspense>

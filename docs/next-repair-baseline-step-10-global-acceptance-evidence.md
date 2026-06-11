@@ -6,7 +6,8 @@ This file records the current global acceptance run for `codex/next-repair-basel
 
 - Date: 2026-06-11
 - Branch: `codex/next-repair-baseline`
-- Commit: `ee36cad2d69d98bac7b7eea503660143da147076`
+- Reviewed baseline commit: `86add4b8eef5001cadf99ba26835c9dc955df424`
+- Current remediation scope: endpoint-free ordinary service labels, L1 privacy-store boundary cleanup, AI primary page IA cleanup, expanded visual/page-score evidence, and release-blocker evidence clarification.
 - App version: `0.1.0`
 - Sidecar release target checked: `x86_64-pc-windows-msvc`
 - Sidecar source/version: `github.com/zhoumeng-creater/chatlog_alpha@5b979cc666418c41467b1f9959cfdc6b3abbb86b`
@@ -38,14 +39,14 @@ This file records the current global acceptance run for `codex/next-repair-basel
 | Command or smoke | Result | Evidence |
 | --- | --- | --- |
 | `pnpm fixtures:check` | Passed | 71 route entries checked. |
-| Governance Vitest run for architecture, UI, privacy, release workflow, fixture, sidecar, updater scripts | Passed | 7 files / 53 tests passed. |
+| Governance Vitest run for architecture, UI, privacy, release workflow, fixture, sidecar, updater scripts | Passed | 7 files / 57 tests passed. |
 | `pnpm release:check:sidecar -- --json` | Passed | Windows artifact verified; non-Windows check-mode placeholders warned as not release evidence. |
 | `pnpm release:check:sidecar:release -- --json` | Passed | Windows x64 release target verified as checksum artifact, SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`. |
 | `pnpm release:check:updater -- --json` | Failed as release blocker | `no latest.json was found under src-tauri/target`. |
 | `pnpm e2e` | Passed | 29 Playwright tests passed across core, advanced, privacy, P3-C semantic discovery, and P3-E privacy diagnostics. |
-| `pnpm e2e:visual` | Passed | 2 visual regression tests passed. |
+| `pnpm e2e:visual` | Passed | 4 visual regression tests passed after expanding snapshots to Workbench/Search/AI/Graph plus Setup/Settings diagnostics/Media/SNS/narrow Settings privacy. |
 | `pnpm e2e:a11y` | Passed after serialized rerun | 10 accessibility/keyboard tests passed. Earlier parallel attempts failed only because another Playwright web server occupied `127.0.0.1:5030`. |
-| `pnpm verify` | Passed | Lint, typecheck, 168 Vitest files / 697 tests, and production build passed. |
+| `pnpm verify` | Passed | Lint, typecheck, 168 Vitest files / 702 tests, and production build passed. |
 | `cd src-tauri && cargo test` | Passed | 22 Rust tests passed, including sidecar ownership, unknown-process classification, config redaction, and diagnostics redaction. |
 | `pnpm tauri build` | Passed | MSI and NSIS x64 bundles were produced. |
 | `pnpm tauri build --config '{"bundle":{"createUpdaterArtifacts":true}}'` | Failed as release blocker | Build produced bundles, then failed because `TAURI_SIGNING_PRIVATE_KEY` was not set while an updater public key is configured. |
@@ -57,9 +58,9 @@ This file records the current global acceptance run for `codex/next-repair-basel
 
 | Artifact | Size | SHA-256 |
 | --- | ---: | --- |
-| `src-tauri/target/release/bundle/msi/chatlog_alpha_0.1.0_x64_zh-CN.msi` | 31,506,432 bytes | `286c0144aabf5b80a6670824597b3a8ea747c55030db39a57d3c5aca0caf66fa` |
-| `src-tauri/target/release/bundle/nsis/chatlog_alpha_0.1.0_x64-setup.exe` | 22,512,547 bytes | `b92342537e566f8aee0a38c740dc1e78e8d42511008a37053f8c1cc92513ebe6` |
-| `src-tauri/target/release/chatlogUI.exe` | current build output | `5365e540163f5db8bc60a06f0479b048108e40fa2597939b3929da301585b4ba` |
+| `src-tauri/target/release/bundle/msi/chatlog_alpha_0.1.0_x64_zh-CN.msi` | 31,510,528 bytes | `baff967c30eba17bb405c3bf3e8a4109e52c2c191863a0f97e22723a24d8bd12` |
+| `src-tauri/target/release/bundle/nsis/chatlog_alpha_0.1.0_x64-setup.exe` | 22,513,171 bytes | `4404aaff0aabb1cf4976b4ddc2ed5d872a491ee6a0fcd020383f9f5b2c0d9f2a` |
+| `src-tauri/target/release/chatlogUI.exe` | current build output | `7b8f9fe293404c2ae78ad6edb90529e4d8404034bf9c579dcbde0ce5790ca17f` |
 | `src-tauri/binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe` | local sidecar artifact | `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af` |
 
 ## Route And State Coverage
@@ -74,7 +75,20 @@ This file records the current global acceptance run for `codex/next-repair-basel
 | Advanced modules | Media/SNS, developer diagnostics, semantic setup/preview/search/topics/QA, graph list/detail/timeline/advanced/visualization/QA. |
 | Privacy | Browser privacy suite masks workbench, media, SNS, semantic, graph, search snippets, form values, and accessible names. |
 | Accessibility | Axe critical/serious checks, keyboard rail/tabs/graph/QA evidence, focus trap/restore, titlebar tooltips, graph command tooltips. |
-| Visual | Desktop workbench/search/AI/graph and narrow privacy workbench/AI/graph snapshots passed. |
+| Visual | Desktop workbench/search/AI/graph/setup/settings diagnostics/media/SNS and narrow privacy workbench/AI/graph/settings snapshots passed with synthetic/privacy-safe data. |
+
+## Page Score And Visual Evidence
+
+These page scores are the acceptance checklist for the current remediation run. Scores use the project 10-item page score rubric from `docs/product-acceptance-standards.md`; the fresh E2E, a11y, visual, and manual snapshot checks passed for the listed synthetic/privacy-safe states.
+
+| Page | Score | Evidence and caveat |
+| --- | ---: | --- |
+| Setup `/`: 18/20 | 18 | Main task, three setup paths, readiness summary, diagnostics disclosure, desktop/narrow layout, and first-run recovery are clear. Minor caveat: desktop first viewport remains dense near the lower CTA edge. |
+| Settings `/settings`: 18/20 | 18 | Source-aware Settings, folded diagnostics, AI semantic ownership, data/service ownership, and endpoint-free service summary are coherent. |
+| Media `/media`: 17/20 | 17 | Independent route, scope status, empty/partial/error states, disabled reasons, privacy masking, and retry paths are present. Further polish can improve dense member/resource hierarchy. |
+| SNS `/sns`: 17/20 | 17 | Independent route, timeline/search/notification states, safe external-open confirmation, privacy masking, and empty-search recovery are present. Further polish can improve lower-frequency affordance explanations. |
+| AI `/ai`: 18/20 | 18 | AI is a single primary workspace; semantic setup/index/QA/search/analysis/preview states, cancellation, privacy, evidence, and Settings handoff are covered. Internal stats/AI modebar was removed in this remediation. |
+| Graph `/graph`: 18/20 | 18 | Summary/table default, explicit visualization, advanced/QA/timeline states, nonblank canvas checks, privacy labels, and narrow behavior are covered. |
 
 ## Privacy And Security Notes
 

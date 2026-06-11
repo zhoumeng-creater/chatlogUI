@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
 import { useStatsCommander } from "@l2/commander/useStatsCommander";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { DashboardOverview } from "@l3/stats/DashboardOverview";
 import { TopContactCard } from "@l3/stats/TopContactCard";
 import { TrendChart } from "@l3/stats/TrendChart";
@@ -12,13 +11,11 @@ import { Button, Typography } from "@l4/ui";
 export function AnalyticsView() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { currentChat, workspaceRouteScope } = useScopedWorkspaceConversation({
+  const { currentChat, workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
     scope: params.get("scope"),
     scopedChat: params.get("chat"),
     focus: params.get("focus"),
     source: params.get("source"),
-    privacyOn,
     defaultScope: "currentChat",
   });
   const stats = useStatsCommander();

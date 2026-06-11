@@ -2,20 +2,17 @@ import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMediaCommander } from "@l2/commander/useMediaCommander";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { MediaLibrary } from "@l3/media/MediaLibrary";
 import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
 import { Typography } from "@l4/ui";
 
 export function MediaView() {
   const [params] = useSearchParams();
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { workspaceRouteScope } = useScopedWorkspaceConversation({
+  const { workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
     scope: params.get("scope"),
     scopedChat: params.get("chat"),
     focus: params.get("focus"),
     source: params.get("source"),
-    privacyOn,
     defaultScope: "currentChat",
   });
   const media = useMediaCommander();

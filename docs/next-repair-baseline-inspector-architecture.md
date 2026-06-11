@@ -1030,9 +1030,9 @@ Setup Center 的首启页面应按下面优先级组织，而不是把步骤、�
 | Topic | Current status | Evidence |
 | --- | --- | --- |
 | L3 runtime imports from L2 | Accepted | `scripts/architecture-boundary.test.mjs` passed with an empty runtime allowlist. |
-| L1/L3 raw network access | Accepted | Current `pnpm verify` and governance scans passed; browser E2E exercises feature flows through L2/L4 contracts rather than page-level fetches. |
+| L1/L3 raw network access and persistent state boundary | Accepted | Current `pnpm verify` and governance scans passed; browser E2E exercises feature flows through L2/L4 contracts rather than page-level fetches. `scripts/architecture-boundary.test.mjs` now also rejects runtime persistent store imports from L1 route pages. |
 | Workbench inspector scope | Accepted | `scripts/ui-governance.test.mjs` checks `WorkbenchView.tsx` does not contain full module containers such as `<SearchResults`, `<MediaLibrary`, `<SnsModule`, `<DeveloperToolsModule`, or `<LazyAiPanel`. |
-| Independent primary pages | Accepted | Governance checks require `WorkspaceScopeStatus` on `/analytics`, `/media`, `/sns`, `/ai`, and `/graph`; E2E verified those routes render independently. |
+| Independent primary pages | Accepted | Governance checks require `WorkspaceScopeStatus` on `/analytics`, `/media`, `/sns`, `/ai`, and `/graph`; E2E verified those routes render independently. `/ai` no longer passes or renders a duplicated `统计` / `AI` internal mode switch. |
 | Search page ownership | Accepted | Governance checks require `.search-workspace__results` ownership on `SearchView` and no `<SearchResults` in Workbench. E2E covered search hit open/return and stale guards. |
 | Setup orchestration boundary | Accepted | Setup view delegates through `useSetupCenterCommander`; E2E covered setup paths and external service behavior. |
 | Tauri/system boundary | Accepted | UI governance keeps current-window APIs in L4 system atoms. Rust tests cover sidecar ownership, unknown process classification, and redaction. |

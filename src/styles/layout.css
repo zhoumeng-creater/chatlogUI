@@ -2890,15 +2890,12 @@
   flex-direction: column;
 }
 
-.semantic-panel__modebar {
+.semantic-panel__actions {
   display: flex;
+  justify-content: flex-end;
   gap: 4px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--color-border);
-}
-
-.semantic-panel__spacer {
-  flex: 1;
 }
 
 .semantic-panel__tabs {

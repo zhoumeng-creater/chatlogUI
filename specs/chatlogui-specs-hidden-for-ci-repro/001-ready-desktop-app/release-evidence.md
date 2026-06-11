@@ -10,7 +10,8 @@ Canonical current evidence is recorded in `docs/next-repair-baseline-step-10-glo
 
 - Date: 2026-06-11
 - Branch: `codex/next-repair-baseline`
-- Commit: `ee36cad2d69d98bac7b7eea503660143da147076`
+- Reviewed baseline commit: `86add4b8eef5001cadf99ba26835c9dc955df424`
+- Current remediation scope: endpoint-free ordinary service labels, L1 privacy-store boundary cleanup, AI primary page IA cleanup, expanded visual/page-score evidence, and release-blocker evidence clarification.
 - App version: `0.1.0`
 - Sidecar source/version: `github.com/zhoumeng-creater/chatlog_alpha@5b979cc666418c41467b1f9959cfdc6b3abbb86b`
 
@@ -18,11 +19,11 @@ Canonical current evidence is recorded in `docs/next-repair-baseline-step-10-glo
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| Fixture and governance gates | Passed | `pnpm fixtures:check` passed for 71 route entries. Governance Vitest passed 7 files / 53 tests. |
+| Fixture and governance gates | Passed | `pnpm fixtures:check` passed for 71 route entries. Governance Vitest passed 7 files / 57 tests. |
 | Browser E2E | Passed | `pnpm e2e` passed 29 tests covering core routes, advanced modules, privacy, P3-C semantic discovery, and P3-E privacy diagnostics. |
 | Accessibility | Passed | `pnpm e2e:a11y` passed 10 tests after serialized rerun. Parallel attempts failed only because another Playwright web server occupied `127.0.0.1:5030`. |
-| Visual regression | Passed | `pnpm e2e:visual` passed 2 tests. |
-| Full frontend verification | Passed | `pnpm verify` passed lint, typecheck, 168 Vitest files / 697 tests, and production build. |
+| Visual regression | Passed | `pnpm e2e:visual` passed 4 tests covering Workbench/Search/AI/Graph plus Setup/Settings diagnostics/Media/SNS/narrow Settings privacy. |
+| Full frontend verification | Passed | `pnpm verify` passed lint, typecheck, 168 Vitest files / 702 tests, and production build. |
 | Rust/native tests | Passed | `cargo test` passed 22 tests in `src-tauri`. |
 | Sidecar provenance | Passed for Windows x64 | `pnpm release:check:sidecar:release -- --json` verified the Windows artifact with SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`. |
 | Tauri bundle build | Passed | `pnpm tauri build` produced Windows x64 MSI and NSIS bundles. |
@@ -36,9 +37,9 @@ Canonical current evidence is recorded in `docs/next-repair-baseline-step-10-glo
 
 | Artifact | SHA-256 |
 | --- | --- |
-| `src-tauri/target/release/bundle/msi/chatlog_alpha_0.1.0_x64_zh-CN.msi` | `286c0144aabf5b80a6670824597b3a8ea747c55030db39a57d3c5aca0caf66fa` |
-| `src-tauri/target/release/bundle/nsis/chatlog_alpha_0.1.0_x64-setup.exe` | `b92342537e566f8aee0a38c740dc1e78e8d42511008a37053f8c1cc92513ebe6` |
-| `src-tauri/target/release/chatlogUI.exe` | `5365e540163f5db8bc60a06f0479b048108e40fa2597939b3929da301585b4ba` |
+| `src-tauri/target/release/bundle/msi/chatlog_alpha_0.1.0_x64_zh-CN.msi` | `baff967c30eba17bb405c3bf3e8a4109e52c2c191863a0f97e22723a24d8bd12` |
+| `src-tauri/target/release/bundle/nsis/chatlog_alpha_0.1.0_x64-setup.exe` | `4404aaff0aabb1cf4976b4ddc2ed5d872a491ee6a0fcd020383f9f5b2c0d9f2a` |
+| `src-tauri/target/release/chatlogUI.exe` | `7b8f9fe293404c2ae78ad6edb90529e4d8404034bf9c579dcbde0ce5790ca17f` |
 | `src-tauri/binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe` | `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af` |
 
 ## Build Under Test

@@ -16,30 +16,25 @@ import { SemanticIndexCenter } from './SemanticIndexCenter';
 import { SetupWizard } from './SetupWizard';
 import type { useAiCommander } from '@l2/commander/useAiCommander';
 
-type PanelMode = 'stats' | 'ai';
 type AiTab = 'qa' | 'search' | 'analysis' | 'preview';
 type AiCommander = ReturnType<typeof useAiCommander>;
 
 interface AiPanelProps {
-  mode: PanelMode;
   ai: AiCommander;
   openSetupOnMount?: boolean;
   currentChat: string;
   currentContact: string;
   privacyOn: boolean;
   onSelectEvidenceSource: (chat: string, label: string, localId?: number) => void;
-  onModeChange: (mode: PanelMode) => void;
 }
 
 export function AiPanel({
-  mode,
   ai,
   openSetupOnMount = false,
   currentChat,
   currentContact,
   privacyOn,
   onSelectEvidenceSource,
-  onModeChange,
 }: AiPanelProps) {
   const [activeTab, setActiveTab] = useState<AiTab>('qa');
   const [showWizard, setShowWizard] = useState(false);
@@ -52,36 +47,34 @@ export function AiPanel({
   }, [ai]);
 
   useEffect(() => {
-    if (mode === 'ai') {
-      aiRef.current.initialize();
-    }
-  }, [mode]);
+    aiRef.current.initialize();
+  }, []);
 
   useEffect(() => {
     if (!openSetupOnMount) {
       routeSetupOpenedRef.current = false;
       return;
     }
-    if (mode !== 'ai' || routeSetupOpenedRef.current) return;
+    if (routeSetupOpenedRef.current) return;
     if (ai.moduleView.kind === 'checking_config') return;
     routeSetupOpenedRef.current = true;
     if (ai.moduleView.kind !== 'setup_required') {
       setShowWizard(true);
     }
-  }, [ai.moduleView.kind, mode, openSetupOnMount]);
+  }, [ai.moduleView.kind, openSetupOnMount]);
 
   useEffect(() => {
-    if (mode !== 'ai' || activeTab !== 'analysis' || !currentChat) return;
+    if (activeTab !== 'analysis' || !currentChat) return;
     const key = `${currentChat}:${ai.indexStatus?.status ?? "unknown"}:${ai.indexStatus?.completed ?? 0}`;
     if (analysisRequestKey.current === key) return;
     analysisRequestKey.current = key;
     aiRef.current.loadAnalysis();
-  }, [activeTab, ai.indexStatus?.completed, ai.indexStatus?.status, currentChat, mode]);
+  }, [activeTab, ai.indexStatus?.completed, ai.indexStatus?.status, currentChat]);
 
   useEffect(() => {
-    if (mode !== 'ai' || activeTab !== 'preview') return;
+    if (activeTab !== 'preview') return;
     aiRef.current.loadPreview();
-  }, [activeTab, mode]);
+  }, [activeTab]);
 
   const tabs: { key: AiTab; label: string }[] = [
     { key: 'qa', label: '问答' },
@@ -91,41 +84,21 @@ export function AiPanel({
   ];
 
   const showIndexCenter =
-    mode === 'ai'
-    && ai.moduleView.kind !== 'checking_config'
+    ai.moduleView.kind !== 'checking_config'
     && ai.moduleView.kind !== 'setup_required';
 
   return (
     <div className="semantic-panel">
-      <div className="semantic-panel__modebar">
-        <Button
-          variant={mode === 'stats' ? 'primary' : 'ghost'}
-          size="sm"
-          onClick={() => onModeChange('stats')}
-        >
-          统计
-        </Button>
-        <Button
-          variant={mode === 'ai' ? 'primary' : 'ghost'}
-          size="sm"
-          onClick={() => onModeChange('ai')}
-        >
-          AI
-        </Button>
-        {mode === 'ai' && (
-          <div className="semantic-panel__spacer" />
-        )}
-        {mode === 'ai' && (
-          <IconButton
-            label="AI 设置"
-            tooltip="AI 设置"
-            icon={<Settings size={15} />}
-            onClick={() => setShowWizard(true)}
-          />
-        )}
+      <div className="semantic-panel__actions">
+        <IconButton
+          label="AI 设置"
+          tooltip="AI 设置"
+          icon={<Settings size={15} />}
+          onClick={() => setShowWizard(true)}
+        />
       </div>
 
-      {mode === 'ai' && ai.moduleView.kind === 'ready' && (
+      {ai.moduleView.kind === 'ready' && (
         <div className="semantic-panel__tabs">
           {tabs.map((tab) => (
             <button
@@ -144,7 +117,6 @@ export function AiPanel({
       )}
 
       <div className="semantic-panel__body">
-          {mode === 'ai' && (
             <div className="semantic-panel__content">
               {ai.moduleView.kind === 'checking_config' && (
                 <div className="semantic-state semantic-state--loose">
@@ -267,7 +239,6 @@ export function AiPanel({
                 </div>
               )}
             </div>
-          )}
       </div>
 
       {showWizard && (

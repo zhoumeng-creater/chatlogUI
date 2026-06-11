@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
-import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
 import { Spinner, Typography } from "@l4/ui";
 
@@ -13,13 +12,11 @@ const LazyGraphModule = lazy(() =>
 export function GraphView() {
   const [params] = useSearchParams();
   const hasContextFocus = Boolean(params.get("focus"));
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { currentConversation, workspaceRouteScope } = useScopedWorkspaceConversation({
+  const { currentConversation, workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
     scope: params.get("scope") ?? "all",
     scopedChat: params.get("chat"),
     focus: params.get("focus"),
     source: params.get("source"),
-    privacyOn,
     defaultScope: "all",
   });
   const graph = useGraphCommander();

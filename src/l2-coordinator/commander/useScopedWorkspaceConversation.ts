@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useChatCommander } from "./useChatCommander";
+import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import {
   buildWorkspaceRouteScopeView,
   findConversationForScopedChat,
@@ -22,10 +23,12 @@ export function useScopedWorkspaceConversation(
   input: string | null | undefined | UseScopedWorkspaceConversationInput,
 ) {
   const chat = useChatCommander();
+  const settingsPrivacyOn = useSettingsStore((state) => state.settings.privacyOn);
   const { conversations, loadConversations, selectedConversationId, selectAndLoad } = chat;
   const scopeInput = typeof input === "object" && input !== null
     ? input
     : { scopedChat: input };
+  const privacyOn = scopeInput.privacyOn ?? settingsPrivacyOn;
   const scopedChat = scopeInput.scopedChat ?? scopeInput.chat ?? null;
   const explicitAllScope = scopeInput.scope === "all";
   const shouldResolveConversation =
@@ -60,7 +63,7 @@ export function useScopedWorkspaceConversation(
       source: scopeInput.source,
       conversations,
       selectedConversation,
-      privacyOn: scopeInput.privacyOn ?? false,
+      privacyOn,
       defaultScope: scopeInput.defaultScope,
     }),
     [
@@ -68,7 +71,7 @@ export function useScopedWorkspaceConversation(
       scopedChat,
       scopeInput.defaultScope,
       scopeInput.focus,
-      scopeInput.privacyOn,
+      privacyOn,
       scopeInput.scope,
       scopeInput.source,
       selectedConversation,
@@ -80,5 +83,6 @@ export function useScopedWorkspaceConversation(
     workspaceRouteScope,
     currentConversation: workspaceRouteScope.currentConversation,
     currentChat: workspaceRouteScope.currentChat,
+    privacyOn,
   };
 }
