@@ -9,13 +9,13 @@ describe("translateError", () => {
 
   it("redacts private diagnostic details from unknown errors", () => {
     const message = translateError(
-      "provider failed at C:\\Users\\Alice\\WeChat Files\\wxid_real with api_key=sk-real-secret",
+      "provider failed at C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_real with api_key=sk-synthetic-redaction-token",
     );
 
     expect(message).toContain("未知错误:");
     expect(message).not.toContain("Alice");
-    expect(message).not.toContain("wxid_real");
-    expect(message).not.toContain("sk-real-secret");
+    expect(message).not.toContain("wxid_synthetic_real");
+    expect(message).not.toContain("sk-synthetic-redaction-token");
     expect(message).toContain("[redacted-path]");
     expect(containsSensitiveDiagnosticText(message)).toBe(false);
   });

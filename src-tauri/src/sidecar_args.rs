@@ -63,7 +63,7 @@ mod tests {
     fn config_dir_launch_does_not_put_data_key_in_args() {
         let plan = SidecarLaunchPlan {
             http_addr: "127.0.0.1:5030".into(),
-            config_dir: Some("C:\\Users\\me\\AppData\\Roaming\\chatlogUI".into()),
+            config_dir: Some("C:\\Users\\Synthetic\\AppData\\Roaming\\chatlogUI".into()),
             data_dir: None,
             work_dir: None,
         };
@@ -80,7 +80,7 @@ mod tests {
         let plan = SidecarLaunchPlan {
             http_addr: "127.0.0.1:5030".into(),
             config_dir: None,
-            data_dir: Some("E:\\WeChat Files\\wxid_xxx".into()),
+            data_dir: Some("E:\\Synthetic\\WeChat Files\\wxid_synthetic_xxx".into()),
             work_dir: Some("E:\\chatlog\\work".into()),
         };
 

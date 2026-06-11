@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { buildDiagnosticsReport, serializeDiagnosticsReport } from "./diagnostics";
+import { buildRuntimeDiagnosticsManifest } from "./diagnosticsManifest";
 
 describe("diagnostics report model", () => {
   it("builds a redacted report and fails closed when redaction cannot be proven", () => {
     const report = buildDiagnosticsReport({
       privacyOn: true,
       items: [
-        { label: "Config dir", value: "C:\\Users\\Alice\\WeChat Files\\wxid_a" },
+        { label: "Config dir", value: "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_a" },
         { label: "Last error", value: "data_key=raw-secret failed" },
         { label: "HTTP ready", value: true },
       ],
@@ -16,7 +17,7 @@ describe("diagnostics report model", () => {
 
     expect(report.redactionOk).toBe(true);
     expect(text).not.toContain("Alice");
-    expect(text).not.toContain("wxid_a");
+    expect(text).not.toContain("wxid_synthetic_a");
     expect(text).not.toContain("raw-secret");
     expect(text).toContain("HTTP ready: true");
   });
@@ -29,7 +30,7 @@ describe("diagnostics report model", () => {
         { label: "apiKey", value: "sk-synthetic-should-be-redacted" },
         { label: "token", value: "synthetic-token-should-be-redacted" },
         { label: "private message", value: "synthetic-private-message-should-be-redacted" },
-        { label: "local path", value: "C:\\Users\\PrivateName\\Documents\\chatlog" },
+        { label: "local path", value: "C:\\Users\\Synthetic\\Private\\Documents\\chatlog" },
         { label: "HTTP ready", value: true },
       ],
     });
@@ -80,7 +81,7 @@ describe("diagnostics report model", () => {
     const report = buildDiagnosticsReport({
       privacyOn: true,
       items: [
-        { label: "Request query", value: "keyword=synthetic-private-message-should-be-redacted&chat=wxid_private" },
+        { label: "Request query", value: "keyword=synthetic-private-message-should-be-redacted&chat=wxid_synthetic_private" },
         { label: "SQL", value: "select * from message where content='synthetic-private-message-should-be-redacted'" },
         { label: "Raw response", value: "{\"content\":\"synthetic-private-message-should-be-redacted\"}" },
         { label: "SNS proxy URL", value: "http://127.0.0.1:5030/api/v1/sns/media/proxy?url=https://sns.example/private.jpg" },
@@ -92,7 +93,7 @@ describe("diagnostics report model", () => {
 
     expect(report.redactionOk).toBe(true);
     expect(text).not.toContain("synthetic-private-message");
-    expect(text).not.toContain("wxid_private");
+    expect(text).not.toContain("wxid_synthetic_private");
     expect(text).not.toContain("select * from message");
     expect(text).not.toContain("sns.example/private.jpg");
     expect(text).not.toContain("synthetic-media-key");
@@ -142,7 +143,7 @@ describe("diagnostics report model", () => {
         httpReady: true,
         dbReady: false,
         setupMode: "managed",
-        configSource: "C:\\Users\\Alice\\WeChat Files\\wxid_private",
+        configSource: "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_private",
         updateStatus: "idle",
         releaseSmoke: "not run",
         redactionState: "passed",
@@ -171,6 +172,35 @@ describe("diagnostics report model", () => {
     expect(text).toContain("Update status: idle");
     expect(text).toContain("Diagnostic endpoint families: db: 1, updater: 1");
     expect(text).not.toContain("Alice");
-    expect(text).not.toContain("wxid_private");
+    expect(text).not.toContain("wxid_synthetic_private");
+  });
+
+  it("uses the active setup profile service URL in runtime diagnostics manifest", () => {
+    const manifest = buildRuntimeDiagnosticsManifest({
+      profile: {
+        mode: "external",
+        source: "external-service",
+        configDir: null,
+        dataDir: null,
+        workDir: null,
+        httpAddr: "http://127.0.0.1:6041",
+        port: 6041,
+        platform: null,
+        version: null,
+        fullVersion: null,
+        hasDataKey: false,
+        hasImgKey: false,
+        lastValidatedAt: "2026-06-09T00:00:00.000Z",
+      },
+      mode: "external",
+      portState: "external-chatlog",
+      httpReady: true,
+      dbReady: true,
+      sidecarStatus: "running",
+      updateStatus: "idle",
+      privacyOn: false,
+    });
+
+    expect(manifest.backendBaseUrl).toBe("http://127.0.0.1:6041");
   });
 });

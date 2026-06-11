@@ -1,13 +1,11 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import type { RawStatsResponse, RawDashboardTrendResponse } from "./chatlogRawTypes";
 import { adaptStatsResponse, adaptDashboardTrendResponse } from "./chatlogAdapters";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export interface FetchStatsOptions {
   chat: string;
@@ -27,7 +25,7 @@ export async function fetchStats(
   if (options.until !== undefined) params.set("until", String(options.until));
 
   const raw = await requestJson<RawStatsResponse>(
-    `${BASE_URL}/api/v1/stats?${params.toString()}`,
+    buildChatlogApiUrl(`/api/v1/stats?${params.toString()}`, diagnosticOptions?.serviceBaseUrl),
     {
       timeoutMs: 15000,
       ...withRequestDiagnostics(diagnosticOptions, {
@@ -55,7 +53,7 @@ export async function fetchDashboardTrend(
   params.set("summary", options.summary !== false ? "1" : "0");
 
   const raw = await requestJson<RawDashboardTrendResponse>(
-    `${BASE_URL}/api/v1/dashboard/trend?${params.toString()}`,
+    buildChatlogApiUrl(`/api/v1/dashboard/trend?${params.toString()}`, diagnosticOptions?.serviceBaseUrl),
     {
       timeoutMs: 15000,
       ...withRequestDiagnostics(diagnosticOptions, {

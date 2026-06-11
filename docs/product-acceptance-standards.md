@@ -25,6 +25,9 @@ A page or feature fails acceptance if any of these are true:
 - It is unusable at a narrow viewport or unreadable in dark/privacy mode.
 - It presents raw technical errors such as `HTTP 500`, `undefined`, or internal error codes to ordinary users without a plain-language reason and next step.
 - It cannot provide evidence for the claims made in review or release notes.
+- It leaves verified code repair, UI polish, feature completion, or productization
+  work uncommitted, unpushed, or without a PR unless the product owner explicitly
+  requested a local-only change.
 
 ## 3. Overall Project Acceptance
 
@@ -124,6 +127,18 @@ Use ISO/IEC 25010-style product quality dimensions as a review lens. Do not redu
 | Security and privacy | Are secrets, local paths, private content, logs, screenshots, and diagnostics controlled? |
 | Maintainability | Are L1/L2/L3/L4 responsibilities clear, tests focused, and code changes scoped? |
 | Accessibility | Are labels, focus, keyboard behavior, contrast, and screen-reader names covered? |
+
+### 3.6 Official Source Baseline For Audits
+
+Product audits, UX reviews, and repair baselines should cite these official sources through the chatlogUI-specific rules in this document and `docs/ui-development-standards.md`.
+
+| Source | Official entry | chatlogUI audit use |
+| --- | --- | --- |
+| Nielsen Norman Group | [10 Usability Heuristics for User Interface Design](https://www.nngroup.com/articles/ten-usability-heuristics/) | Use as heuristic review criteria for status visibility, user language, recovery paths, consistency, error prevention, recognition over recall, minimal design, and plain-language error recovery. The concrete adoption is section 3.2. |
+| Microsoft Fluent 2 | [Accessibility](https://fluent2.microsoft.design/accessibility) | Use as the audit baseline for structure, hierarchy, predictable navigation, keyboard/focus management, color contrast, responsive reflow, meaningful text, semantic code, and design accessibility specs. |
+| W3C WCAG 2.2 | [Web Content Accessibility Guidelines 2.2](https://www.w3.org/TR/WCAG22/) | Use the normative criteria for target size, focus visibility, error identification, non-text contrast, name/role/value, keyboard access, and text/content reflow checks. |
+
+Do not paste these standards as generic slogans in reviews. Convert them into the five-question user-perspective check, state coverage, component checks, page score, privacy gates, and module acceptance tables above.
 
 ## 4. Page Design And Aesthetic Acceptance
 

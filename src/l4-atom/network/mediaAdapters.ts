@@ -1,4 +1,4 @@
-import { SIDECAR_PORT } from "@/utils/constants";
+import { buildChatlogApiUrl, validateChatlogServiceBaseUrl } from "./chatlogEndpoint";
 import type {
   RawFavoriteMessage,
   RawFavoritesResponse,
@@ -9,8 +9,6 @@ import type {
   RawNewMessagesResponse,
   RawUnreadResponse,
 } from "./chatlogRawTypes";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export type MediaAttachmentKind = "image" | "video" | "voice" | "file" | "sticker" | "unknown";
 export type MediaResourceKind = "image" | "video" | "voice" | "file" | "data";
@@ -127,10 +125,16 @@ export function adaptMediaAttachments(
   });
 }
 
-export function buildMediaResourceUrl(attachment: Pick<AdaptedMediaAttachment, "directUrl" | "resourceKind" | "resourceKey">): string {
+export function buildMediaResourceUrl(
+  attachment: Pick<AdaptedMediaAttachment, "directUrl" | "resourceKind" | "resourceKey">,
+  serviceBaseUrl?: string,
+): string {
   if (attachment.directUrl) return attachment.directUrl;
   if (!attachment.resourceKey) return "";
-  return `${BASE_URL}/${attachment.resourceKind}/${encodeURIComponent(attachment.resourceKey)}`;
+  return buildChatlogApiUrl(
+    `/${attachment.resourceKind}/${encodeURIComponent(attachment.resourceKey)}`,
+    serviceBaseUrl,
+  );
 }
 
 export function adaptFavoriteResponse(raw: RawFavoritesResponse): AdaptedFavoritesResponse {
@@ -230,7 +234,7 @@ function safeDirectUrl(value?: string): string | undefined {
     const url = new URL(value);
     if (
       (url.protocol === "http:" || url.protocol === "https:") &&
-      (url.host === `127.0.0.1:${SIDECAR_PORT}` || url.host === `localhost:${SIDECAR_PORT}`)
+      validateChatlogServiceBaseUrl(url.origin).ok
     ) {
       return url.toString();
     }

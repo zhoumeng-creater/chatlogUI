@@ -12,6 +12,7 @@ import { Select } from "@l4/ui/Select";
 import { Typography } from "@l4/ui/Typography";
 import { classNames } from "@/utils/classNames";
 import { SemanticAdvancedConfigSheet } from "./SemanticAdvancedConfigSheet";
+import { SemanticConfirmDialog } from "./SemanticConfirmDialog";
 import { SemanticCredentialField } from "./SemanticCredentialField";
 import { SemanticProviderSection } from "./SemanticProviderSection";
 import { SemanticReadinessSummary } from "./SemanticReadinessSummary";
@@ -240,29 +241,16 @@ export function SemanticSetupCenter({
       </div>
 
       {confirmHighWorkers && (
-        <div className="semantic-confirm" role="dialog" aria-modal="true" aria-label="确认高并发索引？">
-          <div className="semantic-confirm__panel">
-            <Typography variant="body" weight={600}>
-              确认高并发索引？
-            </Typography>
-            <Typography variant="caption" color="var(--color-text-secondary)">
-              高并发索引可能增加内存、显存或远程 API 费用压力。确认后才会保存该配置。
-            </Typography>
-            <div className="semantic-confirm__actions">
-              <Button variant="ghost" size="sm" onClick={() => setConfirmHighWorkers(false)}>
-                取消
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                loading={saving}
-                onClick={() => handleSave(true)}
-              >
-                确认保存
-              </Button>
-            </div>
-          </div>
-        </div>
+        <SemanticConfirmDialog
+          heading="确认高并发索引？"
+          body="高并发索引可能增加内存、显存或远程 API 费用压力。确认后才会保存该配置。"
+          cancelLabel="取消"
+          confirmLabel="确认保存"
+          confirmVariant="primary"
+          confirming={saving}
+          onCancel={() => setConfirmHighWorkers(false)}
+          onConfirm={() => handleSave(true)}
+        />
       )}
     </section>
   );

@@ -35,6 +35,31 @@ describe("appShellViewModel", () => {
     });
   });
 
+  it("does not expose the developer console action by default", () => {
+    const view = deriveAppShellView({
+      title: "工作台",
+      privacyOn: false,
+      windowMaterial: "none",
+      developerConsoleVisible: false,
+    });
+
+    expect(view.developerConsoleAction).toBeNull();
+  });
+
+  it("exposes the developer console action only when the L2 policy allows it", () => {
+    const view = deriveAppShellView({
+      title: "工作台",
+      privacyOn: false,
+      windowMaterial: "none",
+      developerConsoleVisible: true,
+    });
+
+    expect(view.developerConsoleAction).toEqual({
+      label: "开发者控制台",
+      tooltip: "打开开发者控制台",
+    });
+  });
+
   it("uses the restore label when the shell view knows the window is maximized", () => {
     const input = {
       title: "工作台",

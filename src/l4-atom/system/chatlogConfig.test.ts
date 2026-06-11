@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { normalizeConfigSummary, toServerConfigPayload } from "./chatlogConfig";
+import {
+  normalizeConfigSummary,
+  toExternalConnectionConfigPayload,
+  toServerConfigPayload,
+} from "./chatlogConfig";
 
 describe("chatlog config payload mapping", () => {
   it("maps UI camelCase config fields to chatlog server snake_case fields", () => {
     expect(
       toServerConfigPayload({
         type: "wechat",
-        dataDir: "E:/WeChat/wxid_xxx",
+        dataDir: "E:/Synthetic/WeChat Files/wxid_synthetic_xxx",
         workDir: "E:/chatlog/work",
         dataKey: "a".repeat(64),
         imgKey: "image-key",
@@ -18,7 +22,7 @@ describe("chatlog config payload mapping", () => {
       }),
     ).toEqual({
       type: "wechat",
-      data_dir: "E:/WeChat/wxid_xxx",
+      data_dir: "E:/Synthetic/WeChat Files/wxid_synthetic_xxx",
       work_dir: "E:/chatlog/work",
       data_key: "a".repeat(64),
       img_key: "image-key",
@@ -49,6 +53,20 @@ describe("chatlog config payload mapping", () => {
       mode: "managed",
       source: "app-managed-server-config",
       lastValidatedAt: null,
+    });
+  });
+
+  it("maps external service connection summaries without managed secret fields", () => {
+    expect(
+      toExternalConnectionConfigPayload({
+        httpAddr: "http://127.0.0.1:6041",
+        port: 6041,
+        lastValidatedAt: "2026-06-09T10:00:00.000Z",
+      }),
+    ).toEqual({
+      http_addr: "http://127.0.0.1:6041",
+      port: 6041,
+      last_validated_at: "2026-06-09T10:00:00.000Z",
     });
   });
 });

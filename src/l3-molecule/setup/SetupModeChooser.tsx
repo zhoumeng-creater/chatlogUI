@@ -1,46 +1,75 @@
-import type { SetupMode } from "@l2/data-clerk/types/setup";
-import { classNames } from "@/utils/classNames";
+import type { SetupMode, SetupPathId } from "@l2/data-clerk/types/setup";
+import { Typography } from "@l4/ui";
+import { SetupChoiceCard } from "./SetupChoiceCard";
 
-interface SetupModeChooserProps {
-  mode: SetupMode;
-  onChooseMode: (mode: SetupMode) => void;
+interface SetupModeChoiceOption {
+  id: SetupPathId;
+  label: string;
+  description: string;
+  selected?: boolean;
 }
 
-export function SetupModeChooser({ mode, onChooseMode }: SetupModeChooserProps) {
+interface SetupModeChooserProps {
+  mode?: SetupMode;
+  onChooseMode?: (mode: SetupMode) => void;
+  activePath?: SetupPathId;
+  pathOptions?: SetupModeChoiceOption[];
+  onChoosePath?: (path: SetupPathId) => void;
+}
+
+const DEFAULT_OPTIONS: SetupModeChoiceOption[] = [
+  {
+    id: "recommended-import",
+    label: "推荐自动导入",
+    description: "选择微信数据目录，由应用读取本机配置并管理服务。",
+  },
+  {
+    id: "external-service",
+    label: "连接已有服务",
+    description: "连接已经运行的本机 chatlog_alpha 服务。",
+  },
+  {
+    id: "manual-advanced",
+    label: "专家手动配置",
+    description: "排障或迁移时手动填写服务配置。",
+  },
+];
+
+export function SetupModeChooser({
+  mode,
+  onChooseMode,
+  activePath,
+  pathOptions,
+  onChoosePath,
+}: SetupModeChooserProps) {
+  const selectedPath = activePath ?? (mode === "external" ? "external-service" : "recommended-import");
+  const options = (pathOptions?.length ? pathOptions : DEFAULT_OPTIONS).map((option) => ({
+    ...option,
+    selected: option.selected ?? option.id === selectedPath,
+  }));
+
+  function handleChoose(path: SetupPathId) {
+    if (onChoosePath) {
+      onChoosePath(path);
+      return;
+    }
+
+    onChooseMode?.(path === "external-service" ? "external" : "managed");
+  }
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-800">选择服务模式</h2>
-      <div className="grid gap-3">
-        <button
-          type="button"
-          onClick={() => onChooseMode("managed")}
-          className={classNames(
-            "text-left p-4 rounded-lg border-2 transition-colors",
-            mode === "managed"
-              ? "border-blue-500 bg-blue-50"
-              : "border-gray-200 hover:border-gray-300",
-          )}
-        >
-          <div className="font-medium text-gray-800">由应用启动 chatlog_alpha</div>
-          <div className="text-sm text-gray-500 mt-1">
-            应用将自动管理本地 chatlog_alpha 服务的启动和停止
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={() => onChooseMode("external")}
-          className={classNames(
-            "text-left p-4 rounded-lg border-2 transition-colors",
-            mode === "external"
-              ? "border-blue-500 bg-blue-50"
-              : "border-gray-200 hover:border-gray-300",
-          )}
-        >
-          <div className="font-medium text-gray-800">连接已经运行的 chatlog_alpha 服务</div>
-          <div className="text-sm text-gray-500 mt-1">
-            你已经手动启动了服务，应用仅连接到已有服务，不会启动或停止任何进程
-          </div>
-        </button>
+    <div className="setup-mode-chooser">
+      <Typography variant="h2">选择设置路径</Typography>
+      <div className="setup-choice-list">
+        {options.map((option) => (
+          <SetupChoiceCard
+            key={option.id}
+            active={Boolean(option.selected)}
+            heading={option.label}
+            description={option.description}
+            onClick={() => handleChoose(option.id)}
+          />
+        ))}
       </div>
     </div>
   );

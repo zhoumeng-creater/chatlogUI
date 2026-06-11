@@ -10,7 +10,7 @@ describe("semanticDiscoveryRequestModel", () => {
     const request = buildSemanticSearchRequest({
       query: "  deployment schedule  ",
       scope: "contact",
-      currentChat: "wxid_backend_chat",
+      currentChat: "wxid_synthetic_backend_chat",
       window: "30d",
       depth: "deep",
       limit: 12,
@@ -21,7 +21,7 @@ describe("semanticDiscoveryRequestModel", () => {
     expect(request).toEqual({
       query: "deployment schedule",
       scope: "contact",
-      chat: "wxid_backend_chat",
+      chat: "wxid_synthetic_backend_chat",
       window: "30d",
       depth: "deep",
       limit: 12,
@@ -36,16 +36,16 @@ describe("semanticDiscoveryRequestModel", () => {
       scope: "selected",
       selectedChats: [
         { chat: "room_a@chatroom", label: "Project Room" },
-        { chat: "wxid_b", label: "Alice" },
+        { chat: "wxid_synthetic_b", label: "Alice" },
       ],
-      currentChat: "wxid_current",
+      currentChat: "wxid_synthetic_current",
       window: "7d",
       depth: "standard",
     });
     const all = buildSemanticSearchRequest({
       query: "budget",
       scope: "all",
-      currentChat: "wxid_current",
+      currentChat: "wxid_synthetic_current",
       window: "all",
       depth: "wide",
     });
@@ -53,7 +53,7 @@ describe("semanticDiscoveryRequestModel", () => {
     expect(selected).toMatchObject({
       query: "budget",
       scope: "selected",
-      chats: ["room_a@chatroom", "wxid_b"],
+      chats: ["room_a@chatroom", "wxid_synthetic_b"],
       window: "7d",
       depth: "standard",
     });
@@ -72,20 +72,20 @@ describe("semanticDiscoveryRequestModel", () => {
   });
 
   it("builds analysis and preview requests with clamped preview pagination", () => {
-    expect(buildSemanticAnalysisRequest({ currentChat: "wxid_backend_chat", window: "90d" })).toEqual({
-      chat: "wxid_backend_chat",
+    expect(buildSemanticAnalysisRequest({ currentChat: "wxid_synthetic_backend_chat", window: "90d" })).toEqual({
+      chat: "wxid_synthetic_backend_chat",
       window: "90d",
     });
     expect(buildSemanticAnalysisRequest({ currentChat: "", window: "90d" })).toBeNull();
 
     expect(buildSemanticPreviewRequest({
       kind: "entity",
-      talker: "wxid_backend_chat",
+      talker: "wxid_synthetic_backend_chat",
       limit: 250,
       offset: -12,
     })).toEqual({
       kind: "entity",
-      talker: "wxid_backend_chat",
+      talker: "wxid_synthetic_backend_chat",
       limit: 100,
       offset: 0,
     });

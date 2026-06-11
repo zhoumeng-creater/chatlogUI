@@ -2,7 +2,6 @@ import type { SidecarStatus, DbStatus } from "@l2/data-clerk/types/app";
 import type { IndexStatusResponse } from "@/l2-coordinator/api-docs/semantic";
 import type { CompactSemanticStatus } from "@/l2-coordinator/commander/semanticViewModel";
 import { StatusIndicator, Typography, type StatusTone } from "@l4/ui";
-import { SIDECAR_PORT } from "@/utils/constants";
 
 interface StatusBarProps {
   status: SidecarStatus;
@@ -12,6 +11,7 @@ interface StatusBarProps {
   httpReady?: boolean;
   dbReady?: boolean;
   portStatus?: string;
+  serviceLabel?: string;
   semanticStatus?: CompactSemanticStatus | null;
 }
 
@@ -45,7 +45,7 @@ const DB_STATUS_TONES: Record<DbStatus, StatusTone> = {
   error: "danger",
 };
 
-export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbReady, portStatus, semanticStatus }: StatusBarProps) {
+export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbReady, portStatus, serviceLabel, semanticStatus }: StatusBarProps) {
   const isStarting = status === "starting";
   const isDbBusy = dbStatus === "connecting" || dbStatus === "decrypting";
   const indexIndicator = semanticStatus ?? getIndexIndicator(indexStatus);
@@ -97,15 +97,11 @@ export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbR
           </Typography>
         )}
         <Typography variant="caption" color="var(--text-muted)">
-          {formatSidecarPortLabel(SIDECAR_PORT)}
+          {serviceLabel ?? "本机服务未配置"}
         </Typography>
       </div>
     </footer>
   );
-}
-
-export function formatSidecarPortLabel(port: number): string {
-  return `端口 ${port}`;
 }
 
 function getIndexIndicator(indexStatus?: IndexStatusResponse | null): { label: string; tone: StatusTone; busy?: boolean } | null {

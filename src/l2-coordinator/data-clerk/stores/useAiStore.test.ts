@@ -271,7 +271,7 @@ describe("useAiStore semantic discovery controls", () => {
     store.setDiscoveryDepth("deep");
     store.setDiscoverySourceLimit(250);
     store.setDiscoveryRerank(false);
-    store.setPreviewTalker("wxid_backend_chat");
+    store.setPreviewTalker("wxid_synthetic_backend_chat");
 
     expect(useAiStore.getState()).toMatchObject({
       discoveryWindow: "30d",
@@ -279,7 +279,7 @@ describe("useAiStore semantic discovery controls", () => {
       discoveryDepth: "deep",
       discoverySourceLimit: 100,
       discoveryRerank: false,
-      previewTalker: "wxid_backend_chat",
+      previewTalker: "wxid_synthetic_backend_chat",
       previewOffset: 0,
     });
 

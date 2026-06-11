@@ -9,7 +9,7 @@ describe("DiagnosticsPanel", () => {
       <DiagnosticsPanel
         report={blockedReport}
         copyText="blocked diagnostics"
-        onExport={vi.fn(async () => "C:/Users/Private/Documents/diagnostics.txt")}
+        onExport={vi.fn(async () => "C:/Users/Synthetic/Documents/diagnostics.txt")}
       />,
     );
 
@@ -21,12 +21,18 @@ describe("DiagnosticsPanel", () => {
   });
 
   it("formats export success without revealing the full filesystem path", () => {
-    const message = formatDiagnosticsExportSuccess("C:\\Users\\Private\\Documents\\diagnostics.txt");
+    const message = formatDiagnosticsExportSuccess("C:\\Users\\Synthetic\\Documents\\diagnostics.txt");
 
     expect(message).toContain("diagnostics.txt");
     expect(message).not.toContain("Users");
     expect(message).not.toContain("Private");
     expect(message).not.toContain("Documents");
+  });
+
+  it("uses a single generic export success message when the filename is unsafe", () => {
+    expect(formatDiagnosticsExportSuccess("C:\\Users\\Synthetic\\Documents\\wxid_synthetic_private.txt")).toBe(
+      "诊断已导出",
+    );
   });
 });
 

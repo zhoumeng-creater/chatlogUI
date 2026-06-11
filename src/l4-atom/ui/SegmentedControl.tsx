@@ -6,20 +6,30 @@ interface SegmentedOption<T extends string> {
 }
 
 interface SegmentedControlProps<T extends string> {
+  id?: string;
   label: string;
   value: T;
   options: SegmentedOption<T>[];
   onChange: (value: T) => void;
+  "aria-describedby"?: string;
 }
 
 export function SegmentedControl<T extends string>({
+  id,
   label,
   value,
   options,
   onChange,
+  "aria-describedby": ariaDescribedBy,
 }: SegmentedControlProps<T>) {
   return (
-    <div className="ui-segmented" role="group" aria-label={label}>
+    <div
+      id={id}
+      className="ui-segmented"
+      role="group"
+      aria-label={label}
+      aria-describedby={ariaDescribedBy}
+    >
       {options.map((option) => (
         <button
           key={option.value}

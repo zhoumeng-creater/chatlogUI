@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { DiagnosticEvent } from "./diagnosticEvents";
 import { fetchConversations } from "./fetchContacts";
 import { fetchSearch } from "./fetchSearch";
@@ -14,25 +14,25 @@ describe("fetchContacts url construction", () => {
   });
 
   it("builds history URL with chat and offset", () => {
-    const url = withJsonFormat("http://127.0.0.1:5030/api/v1/history?chat=wxid_test&limit=50&offset=0");
+    const url = withJsonFormat("http://127.0.0.1:5030/api/v1/history?chat=wxid_synthetic_test&limit=50&offset=0");
     const u = new URL(url);
     expect(u.searchParams.get("format")).toBe("json");
-    expect(u.searchParams.get("chat")).toBe("wxid_test");
+    expect(u.searchParams.get("chat")).toBe("wxid_synthetic_test");
     expect(u.searchParams.get("limit")).toBe("50");
   });
 
   it("builds search URL with correct param names", () => {
-    const url = withJsonFormat("http://127.0.0.1:5030/api/v1/search?keyword=hello&chats=wxid_a,room&msg_type=3&limit=20");
+    const url = withJsonFormat("http://127.0.0.1:5030/api/v1/search?keyword=hello&chats=wxid_synthetic_a,room&msg_type=3&limit=20");
     const u = new URL(url);
     expect(u.searchParams.get("keyword")).toBe("hello");
-    expect(u.searchParams.get("chats")).toBe("wxid_a,room");
+    expect(u.searchParams.get("chats")).toBe("wxid_synthetic_a,room");
     expect(u.searchParams.get("msg_type")).toBe("3");
   });
 
   it("builds stats URL with time param", () => {
-    const url = withJsonFormat("http://127.0.0.1:5030/api/v1/stats?chat=wxid_test&time=last-7d");
+    const url = withJsonFormat("http://127.0.0.1:5030/api/v1/stats?chat=wxid_synthetic_test&time=last-7d");
     const u = new URL(url);
-    expect(u.searchParams.get("chat")).toBe("wxid_test");
+    expect(u.searchParams.get("chat")).toBe("wxid_synthetic_test");
     expect(u.searchParams.get("time")).toBe("last-7d");
   });
 
@@ -122,5 +122,99 @@ describe("fetchContacts url construction", () => {
     expect(new Set(events.map((event) => event.correlationId))).toEqual(
       new Set(["conversation-refresh"]),
     );
+  });
+
+  it("passes caller abort signals through search diagnostics options", async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const originalFetch = globalThis.fetch;
+    type Outcome =
+      | { status: "pending" }
+      | { status: "rejected"; error: unknown }
+      | { status: "resolved" };
+    let outcomePromise: Promise<Outcome> | undefined;
+
+    globalThis.fetch = async (_input, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+
+    try {
+      outcomePromise = fetchSearch(
+        { keyword: "Synthetic abort query", limit: 1 },
+        {
+          signal: controller.signal,
+          diagnostics: { endpointFamily: "search", recoveryHint: "retry" },
+        },
+      ).then(
+        () => ({ status: "resolved" }),
+        (error: unknown) => ({ status: "rejected", error }),
+      );
+      const pendingMarker = new Promise<Outcome>((resolve) => {
+        setTimeout(() => resolve({ status: "pending" }), 1);
+      });
+
+      controller.abort();
+      await vi.advanceTimersByTimeAsync(1);
+
+      await expect(Promise.race([outcomePromise, pendingMarker])).resolves.toMatchObject({
+        status: "rejected",
+        error: {
+          name: "ChatlogHttpError",
+          message: "请求已取消",
+        },
+      });
+    } finally {
+      await vi.advanceTimersByTimeAsync(20000);
+      await outcomePromise;
+      vi.useRealTimers();
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("uses the active service base URL for conversation requests", async () => {
+    const urls: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input) => {
+      const url = String(input);
+      urls.push(url);
+
+      if (url.includes("/api/v1/sessions")) {
+        return new Response(JSON.stringify({ sessions: [] }), { status: 200 });
+      }
+
+      if (url.includes("/api/v1/contacts")) {
+        return new Response(JSON.stringify({ count: 0, contacts: [] }), { status: 200 });
+      }
+
+      if (url.includes("/api/v1/chatrooms")) {
+        return new Response(JSON.stringify({ count: 0, chatrooms: [] }), { status: 200 });
+      }
+
+      return new Response("not found", { status: 404 });
+    };
+
+    try {
+      await fetchConversations(
+        { limit: 1 },
+        {
+          serviceBaseUrl: "http://127.0.0.1:6041",
+          diagnostics: {
+            endpointFamily: "conversations",
+            recoveryHint: "retry",
+          },
+        },
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(urls.map((url) => new URL(url).origin)).toEqual([
+      "http://127.0.0.1:6041",
+      "http://127.0.0.1:6041",
+      "http://127.0.0.1:6041",
+    ]);
   });
 });

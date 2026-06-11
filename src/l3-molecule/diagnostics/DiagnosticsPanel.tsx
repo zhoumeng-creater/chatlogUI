@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
 import { Button, DisabledReason, StatusIndicator, Surface, Typography } from "@l4/ui";
 import { maskDiagnosticText } from "@/utils/maskSecrets";
+import { formatExportPathSummary } from "@/utils/privacyDisplay";
 import { DiagnosticCopyButton } from "./DiagnosticCopyButton";
 
 interface DiagnosticsPanelProps {
@@ -33,8 +34,8 @@ function formatDiagnosticsExportError(error: unknown): string {
 }
 
 export function formatDiagnosticsExportSuccess(path: string): string {
-  const fileName = path.split(/[\\/]/).filter(Boolean).pop() ?? "诊断文件";
-  return `诊断已导出：${fileName}`;
+  const summary = formatExportPathSummary(path);
+  return summary === "诊断已导出" ? summary : `诊断已导出：${summary}`;
 }
 
 export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPanelProps) {

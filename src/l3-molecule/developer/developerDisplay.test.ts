@@ -48,7 +48,7 @@ describe("developerDisplay", () => {
     expect(formatDbTableLabel("MSG", true)).toBe("已隐藏表");
     expect(formatDbTableFilterValue("private keyword", true)).toBe("");
     expect(formatDbSearchInputValue("private search", true)).toBe("");
-    expect(formatEndpointParamInputValue({ kind: "text", label: "Chat" }, "wxid_private", true)).toBe("");
+    expect(formatEndpointParamInputValue({ kind: "text", label: "Chat" }, "wxid_synthetic_private", true)).toBe("");
     expect(formatEndpointParamInputValue({ kind: "number", label: "Limit" }, 50, true)).toBe("50");
     expect(formatEndpointParamInputValue({ kind: "select", label: "Mode" }, "quick", true)).toBe("quick");
   });

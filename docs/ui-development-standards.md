@@ -25,6 +25,29 @@ Project interpretation:
 - They are not a replacement for product requirements, architecture rules, accessibility checks, visual QA, or test evidence.
 - The adopted chatlogUI mapping lives in `docs/product-acceptance-standards.md`; this file turns that mapping into coding-time decisions.
 
+### 1.3 Fluent 2 Accessibility
+
+Source: Microsoft Fluent 2, [Accessibility](https://fluent2.microsoft.design/accessibility).
+
+Project interpretation:
+
+- Structure, hierarchy, and navigation must be logical and predictable before the surface is considered usable.
+- Keyboard navigation and assistive technologies are first-class inputs. Temporary UI such as dialogs, sheets, and drawers must move focus intentionally and restore focus after close.
+- Colors for text, UI components, icons, and meaningful graphics must keep WCAG AA contrast intent across light, dark, and privacy modes.
+- Responsive layouts must reflow without losing information. Design down to a 320px breakpoint and avoid horizontal scrolling for ordinary workflows.
+- Meaningful text is a development rule: UI copy should be concise, descriptive, consistent, and ordinary-user readable.
+- Code should preserve semantic structure, accessible names, roles, focus order, and screen-reader annotations rather than relying on visual proximity alone.
+
+### 1.4 Official Source Map
+
+Use these official entries when writing UI code, UI copy, or review notes:
+
+| Source | Use while writing |
+| --- | --- |
+| [NN/G 10 usability heuristics](https://www.nngroup.com/articles/ten-usability-heuristics/) | Choose task language, status copy, recovery actions, entry-point consolidation, and minimal visible controls. |
+| [Fluent 2 Accessibility](https://fluent2.microsoft.design/accessibility) | Shape hierarchy, focus behavior, keyboard access, color contrast, responsive reflow, meaningful text, and semantic markup. |
+| [WCAG 2.2](https://www.w3.org/TR/WCAG22/) | Check target size, focus visibility, non-text contrast, error identification, name/role/value, keyboard operation, and reflow requirements. |
+
 ## 2. Development-Time UI Gates
 
 Before implementing or changing a route, panel, component, button, menu, drawer, modal, list row, chart, graph control, or media control, answer:
@@ -101,6 +124,9 @@ Use this table while designing implementation, not only after code exists.
 | Aesthetic/minimal design | Prefer fewer, clearer controls. Move advanced/debug detail into inspector, drawer, disclosure, or developer tools instead of crowding the primary task. |
 | Error recovery | Error UI must include plain-language cause, next step, and appropriate actions: retry, copy diagnostics, settings, developer tools, or safe exit. |
 | Help and documentation | Use inline hints and examples at decision points. Documentation links are supplementary; they do not excuse unclear UI. |
+| Fluent structure/navigation | Headings, tabs, rails, drawers, and toolbar regions must expose a predictable hierarchy. Do not make a toolbar behave like a scrollable page. |
+| Fluent focus management | Dialogs, sheets, drawers, popovers, and confirmations need intentional initial focus, Escape/close behavior where safe, focus containment when modal, and focus restoration after close. |
+| Fluent meaningful text | Placeholder examples, error messages, diagnostics, and advanced labels must use ordinary product language and must not expose raw paths, secrets, or internal codes to ordinary users. |
 
 ## 5. Component Implementation Standards
 

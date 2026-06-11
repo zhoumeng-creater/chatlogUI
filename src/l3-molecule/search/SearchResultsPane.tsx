@@ -86,7 +86,18 @@ export function SearchResultsPane({
     );
   }
 
-  if (!results) return null;
+  if (!results) {
+    return (
+      <div className="workbench-empty-state">
+        <Typography variant="label" weight={700}>
+          输入关键词开始搜索
+        </Typography>
+        <Typography variant="body" color="var(--text-secondary)">
+          搜索不会向后端提交空白查询。可以先选择范围和消息类型。
+        </Typography>
+      </div>
+    );
+  }
 
   if (status === "empty" || (results.messages.length === 0 && query.trim())) {
     return (
@@ -112,38 +123,38 @@ export function SearchResultsPane({
         const content = privacyOn ? maskDisplayText(message.content) : message.content;
 
         return (
-          <button
-            key={message.id}
-            type="button"
-            role="listitem"
-            className={classNames("search-result-row", active && "search-result-row--active")}
-            aria-current={active ? "true" : undefined}
-            onClick={() => onOpenResult(message)}
-          >
-            <div className="search-result-row__meta">
-              <Typography
-                variant="label"
-                weight={700}
-                className="search-result-row__sender"
-              >
-                {sender}
-              </Typography>
-              <Typography
-                variant="caption"
-                color="var(--text-muted)"
-                className="search-result-row__time"
-              >
-                {formatSearchTime(message)}
-              </Typography>
-            </div>
-            <Typography
-              variant="body"
-              color="var(--text-secondary)"
-              className="search-result-row__content"
+          <div key={message.id} role="listitem">
+            <button
+              type="button"
+              className={classNames("search-result-row", active && "search-result-row--active")}
+              aria-current={active ? "true" : undefined}
+              onClick={() => onOpenResult(message)}
             >
-              {content || "[空消息]"}
-            </Typography>
-          </button>
+              <div className="search-result-row__meta">
+                <Typography
+                  variant="label"
+                  weight={700}
+                  className="search-result-row__sender"
+                >
+                  {sender}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="var(--text-muted)"
+                  className="search-result-row__time"
+                >
+                  {formatSearchTime(message)}
+                </Typography>
+              </div>
+              <Typography
+                variant="body"
+                color="var(--text-secondary)"
+                className="search-result-row__content"
+              >
+                {content || "[空消息]"}
+              </Typography>
+            </button>
+          </div>
         );
       })}
       {hasMore && (

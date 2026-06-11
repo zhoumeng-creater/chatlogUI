@@ -4,24 +4,24 @@ import { resolveBootDataPath } from "./appBoot";
 describe("resolveBootDataPath", () => {
   it("prefers a persisted settings path over detected candidates", () => {
     const result = resolveBootDataPath({
-      settingsPath: "  C:/WeChat Files/wxid_saved  ",
+      settingsPath: "  C:/Synthetic/WeChat Files/wxid_synthetic_saved  ",
       candidates: [
-        { path: "C:/WeChat Files/wxid_detected", label: "detected", exists: true, source: "test", confidence: "high" },
+        { path: "C:/Synthetic/WeChat Files/wxid_synthetic_detected", label: "detected", exists: true, source: "test", confidence: "high" },
       ],
     });
 
-    expect(result).toBe("C:/WeChat Files/wxid_saved");
+    expect(result).toBe("C:/Synthetic/WeChat Files/wxid_synthetic_saved");
   });
 
   it("uses the first detected candidate when no settings path exists", () => {
     const result = resolveBootDataPath({
       settingsPath: "",
       candidates: [
-        { path: "C:/WeChat Files/wxid_detected", label: "detected", exists: true, source: "test", confidence: "high" },
+        { path: "C:/Synthetic/WeChat Files/wxid_synthetic_detected", label: "detected", exists: true, source: "test", confidence: "high" },
       ],
     });
 
-    expect(result).toBe("C:/WeChat Files/wxid_detected");
+    expect(result).toBe("C:/Synthetic/WeChat Files/wxid_synthetic_detected");
   });
 
   it("returns null when no data path is available", () => {

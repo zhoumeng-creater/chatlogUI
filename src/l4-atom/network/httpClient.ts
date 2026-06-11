@@ -23,6 +23,7 @@ export class ChatlogHttpError extends Error {
 
 export interface RequestJsonOptions extends RequestInit {
   timeoutMs?: number;
+  serviceBaseUrl?: string;
   diagnostics?: {
     endpointFamily?: string;
     method?: string;
@@ -34,7 +35,7 @@ export interface RequestJsonOptions extends RequestInit {
 
 export type RequestDiagnosticsOptions = Pick<
   RequestJsonOptions,
-  "diagnostics" | "onDiagnosticEvent"
+  "diagnostics" | "onDiagnosticEvent" | "serviceBaseUrl" | "signal"
 >;
 
 export function withJsonFormat(rawUrl: string): string {
@@ -56,6 +57,7 @@ export async function requestJson<T = unknown>(
     signal: callerSignal,
     ...fetchOptions
   } = options;
+  delete (fetchOptions as { serviceBaseUrl?: string }).serviceBaseUrl;
   const controller = new AbortController();
   const abortState: { reason: "timeout" | "abort" } = { reason: "timeout" };
   const abortWithReason = (reason: "timeout" | "abort") => {
@@ -145,6 +147,8 @@ export function withRequestDiagnostics(
   const callerDiagnostics = options?.diagnostics;
 
   return {
+    serviceBaseUrl: options?.serviceBaseUrl,
+    signal: options?.signal,
     diagnostics: {
       ...callerDiagnostics,
       ...diagnostics,

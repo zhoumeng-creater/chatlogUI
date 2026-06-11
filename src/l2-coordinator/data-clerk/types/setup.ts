@@ -1,5 +1,7 @@
 export type SetupMode = "managed" | "external";
 
+export type SetupPathId = "recommended-import" | "external-service" | "manual-advanced";
+
 export type ConfigSource =
   | "none"
   | "data-dir-chatlog-json"

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
-import { buildTranscriptRows, estimateTranscriptRowHeight } from "./transcriptRows";
+import {
+  buildTranscriptRows,
+  estimateTranscriptRowHeight,
+  findTranscriptMessageRowIndex,
+} from "./transcriptRows";
 
 function message(id: string, date: string): ChatMessage {
   return {
@@ -11,8 +15,8 @@ function message(id: string, date: string): ChatMessage {
     sender: "Alice",
     type: "text",
     content: `message ${id}`,
-    chat: "wxid_a",
-    username: "wxid_a",
+    chat: "wxid_synthetic_a",
+    username: "wxid_synthetic_a",
     isGroup: false,
     chatType: "private",
     direction: "unknown",
@@ -42,5 +46,17 @@ describe("transcriptRows", () => {
     const [dateRow, messageRow] = buildTranscriptRows([message("m1", "2026-05-30")]);
 
     expect(estimateTranscriptRowHeight(dateRow)).toBeLessThan(estimateTranscriptRowHeight(messageRow));
+  });
+
+  it("finds message row indexes even when date rows are present", () => {
+    const rows = buildTranscriptRows([
+      message("m1", "2026-05-29"),
+      message("m2", "2026-05-29"),
+      message("m3", "2026-05-30"),
+    ]);
+
+    expect(findTranscriptMessageRowIndex(rows, { messageId: "m3", localId: null })).toBe(4);
+    expect(findTranscriptMessageRowIndex(rows, { messageId: "", localId: 2 })).toBe(2);
+    expect(findTranscriptMessageRowIndex(rows, { messageId: "missing", localId: null })).toBeNull();
   });
 });

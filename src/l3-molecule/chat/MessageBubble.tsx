@@ -11,6 +11,7 @@ import {
 interface MessageBubbleProps {
   message: ChatMessage;
   privacyOn: boolean;
+  highlighted?: boolean;
 }
 
 function getContent(message: ChatMessage): string {
@@ -20,7 +21,7 @@ function getContent(message: ChatMessage): string {
   return "";
 }
 
-export function MessageBubble({ message, privacyOn }: MessageBubbleProps) {
+export function MessageBubble({ message, privacyOn, highlighted = false }: MessageBubbleProps) {
   const tone = getTranscriptTone(message);
   const rawContent = getContent(message);
   const content = privacyOn ? maskDisplayText(rawContent) : rawContent;
@@ -30,8 +31,12 @@ export function MessageBubble({ message, privacyOn }: MessageBubbleProps) {
   if (!content && !attachmentSummary && !hasLegacyMedia) return null;
 
   return (
-    <div className={classNames("message-row", `message-row--${tone}`)}>
-      <article className="message-bubble">
+    <div className={classNames(
+      "message-row",
+      `message-row--${tone}`,
+      highlighted && "message-row--search-hit",
+    )}>
+      <article className="message-bubble" aria-label={highlighted ? "搜索命中消息" : undefined}>
         <MessageMeta message={message} privacyOn={privacyOn} />
         {content && <span>{content}</span>}
         {attachmentSummary && (

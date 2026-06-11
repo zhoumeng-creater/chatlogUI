@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import type { SettingsCategory } from "@/l2-coordinator/api-docs/settings";
 import { classNames } from "@/utils/classNames";
-import { Bot, Database, Info, Palette } from "lucide-react";
+import { Bot, Database, Info, Palette, ShieldCheck } from "lucide-react";
 
 const CATEGORIES: { key: SettingsCategory; label: string; icon: ReactNode }[] = [
   { key: "data", label: "数据", icon: <Database size={16} /> },
   { key: "appearance", label: "外观", icon: <Palette size={16} /> },
   { key: "ai", label: "AI 模型", icon: <Bot size={16} /> },
+  { key: "advanced", label: "高级诊断", icon: <ShieldCheck size={16} /> },
   { key: "about", label: "关于", icon: <Info size={16} /> },
 ];
 

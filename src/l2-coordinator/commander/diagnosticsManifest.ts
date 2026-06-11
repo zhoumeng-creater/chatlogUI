@@ -1,5 +1,5 @@
 import packageJson from "../../../package.json";
-import { SIDECAR_PORT } from "@/utils/constants";
+import { getChatlogServiceBaseUrl } from "@l4/network/chatlogEndpoint";
 import type { SidecarStatus } from "@l2/data-clerk/types/app";
 import type {
   PortState,
@@ -37,7 +37,7 @@ export function buildRuntimeDiagnosticsManifest({
     platform: profile?.platform ?? null,
     architecture: null,
     packageReadiness: getPackageReadiness(mode, profile),
-    backendBaseUrl: `http://127.0.0.1:${SIDECAR_PORT}`,
+    backendBaseUrl: getBackendBaseUrl(profile),
     sidecarState: sidecarStatus,
     portState,
     httpReady,
@@ -48,6 +48,10 @@ export function buildRuntimeDiagnosticsManifest({
     releaseSmoke: "not run",
     redactionState: privacyOn ? "privacy-on" : "privacy-off",
   };
+}
+
+function getBackendBaseUrl(profile: SetupProfileSummary | null): string {
+  return getChatlogServiceBaseUrl({ serviceBaseUrl: profile?.httpAddr });
 }
 
 function getBuildChannel(): string {

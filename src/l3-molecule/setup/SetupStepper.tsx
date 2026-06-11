@@ -17,7 +17,7 @@ interface SetupStepperProps {
 
 export function SetupStepper({ currentStep }: SetupStepperProps) {
   return (
-    <nav aria-label="设置步骤" className="flex flex-col gap-1">
+    <nav aria-label="设置步骤" className="setup-stepper">
       {STEP_ORDER.map((stepId, idx) => {
         const stepIdx = STEP_ORDER.indexOf(currentStep);
         const isCurrent = stepId === currentStep;
@@ -26,23 +26,18 @@ export function SetupStepper({ currentStep }: SetupStepperProps) {
         return (
           <div
             key={stepId}
+            aria-current={isCurrent ? "step" : undefined}
             className={classNames(
-              "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-              isCurrent
-                ? "bg-blue-50 text-blue-700 font-medium"
-                : isDone
-                  ? "text-gray-500"
-                  : "text-gray-400",
+              "setup-stepper__item",
+              isCurrent && "setup-stepper__item--current",
+              isDone && "setup-stepper__item--done",
             )}
           >
             <span
               className={classNames(
-                "flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold",
-                isDone
-                  ? "bg-green-100 text-green-600"
-                  : isCurrent
-                    ? "bg-blue-100 text-blue-600"
-                    : "bg-gray-100 text-gray-400",
+                "setup-stepper__index",
+                isDone && "setup-stepper__index--done",
+                isCurrent && "setup-stepper__index--current",
               )}
               aria-hidden="true"
             >

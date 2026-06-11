@@ -17,7 +17,7 @@ describe("migrateSettings", () => {
   it("removes persisted AI API keys and does not claim credentials are configured", () => {
     const migrated = migrateSettings({
       aiProvider: "glm",
-      aiApiKey: "sk-secret",
+      aiApiKey: "sk-synthetic-redaction-token",
       aiCredentialConfigured: true,
     });
 
@@ -51,5 +51,11 @@ describe("migrateSettings", () => {
     expect(migrated.privacyOn).toBe(true);
     expect(migrated.sidecarPort).toBe(8080);
     expect("dataKey" in migrated).toBe(false);
+  });
+
+  it("defaults developer mode to false and preserves only boolean values", () => {
+    expect(migrateSettings({}).developerMode).toBeUndefined();
+    expect(migrateSettings({ developerMode: true }).developerMode).toBe(true);
+    expect(migrateSettings({ developerMode: "true" }).developerMode).toBeUndefined();
   });
 });

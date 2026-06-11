@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { BarChart3, Bot, DatabaseZap, Images, MessageCircle, MessageSquare, Network, Settings } from "lucide-react";
+import { BarChart3, Bot, Images, MessageCircle, MessageSquare, Network } from "lucide-react";
 import { Tooltip } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
 import { getWorkbenchRailButtonLabel } from "./workbenchAccessibility";
 
-export type WorkbenchRailModule = "chat" | "stats" | "media" | "sns" | "developer" | "ai" | "graph" | "settings";
+export type WorkbenchRailModule = "chat" | "stats" | "media" | "sns" | "ai" | "graph";
 
 export interface WorkbenchRailItemState {
   module: WorkbenchRailModule;
@@ -51,12 +51,8 @@ function getModuleIcon(module: WorkbenchRailModule): ReactNode {
       return <Images size={17} />;
     case "sns":
       return <MessageCircle size={17} />;
-    case "developer":
-      return <DatabaseZap size={17} />;
     case "graph":
       return <Network size={17} />;
-    case "settings":
-      return <Settings size={17} />;
     case "chat":
       return <MessageSquare size={17} />;
   }

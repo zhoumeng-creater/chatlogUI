@@ -1,7 +1,19 @@
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import { X } from "lucide-react";
-import { IconButton, Typography } from "@l4/ui";
+import {
+  focusInitialOverlayTarget,
+  getOverlayDialogProps,
+  IconButton,
+  restoreFocusTarget,
+  shouldCloseOverlayOnKey,
+  trapOverlayFocus,
+  Typography,
+  type FocusTarget,
+} from "@l4/ui";
 import type { MediaAttachment } from "@l2/data-clerk/stores/useMediaStore";
 import { formatAttachmentLabel } from "./mediaDisplay";
+
+const MEDIA_PREVIEW_TITLE_ID = "media-preview-title";
 
 interface MediaPreviewSheetProps {
   attachment: MediaAttachment | null;
@@ -16,22 +28,51 @@ export function MediaPreviewSheet({
   privacyOn,
   onClose,
 }: MediaPreviewSheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const restoreTargetRef = useRef<FocusTarget | null>(null);
+  const isOpen = Boolean(attachment);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    restoreTargetRef.current = document.activeElement as FocusTarget | null;
+    focusInitialOverlayTarget(sheetRef.current);
+
+    return () => {
+      restoreFocusTarget(restoreTargetRef.current);
+      restoreTargetRef.current = null;
+    };
+  }, [isOpen]);
+
   if (!attachment) return null;
 
   const label = formatAttachmentLabel(attachment, privacyOn);
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (trapOverlayFocus(sheetRef.current, document.activeElement, event)) return;
+    if (shouldCloseOverlayOnKey(event.key, { dismissible: true })) {
+      event.preventDefault();
+      onClose();
+    }
+  };
+
   return (
-    <div className="media-preview-sheet" role="dialog" aria-modal="false" aria-label="媒体预览">
+    <div
+      {...getOverlayDialogProps({ titleId: MEDIA_PREVIEW_TITLE_ID })}
+      ref={sheetRef}
+      className="media-preview-sheet"
+      onKeyDown={handleKeyDown}
+    >
       <div className="media-preview-sheet__header">
-        <Typography variant="label" weight={700}>
+        <Typography id={MEDIA_PREVIEW_TITLE_ID} variant="label" weight={700}>
           {label}
         </Typography>
         <IconButton
-          icon={<X size={14} />}
+          icon={<X size={16} />}
           label="关闭媒体预览"
           tooltip="关闭媒体预览"
           tooltipPlacement="left"
-          size="sm"
+          size="lg"
           onClick={onClose}
         />
       </div>
@@ -66,8 +107,8 @@ function renderPreview(attachment: MediaAttachment, resourceUrl: string, label: 
   }
 
   return (
-    <a className="media-preview-sheet__link" href={resourceUrl} target="_blank" rel="noreferrer">
-      打开附件
-    </a>
+    <Typography variant="body" color="var(--text-secondary)">
+      文件附件暂不支持直接预览。
+    </Typography>
   );
 }

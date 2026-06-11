@@ -1,17 +1,15 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import type {
   RawSessionsResponse,
   RawContactsResponse,
   RawChatRoomsResponse,
 } from "./chatlogRawTypes";
 import { mergeConversations } from "./chatlogAdapters";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export interface FetchConversationsOptions {
   limit?: number;
@@ -29,7 +27,7 @@ export async function fetchSessions(
   if (options.query) params.set("query", options.query);
 
   const qs = params.toString();
-  return requestJson<RawSessionsResponse>(`${BASE_URL}/api/v1/sessions${qs ? "?" + qs : ""}`, {
+  return requestJson<RawSessionsResponse>(buildChatlogApiUrl(`/api/v1/sessions${qs ? "?" + qs : ""}`, diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "sessions",
@@ -49,7 +47,7 @@ export async function fetchContactsApi(
   if (options.isFriend !== undefined) params.set("is_friend", String(options.isFriend));
 
   const qs = params.toString();
-  return requestJson<RawContactsResponse>(`${BASE_URL}/api/v1/contacts${qs ? "?" + qs : ""}`, {
+  return requestJson<RawContactsResponse>(buildChatlogApiUrl(`/api/v1/contacts${qs ? "?" + qs : ""}`, diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "contacts",
@@ -68,7 +66,7 @@ export async function fetchChatRoomsApi(
   if (options.query) params.set("query", options.query);
 
   const qs = params.toString();
-  return requestJson<RawChatRoomsResponse>(`${BASE_URL}/api/v1/chatrooms${qs ? "?" + qs : ""}`, {
+  return requestJson<RawChatRoomsResponse>(buildChatlogApiUrl(`/api/v1/chatrooms${qs ? "?" + qs : ""}`, diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "chatrooms",

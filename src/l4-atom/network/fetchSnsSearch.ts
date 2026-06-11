@@ -1,15 +1,13 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   ChatlogHttpError,
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import type { RawSnsSearchResponse } from "./chatlogRawTypes";
 import { adaptSnsSearchResponse } from "./snsAdapters";
 import { snsBaseParams, type FetchSnsFeedOptions } from "./fetchSnsFeed";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export interface FetchSnsSearchOptions extends FetchSnsFeedOptions {
   keyword: string;
@@ -24,13 +22,13 @@ export async function fetchSnsSearch(
     throw new ChatlogHttpError("SNS search keyword is required", {
       status: null,
       body: null,
-      url: `${BASE_URL}/api/v1/sns_search`,
+      url: buildChatlogApiUrl("/api/v1/sns_search", diagnosticOptions?.serviceBaseUrl),
     });
   }
 
   const params = snsBaseParams(options);
   params.set("keyword", keyword);
-  const raw = await requestJson<RawSnsSearchResponse>(`${BASE_URL}/api/v1/sns_search?${params}`, {
+  const raw = await requestJson<RawSnsSearchResponse>(buildChatlogApiUrl(`/api/v1/sns_search?${params}`, diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "sns_search",

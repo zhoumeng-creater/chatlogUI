@@ -36,7 +36,7 @@ describe("displayName", () => {
         display: "Alice",
         remark: "A",
         nickname: "alice123",
-        username: "wxid_alice",
+        username: "wxid_synthetic_alice",
       }),
     ).toBe("Alice");
   });
@@ -47,7 +47,7 @@ describe("displayName", () => {
         display: "",
         remark: "Best Friend",
         nickname: "alice123",
-        username: "wxid_alice",
+        username: "wxid_synthetic_alice",
       }),
     ).toBe("Best Friend");
   });
@@ -58,7 +58,7 @@ describe("displayName", () => {
         display: "",
         remark: "",
         nickname: "coolnick",
-        username: "wxid_alice",
+        username: "wxid_synthetic_alice",
       }),
     ).toBe("coolnick");
   });
@@ -69,15 +69,15 @@ describe("displayName", () => {
         display: "",
         remark: "",
         nickname: "",
-        username: "wxid_alice",
+        username: "wxid_synthetic_alice",
       }),
-    ).toBe("wxid_alice");
+    ).toBe("wxid_synthetic_alice");
   });
 });
 
 describe("adaptContact", () => {
   const raw: RawContact = {
-    username: "wxid_bob",
+    username: "wxid_synthetic_bob",
     alias: "bob",
     remark: "Brother",
     nickname: "Bob",
@@ -88,7 +88,7 @@ describe("adaptContact", () => {
   it("maps snake_case raw contact to camelCase UI model", () => {
     const result = adaptContact(raw);
 
-    expect(result.userName).toBe("wxid_bob");
+    expect(result.userName).toBe("wxid_synthetic_bob");
     expect(result.alias).toBe("bob");
     expect(result.remark).toBe("Brother");
     expect(result.nickName).toBe("Bob The Builder");
@@ -96,20 +96,20 @@ describe("adaptContact", () => {
   });
 
   it("defaults missing optional fields", () => {
-    const minimal: RawContact = { username: "wxid_min" };
+    const minimal: RawContact = { username: "wxid_synthetic_min" };
 
     const result = adaptContact(minimal);
 
     expect(result.alias).toBe("");
     expect(result.remark).toBe("");
     expect(result.isFriend).toBe(false);
-    expect(result.nickName).toBe("wxid_min");
+    expect(result.nickName).toBe("wxid_synthetic_min");
   });
 });
 
 describe("adaptSession", () => {
   const raw: RawSession = {
-    username: "wxid_chat",
+    username: "wxid_synthetic_chat",
     chat: "Alice Chat",
     is_group: false,
     chat_type: "friend",
@@ -120,7 +120,7 @@ describe("adaptSession", () => {
   it("maps snake_case raw session to camelCase UI model", () => {
     const result = adaptSession(raw);
 
-    expect(result.userName).toBe("wxid_chat");
+    expect(result.userName).toBe("wxid_synthetic_chat");
     expect(result.nickName).toBe("Alice Chat");
     expect(result.content).toBe("Last message preview");
     expect(result.nTime).toBe(1717000000);
@@ -130,7 +130,7 @@ describe("adaptSession", () => {
 
   it("falls back to username when chat is missing", () => {
     const result = adaptSession({
-      username: "wxid_only",
+      username: "wxid_synthetic_only",
       chat: "",
       is_group: true,
       chat_type: "group",
@@ -138,7 +138,7 @@ describe("adaptSession", () => {
       timestamp: 0,
     });
 
-    expect(result.nickName).toBe("wxid_only");
+    expect(result.nickName).toBe("wxid_synthetic_only");
   });
 
   it("detects group from chat_type when is_group is undefined", () => {
@@ -162,7 +162,7 @@ describe("adaptChatRoom", () => {
     remark: "Work Group",
     nickname: "Work",
     display: "Work Chat",
-    owner: "wxid_owner",
+    owner: "wxid_synthetic_owner",
     user_count: 42,
   };
 
@@ -171,7 +171,7 @@ describe("adaptChatRoom", () => {
 
     expect(result.name).toBe("room123@chatroom");
     expect(result.nickName).toBe("Work Chat");
-    expect(result.owner).toBe("wxid_owner");
+    expect(result.owner).toBe("wxid_synthetic_owner");
     expect(result.userCount).toBe(42);
   });
 
@@ -199,12 +199,12 @@ describe("adaptHistoryMessage", () => {
   const fullMsg: RawHistoryMessage = {
     timestamp: 1717000000,
     time: "2024-05-29 12:00:00",
-    sender: "wxid_sender",
+    sender: "wxid_synthetic_sender",
     type: "image",
     content: "Hello world",
     local_id: 12345,
-    chat: "wxid_receiver",
-    username: "wxid_receiver",
+    chat: "wxid_synthetic_receiver",
+    username: "wxid_synthetic_receiver",
     is_group: false,
     chat_type: "private",
     media_type: "image",
@@ -214,14 +214,14 @@ describe("adaptHistoryMessage", () => {
   it("maps a full message with all fields", () => {
     const result = adaptHistoryMessage(fullMsg);
 
-    expect(result.id).toBe("wxid_receiver-12345");
+    expect(result.id).toBe("wxid_synthetic_receiver-12345");
     expect(result.localId).toBe(12345);
     expect(result.timestamp).toBe(1717000000);
     expect(result.time).toBe("2024-05-29 12:00:00");
-    expect(result.sender).toBe("wxid_sender");
+    expect(result.sender).toBe("wxid_synthetic_sender");
     expect(result.type).toBe("image");
     expect(result.content).toBe("Hello world");
-    expect(result.chat).toBe("wxid_receiver");
+    expect(result.chat).toBe("wxid_synthetic_receiver");
     expect(result.chatType).toBe("private");
     expect(result.mediaType).toBe("image");
     expect(result.mediaUrl).toBe("https://example.com/img.jpg");
@@ -230,20 +230,20 @@ describe("adaptHistoryMessage", () => {
 
   it("generates id from local_id when present", () => {
     const result = adaptHistoryMessage({
-      chat: "wxid_chat",
+      chat: "wxid_synthetic_chat",
       local_id: 42,
     });
-    expect(result.id).toBe("wxid_chat-42");
+    expect(result.id).toBe("wxid_synthetic_chat-42");
     expect(result.localId).toBe(42);
   });
 
   it("generates id from chat+sender+timestamp when no local_id", () => {
     const result = adaptHistoryMessage({
-      chat: "wxid_chat",
-      sender: "wxid_sender",
+      chat: "wxid_synthetic_chat",
+      sender: "wxid_synthetic_sender",
       timestamp: 1717000000,
     });
-    expect(result.id).toBe("wxid_chat-wxid_sender-1717000000");
+    expect(result.id).toBe("wxid_synthetic_chat-wxid_synthetic_sender-1717000000");
     expect(result.localId).toBe(0);
   });
 
@@ -293,8 +293,8 @@ describe("adaptHistoryMessage", () => {
 
 describe("adaptHistoryResponse", () => {
   const raw: RawHistoryResponse = {
-    chat: "wxid_chat",
-    username: "wxid_chat",
+    chat: "wxid_synthetic_chat",
+    username: "wxid_synthetic_chat",
     is_group: false,
     chat_type: "private",
     total_count: 100,
@@ -302,16 +302,16 @@ describe("adaptHistoryResponse", () => {
     limit: 10,
     offset: 0,
     messages: [
-      { chat: "wxid_chat", timestamp: 1, content: "msg1" },
-      { chat: "wxid_chat", timestamp: 2, content: "msg2" },
+      { chat: "wxid_synthetic_chat", timestamp: 1, content: "msg1" },
+      { chat: "wxid_synthetic_chat", timestamp: 2, content: "msg2" },
     ],
   };
 
   it("maps pagination metadata correctly", () => {
     const result = adaptHistoryResponse(raw);
 
-    expect(result.chat).toBe("wxid_chat");
-    expect(result.username).toBe("wxid_chat");
+    expect(result.chat).toBe("wxid_synthetic_chat");
+    expect(result.username).toBe("wxid_synthetic_chat");
     expect(result.isGroup).toBe(false);
     expect(result.chatType).toBe("private");
     expect(result.totalCount).toBe(100);
@@ -344,14 +344,14 @@ describe("adaptHistoryResponse", () => {
 
   it("defaults username to chat when missing", () => {
     const result = adaptHistoryResponse({
-      chat: "wxid_only",
+      chat: "wxid_synthetic_only",
       total_count: 0,
       count: 0,
       limit: 10,
       offset: 0,
       messages: [],
     });
-    expect(result.username).toBe("wxid_only");
+    expect(result.username).toBe("wxid_synthetic_only");
   });
 
   it("propagates response chat metadata to history messages", () => {
@@ -394,8 +394,8 @@ describe("adaptSearchResponse", () => {
     limit: 5,
     offset: 0,
     messages: [
-      { chat: "wxid_a", timestamp: 1, content: "hit1" },
-      { chat: "wxid_a", timestamp: 2, content: "hit2" },
+      { chat: "wxid_synthetic_a", timestamp: 1, content: "hit1" },
+      { chat: "wxid_synthetic_a", timestamp: 2, content: "hit2" },
     ],
   };
 
@@ -443,8 +443,8 @@ describe("adaptSearchResponse", () => {
 
 describe("adaptStatsResponse", () => {
   const full: RawStatsResponse = {
-    chat: "wxid_chat",
-    username: "wxid_chat",
+    chat: "wxid_synthetic_chat",
+    username: "wxid_synthetic_chat",
     is_group: false,
     chat_type: "private",
     total: 500,
@@ -463,8 +463,8 @@ describe("adaptStatsResponse", () => {
       { type: "video", count: 20 },
     ],
     top_senders: [
-      { sender: "wxid_me", count: 300, display: "Me" },
-      { sender: "wxid_friend", count: 200 },
+      { sender: "wxid_synthetic_me", count: 300, display: "Me" },
+      { sender: "wxid_synthetic_friend", count: 200 },
     ],
     by_hour: [
       { hour: 0, count: 10 },
@@ -475,8 +475,8 @@ describe("adaptStatsResponse", () => {
   it("maps snake_case to camelCase for all fields", () => {
     const result = adaptStatsResponse(full);
 
-    expect(result.chat).toBe("wxid_chat");
-    expect(result.username).toBe("wxid_chat");
+    expect(result.chat).toBe("wxid_synthetic_chat");
+    expect(result.username).toBe("wxid_synthetic_chat");
     expect(result.isGroup).toBe(false);
     expect(result.chatType).toBe("private");
     expect(result.total).toBe(500);
@@ -504,8 +504,8 @@ describe("adaptStatsResponse", () => {
     const result = adaptStatsResponse(full);
 
     expect(result.topSenders).toHaveLength(2);
-    expect(result.topSenders[0]).toEqual({ sender: "wxid_me", count: 300, display: "Me" });
-    expect(result.topSenders[1]).toEqual({ sender: "wxid_friend", count: 200, display: "wxid_friend" });
+    expect(result.topSenders[0]).toEqual({ sender: "wxid_synthetic_me", count: 300, display: "Me" });
+    expect(result.topSenders[1]).toEqual({ sender: "wxid_synthetic_friend", count: 200, display: "wxid_synthetic_friend" });
   });
 
   it("handles empty stats with defaults", () => {
@@ -528,7 +528,7 @@ describe("adaptStatsResponse", () => {
 
 describe("adaptDashboardTrendResponse", () => {
   const raw: RawDashboardTrendResponse = {
-    chat: "wxid_chat",
+    chat: "wxid_synthetic_chat",
     window: "day",
     window_label: "Daily",
     from: 1717000000,
@@ -547,7 +547,7 @@ describe("adaptDashboardTrendResponse", () => {
   it("maps daily array correctly", () => {
     const result = adaptDashboardTrendResponse(raw);
 
-    expect(result.chat).toBe("wxid_chat");
+    expect(result.chat).toBe("wxid_synthetic_chat");
     expect(result.window).toBe("day");
     expect(result.windowLabel).toBe("Daily");
     expect(result.from).toBe(1717000000);
@@ -604,19 +604,19 @@ describe("normalizeChatType", () => {
   });
 
   it('returns "private" for chat_type "private"', () => {
-    expect(normalizeChatType("private", "wxid_user")).toBe("private");
+    expect(normalizeChatType("private", "wxid_synthetic_user")).toBe("private");
   });
 
   it('returns "private" for undefined chat_type with normal username', () => {
-    expect(normalizeChatType(undefined, "wxid_user")).toBe("private");
+    expect(normalizeChatType(undefined, "wxid_synthetic_user")).toBe("private");
   });
 
   it('returns "private" for empty string chat_type', () => {
-    expect(normalizeChatType("", "wxid_user")).toBe("private");
+    expect(normalizeChatType("", "wxid_synthetic_user")).toBe("private");
   });
 
   it('returns "unknown" for unrecognized chat_type', () => {
-    expect(normalizeChatType("weird_type", "wxid_user")).toBe("unknown");
+    expect(normalizeChatType("weird_type", "wxid_synthetic_user")).toBe("unknown");
   });
 });
 
@@ -624,7 +624,7 @@ describe("normalizeChatType", () => {
 
 describe("adaptSessionToConversation", () => {
   const raw: RawSession = {
-    username: "wxid_chat",
+    username: "wxid_synthetic_chat",
     chat: "Alice Chat",
     is_group: false,
     chat_type: "private",
@@ -636,8 +636,8 @@ describe("adaptSessionToConversation", () => {
   it("maps session to conversation shape", () => {
     const result = adaptSessionToConversation(raw);
 
-    expect(result.id).toBe("wxid_chat");
-    expect(result.username).toBe("wxid_chat");
+    expect(result.id).toBe("wxid_synthetic_chat");
+    expect(result.username).toBe("wxid_synthetic_chat");
     expect(result.displayName).toBe("Alice Chat");
     expect(result.chatType).toBe("private");
     expect(result.isGroup).toBe(false);
@@ -658,9 +658,9 @@ describe("adaptSessionToConversation", () => {
 
   it("falls back displayName to username when chat is missing", () => {
     const result = adaptSessionToConversation({
-      username: "wxid_only",
+      username: "wxid_synthetic_only",
     });
-    expect(result.displayName).toBe("wxid_only");
+    expect(result.displayName).toBe("wxid_synthetic_only");
   });
 });
 
@@ -668,7 +668,7 @@ describe("adaptSessionToConversation", () => {
 
 describe("adoptContactToConversation", () => {
   const raw: RawContact = {
-    username: "wxid_bob",
+    username: "wxid_synthetic_bob",
     alias: "bob",
     remark: "Brother",
     nickname: "Bob",
@@ -679,22 +679,22 @@ describe("adoptContactToConversation", () => {
   it("maps contact to conversation with embedded contact detail", () => {
     const result = adoptContactToConversation(raw);
 
-    expect(result.id).toBe("wxid_bob");
-    expect(result.username).toBe("wxid_bob");
+    expect(result.id).toBe("wxid_synthetic_bob");
+    expect(result.username).toBe("wxid_synthetic_bob");
     expect(result.displayName).toBe("Bob The Builder");
     expect(result.chatType).toBe("private");
     expect(result.isGroup).toBe(false);
     expect(result.source).toBe("contact");
     expect(result.contact).toBeDefined();
-    expect(result.contact?.userName).toBe("wxid_bob");
+    expect(result.contact?.userName).toBe("wxid_synthetic_bob");
     expect(result.contact?.nickName).toBe("Bob The Builder");
   });
 
   it("falls back displayName to username for minimal contact", () => {
-    const result = adoptContactToConversation({ username: "wxid_min" });
+    const result = adoptContactToConversation({ username: "wxid_synthetic_min" });
 
-    expect(result.displayName).toBe("wxid_min");
-    expect(result.contact?.nickName).toBe("wxid_min");
+    expect(result.displayName).toBe("wxid_synthetic_min");
+    expect(result.contact?.nickName).toBe("wxid_synthetic_min");
   });
 });
 
@@ -706,7 +706,7 @@ describe("adoptChatRoomToConversation", () => {
     remark: "Work Group",
     nickname: "Work",
     display: "Work Chat",
-    owner: "wxid_owner",
+    owner: "wxid_synthetic_owner",
     user_count: 42,
   };
 
@@ -738,8 +738,8 @@ describe("adoptChatRoomToConversation", () => {
 describe("mergeConversations", () => {
   const sessions: RawSessionsResponse = {
     sessions: [
-      { username: "wxid_a", chat: "Alice", summary: "Hey!", timestamp: 300, time: "t3" },
-      { username: "wxid_b", chat: "Bob", summary: "Bye!", timestamp: 200, time: "t2" },
+      { username: "wxid_synthetic_a", chat: "Alice", summary: "Hey!", timestamp: 300, time: "t3" },
+      { username: "wxid_synthetic_b", chat: "Bob", summary: "Bye!", timestamp: 200, time: "t2" },
       { username: "group1@chatroom", chat: "Work Group", summary: "Meeting", timestamp: 100, time: "t1" },
     ],
   };
@@ -747,7 +747,7 @@ describe("mergeConversations", () => {
   const contacts: RawContactsResponse = {
     count: 1,
     contacts: [
-      { username: "wxid_a", display: "Alice Display", remark: "Al", nickname: "alice" },
+      { username: "wxid_synthetic_a", display: "Alice Display", remark: "Al", nickname: "alice" },
     ],
   };
 
@@ -762,9 +762,9 @@ describe("mergeConversations", () => {
     const result = mergeConversations(sessions, contacts, chatrooms);
 
     expect(result).toHaveLength(3);
-    expect(result[0].id).toBe("wxid_a");
+    expect(result[0].id).toBe("wxid_synthetic_a");
     expect(result[0].timestamp).toBe(300);
-    expect(result[1].id).toBe("wxid_b");
+    expect(result[1].id).toBe("wxid_synthetic_b");
     expect(result[1].timestamp).toBe(200);
     expect(result[2].id).toBe("group1@chatroom");
     expect(result[2].timestamp).toBe(100);
@@ -773,7 +773,7 @@ describe("mergeConversations", () => {
   it("enriches session with contact data when available", () => {
     const result = mergeConversations(sessions, contacts, chatrooms);
 
-    const alice = result.find(c => c.id === "wxid_a");
+    const alice = result.find(c => c.id === "wxid_synthetic_a");
     expect(alice?.displayName).toBe("Alice");
     expect((alice as { contact?: { nickName: string } })?.contact).toBeDefined();
     expect((alice as { contact?: { nickName: string } })?.contact?.nickName).toBe("Alice Display");
@@ -791,8 +791,8 @@ describe("mergeConversations", () => {
   it("deduplicates by username (keeps first session entry)", () => {
     const dupSessions: RawSessionsResponse = {
       sessions: [
-        { username: "wxid_a", chat: "Alice", summary: "First", timestamp: 300 },
-        { username: "wxid_a", chat: "Alice", summary: "Second", timestamp: 200 },
+        { username: "wxid_synthetic_a", chat: "Alice", summary: "First", timestamp: 300 },
+        { username: "wxid_synthetic_a", chat: "Alice", summary: "Second", timestamp: 200 },
       ],
     };
 
@@ -805,8 +805,8 @@ describe("mergeConversations", () => {
   it("keeps later session with higher timestamp when deduping", () => {
     const dupSessions: RawSessionsResponse = {
       sessions: [
-        { username: "wxid_a", chat: "Alice", summary: "Older", timestamp: 100 },
-        { username: "wxid_a", chat: "Alice", summary: "Newer", timestamp: 300 },
+        { username: "wxid_synthetic_a", chat: "Alice", summary: "Older", timestamp: 100 },
+        { username: "wxid_synthetic_a", chat: "Alice", summary: "Newer", timestamp: 300 },
       ],
     };
 

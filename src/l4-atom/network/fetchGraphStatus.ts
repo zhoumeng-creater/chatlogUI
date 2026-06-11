@@ -1,4 +1,5 @@
-import { GRAPH_BASE_URL, GRAPH_FETCH_TIMEOUT_MS } from "@/utils/constants";
+import { GRAPH_FETCH_TIMEOUT_MS } from "@/utils/constants";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   ChatlogHttpError,
   requestJson,
@@ -11,7 +12,7 @@ export async function fetchGraphStatus(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphStatusView | null> {
   try {
-    const data = await requestJson(`${GRAPH_BASE_URL}/api/v1/graph/status`, {
+    const data = await requestJson(buildChatlogApiUrl("/api/v1/graph/status", diagnosticOptions?.serviceBaseUrl), {
       timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
       ...withRequestDiagnostics(diagnosticOptions, {
         endpointFamily: "graph",

@@ -1,4 +1,9 @@
-import type { ChatMessage, Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
+import type {
+  ChatMessage,
+  ChatMessageAnchor,
+  Conversation,
+  LoadStatus,
+} from "@l2/data-clerk/stores/useChatStore";
 import { MessageList } from "./MessageList";
 import { TranscriptHeader } from "./TranscriptHeader";
 
@@ -10,6 +15,8 @@ interface ChatViewProps {
   messagesStatus: LoadStatus;
   messagesError: string | null;
   messagesTotalCount: number;
+  activeAnchor: ChatMessageAnchor | null;
+  highlightedMessageId: string | null;
   privacyOn: boolean;
   onLoadHistory: (chat: string) => void;
   onLoadMoreHistory: (chat: string) => void;
@@ -23,6 +30,8 @@ export function ChatView({
   messagesStatus,
   messagesError,
   messagesTotalCount,
+  activeAnchor,
+  highlightedMessageId,
   privacyOn,
   onLoadHistory,
   onLoadMoreHistory,
@@ -43,6 +52,8 @@ export function ChatView({
         messagesHasMore={messagesHasMore}
         messagesStatus={messagesStatus}
         messagesError={messagesError}
+        activeAnchor={activeAnchor}
+        highlightedMessageId={highlightedMessageId}
         privacyOn={privacyOn}
         onLoadHistory={onLoadHistory}
         onLoadMoreHistory={onLoadMoreHistory}

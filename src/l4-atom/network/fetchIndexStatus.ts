@@ -1,4 +1,4 @@
-import { AI_BASE_URL } from '@/utils/constants';
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -9,7 +9,7 @@ import { adaptSemanticIndexStatus, type SemanticIndexStatus } from "./semanticAd
 export async function fetchIndexStatus(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<SemanticIndexStatus> {
-  const data = await requestJson(`${AI_BASE_URL}/api/v1/semantic/index/status`, {
+  const data = await requestJson(buildChatlogApiUrl("/api/v1/semantic/index/status", diagnosticOptions?.serviceBaseUrl), {
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "semantic",
       method: "GET",

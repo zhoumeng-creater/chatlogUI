@@ -11,9 +11,16 @@ export function sanitizeSettingsForStorage(input: Record<string, unknown>): Part
   const rest = { ...input };
   delete rest.dataKey;
   delete rest.aiApiKey;
+  delete rest.apiKey;
+  delete rest.token;
+
+  const sanitized = rest as Partial<SettingsState>;
+  if (typeof rest.developerMode !== "boolean") {
+    delete sanitized.developerMode;
+  }
 
   return {
-    ...(rest as Partial<SettingsState>),
+    ...sanitized,
     aiCredentialConfigured: false,
   };
 }

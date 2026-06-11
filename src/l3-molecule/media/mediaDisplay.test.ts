@@ -38,7 +38,7 @@ describe("mediaDisplay", () => {
   it("masks favorites and member identities in privacy mode", () => {
     const favorite: MediaFavoriteItem = {
       id: "fav",
-      chat: "wxid_chat",
+      chat: "wxid_synthetic_chat",
       sender: "Alice",
       time: "2026-06-02 10:00",
       type: "image",
@@ -46,7 +46,7 @@ describe("mediaDisplay", () => {
       attachments: [attachment],
     };
     const member: MediaMember = {
-      username: "wxid_member",
+      username: "wxid_synthetic_member",
       displayName: "Alice",
     };
 

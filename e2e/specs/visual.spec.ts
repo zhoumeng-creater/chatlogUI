@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { setDesktop, setNarrow } from "../utils/viewport";
 import { expectGraphCanvasReady } from "../utils/graph";
-import { enablePrivacyMode, openSyntheticWorkbench, openWorkbenchModule } from "../utils/workbench";
+import {
+  enablePrivacyMode,
+  openSyntheticWorkbench,
+  openWorkbenchModule,
+} from "../utils/workbench";
 
 test.describe("visual regression synthetic states", () => {
   test.beforeEach(async ({ page }) => {
@@ -15,9 +19,9 @@ test.describe("visual regression synthetic states", () => {
       fullPage: true,
     });
 
-    await openWorkbenchModule(page, "开发");
-    await page.getByRole("button", { name: "Hook" }).click();
-    await expect(page).toHaveScreenshot("developer-hook-desktop.png", {
+    await openWorkbenchModule(page, "搜索");
+    await expect(page.getByLabel("搜索工作区")).toBeVisible();
+    await expect(page).toHaveScreenshot("search-workspace-desktop.png", {
       fullPage: true,
     });
 

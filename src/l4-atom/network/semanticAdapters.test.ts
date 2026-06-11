@@ -59,7 +59,7 @@ describe("adaptSemanticConfig", () => {
       topN: 8,
       similarityThreshold: 0.61,
     });
-    expect(JSON.stringify(view)).not.toContain("sk-real-secret");
+    expect(JSON.stringify(view)).not.toContain("sk-synthetic-redaction-token");
     expect(JSON.stringify(view)).not.toContain("api_key");
   });
 
@@ -118,18 +118,18 @@ describe("adaptConnectionTestResult", () => {
     const result = adaptConnectionTestResult({
       ok: false,
       error: [
-        "api_key=sk-real-secret",
+        "api_key=sk-synthetic-redaction-token",
         "token=raw-token",
         "message: synthetic-private-message",
-        "C:\\Users\\Alice\\WeChat Files\\wxid_real",
+        "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_real",
       ].join(" "),
     });
 
-    expect(result.message).not.toContain("sk-real-secret");
+    expect(result.message).not.toContain("sk-synthetic-redaction-token");
     expect(result.message).not.toContain("raw-token");
     expect(result.message).not.toContain("synthetic-private-message");
     expect(result.message).not.toContain("Alice");
-    expect(result.message).not.toContain("wxid_real");
+    expect(result.message).not.toContain("wxid_synthetic_real");
     expect(containsSensitiveDiagnosticText(result.message)).toBe(false);
   });
 });
@@ -230,15 +230,15 @@ describe("adaptSemanticIndexStatus", () => {
       pending: 0,
       failed: 2,
       last_error: "",
-      last_incremental_error: "api_key=sk-real-secret message: synthetic-private-message",
-      last_rerank_error: "C:\\Users\\Alice\\WeChat Files\\wxid_real token=raw-token",
+      last_incremental_error: "api_key=sk-synthetic-redaction-token message: synthetic-private-message",
+      last_rerank_error: "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_real token=raw-token",
     });
 
-    expect(status.lastIncrementalError).not.toContain("sk-real-secret");
+    expect(status.lastIncrementalError).not.toContain("sk-synthetic-redaction-token");
     expect(status.lastRerankError).not.toContain("raw-token");
     expect(status.lastActivityLabel).not.toContain("synthetic-private-message");
     expect(status.lastActivityLabel).not.toContain("Alice");
-    expect(status.lastActivityLabel).not.toContain("wxid_real");
+    expect(status.lastActivityLabel).not.toContain("wxid_synthetic_real");
     expect(containsSensitiveDiagnosticText(status.lastActivityLabel)).toBe(false);
   });
 });
@@ -247,7 +247,7 @@ describe("semantic response adapters", () => {
   it("maps sidecar QA done top-level metadata without copying raw debug payloads", () => {
     const done = adaptSemanticQAResponse({
       query: "private synthetic question",
-      chat: "wxid_should_not_copy",
+      chat: "wxid_synthetic_should_not_copy",
       source_count: 3,
       window: "30d",
       depth: "deep",
@@ -272,7 +272,7 @@ describe("semantic response adapters", () => {
         entity_candidates: [
           {
             display: "Alice",
-            username: "wxid_alice",
+            username: "wxid_synthetic_alice",
             kind: "person",
             source: "contacts",
             raw_note: "should not copy",
@@ -311,7 +311,7 @@ describe("semantic response adapters", () => {
       entityCandidates: [
         {
           display: "Alice",
-          username: "wxid_alice",
+          username: "wxid_synthetic_alice",
           kind: "person",
           source: "contacts",
         },
@@ -328,7 +328,7 @@ describe("semantic response adapters", () => {
   it("maps backend-shaped semantic search metadata and result rows", () => {
     const search = adaptSemanticSearch({
       query: "release",
-      chat: "wxid_filter",
+      chat: "wxid_synthetic_filter",
       source_count: 25,
       window: "all",
       depth: "standard",
@@ -339,9 +339,9 @@ describe("semantic response adapters", () => {
       rerank_error: "rerank unavailable",
       results: [
         {
-          talker: "wxid_a",
+          talker: "wxid_synthetic_a",
           talker_name: "Project room",
-          sender: "wxid_sender",
+          sender: "wxid_synthetic_sender",
           sender_name: "Alice",
           seq: 123,
           time: 1717044000,
@@ -352,17 +352,17 @@ describe("semantic response adapters", () => {
       ],
     });
 
-    expect(search.chat).toBe("wxid_filter");
+    expect(search.chat).toBe("wxid_synthetic_filter");
     expect(search.count).toBe(1);
     expect(search.totalCount).toBe(1);
     expect(search.rerank.enabled).toBe(true);
     expect(search.rerank.tried).toBe(true);
     expect(search.rerank.applied).toBe(false);
     expect(search.rerank.error).toBe("rerank unavailable");
-    expect(search.results[0].chat).toBe("wxid_a");
+    expect(search.results[0].chat).toBe("wxid_synthetic_a");
     expect(search.results[0].chatName).toBe("Project room");
     expect(search.results[0].sender).toBe("Alice");
-    expect(search.results[0].senderId).toBe("wxid_sender");
+    expect(search.results[0].senderId).toBe("wxid_synthetic_sender");
     expect(search.results[0].localId).toBe(123);
     expect(search.results[0].time).not.toBe("");
     expect(search.results[0].content).toBe("Release checklist");
@@ -398,7 +398,7 @@ describe("semantic response adapters", () => {
       count: 1,
       profiles: [
         {
-          sender: "wxid_sender",
+          sender: "wxid_synthetic_sender",
           sender_name: "Alice",
           messages: 42,
           top_keywords: [
@@ -416,7 +416,7 @@ describe("semantic response adapters", () => {
     });
 
     expect(profiles.windowLabel).toBe("All time");
-    expect(profiles.profiles[0].sender).toBe("wxid_sender");
+    expect(profiles.profiles[0].sender).toBe("wxid_synthetic_sender");
     expect(profiles.profiles[0].senderName).toBe("Alice");
     expect(profiles.profiles[0].messages).toBe(42);
     expect(profiles.profiles[0].topKeywords[0]).toEqual({ topic: "release", count: 7 });
@@ -441,13 +441,13 @@ describe("semantic response adapters", () => {
       ok: false,
       accepted: false,
       status: "error",
-      error: "token=raw-token query=synthetic-private-message C:\\Users\\Alice\\WeChat Files\\wxid_real",
+      error: "token=raw-token query=synthetic-private-message C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_real",
     });
 
     expect(result.error).not.toContain("raw-token");
     expect(result.error).not.toContain("synthetic-private-message");
     expect(result.error).not.toContain("Alice");
-    expect(result.error).not.toContain("wxid_real");
+    expect(result.error).not.toContain("wxid_synthetic_real");
     expect(containsSensitiveDiagnosticText(result.error)).toBe(false);
   });
 });
@@ -456,8 +456,8 @@ describe("buildSemanticQARequestPayload", () => {
   it("builds the backend QA body and omits UI-only scope", () => {
     const payload = buildSemanticQARequestPayload({
       query: "What changed?",
-      chat: "wxid_a",
-      chats: ["wxid_a", "room@chatroom"],
+      chat: "wxid_synthetic_a",
+      chats: ["wxid_synthetic_a", "room@chatroom"],
       window: "30d",
       entityOverride: "Alice",
       retrievalDepth: "deep",
@@ -469,8 +469,8 @@ describe("buildSemanticQARequestPayload", () => {
 
     expect(payload).toEqual({
       query: "What changed?",
-      chat: "wxid_a",
-      chats: ["wxid_a", "room@chatroom"],
+      chat: "wxid_synthetic_a",
+      chats: ["wxid_synthetic_a", "room@chatroom"],
       window: "30d",
       entity_override: "Alice",
       retrieval_depth: "deep",

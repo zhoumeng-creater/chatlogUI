@@ -10,8 +10,8 @@ import {
 } from "./statsDisplay";
 
 const stats: AdaptedStats = {
-  chat: "wxid_a",
-  username: "wxid_a",
+  chat: "wxid_synthetic_a",
+  username: "wxid_synthetic_a",
   isGroup: false,
   chatType: "private",
   total: 1200,
@@ -68,7 +68,7 @@ describe("statsDisplay", () => {
   });
 
   it("formats top sender display without hiding aggregate counts when privacy is off", () => {
-    const sender = { sender: "wxid_alice", display: "Alice", count: 42 };
+    const sender = { sender: "wxid_synthetic_alice", display: "Alice", count: 42 };
 
     expect(formatTopSenderName(sender, false)).toBe("Alice");
     expect(formatTopSenderAvatarAlt(sender, false)).toBe("Alice 头像");
@@ -77,20 +77,20 @@ describe("statsDisplay", () => {
   });
 
   it("masks top sender visible text and avatar accessibility when privacy is on", () => {
-    const sender = { sender: "wxid_alice", display: "Alice", count: 42 };
+    const sender = { sender: "wxid_synthetic_alice", display: "Alice", count: 42 };
 
     expect(formatTopSenderName(sender, true)).toBe("已隐藏联系人");
     expect(formatTopSenderAvatarAlt(sender, true)).toBe("已隐藏联系人头像");
     expect(formatTopSenderFallback(sender, true)).toBe("隐");
     expect(formatTopSenderName(sender, true)).not.toContain("Alice");
-    expect(formatTopSenderAvatarAlt(sender, true)).not.toContain("wxid_alice");
+    expect(formatTopSenderAvatarAlt(sender, true)).not.toContain("wxid_synthetic_alice");
   });
 
   it("does not reveal raw sender ids when display names are empty under privacy mode", () => {
-    const sender = { sender: "wxid_private_sender", display: "", count: 7 };
+    const sender = { sender: "wxid_synthetic_private_sender", display: "", count: 7 };
 
     expect(formatTopSenderName(sender, true)).toBe("已隐藏联系人");
     expect(formatTopSenderFallback(sender, true)).toBe("隐");
-    expect(formatTopSenderAvatarAlt(sender, true)).not.toContain("wxid_private_sender");
+    expect(formatTopSenderAvatarAlt(sender, true)).not.toContain("wxid_synthetic_private_sender");
   });
 });

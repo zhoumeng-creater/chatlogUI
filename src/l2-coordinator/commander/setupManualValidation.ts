@@ -1,0 +1,129 @@
+import type { ConfigValidationError, ServerConfigDraft } from "@l4/system";
+import { validateChatlogServiceBaseUrl } from "@l4/network/chatlogEndpoint";
+import {
+  containsUnsafeDisplayText,
+  formatSafeUserFacingError,
+} from "@/utils/privacyDisplay";
+
+export type ManualConfigField =
+  | "dataDir"
+  | "workDir"
+  | "platform"
+  | "version"
+  | "fullVersion"
+  | "dataKey"
+  | "imgKey"
+  | "httpAddr";
+
+export interface ManualConfigValidationView {
+  valid: boolean;
+  fieldErrors: Partial<Record<ManualConfigField, string>>;
+  summary: string | null;
+}
+
+const VALID_PLATFORMS = new Set(["windows", "darwin", "linux"]);
+
+export function deriveManualConfigValidationView(
+  draft: ServerConfigDraft,
+): ManualConfigValidationView {
+  const fieldErrors: Partial<Record<ManualConfigField, string>> = {};
+
+  if (!draft.dataDir?.trim()) {
+    fieldErrors.dataDir = "请选择微信数据目录。";
+  }
+
+  const platform = draft.platform?.trim() ?? "";
+  if (!VALID_PLATFORMS.has(platform)) {
+    fieldErrors.platform = "请选择平台。";
+  }
+
+  if (!Number.isInteger(draft.version) || Number(draft.version) <= 0) {
+    fieldErrors.version = "请输入有效版本号。";
+  }
+
+  if (!draft.fullVersion?.trim()) {
+    fieldErrors.fullVersion = "请输入完整版本号。";
+  }
+
+  if (!draft.dataKey?.trim()) {
+    fieldErrors.dataKey = "Data Key 必填。";
+  }
+
+  const httpAddr = draft.httpAddr?.trim();
+  if (!httpAddr) {
+    fieldErrors.httpAddr = "请输入本机 HTTP 服务地址。";
+  } else {
+    const validation = validateChatlogServiceBaseUrl(httpAddr);
+    if (!validation.ok) {
+      fieldErrors.httpAddr = toSafeManualFieldError("httpAddr", validation.error);
+    }
+  }
+
+  return toValidationView(fieldErrors);
+}
+
+export function mapConfigValidationErrorsToManualFields(
+  errors: ConfigValidationError[],
+): ManualConfigValidationView {
+  const fieldErrors: Partial<Record<ManualConfigField, string>> = {};
+
+  for (const error of errors) {
+    const field = normalizeManualConfigField(error.field);
+    if (!field) continue;
+    fieldErrors[field] = toSafeManualFieldError(field, error.message);
+  }
+
+  return toValidationView(fieldErrors);
+}
+
+function normalizeManualConfigField(field: string): ManualConfigField | null {
+  switch (field) {
+    case "dataDir":
+    case "data_dir":
+      return "dataDir";
+    case "workDir":
+    case "work_dir":
+      return "workDir";
+    case "platform":
+      return "platform";
+    case "version":
+      return "version";
+    case "fullVersion":
+    case "full_version":
+      return "fullVersion";
+    case "dataKey":
+    case "data_key":
+      return "dataKey";
+    case "imgKey":
+    case "img_key":
+      return "imgKey";
+    case "httpAddr":
+    case "http_addr":
+      return "httpAddr";
+    default:
+      return null;
+  }
+}
+
+function toValidationView(
+  fieldErrors: Partial<Record<ManualConfigField, string>>,
+): ManualConfigValidationView {
+  const count = Object.keys(fieldErrors).length;
+  return {
+    valid: count === 0,
+    fieldErrors,
+    summary: count > 0 ? `请检查 ${count} 个字段后重试。` : null,
+  };
+}
+
+function toSafeManualFieldError(field: ManualConfigField, message: string): string {
+  if (containsUnsafeDisplayText(message)) {
+    return formatSafeUserFacingError(message);
+  }
+
+  if (field === "httpAddr") {
+    return message.trim() || "服务地址不正确，请输入本机 HTTP origin。";
+  }
+
+  return formatSafeUserFacingError(message);
+}

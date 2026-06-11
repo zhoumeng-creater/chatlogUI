@@ -17,4 +17,6 @@ export { useAppShellCommander } from "./useAppShellCommander";
 export { useUpdateNotificationCommander } from "./useUpdateNotificationCommander";
 export { useWorkbenchCommander } from "./useWorkbenchCommander";
 export { useWorkbenchShellCommander } from "./useWorkbenchShellCommander";
+export { useScopedWorkspaceConversation } from "./useScopedWorkspaceConversation";
 export type { WorkbenchModule } from "./workbenchViewModel";
+export type { PrimaryWorkspaceId, PrimaryWorkspaceRailItem } from "./primaryWorkspaceNavigation";

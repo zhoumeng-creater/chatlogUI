@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { requestJson, ChatlogHttpError } from "./httpClient";
+import { requestJson, ChatlogHttpError, withRequestDiagnostics } from "./httpClient";
 import type { DiagnosticEvent } from "./diagnosticEvents";
 
 afterEach(() => {
@@ -177,5 +177,25 @@ describe("requestJson", () => {
         retryable: false,
       },
     });
+  });
+
+  it("preserves caller abort signals when diagnostics options are merged", () => {
+    const controller = new AbortController();
+
+    const merged = withRequestDiagnostics(
+      {
+        signal: controller.signal,
+        diagnostics: {
+          endpointFamily: "search",
+          recoveryHint: "retry",
+        },
+      } as never,
+      {
+        endpointFamily: "search",
+        method: "GET",
+      },
+    );
+
+    expect((merged as RequestInit).signal).toBe(controller.signal);
   });
 });

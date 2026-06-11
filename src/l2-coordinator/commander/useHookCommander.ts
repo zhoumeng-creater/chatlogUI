@@ -189,6 +189,7 @@ export function useHookCommander() {
         useHookStore.getState().setStreamError("Hook SSE 连接失败");
       },
       abortController.signal,
+      hookDiagnostics("hook_stream"),
     );
   }, []);
 

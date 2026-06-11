@@ -72,6 +72,24 @@ pub async fn load_managed_server_config_summary(
 }
 
 #[tauri::command]
+pub async fn save_external_connection_config(
+    config: config_store::ExternalConnectionConfigDraft,
+) -> Result<config_store::ConfigSummary, String> {
+    config_store::write_external_connection_config(&config)
+}
+
+#[tauri::command]
+pub async fn load_external_connection_config_summary(
+) -> Result<Option<config_store::ConfigSummary>, String> {
+    config_store::load_external_connection_config_summary()
+}
+
+#[tauri::command]
+pub async fn clear_external_connection_config() -> Result<(), String> {
+    config_store::clear_external_connection_config()
+}
+
+#[tauri::command]
 pub async fn validate_managed_server_config(
     config: config_store::ServerConfigDraft,
 ) -> Result<Vec<config_store::ConfigValidationError>, String> {

@@ -24,6 +24,16 @@ pub struct ServerConfigDraft {
     pub save_decrypted_media: Option<bool>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ExternalConnectionConfigDraft {
+    #[serde(default, alias = "httpAddr")]
+    pub http_addr: String,
+    #[serde(default)]
+    pub port: u16,
+    #[serde(default, alias = "lastValidatedAt")]
+    pub last_validated_at: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ConfigValidationError {
     pub code: String,
@@ -101,9 +111,10 @@ pub fn validate_server_config(cfg: &ServerConfigDraft) -> Vec<ConfigValidationEr
 
 pub fn read_data_dir_chatlog_json(data_dir: &std::path::Path) -> Result<ServerConfigDraft, String> {
     let path = data_dir.join("chatlog.json");
-    let bytes = std::fs::read(&path).map_err(|e| format!("无法读取 {}: {}", path.display(), e))?;
+    let bytes = std::fs::read(&path)
+        .map_err(|_| "无法读取配置文件，请确认所选目录包含有效配置".to_string())?;
     serde_json::from_slice::<ServerConfigDraft>(&bytes)
-        .map_err(|e| format!("无法解析 {}: {}", path.display(), e))
+        .map_err(|_| "配置文件格式无效，请重新选择目录或检查配置".to_string())
 }
 
 pub fn summarize_config(
@@ -138,6 +149,27 @@ pub fn summarize_config(
             .map_or(false, |k| !k.trim().is_empty()),
         has_img_key: cfg.img_key.as_ref().map_or(false, |k| !k.trim().is_empty()),
         last_validated_at: None,
+    }
+}
+
+pub fn summarize_external_connection(
+    cfg: &ExternalConnectionConfigDraft,
+    config_dir: String,
+) -> ConfigSummary {
+    ConfigSummary {
+        mode: "external".into(),
+        source: "external-service".into(),
+        config_dir,
+        data_dir: None,
+        work_dir: None,
+        http_addr: cfg.http_addr.clone(),
+        port: cfg.port,
+        platform: None,
+        version: None,
+        full_version: None,
+        has_data_key: false,
+        has_img_key: false,
+        last_validated_at: cfg.last_validated_at.clone(),
     }
 }
 
@@ -189,6 +221,47 @@ pub fn load_managed_server_config_summary() -> Result<Option<ConfigSummary>, Str
     }))
 }
 
+pub fn write_external_connection_config(
+    cfg: &ExternalConnectionConfigDraft,
+) -> Result<ConfigSummary, String> {
+    let config_dir = get_app_config_dir()?;
+    let path = config_dir.join("chatlog-connection.json");
+    let json =
+        serde_json::to_string_pretty(cfg).map_err(|e| format!("无法序列化外部服务配置: {}", e))?;
+    std::fs::write(&path, json).map_err(|e| format!("无法写入外部服务配置: {}", e))?;
+    Ok(summarize_external_connection(
+        cfg,
+        config_dir.to_string_lossy().to_string(),
+    ))
+}
+
+pub fn load_external_connection_config() -> Result<Option<ExternalConnectionConfigDraft>, String> {
+    let config_dir = get_app_config_dir()?;
+    let path = config_dir.join("chatlog-connection.json");
+    if !path.exists() {
+        return Ok(None);
+    }
+    let bytes = std::fs::read(&path).map_err(|e| format!("无法读取外部服务配置: {}", e))?;
+    let cfg: ExternalConnectionConfigDraft =
+        serde_json::from_slice(&bytes).map_err(|e| format!("无法解析外部服务配置: {}", e))?;
+    Ok(Some(cfg))
+}
+
+pub fn load_external_connection_config_summary() -> Result<Option<ConfigSummary>, String> {
+    let cfg = load_external_connection_config()?;
+    let config_dir = get_app_config_dir()?;
+    Ok(cfg.map(|c| summarize_external_connection(&c, config_dir.to_string_lossy().to_string())))
+}
+
+pub fn clear_external_connection_config() -> Result<(), String> {
+    let config_dir = get_app_config_dir()?;
+    let path = config_dir.join("chatlog-connection.json");
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| format!("无法删除外部服务配置: {}", e))?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,7 +269,7 @@ mod tests {
     #[test]
     fn validates_complete_windows_config() {
         let cfg = ServerConfigDraft {
-            data_dir: Some("E:\\WeChat Files\\wxid_xxx".into()),
+            data_dir: Some("E:\\WeChat Files\\wxid_synthetic_xxx".into()),
             work_dir: Some("E:\\chatlog\\work".into()),
             data_key: Some("a".repeat(64)),
             img_key: Some("image-key".into()),
@@ -244,7 +317,7 @@ mod tests {
     fn accepts_camel_case_frontend_payload_but_serializes_snake_case_config() {
         let cfg: ServerConfigDraft = serde_json::from_str(
             r#"{
-            "dataDir": "E:/WeChat/wxid_xxx",
+            "dataDir": "E:/Synthetic/WeChat Files/wxid_synthetic_xxx",
             "workDir": "E:/chatlog/work",
             "dataKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "imgKey": "image-key",
@@ -257,12 +330,23 @@ mod tests {
         )
         .expect("camelCase payload should deserialize");
 
-        assert_eq!(cfg.data_dir.as_deref(), Some("E:/WeChat/wxid_xxx"));
+        assert_eq!(cfg.data_dir.as_deref(), Some("E:/Synthetic/WeChat Files/wxid_synthetic_xxx"));
         let out = serde_json::to_string(&cfg).expect("config should serialize");
         assert!(out.contains("data_dir"));
         assert!(out.contains("full_version"));
         assert!(!out.contains("dataDir"));
         assert!(!out.contains("fullVersion"));
+    }
+
+    #[test]
+    fn read_data_dir_chatlog_json_errors_do_not_return_local_paths() {
+        let temp_dir = std::env::temp_dir().join("chatlogUI-synthetic-missing-chatlog-json");
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let error = read_data_dir_chatlog_json(&temp_dir).expect_err("missing chatlog.json should fail");
+        let path_text = temp_dir.to_string_lossy();
+
+        assert!(!error.contains(path_text.as_ref()));
+        assert!(!error.contains("chatlog.json"));
     }
 
     #[test]
@@ -276,5 +360,28 @@ mod tests {
         assert_eq!(summary.mode, "managed");
         assert_eq!(summary.source, "data-dir-chatlog-json");
         assert_eq!(summary.last_validated_at, None);
+    }
+
+    #[test]
+    fn summarizes_external_connection_without_managed_secrets() {
+        let summary = summarize_external_connection(
+            &ExternalConnectionConfigDraft {
+                http_addr: "http://127.0.0.1:6041".into(),
+                port: 6041,
+                last_validated_at: Some("2026-06-09T10:00:00.000Z".into()),
+            },
+            "C:\\config".into(),
+        );
+
+        assert_eq!(summary.mode, "external");
+        assert_eq!(summary.source, "external-service");
+        assert_eq!(summary.http_addr, "http://127.0.0.1:6041");
+        assert_eq!(summary.port, 6041);
+        assert!(!summary.has_data_key);
+        assert!(!summary.has_img_key);
+        assert_eq!(
+            summary.last_validated_at.as_deref(),
+            Some("2026-06-09T10:00:00.000Z")
+        );
     }
 }

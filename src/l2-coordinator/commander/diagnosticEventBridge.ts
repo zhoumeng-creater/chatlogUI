@@ -8,6 +8,7 @@ import {
 } from "@l4/network/diagnosticEvents";
 import type { RequestDiagnosticsOptions } from "@l4/network/httpClient";
 import { useDiagnosticEventStore } from "@/l2-coordinator/data-clerk/stores/useDiagnosticEventStore";
+import { createCurrentChatlogRequestContext } from "./chatlogRequestContext";
 
 interface DiagnosticHttpOptionsInput {
   endpointFamily: string;
@@ -34,7 +35,7 @@ type DiagnosticEventSinkInput = Pick<CreateDiagnosticEventInput, "summary"> &
 export function createDiagnosticHttpOptions(
   input: DiagnosticHttpOptionsInput,
 ): RequestDiagnosticsOptions {
-  return {
+  return createCurrentChatlogRequestContext({
     diagnostics: {
       endpointFamily: input.endpointFamily,
       method: input.method,
@@ -42,7 +43,7 @@ export function createDiagnosticHttpOptions(
       recoveryHint: input.recoveryHint,
     },
     onDiagnosticEvent: recordDiagnosticEvent,
-  };
+  });
 }
 
 export function createDiagnosticEventSink(defaults: DiagnosticEventSinkDefaults) {

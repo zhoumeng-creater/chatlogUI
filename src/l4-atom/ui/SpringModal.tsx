@@ -1,47 +1,72 @@
-import { motion } from "framer-motion";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import {
+  focusInitialOverlayTarget,
+  getOverlayDialogProps,
+  restoreFocusTarget,
+  shouldCloseOverlayOnKey,
+  trapOverlayFocus,
+  type FocusTarget,
+} from "./overlayFocus";
 
 interface SpringModalProps {
   children: ReactNode;
   onClose: () => void;
+  ariaLabel?: string;
+  titleId?: string;
+  closeOnBackdrop?: boolean;
+  closeOnEscape?: boolean;
 }
 
-export function SpringModal({ children, onClose }: SpringModalProps) {
+export function SpringModal({
+  children,
+  onClose,
+  ariaLabel = "对话框",
+  titleId,
+  closeOnBackdrop = true,
+  closeOnEscape = true,
+}: SpringModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const restoreTargetRef = useRef<FocusTarget | null>(null);
+
+  useEffect(() => {
+    restoreTargetRef.current = document.activeElement as FocusTarget | null;
+    focusInitialOverlayTarget(panelRef.current);
+
+    return () => {
+      restoreFocusTarget(restoreTargetRef.current);
+    };
+  }, []);
+
+  const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget && closeOnBackdrop) {
+      onClose();
+    }
+  };
+
+  const handlePanelKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (trapOverlayFocus(panelRef.current, document.activeElement, event)) return;
+    if (shouldCloseOverlayOnKey(event.key, { dismissible: closeOnEscape })) {
+      event.preventDefault();
+      onClose();
+    }
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.5)",
-        backdropFilter: "blur(8px)",
-      }}
+    <div
+      className="spring-modal__backdrop"
+      data-close-on-backdrop={String(closeOnBackdrop)}
+      onClick={handleBackdropClick}
     >
-      <motion.div
-        initial={{ scale: 0.85, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.85, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 350, damping: 25 }}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--color-surface, #ffffff)",
-          borderRadius: 20,
-          padding: 24,
-          boxShadow: "0 25px 60px rgba(0,0,0,0.3)",
-          maxWidth: "90vw",
-          maxHeight: "90vh",
-          overflow: "auto",
-        }}
+      <div
+        {...getOverlayDialogProps({ titleId, label: ariaLabel })}
+        ref={panelRef}
+        className="spring-modal__panel"
+        data-close-on-escape={String(closeOnEscape)}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={handlePanelKeyDown}
       >
         {children}
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

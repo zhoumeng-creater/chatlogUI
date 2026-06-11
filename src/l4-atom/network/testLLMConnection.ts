@@ -1,4 +1,4 @@
-import { AI_BASE_URL } from '@/utils/constants';
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -20,7 +20,7 @@ export async function testLLMConnection(
 ): Promise<ConnectionTestResultView> {
   const startTime = Date.now();
 
-  const data = await requestJson(`${AI_BASE_URL}/api/v1/semantic/test`, {
+  const data = await requestJson(buildChatlogApiUrl("/api/v1/semantic/test", diagnosticOptions?.serviceBaseUrl), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider, ...config }),

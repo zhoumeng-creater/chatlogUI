@@ -19,7 +19,6 @@ async function collectSourceFiles(dir) {
 
 const knownL3StyleDebt = new Set([
   "src/l3-molecule/chat/ConversationRow.tsx: inline style",
-  "src/l3-molecule/chat/MediaPreview.tsx: inline style",
   "src/l3-molecule/chat/MessageList.tsx: inline style",
   "src/l3-molecule/common/DevConsole.tsx: template className",
   "src/l3-molecule/common/UpdateNotificationView.tsx: template className",
@@ -228,5 +227,98 @@ describe("UI governance", () => {
     }
 
     expect(localReasonBypasses).toEqual([]);
+  });
+
+  it("keeps Field error descriptions linked by the shared Field atom", async () => {
+    const text = await readFile("src/l4-atom/ui/Field.tsx", "utf8");
+
+    expect(text).toContain("\"aria-errormessage\"");
+    expect(text).not.toContain("hint && !error");
+  });
+
+  it("keeps SpringModal on the shared class-based overlay focus primitive", async () => {
+    const text = await readFile("src/l4-atom/ui/SpringModal.tsx", "utf8");
+
+    expect(text).not.toContain("style={{");
+    expect(text).toContain("getOverlayDialogProps");
+    expect(text).toContain("trapOverlayFocus");
+    expect(text).toContain("restoreFocusTarget");
+  });
+
+  it("keeps semantic confirmation dialogs on the shared SemanticConfirmDialog component", async () => {
+    const files = await collectSourceFiles("src/l3-molecule/semantic");
+    const adHocConfirmations = [];
+
+    for (const file of files) {
+      if (file.endsWith("SemanticConfirmDialog.tsx")) continue;
+      const text = await readFile(file, "utf8");
+      if (text.includes("semantic-confirm")) {
+        adHocConfirmations.push(file);
+      }
+    }
+
+    expect(adHocConfirmations).toEqual([]);
+  });
+
+  it("keeps setup foundation components off demo utility color classes", async () => {
+    const files = await collectSourceFiles("src/l3-molecule/setup");
+    const demoClassUsages = [];
+    const demoClassPattern = /\b(?:bg|text|border)-(?:green|red|gray|blue|slate|zinc|neutral|stone|yellow|orange|purple|indigo|cyan|sky|emerald|rose)-\d{2,3}\b|space-y-\d/g;
+
+    for (const file of files) {
+      const text = await readFile(file, "utf8");
+      const matches = text.match(demoClassPattern);
+      if (matches) {
+        demoClassUsages.push(`${file}: ${[...new Set(matches)].join(", ")}`);
+      }
+    }
+
+    expect(demoClassUsages).toEqual([]);
+  });
+
+  it("keeps Workbench toolbar and inspector from regressing into full workspace containers", async () => {
+    const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+    const forbiddenWorkbenchViewMarkers = [
+      "workbench-frame__module-tabs",
+      "<SearchResults",
+      "function InspectorContent",
+      "<MediaLibrary",
+      "<SnsModule",
+      "<DeveloperToolsModule",
+      "<LazyAiPanel",
+    ];
+
+    const foundMarkers = forbiddenWorkbenchViewMarkers.filter((marker) => workbenchView.includes(marker));
+    expect(foundMarkers).toEqual([]);
+
+    const toolbarRule = layoutCss.match(/\.workbench-frame__toolbar\s*\{[\s\S]*?\}/)?.[0] ?? "";
+    expect(toolbarRule).not.toContain("max-height");
+    expect(toolbarRule).not.toContain("overflow: auto");
+  });
+
+  it("keeps search results on the primary search page with full-height ownership", async () => {
+    const searchView = await readFile("src/l1-entry/pages/SearchView.tsx", "utf8");
+    const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+    const workbenchContentCss = await readFile("src/styles/workbench-content.css", "utf8");
+
+    expect(searchView).toContain("search-workspace__results");
+    expect(workbenchView).not.toContain("<SearchResults");
+    expect(layoutCss).toContain(".search-workspace__results");
+    expect(workbenchContentCss).toContain(".search-workspace__results .search-result-pane");
+    expect(workbenchContentCss).toContain("max-height: none");
+  });
+
+  it("keeps search-hit navigation orchestration out of L1 pages", async () => {
+    const searchView = await readFile("src/l1-entry/pages/SearchView.tsx", "utf8");
+    const forbiddenMarkers = [
+      "resolveSearchHitNavigation",
+      "chat.selectAndLoadAtAnchor",
+      "search.setError(target.message)",
+    ];
+
+    const foundMarkers = forbiddenMarkers.filter((marker) => searchView.includes(marker));
+    expect(foundMarkers).toEqual([]);
   });
 });

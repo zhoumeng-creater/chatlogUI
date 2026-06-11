@@ -3,14 +3,14 @@ import { resolveSemanticSearchNavigation } from "./semanticDiscoveryNavigation";
 
 describe("semanticDiscoveryNavigation", () => {
   const conversations = [
-    { id: "conv-1", username: "wxid_backend_chat", displayName: "Project Room" },
-    { id: "conv-2", username: "wxid_other", displayName: "wxid_backend_chat" },
+    { id: "conv-1", username: "wxid_synthetic_backend_chat", displayName: "Project Room" },
+    { id: "conv-2", username: "wxid_synthetic_other", displayName: "wxid_synthetic_backend_chat" },
   ];
 
   it("resolves result clicks by backend username and preserves the local message target", () => {
     const target = resolveSemanticSearchNavigation({
       result: {
-        chat: "wxid_backend_chat",
+        chat: "wxid_synthetic_backend_chat",
         chatLabel: "A display label that must not be used as chat id",
         localId: 123,
       },
@@ -21,7 +21,7 @@ describe("semanticDiscoveryNavigation", () => {
     expect(target).toEqual({
       status: "ready",
       conversationId: "conv-1",
-      chat: "wxid_backend_chat",
+      chat: "wxid_synthetic_backend_chat",
       localId: 123,
       message: "已打开 Project Room，可在当前聊天中查看上下文。",
     });
@@ -29,7 +29,7 @@ describe("semanticDiscoveryNavigation", () => {
 
   it("returns a privacy-safe missing-target message", () => {
     const target = resolveSemanticSearchNavigation({
-      result: { chat: "wxid_missing", chatLabel: "Private room", localId: 5 },
+      result: { chat: "wxid_synthetic_missing", chatLabel: "Private room", localId: 5 },
       conversations,
       privacyOn: true,
     });
@@ -37,7 +37,7 @@ describe("semanticDiscoveryNavigation", () => {
     expect(target).toEqual({
       status: "missing",
       conversationId: "",
-      chat: "wxid_missing",
+      chat: "wxid_synthetic_missing",
       localId: 5,
       message: "未在当前会话列表中找到该语义结果来源。",
     });

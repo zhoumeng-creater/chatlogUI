@@ -17,12 +17,12 @@ describe("createSpawnSidecarPayload", () => {
     expect(
       createSpawnSidecarPayload({
         mode: "managed",
-        configDir: " C:/Users/me/AppData/Roaming/chatlogUI ",
+        configDir: " C:/Users/Synthetic/AppData/Roaming/chatlogUI ",
         httpAddr: " 127.0.0.1:5030 ",
       }),
     ).toEqual({
       mode: "managed",
-      configDir: "C:/Users/me/AppData/Roaming/chatlogUI",
+      configDir: "C:/Users/Synthetic/AppData/Roaming/chatlogUI",
       dataDir: null,
       workDir: null,
       httpAddr: "127.0.0.1:5030",
@@ -33,14 +33,14 @@ describe("createSpawnSidecarPayload", () => {
     expect(
       createSpawnSidecarPayload({
         mode: "managed",
-        dataDir: " C:/WeChat Files/wxid_xxx ",
+        dataDir: " C:/Synthetic/WeChat Files/wxid_synthetic_xxx ",
         workDir: " C:/chatlog/work ",
         httpAddr: " 127.0.0.1:5035 ",
       }),
     ).toEqual({
       mode: "managed",
       configDir: null,
-      dataDir: "C:/WeChat Files/wxid_xxx",
+      dataDir: "C:/Synthetic/WeChat Files/wxid_synthetic_xxx",
       workDir: "C:/chatlog/work",
       httpAddr: "127.0.0.1:5035",
     });

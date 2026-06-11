@@ -66,7 +66,7 @@ describe("semantic QA display helpers", () => {
       entityCandidates: [
         {
           display: "Alice",
-          username: "wxid_alice",
+          username: "wxid_synthetic_alice",
           kind: "person",
           source: "contacts",
           raw_note: "should not show",
@@ -86,7 +86,7 @@ describe("semantic QA display helpers", () => {
 
     const candidates = getSemanticEntityCandidateRows(metadata, true);
     expect(candidates[0]).toMatchObject({
-      entityOverride: "wxid_alice",
+      entityOverride: "wxid_synthetic_alice",
       kindLabel: "******",
       sourceLabel: "********",
     });

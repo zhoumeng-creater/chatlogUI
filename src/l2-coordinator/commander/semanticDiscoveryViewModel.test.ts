@@ -44,10 +44,10 @@ describe("semanticDiscoveryViewModel", () => {
           },
           results: [
             {
-              chat: "wxid_backend_chat",
+              chat: "wxid_synthetic_backend_chat",
               chatName: "Project Room",
               sender: "Alice",
-              senderId: "wxid_sender",
+              senderId: "wxid_synthetic_sender",
               time: "2026-06-04T10:00:00Z",
               content: "Synthetic private deployment message",
               relevanceScore: 0.91,
@@ -62,8 +62,8 @@ describe("semanticDiscoveryViewModel", () => {
     expect(view.search.summary).toBe("1 条结果 / 25 条候选 / 30d / deep / rerank 异常");
     expect(view.search.rerankError).toBe("rerank unavailable");
     expect(view.search.rows[0]).toMatchObject({
-      chat: "wxid_backend_chat",
-      senderId: "wxid_sender",
+      chat: "wxid_synthetic_backend_chat",
+      senderId: "wxid_synthetic_sender",
       chatLabel: "已隐藏会话",
       senderLabel: "已隐藏发送者",
       contentPreview: "已隐藏内容",
@@ -102,7 +102,7 @@ describe("semanticDiscoveryViewModel", () => {
           truncated: false,
           profiles: [
             {
-              sender: "wxid_sender",
+              sender: "wxid_synthetic_sender",
               senderName: "Alice",
               messages: 11,
               topKeywords: [{ topic: "release", count: 4 }],
@@ -130,7 +130,7 @@ describe("semanticDiscoveryViewModel", () => {
     expect(view.profile.summary).toBe("已隐藏总结");
     expect(view.profile.summaryError).toBe("profile summary failed");
     expect(view.profile.rows[0]).toMatchObject({
-      sender: "wxid_sender",
+      sender: "wxid_synthetic_sender",
       senderLabel: "已隐藏发送者",
       messagesLabel: "11 条消息",
       keywords: ["已隐藏关键词"],

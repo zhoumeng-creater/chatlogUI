@@ -1,13 +1,11 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import type { RawSnsFeedResponse } from "./chatlogRawTypes";
 import { adaptSnsFeedResponse } from "./snsAdapters";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export interface FetchSnsFeedOptions {
   limit?: number;
@@ -24,7 +22,7 @@ export async function fetchSnsFeed(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ) {
   const params = snsBaseParams(options);
-  const raw = await requestJson<RawSnsFeedResponse>(`${BASE_URL}/api/v1/sns_feed?${params}`, {
+  const raw = await requestJson<RawSnsFeedResponse>(buildChatlogApiUrl(`/api/v1/sns_feed?${params}`, diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "sns_feed",

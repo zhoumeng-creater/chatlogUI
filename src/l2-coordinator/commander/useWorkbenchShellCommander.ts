@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import { useSetupCommander } from "./useSetupCommander";
+import { getActiveChatlogServiceSummary } from "./chatlogRequestContext";
 import { deriveWorkbenchShellView } from "./workbenchViewModel";
 
 export function useWorkbenchShellCommander() {
@@ -20,10 +21,15 @@ export function useWorkbenchShellCommander() {
     () => deriveWorkbenchShellView({ profile, httpReady, dbReady, devSmokeReady }),
     [profile, httpReady, dbReady, devSmokeReady],
   );
+  const activeService = useMemo(
+    () => getActiveChatlogServiceSummary(profile),
+    [profile],
+  );
 
   return {
     view,
     sidecarStatus,
+    serviceLabel: activeService.serviceLabel,
   };
 }
 

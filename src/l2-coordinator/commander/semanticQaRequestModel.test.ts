@@ -14,7 +14,7 @@ describe("buildSemanticQARequestEnvelope", () => {
         includeHistory: true,
       },
       {
-        currentChat: "wxid_current",
+        currentChat: "wxid_synthetic_current",
         now: 123,
         messages: qaHistory(),
       },
@@ -22,7 +22,7 @@ describe("buildSemanticQARequestEnvelope", () => {
 
     expect(envelope.request).toEqual({
       query: "What changed?",
-      chat: "wxid_current",
+      chat: "wxid_synthetic_current",
       scope: "contact",
       window: "7d",
       retrievalDepth: "deep",
@@ -35,7 +35,7 @@ describe("buildSemanticQARequestEnvelope", () => {
     });
     expect(envelope.snapshot).toEqual({
       query: "What changed?",
-      chat: "wxid_current",
+      chat: "wxid_synthetic_current",
       scope: "contact",
       window: "7d",
       retrievalDepth: "deep",
@@ -54,7 +54,7 @@ describe("buildSemanticQARequestEnvelope", () => {
         window: "30d",
         retrievalDepth: "wide",
         sourceLimit: 80,
-        entityOverride: "wxid_alice",
+        entityOverride: "wxid_synthetic_alice",
       },
       {
         currentChat: undefined,
@@ -70,11 +70,11 @@ describe("buildSemanticQARequestEnvelope", () => {
       retrievalDepth: "wide",
       sourceLimit: 80,
       topN: 30,
-      entityOverride: "wxid_alice",
+      entityOverride: "wxid_synthetic_alice",
     });
     expect(envelope.request.chat).toBeUndefined();
     expect(envelope.snapshot.chat).toBeUndefined();
-    expect(envelope.snapshot.entityOverride).toBe("wxid_alice");
+    expect(envelope.snapshot.entityOverride).toBe("wxid_synthetic_alice");
   });
 
   it("supports selected recent conversations without also sending the current chat", () => {
@@ -86,7 +86,7 @@ describe("buildSemanticQARequestEnvelope", () => {
         window: "30d",
       },
       {
-        currentChat: "wxid_current",
+        currentChat: "wxid_synthetic_current",
         now: 789,
         messages: [],
       },

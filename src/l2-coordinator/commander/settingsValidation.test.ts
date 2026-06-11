@@ -5,7 +5,7 @@ describe("settings validation", () => {
   it("strips UI-stored credentials and resets credential state", () => {
     const sanitized = sanitizeSettingsForStorage({
       aiProvider: "glm",
-      aiApiKey: "sk-secret",
+      aiApiKey: "sk-synthetic-redaction-token",
       aiCredentialConfigured: true,
       wxDataPath: "E:/WeChat",
     });

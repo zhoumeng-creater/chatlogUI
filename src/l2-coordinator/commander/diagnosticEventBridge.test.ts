@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createHttpDiagnosticEvent } from "@l4/network/diagnosticEvents";
 import { useDiagnosticEventStore } from "@/l2-coordinator/data-clerk/stores/useDiagnosticEventStore";
+import { useSetupStore } from "@/l2-coordinator/data-clerk/stores/useSetupStore";
+import type { SetupProfileSummary } from "@/l2-coordinator/data-clerk/types/setup";
 import {
   createDiagnosticEventSink,
   createDiagnosticHttpOptions,
@@ -20,6 +22,7 @@ describe("diagnosticEventBridge", () => {
         timeRange: "all",
       },
     });
+    useSetupStore.getState().reset();
   });
 
   it("adds safe HTTP events to the diagnostic store", () => {
@@ -99,4 +102,37 @@ describe("diagnosticEventBridge", () => {
       "dataKey=secret",
     );
   });
+
+  it("adds the active chatlog service base URL to HTTP diagnostic options", () => {
+    useSetupStore.getState().setProfile(profile({
+      mode: "external",
+      source: "external-service",
+      httpAddr: "127.0.0.1:6041",
+      port: 6041,
+    }));
+
+    expect(createDiagnosticHttpOptions({ endpointFamily: "sessions" })).toMatchObject({
+      serviceBaseUrl: "http://127.0.0.1:6041",
+      diagnostics: { endpointFamily: "sessions" },
+    });
+  });
 });
+
+function profile(overrides: Partial<SetupProfileSummary>): SetupProfileSummary {
+  return {
+    mode: "managed",
+    source: "app-managed-server-config",
+    configDir: null,
+    dataDir: null,
+    workDir: null,
+    httpAddr: "127.0.0.1:5030",
+    port: 5030,
+    platform: null,
+    version: null,
+    fullVersion: null,
+    hasDataKey: false,
+    hasImgKey: false,
+    lastValidatedAt: null,
+    ...overrides,
+  };
+}

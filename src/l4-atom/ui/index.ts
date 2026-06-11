@@ -1,4 +1,5 @@
 export { Button } from "./Button";
+export type { ButtonSize, ButtonVariant } from "./Button";
 export { DisabledReason } from "./DisabledReason";
 export type { DisabledReasonVariant } from "./DisabledReason";
 export { IconButton } from "./IconButton";
@@ -17,5 +18,14 @@ export { Field } from "./Field";
 export { Select } from "./Select";
 export { SegmentedControl } from "./SegmentedControl";
 export { SpringModal } from "./SpringModal";
+export {
+  focusInitialOverlayTarget,
+  getFocusableOverlayElements,
+  getOverlayDialogProps,
+  restoreFocusTarget,
+  shouldCloseOverlayOnKey,
+  trapOverlayFocus,
+} from "./overlayFocus";
+export type { FocusTarget } from "./overlayFocus";
 export { CodeBlock } from "./CodeBlock";
 export { ProgressBar } from "./ProgressBar";

@@ -1,9 +1,9 @@
-import { SIDECAR_PORT } from "@/utils/constants";
 import {
   requestJson,
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   adaptDbFilesResponse,
   adaptDbRowsResponse,
@@ -15,8 +15,6 @@ import {
   type ReadOnlySqlClassification,
 } from "./dbExplorerAdapters";
 import type { AdaptedDbFile } from "./dbExplorerAdapters";
-
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
 
 export class DbQueryBlockedError extends Error {
   readonly reason: DbSqlBlockReason;
@@ -60,7 +58,7 @@ export interface ClearDbCacheResponse {
 export async function fetchDbFiles(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<AdaptedDbFile[]> {
-  const raw = await requestJson<unknown>(`${BASE_URL}/api/v1/db?format=json`, {
+  const raw = await requestJson<unknown>(buildChatlogApiUrl("/api/v1/db?format=json", diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "db",
@@ -76,7 +74,7 @@ export async function fetchDbTables(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<string[]> {
   const params = dbRefParams(options);
-  const raw = await requestJson<unknown>(`${BASE_URL}/api/v1/db/tables?${params}`, {
+  const raw = await requestJson<unknown>(buildChatlogApiUrl(`/api/v1/db/tables?${params}`, diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "db_tables",
@@ -97,7 +95,7 @@ export async function fetchDbTableData(
   if (options.limit !== undefined) params.set("limit", String(options.limit));
   if (options.offset !== undefined) params.set("offset", String(options.offset));
 
-  const raw = await requestJson<unknown>(`${BASE_URL}/api/v1/db/data?${params}`, {
+  const raw = await requestJson<unknown>(buildChatlogApiUrl(`/api/v1/db/data?${params}`, diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 20000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "db_data",
@@ -123,7 +121,7 @@ export async function searchDb(
   params.set("mode", options.mode ?? "quick");
   if (options.limit !== undefined) params.set("limit", String(options.limit));
 
-  const raw = await requestJson<unknown>(`${BASE_URL}/api/v1/db/search?${params}`, {
+  const raw = await requestJson<unknown>(buildChatlogApiUrl(`/api/v1/db/search?${params}`, diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: options.mode === "deep" ? 45000 : 20000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "db_search",
@@ -146,7 +144,7 @@ export async function executeReadOnlyDbQuery(
   const params = dbRefParams(options);
   params.set("sql", options.sql.trim());
 
-  const raw = await requestJson<unknown>(`${BASE_URL}/api/v1/db/query?${params}`, {
+  const raw = await requestJson<unknown>(buildChatlogApiUrl(`/api/v1/db/query?${params}`, diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 30000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "db_query",
@@ -161,7 +159,7 @@ export async function clearDbCache(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<ClearDbCacheResponse> {
   const raw = await requestJson<Partial<ClearDbCacheResponse>>(
-    `${BASE_URL}/api/v1/cache/clear?format=json`,
+    buildChatlogApiUrl("/api/v1/cache/clear?format=json", diagnosticOptions?.serviceBaseUrl),
     {
       method: "POST",
       timeoutMs: 30000,

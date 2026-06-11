@@ -1,4 +1,5 @@
-import { SIDECAR_PORT, SSE_TIMEOUT_MS } from "@/utils/constants";
+import { SSE_TIMEOUT_MS } from "@/utils/constants";
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   requestJson,
   withRequestDiagnostics,
@@ -27,12 +28,10 @@ import {
   type HookStreamEvent,
 } from "./hookStreamParser";
 
-const BASE_URL = `http://127.0.0.1:${SIDECAR_PORT}`;
-
 export async function fetchHookConfig(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<HookConfigView> {
-  const raw = await requestJson(`${BASE_URL}/api/v1/hook/config?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/hook/config?format=json", diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "hook_config",
@@ -46,7 +45,7 @@ export async function saveHookConfig(
   draft: Partial<HookConfigDraft> & Pick<HookConfigDraft, "notifyTargets">,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<HookConfigView> {
-  const raw = await requestJson(`${BASE_URL}/api/v1/hook/config?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/hook/config?format=json", diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: 15000,
     headers: { "Content-Type": "application/json" },
@@ -62,7 +61,7 @@ export async function saveHookConfig(
 export async function fetchHookStatus(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<HookStatusView> {
-  const raw = await requestJson(`${BASE_URL}/api/v1/hook/status?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/hook/status?format=json", diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "hook_status",
@@ -76,7 +75,7 @@ export async function fetchHookEvents(
   options: { limit?: number } = {},
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<HookEventSummary[]> {
-  const url = new URL(`${BASE_URL}/api/v1/hook/events`);
+  const url = new URL(buildChatlogApiUrl("/api/v1/hook/events", diagnosticOptions?.serviceBaseUrl));
   url.searchParams.set("format", "json");
   if (options.limit !== undefined) url.searchParams.set("limit", String(options.limit));
 
@@ -93,7 +92,7 @@ export async function fetchHookEvents(
 export async function clearHookEvents(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<HookClearResult> {
-  const raw = await requestJson(`${BASE_URL}/api/v1/hook/events/clear?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/hook/events/clear?format=json", diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
@@ -107,7 +106,7 @@ export async function clearHookEvents(
 export async function fetchHermesWeixinStatus(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<HermesStatusView> {
-  const raw = await requestJson(`${BASE_URL}/api/v1/hook/hermes/weixin?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/hook/hermes/weixin?format=json", diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "hook_hermes_weixin",
@@ -120,7 +119,7 @@ export async function fetchHermesWeixinStatus(
 export async function fetchHermesQQStatus(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<HermesStatusView> {
-  const raw = await requestJson(`${BASE_URL}/api/v1/hook/hermes/qq?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/hook/hermes/qq?format=json", diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: 15000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "hook_hermes_qq",
@@ -134,7 +133,7 @@ export async function saveHermesWeixinConfig(
   draft: HermesWeixinDraft,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<HermesStatusView> {
-  const raw = await requestJson(`${BASE_URL}/api/v1/hook/hermes/weixin?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/hook/hermes/weixin?format=json", diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: 15000,
     headers: { "Content-Type": "application/json" },
@@ -151,7 +150,7 @@ export async function saveHermesQQConfig(
   draft: HermesQQDraft,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<HermesStatusView> {
-  const raw = await requestJson(`${BASE_URL}/api/v1/hook/hermes/qq?format=json`, {
+  const raw = await requestJson(buildChatlogApiUrl("/api/v1/hook/hermes/qq?format=json", diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: 15000,
     headers: { "Content-Type": "application/json" },
@@ -168,8 +167,9 @@ export async function streamHookEvents(
   onEvent: (event: HookStreamEvent) => void,
   onError: (error: Error) => void,
   signal?: AbortSignal,
+  diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<void> {
-  const response = await fetch(`${BASE_URL}/api/v1/hook/stream?format=json`, {
+  const response = await fetch(buildChatlogApiUrl("/api/v1/hook/stream?format=json", diagnosticOptions?.serviceBaseUrl), {
     signal,
   });
   if (!response.ok || !response.body) {

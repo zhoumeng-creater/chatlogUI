@@ -1,4 +1,5 @@
-import { AI_BASE_URL, SSE_TIMEOUT_MS } from '@/utils/constants';
+import { SSE_TIMEOUT_MS } from '@/utils/constants';
+import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import { createHttpDiagnosticEvent } from "./diagnosticEvents";
 import type { RequestDiagnosticsOptions } from "./httpClient";
 import type { SemanticQARequestInput } from "./semanticAdapters";
@@ -30,7 +31,7 @@ export function streamQA(
   };
   const timeoutId = setTimeout(() => abortWithReason("timeout"), SSE_TIMEOUT_MS);
   const startedAt = nowMs();
-  const streamUrl = `${AI_BASE_URL}/api/v1/semantic/qa/stream`;
+  const streamUrl = buildChatlogApiUrl("/api/v1/semantic/qa/stream", diagnosticOptions?.serviceBaseUrl);
   const emitDiagnosticEvent = (
     status: number | null,
     errorKind?: "http-status" | "timeout" | "abort" | "network",

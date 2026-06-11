@@ -13,10 +13,10 @@ export function deriveWorkbenchAccess(state: SetupStateSnapshot): WorkbenchAcces
     return { allowed: true, connected: true, reason: "ready" };
   }
   if (!state.profileComplete || !state.configValid) {
-    return { allowed: true, connected: false, reason: "setup-incomplete" };
+    return { allowed: false, connected: false, reason: "setup-incomplete" };
   }
   if (!state.httpReady) {
-    return { allowed: true, connected: false, reason: "service-not-ready" };
+    return { allowed: false, connected: false, reason: "service-not-ready" };
   }
-  return { allowed: true, connected: false, reason: "db-not-ready" };
+  return { allowed: false, connected: false, reason: "db-not-ready" };
 }

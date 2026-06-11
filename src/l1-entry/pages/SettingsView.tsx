@@ -6,6 +6,7 @@ import { SettingsLayout } from "@l3/settings/SettingsLayout";
 import { AIModelSettings } from "@l3/settings/AIModelSettings";
 import { AppearanceSettings } from "@l3/settings/AppearanceSettings";
 import { DataSettings } from "@l3/settings/DataSettings";
+import { AdvancedSettings } from "@l3/settings/AdvancedSettings";
 import { AboutSettings } from "@l3/settings/AboutSettings";
 import { useAppShellCommander } from "@l2/commander";
 import { useSettingsPageCommander } from "@l2/commander/useSettingsPageCommander";
@@ -46,6 +47,15 @@ export function SettingsView() {
             onChooseDataDirectory={commander.chooseDataDirectory}
           />
         );
+      case "advanced":
+        return (
+          <AdvancedSettings
+            settings={commander.settings}
+            saveStatus={commander.saveStatus}
+            saveMessage={commander.saveMessage}
+            onChange={commander.updateAndSave}
+          />
+        );
       case "about":
         return (
           <AboutSettings
@@ -83,7 +93,11 @@ export function SettingsView() {
             {renderContent()}
           </SettingsLayout>
         </div>
-        <StatusBar status={commander.sidecarStatus} indexStatus={commander.indexStatus} />
+        <StatusBar
+          status={commander.sidecarStatus}
+          indexStatus={commander.indexStatus}
+          serviceLabel={commander.serviceLabel}
+        />
       </div>
     </AppLayout>
   );

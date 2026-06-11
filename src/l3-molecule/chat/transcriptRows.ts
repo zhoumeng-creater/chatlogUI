@@ -30,3 +30,28 @@ export function buildTranscriptRows(messages: ChatMessage[]): TranscriptRow[] {
 export function estimateTranscriptRowHeight(row: TranscriptRow): number {
   return row.kind === "date" ? 32 : 92;
 }
+
+interface TranscriptMessageLookup {
+  messageId: string | null;
+  localId: number | null;
+}
+
+export function findTranscriptMessageRowIndex(
+  rows: TranscriptRow[],
+  lookup: TranscriptMessageLookup,
+): number | null {
+  if (typeof lookup.localId === "number") {
+    const localIdIndex = rows.findIndex((row) =>
+      row.kind === "message" && row.message.localId === lookup.localId,
+    );
+    if (localIdIndex >= 0) return localIdIndex;
+  }
+
+  const messageId = lookup.messageId?.trim();
+  if (!messageId) return null;
+
+  const messageIdIndex = rows.findIndex((row) =>
+    row.kind === "message" && row.message.id === messageId,
+  );
+  return messageIdIndex >= 0 ? messageIdIndex : null;
+}

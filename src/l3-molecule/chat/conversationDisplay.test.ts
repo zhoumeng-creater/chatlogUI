@@ -10,8 +10,8 @@ import {
 
 function conversation(overrides: Partial<Conversation>): Conversation {
   return {
-    id: overrides.id ?? "wxid_a",
-    username: overrides.username ?? "wxid_a",
+    id: overrides.id ?? "wxid_synthetic_a",
+    username: overrides.username ?? "wxid_synthetic_a",
     displayName: overrides.displayName ?? "张三",
     chatType: overrides.chatType ?? "private",
     isGroup: overrides.isGroup ?? false,
@@ -38,11 +38,11 @@ describe("conversationDisplay", () => {
         isGroup: true,
         chatType: "group",
       }),
-      conversation({ id: "b", displayName: "李四", username: "wxid_b", summary: "晚饭" }),
+      conversation({ id: "b", displayName: "李四", username: "wxid_synthetic_b", summary: "晚饭" }),
     ];
 
     expect(filterConversations(list, "验收", "recent").map((item) => item.id)).toEqual(["a"]);
-    expect(filterConversations(list, "wxid_b", "recent").map((item) => item.id)).toEqual(["b"]);
+    expect(filterConversations(list, "wxid_synthetic_b", "recent").map((item) => item.id)).toEqual(["b"]);
     expect(filterConversations(list, "王五", "recent").map((item) => item.id)).toEqual(["a"]);
   });
 
