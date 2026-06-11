@@ -40,6 +40,13 @@ interface GraphState {
   visualize: GraphVisualizeView | null;
   timeline: GraphTimelineView | null;
   actionStatus: GraphActionResult | null;
+  activeLoadRequestId: string | null;
+  activeStatusRequestId: string | null;
+  activeTimelineRequestId: string | null;
+  activeActionRequestId: string | null;
+  activeAdvancedConfigRequestId: string | null;
+  activeIngestRequestId: string | null;
+  activeQARequestId: string | null;
   activeTab: GraphWorkbenchTabId;
   visualizationRequested: boolean;
   loading: boolean;
@@ -87,6 +94,25 @@ interface GraphActions {
   setVisualize: (visualize: GraphVisualizeView | null) => void;
   setTimeline: (timeline: GraphTimelineView | null) => void;
   setActionStatus: (status: GraphActionResult | null) => void;
+  startGraphLoadRequest: (requestId: string) => void;
+  completeGraphVisualizeRequest: (requestId: string, visualize: GraphVisualizeView) => boolean;
+  completeGraphSummaryRequest: (requestId: string, payload: {
+    statusSummary: GraphStatusView | null;
+    query: GraphQueryView;
+    visualize: GraphVisualizeView;
+    timeline: GraphTimelineView;
+  }) => boolean;
+  failGraphLoadRequest: (requestId: string, error: string) => boolean;
+  cancelGraphLoadRequest: () => void;
+  startGraphStatusRequest: (requestId: string) => void;
+  completeGraphStatusRequest: (requestId: string, status: GraphStatusView | null) => boolean;
+  failGraphStatusRequest: (requestId: string, error: string) => boolean;
+  startGraphTimelineRequest: (requestId: string) => void;
+  completeGraphTimelineRequest: (requestId: string, timeline: GraphTimelineView | null) => boolean;
+  failGraphTimelineRequest: (requestId: string) => boolean;
+  startGraphActionRequest: (requestId: string) => void;
+  completeGraphActionRequest: (requestId: string, status: GraphActionResult | null) => boolean;
+  failGraphActionRequest: (requestId: string, error: string) => boolean;
   setActiveTab: (tab: GraphWorkbenchTabId) => void;
   setGraphFilters: (filters: GraphFilterPatch) => void;
   clearGraphFilters: () => void;
@@ -106,6 +132,9 @@ interface GraphActions {
   setLayoutMode: (mode: "force" | "radial") => void;
   setTimelineVisible: (visible: boolean) => void;
   setHighlightedTimeline: (id: string | null) => void;
+  startGraphConfigRequest: (requestId: string) => void;
+  completeGraphConfigRequest: (requestId: string, config: GraphConfigView) => boolean;
+  failGraphConfigRequest: (requestId: string, error: string) => boolean;
   setAdvancedConfigLoading: () => void;
   setAdvancedConfig: (config: GraphConfigView) => void;
   setAdvancedConfigError: (error: string) => void;
@@ -113,9 +142,15 @@ interface GraphActions {
   updateBusinessDraft: (draft: Partial<GraphBusinessDraft>) => void;
   updateEventDraft: (draft: Partial<GraphEventDraft>) => void;
   updateQADraft: (draft: Partial<GraphQADraft>) => void;
+  startGraphIngestRequest: (requestId: string) => void;
+  completeGraphIngestRequest: (requestId: string, result: GraphIngestResult) => boolean;
+  failGraphIngestRequest: (requestId: string, error: string) => boolean;
   setIngestLoading: () => void;
   setIngestResult: (result: GraphIngestResult) => void;
   setIngestError: (error: string) => void;
+  startGraphQARequest: (requestId: string) => void;
+  completeGraphQARequest: (requestId: string, result: GraphQAResponseView) => boolean;
+  failGraphQARequest: (requestId: string, error: string) => boolean;
   setQALoading: () => void;
   setQAResult: (result: GraphQAResponseView) => void;
   setQAError: (error: string) => void;
@@ -134,6 +169,13 @@ const initialState: GraphState = {
   visualize: null,
   timeline: null,
   actionStatus: null,
+  activeLoadRequestId: null,
+  activeStatusRequestId: null,
+  activeTimelineRequestId: null,
+  activeActionRequestId: null,
+  activeAdvancedConfigRequestId: null,
+  activeIngestRequestId: null,
+  activeQARequestId: null,
   activeTab: "overview",
   visualizationRequested: false,
   loading: false,
@@ -202,24 +244,143 @@ export const useGraphStore = create<GraphStore>((set) => ({
 
   setQuery: (query: GraphQueryView | null) => set({ query }),
 
-  setVisualize: (visualize: GraphVisualizeView | null) =>
-    set({
-      visualize,
-      loadStatus: visualize?.state ?? "idle",
-      data:
-        visualize?.state === "loaded"
-          ? {
-              nodes: visualize.nodes as VisualizeResult["nodes"],
-              edges: visualize.edges as VisualizeResult["edges"],
-              timeline: visualize.timelineRows as VisualizeResult["timeline"],
-              generated_at: visualize.generatedAt,
-            }
-          : null,
-    }),
+  setVisualize: (visualize: GraphVisualizeView | null) => set(graphVisualizePatch(visualize)),
 
   setTimeline: (timeline: GraphTimelineView | null) => set({ timeline }),
 
   setActionStatus: (actionStatus: GraphActionResult | null) => set({ actionStatus }),
+
+  startGraphLoadRequest: (activeLoadRequestId) =>
+    set({ activeLoadRequestId, loading: true, error: null, loadStatus: "loading" }),
+
+  completeGraphVisualizeRequest: (requestId, visualize) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeLoadRequestId !== requestId) return state;
+      applied = true;
+      return {
+        ...graphVisualizePatch(visualize),
+        loading: false,
+        error: null,
+        activeLoadRequestId: null,
+      };
+    });
+    return applied;
+  },
+
+  completeGraphSummaryRequest: (requestId, payload) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeLoadRequestId !== requestId) return state;
+      applied = true;
+      return {
+        statusSummary: payload.statusSummary,
+        query: payload.query,
+        timeline: payload.timeline,
+        ...graphVisualizePatch(payload.visualize),
+        loading: false,
+        error: null,
+        activeLoadRequestId: null,
+      };
+    });
+    return applied;
+  },
+
+  failGraphLoadRequest: (requestId, error) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeLoadRequestId !== requestId) return state;
+      applied = true;
+      return { error, loading: false, loadStatus: "error", activeLoadRequestId: null };
+    });
+    return applied;
+  },
+
+  cancelGraphLoadRequest: () =>
+    set((state) => ({
+      loading: false,
+      loadStatus: "cancelled",
+      activeLoadRequestId: null,
+      activeStatusRequestId: null,
+      activeTimelineRequestId: null,
+      activeActionRequestId: null,
+      activeAdvancedConfigRequestId: null,
+      activeIngestRequestId: null,
+      activeQARequestId: null,
+      actionStatus: state.activeActionRequestId ? null : state.actionStatus,
+      advancedConfigStatus: state.advancedConfigStatus === "loading" ? "cancelled" : state.advancedConfigStatus,
+      ingestStatus: state.ingestStatus === "loading" ? "cancelled" : state.ingestStatus,
+      qaStatus: state.qaStatus === "loading" ? "cancelled" : state.qaStatus,
+    })),
+
+  startGraphStatusRequest: (activeStatusRequestId) =>
+    set({ activeStatusRequestId, error: null }),
+
+  completeGraphStatusRequest: (requestId, statusSummary) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeStatusRequestId !== requestId) return state;
+      applied = true;
+      return { statusSummary, activeStatusRequestId: null };
+    });
+    return applied;
+  },
+
+  failGraphStatusRequest: (requestId, error) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeStatusRequestId !== requestId) return state;
+      applied = true;
+      return { error, loading: false, loadStatus: "error", activeStatusRequestId: null };
+    });
+    return applied;
+  },
+
+  startGraphTimelineRequest: (activeTimelineRequestId) =>
+    set({ activeTimelineRequestId }),
+
+  completeGraphTimelineRequest: (requestId, timeline) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeTimelineRequestId !== requestId) return state;
+      applied = true;
+      return { timeline, activeTimelineRequestId: null };
+    });
+    return applied;
+  },
+
+  failGraphTimelineRequest: (requestId) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeTimelineRequestId !== requestId) return state;
+      applied = true;
+      return { timeline: null, activeTimelineRequestId: null };
+    });
+    return applied;
+  },
+
+  startGraphActionRequest: (activeActionRequestId) =>
+    set({ activeActionRequestId, actionStatus: null, error: null }),
+
+  completeGraphActionRequest: (requestId, actionStatus) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeActionRequestId !== requestId) return state;
+      applied = true;
+      return { actionStatus, activeActionRequestId: null };
+    });
+    return applied;
+  },
+
+  failGraphActionRequest: (requestId, error) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeActionRequestId !== requestId) return state;
+      applied = true;
+      return { error, loading: false, loadStatus: "error", activeActionRequestId: null };
+    });
+    return applied;
+  },
 
   setActiveTab: (activeTab: GraphWorkbenchTabId) => set({ activeTab }),
 
@@ -276,7 +437,45 @@ export const useGraphStore = create<GraphStore>((set) => ({
   setLayoutMode: (layoutMode: "force" | "radial") => set({ layoutMode }),
   setTimelineVisible: (timelineVisible: boolean) => set({ timelineVisible }),
   setHighlightedTimeline: (highlightedTimelineId: string | null) => set({ highlightedTimelineId }),
-  setAdvancedConfigLoading: () => set({ advancedConfigStatus: "loading", advancedConfigError: null }),
+
+  startGraphConfigRequest: (activeAdvancedConfigRequestId) =>
+    set({ activeAdvancedConfigRequestId, advancedConfigStatus: "loading", advancedConfigError: null }),
+
+  completeGraphConfigRequest: (requestId, advancedConfig) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeAdvancedConfigRequestId !== requestId) return state;
+      applied = true;
+      return {
+        advancedConfig,
+        advancedConfigStatus: "ready",
+        graphConfigDraft: {
+          workers: advancedConfig.workers,
+          enqueueWorkers: advancedConfig.enqueueWorkers,
+        },
+        advancedConfigError: null,
+        activeAdvancedConfigRequestId: null,
+      };
+    });
+    return applied;
+  },
+
+  failGraphConfigRequest: (requestId, advancedConfigError) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeAdvancedConfigRequestId !== requestId) return state;
+      applied = true;
+      return {
+        advancedConfigStatus: "error",
+        advancedConfigError,
+        activeAdvancedConfigRequestId: null,
+      };
+    });
+    return applied;
+  },
+
+  setAdvancedConfigLoading: () =>
+    set({ advancedConfigStatus: "loading", advancedConfigError: null, activeAdvancedConfigRequestId: null }),
   setAdvancedConfig: (advancedConfig) =>
     set({
       advancedConfig,
@@ -286,9 +485,10 @@ export const useGraphStore = create<GraphStore>((set) => ({
         enqueueWorkers: advancedConfig.enqueueWorkers,
       },
       advancedConfigError: null,
+      activeAdvancedConfigRequestId: null,
     }),
   setAdvancedConfigError: (advancedConfigError) =>
-    set({ advancedConfigStatus: "error", advancedConfigError }),
+    set({ advancedConfigStatus: "error", advancedConfigError, activeAdvancedConfigRequestId: null }),
   updateGraphConfigDraft: (draft) =>
     set((state) => ({ graphConfigDraft: { ...state.graphConfigDraft, ...draft } })),
   updateBusinessDraft: (draft) =>
@@ -297,18 +497,109 @@ export const useGraphStore = create<GraphStore>((set) => ({
     set((state) => ({ eventDraft: { ...state.eventDraft, ...draft } })),
   updateQADraft: (draft) =>
     set((state) => ({ qaDraft: { ...state.qaDraft, ...draft } })),
+
+  startGraphIngestRequest: (activeIngestRequestId) =>
+    set({
+      activeIngestRequestId,
+      ingestStatus: "loading",
+      ingestError: null,
+      advancedConfirmationPending: null,
+    }),
+
+  completeGraphIngestRequest: (requestId, ingestResult) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeIngestRequestId !== requestId) return state;
+      applied = true;
+      return {
+        ingestResult,
+        ingestStatus: "ready",
+        ingestError: null,
+        advancedConfirmationPending: null,
+        activeIngestRequestId: null,
+      };
+    });
+    return applied;
+  },
+
+  failGraphIngestRequest: (requestId, ingestError) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeIngestRequestId !== requestId) return state;
+      applied = true;
+      return {
+        ingestStatus: "error",
+        ingestError,
+        advancedConfirmationPending: null,
+        activeIngestRequestId: null,
+      };
+    });
+    return applied;
+  },
+
   setIngestLoading: () =>
-    set({ ingestStatus: "loading", ingestError: null, advancedConfirmationPending: null }),
+    set({ ingestStatus: "loading", ingestError: null, advancedConfirmationPending: null, activeIngestRequestId: null }),
   setIngestResult: (ingestResult) =>
-    set({ ingestResult, ingestStatus: "ready", ingestError: null, advancedConfirmationPending: null }),
+    set({ ingestResult, ingestStatus: "ready", ingestError: null, advancedConfirmationPending: null, activeIngestRequestId: null }),
   setIngestError: (ingestError) =>
-    set({ ingestStatus: "error", ingestError, advancedConfirmationPending: null }),
-  setQALoading: () => set({ qaStatus: "loading", qaError: null, advancedConfirmationPending: null }),
-  setQAResult: (qaResult) => set({ qaResult, qaStatus: "ready", qaError: null, advancedConfirmationPending: null }),
-  setQAError: (qaError) => set({ qaStatus: "error", qaError, advancedConfirmationPending: null }),
+    set({ ingestStatus: "error", ingestError, advancedConfirmationPending: null, activeIngestRequestId: null }),
+
+  startGraphQARequest: (activeQARequestId) =>
+    set({ activeQARequestId, qaStatus: "loading", qaError: null, advancedConfirmationPending: null }),
+
+  completeGraphQARequest: (requestId, qaResult) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeQARequestId !== requestId) return state;
+      applied = true;
+      return {
+        qaResult,
+        qaStatus: "ready",
+        qaError: null,
+        advancedConfirmationPending: null,
+        activeQARequestId: null,
+      };
+    });
+    return applied;
+  },
+
+  failGraphQARequest: (requestId, qaError) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeQARequestId !== requestId) return state;
+      applied = true;
+      return {
+        qaStatus: "error",
+        qaError,
+        advancedConfirmationPending: null,
+        activeQARequestId: null,
+      };
+    });
+    return applied;
+  },
+
+  setQALoading: () => set({ qaStatus: "loading", qaError: null, advancedConfirmationPending: null, activeQARequestId: null }),
+  setQAResult: (qaResult) => set({ qaResult, qaStatus: "ready", qaError: null, advancedConfirmationPending: null, activeQARequestId: null }),
+  setQAError: (qaError) => set({ qaStatus: "error", qaError, advancedConfirmationPending: null, activeQARequestId: null }),
   requestAdvancedConfirmation: (advancedConfirmationPending) =>
     set({ advancedConfirmationPending, ingestError: null, qaError: null }),
   cancelAdvancedConfirmation: () => set({ advancedConfirmationPending: null }),
 
   reset: () => set(initialState),
 }));
+
+function graphVisualizePatch(visualize: GraphVisualizeView | null): Pick<GraphState, "visualize" | "loadStatus" | "data"> {
+  return {
+    visualize,
+    loadStatus: visualize?.state ?? "idle",
+    data:
+      visualize?.state === "loaded"
+        ? {
+            nodes: visualize.nodes as VisualizeResult["nodes"],
+            edges: visualize.edges as VisualizeResult["edges"],
+            timeline: visualize.timelineRows as VisualizeResult["timeline"],
+            generated_at: visualize.generatedAt,
+          }
+        : null,
+  };
+}

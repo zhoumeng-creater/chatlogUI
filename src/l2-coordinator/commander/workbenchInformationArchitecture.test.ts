@@ -32,12 +32,21 @@ describe("workbenchInformationArchitecture", () => {
     }
   });
 
-  it("builds scoped deep links without creating a second main entry point", () => {
-    expect(buildScopedWorkspaceRoute("search", { scope: "currentChat", chat: "synthetic_chat" })).toBe(
-      "/search?scope=currentChat&chat=synthetic_chat",
-    );
-    expect(buildScopedWorkspaceRoute("graph", { focus: "synthetic_topic" })).toBe(
-      "/graph?focus=synthetic_topic",
-    );
+  it("builds scoped deep links without serializing private chat or focus labels", () => {
+    const searchRoute = buildScopedWorkspaceRoute("search", {
+      scope: "currentChat",
+      chat: "synthetic_private_chat",
+      source: "workbench",
+    });
+    expect(searchRoute).toBe("/search?scope=currentChat&source=workbench");
+    expect(searchRoute).not.toContain("synthetic_private_chat");
+
+    const graphRoute = buildScopedWorkspaceRoute("graph", {
+      focus: "Synthetic Private Topic",
+      source: "workbench",
+    });
+    expect(graphRoute).toBe("/graph?focus=context&source=workbench");
+    expect(graphRoute).not.toContain("Synthetic");
+    expect(graphRoute).not.toContain("Private");
   });
 });

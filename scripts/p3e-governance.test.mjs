@@ -107,9 +107,5 @@ function isAllowedPrivacyPatternReference(file, line) {
     return /WeChat ID|wxid_synthetic|C:\\\\Users\\\\Synthetic/.test(line);
   }
 
-  if (file.includes("next-repair-baseline-step-02-privacy-developer-entry-repair-plan.md")) {
-    return /rg --pcre2|wxid_\(\?!synthetic\)|wxid_synthetic|\bwxid\b|WeChat ID/.test(line);
-  }
-
   return false;
 }

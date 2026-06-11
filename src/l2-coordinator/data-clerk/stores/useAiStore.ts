@@ -12,6 +12,9 @@ interface AiPreviewState {
   previewLimit: number;
   previewOffset: number;
   previewError: string | null;
+  activeSemanticSearchRequestId: string | null;
+  activeSemanticAnalysisRequestId: string | null;
+  activeSemanticPreviewRequestId: string | null;
 }
 
 interface AiPreviewActions {
@@ -21,6 +24,18 @@ interface AiPreviewActions {
   setPreviewKind: (kind: SemanticPreviewKind) => void;
   setPreviewLimit: (limit: number) => void;
   setPreviewOffset: (offset: number) => void;
+  startSemanticSearchRequest: (requestId: string) => void;
+  completeSemanticSearchRequest: (requestId: string, results: SemanticSearchResponse) => void;
+  failSemanticSearchRequest: (requestId: string, error: string) => void;
+  startSemanticAnalysisRequest: (requestId: string) => void;
+  completeSemanticTopicsRequest: (requestId: string, topics: TopicsResponse) => void;
+  failSemanticTopicsRequest: (requestId: string, error: string) => void;
+  completeSemanticProfileRequest: (requestId: string, profile: ContactProfileData) => void;
+  failSemanticProfileRequest: (requestId: string, error: string) => void;
+  cancelSemanticAnalysisRequest: () => void;
+  startSemanticPreviewRequest: (requestId: string) => void;
+  completeSemanticPreviewRequest: (requestId: string, preview: SemanticIndexPreviewView) => void;
+  failSemanticPreviewRequest: (requestId: string, error: string) => void;
 }
 
 type AiStore = AiState & AiActions & AiPreviewState & AiPreviewActions;
@@ -58,6 +73,9 @@ const initialState: AiState & AiPreviewState = {
   previewLimit: 20,
   previewOffset: 0,
   previewError: null,
+  activeSemanticSearchRequestId: null,
+  activeSemanticAnalysisRequestId: null,
+  activeSemanticPreviewRequestId: null,
   error: null,
 };
 
@@ -209,13 +227,25 @@ export const useAiStore = create<AiStore>((set, get) => ({
     }),
 
   clearQAMessages: () =>
-    set({ qaMessages: [], qaStatus: "idle", qaError: null, activeQAStreamId: null }),
+    set({
+      qaMessages: [],
+      qaStatus: "idle",
+      qaError: null,
+      activeQAStreamId: null,
+      qaStreaming: false,
+      qaLoading: false,
+    }),
 
   setSearchQuery: (query: string) => set({ searchQuery: query }),
   setSearchResults: (results: SemanticSearchResponse | null) =>
-    set({ searchResults: results, searchLoading: false, searchError: null }),
+    set({ searchResults: results, searchLoading: false, searchError: null, activeSemanticSearchRequestId: null }),
   setSearchLoading: (loading: boolean) => set({ searchLoading: loading }),
-  setSearchError: (searchError: string | null) => set({ searchError, searchLoading: false }),
+  setSearchError: (searchError: string | null) =>
+    set((state) => ({
+      searchError,
+      searchLoading: searchError ? false : state.searchLoading,
+      activeSemanticSearchRequestId: searchError ? null : state.activeSemanticSearchRequestId,
+    })),
   setDiscoveryWindow: (discoveryWindow: string) => set({ discoveryWindow }),
   setDiscoverySearchScope: (discoverySearchScope) => set({ discoverySearchScope }),
   setDiscoveryDepth: (discoveryDepth: string) => set({ discoveryDepth }),
@@ -256,6 +286,126 @@ export const useAiStore = create<AiStore>((set, get) => ({
     set({ previewLimit: Math.max(1, Math.min(100, Math.round(previewLimit))), previewOffset: 0 }),
   setPreviewOffset: (previewOffset: number) =>
     set({ previewOffset: Math.max(0, Math.round(previewOffset)), previewStatus: "idle" }),
+
+  startSemanticSearchRequest: (activeSemanticSearchRequestId: string) =>
+    set({
+      activeSemanticSearchRequestId,
+      searchLoading: true,
+      searchError: null,
+    }),
+  completeSemanticSearchRequest: (requestId: string, results: SemanticSearchResponse) =>
+    set((state) => {
+      if (state.activeSemanticSearchRequestId !== requestId) return state;
+      return {
+        activeSemanticSearchRequestId: null,
+        searchResults: results,
+        searchLoading: false,
+        searchError: null,
+      };
+    }),
+  failSemanticSearchRequest: (requestId: string, searchError: string) =>
+    set((state) => {
+      if (state.activeSemanticSearchRequestId !== requestId) return state;
+      return {
+        activeSemanticSearchRequestId: null,
+        searchError,
+        searchLoading: false,
+      };
+    }),
+
+  startSemanticAnalysisRequest: (activeSemanticAnalysisRequestId: string) =>
+    set({
+      activeSemanticAnalysisRequestId,
+      topicsLoading: true,
+      profileLoading: true,
+      topicsError: null,
+      profileError: null,
+    }),
+  completeSemanticTopicsRequest: (requestId: string, topics: TopicsResponse) =>
+    set((state) => {
+      if (state.activeSemanticAnalysisRequestId !== requestId) return state;
+      return {
+        topics,
+        topicsLoading: false,
+        topicsError: null,
+        activeSemanticAnalysisRequestId: state.profileLoading
+          ? state.activeSemanticAnalysisRequestId
+          : null,
+      };
+    }),
+  failSemanticTopicsRequest: (requestId: string, topicsError: string) =>
+    set((state) => {
+      if (state.activeSemanticAnalysisRequestId !== requestId) return state;
+      return {
+        topicsError,
+        topicsLoading: false,
+        activeSemanticAnalysisRequestId: state.profileLoading
+          ? state.activeSemanticAnalysisRequestId
+          : null,
+      };
+    }),
+  completeSemanticProfileRequest: (requestId: string, profile: ContactProfileData) =>
+    set((state) => {
+      if (state.activeSemanticAnalysisRequestId !== requestId) return state;
+      return {
+        profile,
+        profileLoading: false,
+        profileError: null,
+        activeSemanticAnalysisRequestId: state.topicsLoading
+          ? state.activeSemanticAnalysisRequestId
+          : null,
+      };
+    }),
+  failSemanticProfileRequest: (requestId: string, profileError: string) =>
+    set((state) => {
+      if (state.activeSemanticAnalysisRequestId !== requestId) return state;
+      return {
+        profileError,
+        profileLoading: false,
+        activeSemanticAnalysisRequestId: state.topicsLoading
+          ? state.activeSemanticAnalysisRequestId
+          : null,
+      };
+    }),
+  cancelSemanticAnalysisRequest: () =>
+    set({
+      activeSemanticAnalysisRequestId: null,
+      topics: null,
+      profile: null,
+      topicsLoading: false,
+      profileLoading: false,
+      topicsError: null,
+      profileError: null,
+    }),
+
+  startSemanticPreviewRequest: (activeSemanticPreviewRequestId: string) =>
+    set({
+      activeSemanticPreviewRequestId,
+      previewStatus: "loading",
+      previewError: null,
+    }),
+  completeSemanticPreviewRequest: (requestId: string, preview: SemanticIndexPreviewView) =>
+    set((state) => {
+      if (state.activeSemanticPreviewRequestId !== requestId) return state;
+      return {
+        activeSemanticPreviewRequestId: null,
+        preview,
+        previewStatus: preview.rows.length > 0 ? "ready" : "empty",
+        previewError: null,
+        previewKind: preview.kind,
+        previewLimit: preview.limit,
+        previewOffset: preview.offset,
+      };
+    }),
+  failSemanticPreviewRequest: (requestId: string, previewError: string) =>
+    set((state) => {
+      if (state.activeSemanticPreviewRequestId !== requestId) return state;
+      return {
+        activeSemanticPreviewRequestId: null,
+        previewError,
+        previewStatus: "error",
+      };
+    }),
 
   setError: (error: string | null) =>
     set((state) => {

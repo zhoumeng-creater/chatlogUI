@@ -20,6 +20,7 @@ export interface UpdateNotificationViewModel {
   statusText: string;
   progressValue: number | null;
   progressLabel: string;
+  settingsActionLabel: string | null;
 }
 
 export function deriveUpdateNotificationView(
@@ -29,6 +30,7 @@ export function deriveUpdateNotificationView(
     titleId: "update-notification-title",
     progressValue: null,
     progressLabel: "",
+    settingsActionLabel: null,
   };
 
   switch (input.status) {
@@ -69,6 +71,7 @@ export function deriveUpdateNotificationView(
         dismissible: true,
         tone: "danger",
         statusText: input.errorMessage || "更新过程中出现错误。",
+        settingsActionLabel: "打开关于与更新",
       };
     case "idle":
     case "checking":

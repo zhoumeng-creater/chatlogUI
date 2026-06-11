@@ -12,7 +12,7 @@ interface AdvancedSettingsProps {
 export function AdvancedSettings({ settings, saveStatus, saveMessage, onChange }: AdvancedSettingsProps) {
   return (
     <div className="settings-stack">
-      <Typography variant="h2">高级诊断</Typography>
+      <Typography variant="h2">隐私与诊断</Typography>
 
       <Surface variant="base" className="settings-section">
         <Field

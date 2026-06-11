@@ -52,9 +52,37 @@ test.describe("visual regression synthetic states", () => {
     });
     await page.getByRole("tab", { name: "可视化" }).click();
     await page.getByRole("button", { name: "打开可视化" }).click();
-    await expect(page.getByLabel("知识图谱可视化")).toBeVisible();
     await expectGraphCanvasReady(page);
     await expect(page).toHaveScreenshot("graph-visualization-desktop.png", {
+      fullPage: true,
+    });
+  });
+
+  test("captures global setup settings media and SNS acceptance states", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "连接本地聊天数据服务" })).toBeVisible();
+    await expect(page).toHaveScreenshot("setup-center-desktop.png", {
+      fullPage: true,
+    });
+
+    await page.goto("/settings?section=about&codex-smoke=workbench-ready");
+    await expect(page.getByRole("heading", { name: "关于" })).toBeVisible();
+    await page.getByRole("button", { name: "查看脱敏诊断" }).click();
+    await expect(page.getByRole("button", { name: "复制诊断" })).toBeVisible();
+    await expect(page).toHaveScreenshot("settings-about-diagnostics-desktop.png", {
+      fullPage: true,
+    });
+
+    await page.goto("/media?codex-smoke=workbench-ready");
+    await expect(page.getByText("当前阶段聚焦当前会话媒体")).toBeVisible();
+    await expect(page).toHaveScreenshot("media-workspace-desktop.png", {
+      fullPage: true,
+    });
+
+    await page.goto("/sns?codex-smoke=workbench-ready");
+    await expect(page.getByText("外部文章会先确认域名")).toBeVisible();
+    await expect(page).toHaveScreenshot("sns-workspace-desktop.png", {
       fullPage: true,
     });
   });
@@ -63,6 +91,8 @@ test.describe("visual regression synthetic states", () => {
     await setNarrow(page);
     await openSyntheticWorkbench(page);
     await enablePrivacyMode(page);
+    await page.mouse.move(24, 780);
+    await page.waitForTimeout(450);
 
     await expect(page).toHaveScreenshot("workbench-privacy-narrow.png", {
       fullPage: true,
@@ -71,6 +101,8 @@ test.describe("visual regression synthetic states", () => {
     await openWorkbenchModule(page, "AI");
     await page.getByRole("button", { name: "AI 设置" }).click();
     await expect(page.getByText("语义设置")).toBeVisible();
+    await page.mouse.move(24, 780);
+    await page.waitForTimeout(450);
     await expect(page).toHaveScreenshot("semantic-setup-privacy-narrow.png", {
       fullPage: true,
     });
@@ -83,6 +115,27 @@ test.describe("visual regression synthetic states", () => {
     await openWorkbenchModule(page, "图谱");
     await expect(page.getByLabel("知识图谱模块")).toBeVisible();
     await expect(page).toHaveScreenshot("graph-workbench-privacy-narrow.png", {
+      fullPage: true,
+    });
+  });
+
+  test("captures narrow privacy-on settings state", async ({ page }) => {
+    await page.addInitScript(() => {
+      const storageKey = "chatlog_alpha_settings";
+      const raw = window.localStorage.getItem(storageKey);
+      const settings = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+      window.localStorage.setItem(storageKey, JSON.stringify({
+        ...settings,
+        privacyOn: true,
+      }));
+    });
+    await setNarrow(page);
+    await page.mouse.move(24, 780);
+    await page.goto("/settings?section=advanced&codex-smoke=workbench-ready");
+    await expect(page.getByRole("heading", { name: "隐私与诊断" })).toBeVisible();
+    await page.mouse.move(24, 780);
+    await page.waitForTimeout(450);
+    await expect(page).toHaveScreenshot("settings-privacy-narrow.png", {
       fullPage: true,
     });
   });

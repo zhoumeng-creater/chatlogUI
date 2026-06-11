@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, PointerEvent, ReactNode } from "react";
 import { classNames } from "@/utils/classNames";
 import { Tooltip, type TooltipPlacement } from "./Tooltip";
 
@@ -21,8 +21,16 @@ export function IconButton({
   tooltip,
   tooltipPlacement = "top-end",
   className = "",
+  onPointerUp,
   ...props
 }: IconButtonProps) {
+  const handlePointerUp = (event: PointerEvent<HTMLButtonElement>) => {
+    onPointerUp?.(event);
+    if (!event.defaultPrevented) {
+      event.currentTarget.blur();
+    }
+  };
+
   const button = (
     <button
       type="button"
@@ -33,6 +41,7 @@ export function IconButton({
         active && "ui-icon-button--active",
         className,
       )}
+      onPointerUp={handlePointerUp}
       {...props}
     >
       {icon}

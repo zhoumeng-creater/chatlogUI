@@ -1,6 +1,11 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
-import { useMediaStore, type MediaAttachment } from "@l2/data-clerk/stores/useMediaStore";
+import {
+  useMediaStore,
+  type MediaAttachment,
+  type MediaEndpointState,
+  type MediaEndpointStatus,
+} from "@l2/data-clerk/stores/useMediaStore";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import {
   buildMediaResourceUrl,
@@ -12,6 +17,27 @@ import {
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { getActiveChatlogServiceSummary } from "./chatlogRequestContext";
 
+let mediaLoadSequence = 0;
+
+function nextMediaLoadRequestId(): string {
+  mediaLoadSequence += 1;
+  return `media-load-${mediaLoadSequence}`;
+}
+
+interface MediaLoadControllerRef {
+  current: AbortController | null;
+}
+
+export function cancelActiveMediaLoad(activeLoadControllerRef: MediaLoadControllerRef): boolean {
+  const controller = activeLoadControllerRef.current;
+  if (!controller) return false;
+
+  controller.abort();
+  activeLoadControllerRef.current = null;
+  useMediaStore.getState().cancelMediaLoadRequest();
+  return true;
+}
+
 export function useMediaCommander() {
   const store = useMediaStore();
   const messages = useChatStore((state) => state.messages);
@@ -22,7 +48,14 @@ export function useMediaCommander() {
     () => getActiveChatlogServiceSummary(setupProfile),
     [setupProfile],
   );
+  const activeLoadControllerRef = useRef<AbortController | null>(null);
   const currentConversation = conversations.find((item) => item.id === selectedConversationId);
+
+  useEffect(() => {
+    return () => {
+      cancelActiveMediaLoad(activeLoadControllerRef);
+    };
+  }, []);
 
   const attachments = useMemo(
     () => messages.flatMap((message) => message.attachments ?? []),
@@ -30,57 +63,90 @@ export function useMediaCommander() {
   );
 
   const loadMediaModule = useCallback(async (chat?: string, isGroup = false) => {
-    useMediaStore.getState().setLoading();
+    activeLoadControllerRef.current?.abort();
+    const requestId = nextMediaLoadRequestId();
+    const controller = new AbortController();
+    activeLoadControllerRef.current = controller;
+    useMediaStore.getState().startMediaLoadRequest(requestId, { chat: chat ?? "", isGroup });
 
     try {
       const diagnostics = {
         correlationId: "p4b-media",
         recoveryHint: "retry" as const,
       };
-      const [favorites, unread, members, newMessages] = await Promise.all([
+      const [favoritesResult, unreadResult, membersResult, newMessagesResult] = await Promise.allSettled([
         fetchFavorites(
           { chat, limit: 50 },
-          createDiagnosticHttpOptions({
-            ...diagnostics,
-            endpointFamily: "favorites",
-            method: "GET",
-          }),
+          withMediaAbortSignal(
+            createDiagnosticHttpOptions({
+              ...diagnostics,
+              endpointFamily: "favorites",
+              method: "GET",
+            }),
+            controller.signal,
+          ),
         ),
         fetchUnread(
-          createDiagnosticHttpOptions({
-            ...diagnostics,
-            endpointFamily: "unread",
-            method: "GET",
-          }),
+          withMediaAbortSignal(
+            createDiagnosticHttpOptions({
+              ...diagnostics,
+              endpointFamily: "unread",
+              method: "GET",
+            }),
+            controller.signal,
+          ),
         ),
         isGroup && chat
           ? fetchMembers(
               { chat },
-              createDiagnosticHttpOptions({
-                ...diagnostics,
-                endpointFamily: "members",
-                method: "GET",
-              }),
+              withMediaAbortSignal(
+                createDiagnosticHttpOptions({
+                  ...diagnostics,
+                  endpointFamily: "members",
+                  method: "GET",
+                }),
+                controller.signal,
+              ),
             )
           : Promise.resolve({ count: 0, members: [] }),
         fetchNewMessages(
           { chat, limit: 50 },
-          createDiagnosticHttpOptions({
-            ...diagnostics,
-            endpointFamily: "new_messages",
-            method: "GET",
-          }),
+          withMediaAbortSignal(
+            createDiagnosticHttpOptions({
+              ...diagnostics,
+              endpointFamily: "new_messages",
+              method: "GET",
+            }),
+            controller.signal,
+          ),
         ),
       ]);
 
-      useMediaStore.getState().setData({
-        favorites: favorites.items,
-        members: members.members,
+      const favorites = favoritesResult.status === "fulfilled" ? favoritesResult.value.items : [];
+      const unread = unreadResult.status === "fulfilled" ? unreadResult.value : { total: 0, chats: [] };
+      const members = membersResult.status === "fulfilled" ? membersResult.value.members : [];
+      const memberTotal = membersResult.status === "fulfilled" ? membersResult.value.count : 0;
+      const newMessages = newMessagesResult.status === "fulfilled" ? newMessagesResult.value.messages : [];
+      const endpointStatus: MediaEndpointStatus = {
+        favorites: endpointState(favoritesResult, favorites.length, "收藏加载失败"),
+        members: endpointState(membersResult, members.length, "成员加载失败"),
+        unread: endpointState(unreadResult, unread.total, "未读加载失败"),
+        newMessages: endpointState(newMessagesResult, newMessages.length, "增量消息加载失败"),
+      };
+
+      useMediaStore.getState().completeMediaLoadRequest(requestId, {
+        favorites,
+        members,
+        memberTotal,
         unread,
-        newMessages: newMessages.messages,
-      });
+        newMessages,
+      }, endpointStatus);
     } catch {
-      useMediaStore.getState().setError("加载媒体与扩展信息失败");
+      useMediaStore.getState().failMediaLoadRequest(requestId, "加载媒体与扩展信息失败");
+    } finally {
+      if (activeLoadControllerRef.current === controller) {
+        activeLoadControllerRef.current = null;
+      }
     }
   }, []);
 
@@ -99,4 +165,20 @@ export function useMediaCommander() {
     previewAttachment: (attachment: MediaAttachment) => useMediaStore.getState().selectAttachment(attachment),
     closePreview: () => useMediaStore.getState().selectAttachment(null),
   };
+}
+
+function endpointState<T>(
+  result: PromiseSettledResult<T>,
+  itemCount: number,
+  error: string,
+): MediaEndpointState {
+  if (result.status === "rejected") return { status: "error", error };
+  return { status: itemCount > 0 ? "ready" : "empty", error: null };
+}
+
+function withMediaAbortSignal<T extends object>(
+  options: T,
+  signal: AbortSignal,
+): T & { signal: AbortSignal } {
+  return { ...options, signal };
 }

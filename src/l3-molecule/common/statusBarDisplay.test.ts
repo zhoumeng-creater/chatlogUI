@@ -4,17 +4,32 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { StatusBar } from "./StatusBar";
 
 describe("status bar display", () => {
-  it("shows the active service label instead of always showing port 5030", () => {
+  it("shows the active service summary instead of always showing port 5030", () => {
     const props = {
       status: "running" as const,
-      serviceLabel: "本机服务 127.0.0.1:6041",
+      serviceLabel: "已连接外部本机服务",
       httpReady: true,
       dbReady: true,
     };
     const html = renderToStaticMarkup(createElement(StatusBar, props));
 
-    expect(html).toContain("本机服务 127.0.0.1:6041");
+    expect(html).toContain("已连接外部本机服务");
+    expect(html).not.toContain("127.0.0.1");
+    expect(html).not.toContain("6041");
     expect(html).not.toContain("端口 5030");
+  });
+
+  it("redacts raw loopback endpoint labels before rendering ordinary status text", () => {
+    const html = renderToStaticMarkup(createElement(StatusBar, {
+      status: "running",
+      serviceLabel: "本机服务 127.0.0.1:6041",
+      httpReady: true,
+      dbReady: true,
+    }));
+
+    expect(html).toContain("本机服务已连接");
+    expect(html).not.toContain("127.0.0.1");
+    expect(html).not.toContain("6041");
   });
 
   it("uses an unconfigured fallback instead of assuming a fixed port", () => {

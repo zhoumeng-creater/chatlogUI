@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { FileText, MapPin, PlaySquare, ShieldCheck } from "lucide-react";
-import { Typography } from "@l4/ui";
+import { ExternalLink, FileText, MapPin, PlaySquare, ShieldCheck } from "lucide-react";
+import { Button, DisabledReason, Typography } from "@l4/ui";
 import {
   formatSnsArticleSummary,
   formatSnsAuthor,
@@ -16,9 +16,10 @@ import type { AdaptedSnsPost } from "./snsTypes";
 interface SnsDetailInspectorProps {
   post: AdaptedSnsPost | null;
   privacyOn: boolean;
+  onRequestArticleOpen?: (postId: string) => void;
 }
 
-export function SnsDetailInspector({ post, privacyOn }: SnsDetailInspectorProps) {
+export function SnsDetailInspector({ post, privacyOn, onRequestArticleOpen }: SnsDetailInspectorProps) {
   if (!post) {
     return (
       <div className="sns-detail sns-detail--empty">
@@ -33,6 +34,8 @@ export function SnsDetailInspector({ post, privacyOn }: SnsDetailInspectorProps)
   }
 
   const article = formatSnsArticleSummary(post, privacyOn);
+  const articleOpenDisabledReason = getArticleOpenDisabledReason(post, privacyOn);
+  const articleOpenDisabledReasonId = articleOpenDisabledReason ? `sns-article-open-disabled-${post.id}` : undefined;
   const finder = formatSnsFinderSummary(post, privacyOn);
   const location = formatSnsLocationSummary(post, privacyOn);
 
@@ -73,8 +76,52 @@ export function SnsDetailInspector({ post, privacyOn }: SnsDetailInspectorProps)
           <FactRow icon={<ShieldCheck size={14} />} label="解析" value="已完成结构化适配" />
         )}
       </div>
+      {post.article?.hasExternalUrl && (
+        <div className="sns-detail__external">
+          <span>{formatArticleExternalSummary(post, privacyOn)}</span>
+          {articleOpenDisabledReason ? (
+            <DisabledReason id={articleOpenDisabledReasonId} reason={articleOpenDisabledReason} variant="compact">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled
+                aria-describedby={articleOpenDisabledReasonId}
+              >
+                <ExternalLink size={14} />
+                打开文章
+              </Button>
+            </DisabledReason>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onRequestArticleOpen?.(post.id)}
+            >
+              <ExternalLink size={14} />
+              打开文章
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+function formatArticleExternalSummary(post: AdaptedSnsPost, privacyOn: boolean): string {
+  const article = post.article;
+  if (!article?.hasExternalUrl) return "";
+  if (privacyOn) return "隐私模式下已隐藏外链域名";
+  if (!article.externalDomain || !article.externalScheme) return "这条文章没有可安全确认的外链域名";
+  return `${article.externalScheme.toUpperCase()} · ${article.externalDomain}`;
+}
+
+function getArticleOpenDisabledReason(post: AdaptedSnsPost, privacyOn: boolean): string | null {
+  if (!post.article?.hasExternalUrl) return null;
+  if (privacyOn) return "隐私模式下不打开外部文章，避免暴露浏览上下文。";
+  if (!post.article.externalDomain || !post.article.externalScheme) {
+    return "后端未提供可安全确认的外链域名，已阻止打开。";
+  }
+  return null;
 }
 
 function FactRow({

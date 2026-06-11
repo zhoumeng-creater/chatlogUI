@@ -139,7 +139,7 @@ test.describe("core synthetic routes", () => {
     const routes = [
       { path: "/search", nav: "搜索", label: "搜索工作区" },
       { path: "/media", nav: "媒体", text: "当前阶段聚焦当前会话媒体" },
-      { path: "/sns", nav: "朋友圈", text: "浏览 timeline、通知和搜索结果" },
+      { path: "/sns", nav: "朋友圈", text: "外部文章会先确认域名" },
       { path: "/analytics", nav: "统计", text: "选择会话后查看统计" },
       { path: "/ai", nav: "AI", text: "语义索引、问答、语义搜索和证据" },
       { path: "/graph", nav: "图谱", text: "图谱画布、摘要、节点详情和问答" },
@@ -329,14 +329,29 @@ test.describe("core synthetic routes", () => {
     await page.goto("/settings");
 
     await expect(page.getByText("设置", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "数据" })).toBeVisible();
-    await page.getByRole("button", { name: "关于" }).click();
+    await expect(page.getByRole("heading", { name: "数据与服务" })).toBeVisible();
+    await expect(page.getByText("127.0.0.1:5030")).toHaveCount(0);
+    await page.getByRole("button", { name: "关于与更新" }).click();
     await expect(page.getByRole("heading", { name: "关于" })).toBeVisible();
     await expect(page.getByRole("button", { name: "检查更新" })).toBeVisible();
-    await expect(page.getByText("诊断摘要").first()).toBeVisible();
+    await expect(page.getByText("脱敏诊断").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "查看脱敏诊断" })).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByText("Export manifest version")).toHaveCount(0);
     await page.getByRole("button", { name: "检查更新" }).click();
     await expect(page.getByText("已是最新版本")).toBeVisible();
     await expectStableSyntheticPage(page);
+  });
+
+  test("settings semantic deep link opens the AI summary without endpoint forms", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/settings?source=ai&section=semantic");
+
+    await expect(page.getByRole("heading", { name: "AI 与语义" })).toBeVisible();
+    await expect(page.getByText("检查中")).toHaveCount(0, { timeout: 5_000 });
+    await expect(page.getByRole("button", { name: "前往 AI 工作台配置" })).toBeVisible();
+    await expect(page.locator("#settings-ai-endpoint")).toHaveCount(0);
+    await expect(page.getByText("127.0.0.1:5030")).toHaveCount(0);
+    await assertNoForbiddenVisibleText(page);
   });
 });
 

@@ -1,8 +1,10 @@
 import { Bell, FileText, Image, MessageSquare, RefreshCw, Star, Users } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Button, DisabledReason, SegmentedControl, Spinner, Typography } from "@l4/ui";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Button, DisabledReason, Input, SegmentedControl, Spinner, Typography } from "@l4/ui";
 import type {
   MediaAttachment,
+  MediaEndpointState,
+  MediaEndpointStatus,
   MediaFavoriteItem,
   MediaLoadStatus,
   MediaMember,
@@ -19,6 +21,7 @@ import {
 import { MediaPreviewSheet } from "./MediaPreviewSheet";
 
 type MediaTab = "attachments" | "favorites" | "members" | "unread" | "new";
+const MEMBER_PREVIEW_LIMIT = 50;
 
 interface MediaLibraryProps {
   currentChat: string;
@@ -26,10 +29,12 @@ interface MediaLibraryProps {
   attachments: MediaAttachment[];
   favorites: MediaFavoriteItem[];
   members: MediaMember[];
+  memberTotal?: number;
   unread: MediaUnreadResponse;
   newMessages: MediaNewMessage[];
   status: MediaLoadStatus;
   error: string | null;
+  endpointStatus: MediaEndpointStatus;
   selectedAttachment: MediaAttachment | null;
   previewResourceUrl: string;
   onRetry: () => void;
@@ -43,20 +48,36 @@ export function MediaLibrary({
   attachments,
   favorites,
   members,
+  memberTotal,
   unread,
   newMessages,
   status,
   error,
+  endpointStatus,
   selectedAttachment,
   previewResourceUrl,
   onRetry,
   onPreviewAttachment,
   onClosePreview,
 }: MediaLibraryProps) {
-  const [activeTab, setActiveTab] = useState<MediaTab>("attachments");
+  const [activeTab, setActiveTab] = useState<MediaTab>(() =>
+    chooseInitialMediaTab({ attachments, favorites, members, unread, newMessages }),
+  );
+  const [memberQuery, setMemberQuery] = useState("");
   const mediaCounts = useMemo(() => summarizeMediaCounts(attachments), [attachments]);
+  const reportedMemberTotal = Math.max(memberTotal ?? members.length, members.length);
+  const memberLabel = reportedMemberTotal > members.length
+    ? `${members.length}/${reportedMemberTotal}`
+    : members.length.toLocaleString();
   const totalItems = attachments.length + favorites.length + members.length + unread.total + newMessages.length;
   const refreshDisabledReasonId = !currentChat ? "media-library-refresh-disabled-reason" : undefined;
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (mediaTabHasContent(activeTab, { attachments, favorites, members, unread, newMessages })) return;
+    const nextTab = chooseInitialMediaTab({ attachments, favorites, members, unread, newMessages });
+    if (nextTab !== activeTab) setActiveTab(nextTab);
+  }, [activeTab, attachments, favorites, members, newMessages, status, unread]);
 
   return (
     <aside className="media-library" aria-label="媒体与扩展">
@@ -96,7 +117,7 @@ export function MediaLibrary({
             打开会话后显示附件、收藏、成员、未读和增量消息。
           </Typography>
         </div>
-      ) : error ? (
+      ) : error && status !== "partial" ? (
         <div className="workbench-error-state" role="alert">
           <Typography variant="label" weight={700}>
             媒体扩展加载失败
@@ -110,6 +131,10 @@ export function MediaLibrary({
         </div>
       ) : (
         <>
+          {status === "partial" && (
+            <PartialEndpointAlert endpointStatus={endpointStatus} />
+          )}
+
           <SummaryStrip
             attachmentCount={attachments.length}
             favoritesCount={favorites.length}
@@ -136,10 +161,17 @@ export function MediaLibrary({
             options={[
               { value: "attachments", label: `附件 ${attachments.length}` },
               { value: "favorites", label: `收藏 ${favorites.length}` },
-              { value: "members", label: `成员 ${members.length}` },
+              { value: "members", label: `成员 ${memberLabel}` },
               { value: "unread", label: `未读 ${unread.total}` },
               { value: "new", label: `增量 ${newMessages.length}` },
             ]}
+          />
+
+          <MediaBoundaryNotes
+            memberCount={members.length}
+            memberTotal={reportedMemberTotal}
+            unreadTotal={unread.total}
+            newMessageCount={newMessages.length}
           />
 
           <div className="media-library__body">
@@ -156,16 +188,33 @@ export function MediaLibrary({
               />
             )}
             {activeTab === "favorites" && (
-              <FavoriteList favorites={favorites} privacyOn={privacyOn} />
+              <EndpointTabState label="收藏" endpoint={endpointStatus.favorites} onRetry={onRetry}>
+                <FavoriteList
+                  favorites={favorites}
+                  privacyOn={privacyOn}
+                  onPreviewAttachment={onPreviewAttachment}
+                />
+              </EndpointTabState>
             )}
             {activeTab === "members" && (
-              <MemberList members={members} privacyOn={privacyOn} />
+              <EndpointTabState label="成员" endpoint={endpointStatus.members} onRetry={onRetry}>
+                <MemberList
+                  members={members}
+                  privacyOn={privacyOn}
+                  query={memberQuery}
+                  onQueryChange={setMemberQuery}
+                />
+              </EndpointTabState>
             )}
             {activeTab === "unread" && (
-              <UnreadList unread={unread} privacyOn={privacyOn} />
+              <EndpointTabState label="未读" endpoint={endpointStatus.unread} onRetry={onRetry}>
+                <UnreadList unread={unread} privacyOn={privacyOn} />
+              </EndpointTabState>
             )}
             {activeTab === "new" && (
-              <NewMessageList messages={newMessages} privacyOn={privacyOn} />
+              <EndpointTabState label="增量消息" endpoint={endpointStatus.newMessages} onRetry={onRetry}>
+                <NewMessageList messages={newMessages} privacyOn={privacyOn} />
+              </EndpointTabState>
             )}
           </div>
         </>
@@ -179,6 +228,140 @@ export function MediaLibrary({
       />
     </aside>
   );
+}
+
+function chooseInitialMediaTab(data: {
+  attachments: MediaAttachment[];
+  favorites: MediaFavoriteItem[];
+  members: MediaMember[];
+  unread: MediaUnreadResponse;
+  newMessages: MediaNewMessage[];
+}): MediaTab {
+  if (data.attachments.length > 0) return "attachments";
+  if (data.favorites.length > 0) return "favorites";
+  if (data.members.length > 0) return "members";
+  if (data.unread.total > 0) return "unread";
+  if (data.newMessages.length > 0) return "new";
+  return "attachments";
+}
+
+function mediaTabHasContent(
+  tab: MediaTab,
+  data: {
+    attachments: MediaAttachment[];
+    favorites: MediaFavoriteItem[];
+    members: MediaMember[];
+    unread: MediaUnreadResponse;
+    newMessages: MediaNewMessage[];
+  },
+): boolean {
+  if (tab === "attachments") return data.attachments.length > 0;
+  if (tab === "favorites") return data.favorites.length > 0;
+  if (tab === "members") return data.members.length > 0;
+  if (tab === "unread") return data.unread.total > 0;
+  return data.newMessages.length > 0;
+}
+
+function MediaBoundaryNotes({
+  memberCount,
+  memberTotal,
+  unreadTotal,
+  newMessageCount,
+}: {
+  memberCount: number;
+  memberTotal: number;
+  unreadTotal: number;
+  newMessageCount: number;
+}) {
+  const notes: string[] = [];
+  if (memberTotal >= MEMBER_PREVIEW_LIMIT || memberCount >= MEMBER_PREVIEW_LIMIT) {
+    const totalCopy = memberTotal > memberCount ? `后端报告 ${memberTotal.toLocaleString()} 位成员；` : "";
+    notes.push(`当前仅展示前 ${MEMBER_PREVIEW_LIMIT} 位成员；${totalCopy}超过已加载范围的分页需等待后端提供游标能力。`);
+  }
+  if (memberCount > 0) {
+    notes.push("成员搜索仅筛选已加载成员；不会向后端发起全量成员查询。");
+  }
+  if (unreadTotal > 0 || newMessageCount > 0) {
+    notes.push("当前接口未返回可定位消息锚点，未读与增量消息暂按摘要展示。");
+  }
+  if (notes.length === 0) return null;
+
+  return (
+    <div className="media-library__partial" role="status">
+      {notes.map((note) => (
+        <Typography key={note} variant="caption" color="var(--text-secondary)">
+          {note}
+        </Typography>
+      ))}
+    </div>
+  );
+}
+
+function PartialEndpointAlert({ endpointStatus }: { endpointStatus: MediaEndpointStatus }) {
+  const failedLabels = failedEndpointLabels(endpointStatus);
+  if (failedLabels.length === 0) return null;
+
+  return (
+    <div className="media-library__partial" role="status">
+      <Typography variant="label" weight={700}>
+        部分媒体扩展加载失败
+      </Typography>
+      <Typography variant="caption" color="var(--text-secondary)">
+        {failedLabels.join("、")}加载失败，其他内容仍可查看。
+      </Typography>
+    </div>
+  );
+}
+
+function EndpointTabState({
+  label,
+  endpoint,
+  onRetry,
+  children,
+}: {
+  label: string;
+  endpoint: MediaEndpointState;
+  onRetry: () => void;
+  children: ReactNode;
+}) {
+  if (endpoint.status === "loading") {
+    return (
+      <div className="media-library__loading">
+        <Spinner size={18} label={`加载${label}...`} color="var(--text-muted)" />
+      </div>
+    );
+  }
+
+  if (endpoint.status === "error") {
+    return (
+      <div className="media-library__endpoint-error" role="alert">
+        <Typography variant="label" weight={700}>
+          {endpoint.error || `${label}加载失败`}
+        </Typography>
+        <Typography variant="caption" color="var(--text-secondary)">
+          其他媒体内容仍可查看，可刷新后重试。
+        </Typography>
+        <Button variant="secondary" size="sm" onClick={onRetry}>
+          重试
+        </Button>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+function failedEndpointLabels(endpointStatus: MediaEndpointStatus): string[] {
+  const labels: Array<[keyof MediaEndpointStatus, string]> = [
+    ["favorites", "收藏"],
+    ["members", "成员"],
+    ["unread", "未读"],
+    ["newMessages", "增量消息"],
+  ];
+
+  return labels
+    .filter(([key]) => endpointStatus[key].status === "error")
+    .map(([, label]) => label);
 }
 
 function SummaryStrip({
@@ -249,9 +432,11 @@ function AttachmentList({
 function FavoriteList({
   favorites,
   privacyOn,
+  onPreviewAttachment,
 }: {
   favorites: MediaFavoriteItem[];
   privacyOn: boolean;
+  onPreviewAttachment: (attachment: MediaAttachment) => void;
 }) {
   if (favorites.length === 0) return <EmptyTab label="收藏" />;
 
@@ -260,7 +445,30 @@ function FavoriteList({
       {favorites.map((favorite) => (
         <div key={favorite.id} className="media-library__row">
           <Star size={16} />
-          <span>{formatFavoritePreview(favorite, privacyOn)}</span>
+          <div className="media-library__row-stack">
+            <span>{formatFavoritePreview(favorite, privacyOn)}</span>
+            {favorite.attachments.length > 0 ? (
+              <div className="media-library__inline-actions" aria-label="收藏附件预览">
+                {favorite.attachments.map((attachment) => (
+                  <Button
+                    key={attachment.id}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onPreviewAttachment(attachment)}
+                  >
+                    <Image size={14} />
+                    预览附件
+                    <span className="media-library__inline-action-label">
+                      {formatAttachmentLabel(attachment, privacyOn)}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <span className="media-library__row-note">收藏没有可用媒体预览</span>
+            )}
+          </div>
           <span className="media-library__row-meta">{privacyOn ? "已隐藏时间" : favorite.time}</span>
         </div>
       ))}
@@ -271,21 +479,60 @@ function FavoriteList({
 function MemberList({
   members,
   privacyOn,
+  query,
+  onQueryChange,
 }: {
   members: MediaMember[];
   privacyOn: boolean;
+  query: string;
+  onQueryChange: (query: string) => void;
 }) {
   if (members.length === 0) return <EmptyTab label="成员" />;
+  const normalizedQuery = privacyOn ? "" : query.trim().toLowerCase();
+  const memberSearchDisabledReasonId = privacyOn ? "media-member-search-privacy-disabled-reason" : undefined;
+  const filteredMembers = normalizedQuery
+    ? members.filter((member) =>
+        [member.displayName, member.username]
+          .some((value) => value.toLowerCase().includes(normalizedQuery)))
+    : members;
+  const visibleMembers = filteredMembers.slice(0, MEMBER_PREVIEW_LIMIT);
 
   return (
-    <div className="media-library__list media-library__list--members">
-      {members.map((member) => (
-        <div key={member.username} className="media-library__row">
-          <Users size={16} />
-          <span>{formatMemberDisplayName(member, privacyOn)}</span>
+    <>
+      <div className="media-library__member-tools">
+        <Input
+          controlSize="sm"
+          value={privacyOn ? "" : query}
+          disabled={privacyOn}
+          aria-describedby={memberSearchDisabledReasonId}
+          onChange={(event) => onQueryChange(event.currentTarget.value)}
+          placeholder={privacyOn ? "隐私模式已隐藏成员搜索" : "搜索已加载成员"}
+          aria-label="搜索已加载成员"
+        />
+        {privacyOn && (
+          <DisabledReason
+            id={memberSearchDisabledReasonId}
+            reason="隐私模式下不筛选成员，避免暴露成员身份。"
+            variant="compact"
+          />
+        )}
+        <Typography variant="caption" color="var(--text-secondary)">
+          成员搜索仅筛选已加载成员。
+        </Typography>
+      </div>
+      {visibleMembers.length === 0 ? (
+        <EmptyTab label="匹配成员" />
+      ) : (
+        <div className="media-library__list media-library__list--members">
+          {visibleMembers.map((member) => (
+            <div key={member.username} className="media-library__row">
+              <Users size={16} />
+              <span>{formatMemberDisplayName(member, privacyOn)}</span>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }
 

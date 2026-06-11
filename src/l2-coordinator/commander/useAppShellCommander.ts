@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { applyWindowMaterial } from "@l4/system/applyWindowMaterial";
 import {
   closeCurrentWindow,
@@ -14,9 +14,11 @@ import { maskDiagnosticText } from "@/utils/maskSecrets";
 import { deriveAppShellView } from "./appShellViewModel";
 import { deriveDeveloperEntryPolicy } from "./developerEntryViewModel";
 import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
+import { buildSettingsRoute } from "./settingsNavigation";
 
 export function useAppShellCommander(title: string) {
   const navigate = useNavigate();
+  const location = useLocation();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
   const developerMode = useSettingsStore((state) => state.settings.developerMode);
   const windowMaterial = useSettingsStore((state) => state.settings.windowMaterial);
@@ -101,7 +103,10 @@ export function useAppShellCommander(title: string) {
     actions: {
       togglePrivacy,
       toggleConsole: developerPolicy.visible ? toggleConsole : undefined,
-      openSettings: () => navigate("/settings"),
+      openSettings: () => navigate(buildSettingsRoute({
+        source: "app-shell",
+        returnRoute: `${location.pathname}${location.search}`,
+      })),
       minimizeWindow: () => {
         void minimizeCurrentWindow();
       },

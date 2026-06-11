@@ -186,6 +186,16 @@ describe("UI governance", () => {
     expect(untooltippedIconButtons).toEqual([]);
   });
 
+  it("keeps tooltip bubbles from sticking after pointer activation", async () => {
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+    const iconButton = await readFile("src/l4-atom/ui/IconButton.tsx", "utf8");
+
+    expect(layoutCss).toContain(".ui-tooltip:focus-within .ui-tooltip__bubble");
+    expect(layoutCss).toContain(".ui-tooltip:hover .ui-tooltip__bubble");
+    expect(iconButton).toContain("handlePointerUp");
+    expect(iconButton).toContain("event.currentTarget.blur()");
+  });
+
   it("keeps Tauri current-window APIs owned by L4 system atoms", async () => {
     const files = await collectSourceFiles("src");
     const forbiddenWindowImports = [];
@@ -260,6 +270,24 @@ describe("UI governance", () => {
     expect(adHocConfirmations).toEqual([]);
   });
 
+  it("keeps SNS external-open confirmation on the shared overlay focus lifecycle", async () => {
+    const text = await readFile("src/l3-molecule/sns/SnsExternalOpenDialog.tsx", "utf8");
+
+    expect(text).toContain("focusInitialOverlayTarget");
+    expect(text).toContain("trapOverlayFocus");
+    expect(text).toContain("restoreFocusTarget");
+    expect(text).toContain("shouldCloseOverlayOnKey");
+    expect(text).toContain("onKeyDown");
+    expect(text).toContain("getOverlayDialogProps");
+  });
+
+  it("keeps empty SNS search submissions out of the error state", async () => {
+    const text = await readFile("src/l2-coordinator/commander/useSnsCommander.ts", "utf8");
+
+    expect(text).not.toContain('setSearchError("请输入朋友圈搜索关键词")');
+    expect(text).toContain("setSearchResults([])");
+  });
+
   it("keeps setup foundation components off demo utility color classes", async () => {
     const files = await collectSourceFiles("src/l3-molecule/setup");
     const demoClassUsages = [];
@@ -320,5 +348,65 @@ describe("UI governance", () => {
 
     const foundMarkers = forbiddenMarkers.filter((marker) => searchView.includes(marker));
     expect(foundMarkers).toEqual([]);
+  });
+
+  it("keeps independent primary pages on a shared privacy-safe scope status contract", async () => {
+    const pageFiles = [
+      "src/l1-entry/pages/AnalyticsView.tsx",
+      "src/l1-entry/pages/MediaView.tsx",
+      "src/l1-entry/pages/SnsView.tsx",
+      "src/l1-entry/pages/AiWorkspaceView.tsx",
+      "src/l1-entry/pages/GraphView.tsx",
+    ];
+
+    for (const file of pageFiles) {
+      const text = await readFile(file, "utf8");
+      expect(text, file).toContain("<WorkspaceScopeStatus");
+      expect(text, file).toContain("workspaceRouteScope");
+    }
+
+    const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
+    expect(workbenchView).not.toContain("<WorkspaceScopeStatus");
+  });
+
+  it("keeps the AI primary page from duplicating primary rail navigation", async () => {
+    const aiWorkspaceView = await readFile("src/l1-entry/pages/AiWorkspaceView.tsx", "utf8");
+    const aiPanel = await readFile("src/l3-molecule/semantic/AiPanel.tsx", "utf8");
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+
+    expect(aiWorkspaceView).not.toContain("onModeChange");
+    expect(aiPanel).not.toContain("onModeChange");
+    expect(aiPanel).not.toContain("PanelMode");
+    expect(aiPanel).not.toContain("semantic-panel__modebar");
+    expect(layoutCss).not.toContain(".semantic-panel__modebar");
+  });
+
+  it("keeps release visual evidence broad enough for global acceptance claims", async () => {
+    const visualSpec = await readFile("e2e/specs/visual.spec.ts", "utf8");
+    const evidence = await readFile("docs/release/release-evidence.md", "utf8");
+    const requiredSnapshots = [
+      "setup-center-desktop.png",
+      "settings-about-diagnostics-desktop.png",
+      "media-workspace-desktop.png",
+      "sns-workspace-desktop.png",
+      "settings-privacy-narrow.png",
+    ];
+    const requiredPageScores = [
+      "Setup `/`: 18/20",
+      "Settings `/settings`: 18/20",
+      "Media `/media`: 17/20",
+      "SNS `/sns`: 17/20",
+      "AI `/ai`: 18/20",
+      "Graph `/graph`: 18/20",
+    ];
+
+    for (const snapshot of requiredSnapshots) {
+      expect(visualSpec, snapshot).toContain(snapshot);
+    }
+
+    expect(evidence).toContain("## Page Score And Visual Evidence");
+    for (const score of requiredPageScores) {
+      expect(evidence, score).toContain(score);
+    }
   });
 });

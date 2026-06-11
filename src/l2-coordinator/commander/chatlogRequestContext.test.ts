@@ -12,7 +12,7 @@ describe("chatlogRequestContext", () => {
     });
     expect(getActiveChatlogServiceSummary(null)).toEqual({
       serviceBaseUrl: "http://127.0.0.1:5030",
-      serviceLabel: "本机服务 127.0.0.1:5030",
+      serviceLabel: "应用管理的本机服务",
       mode: "managed",
     });
   });
@@ -36,6 +36,16 @@ describe("chatlogRequestContext", () => {
     });
     expect(createChatlogRequestContext(managed)).toMatchObject({
       serviceBaseUrl: "http://localhost:5031",
+    });
+    expect(getActiveChatlogServiceSummary(external)).toMatchObject({
+      serviceBaseUrl: "http://127.0.0.1:6041",
+      serviceLabel: "已连接外部本机服务",
+      mode: "external",
+    });
+    expect(getActiveChatlogServiceSummary(managed)).toMatchObject({
+      serviceBaseUrl: "http://localhost:5031",
+      serviceLabel: "应用管理的本机服务",
+      mode: "managed",
     });
   });
 

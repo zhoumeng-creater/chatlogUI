@@ -1,24 +1,18 @@
-import type { SettingsState } from "@/l2-coordinator/api-docs/settings";
-import type { SettingsSaveStatus } from "@l2/data-clerk/stores/useSettingsStore";
+import type { SettingsDataServiceSummary } from "@/l2-coordinator/commander/settingsConfigOwnership";
 import { Button, Field, Input, StatusIndicator, Surface, Typography } from "@l4/ui";
-import { formatPrivatePathSummary } from "@/utils/privacyDisplay";
 
 interface DataSettingsProps {
-  settings: SettingsState;
-  saveStatus: SettingsSaveStatus;
-  saveMessage: string | null;
-  onChooseDataDirectory: () => Promise<void>;
+  view: SettingsDataServiceSummary;
+  onOpenSetup: () => void;
 }
 
 export function DataSettings({
-  settings,
-  saveStatus,
-  saveMessage,
-  onChooseDataDirectory,
+  view,
+  onOpenSetup,
 }: DataSettingsProps) {
   return (
     <div className="settings-stack">
-      <Typography variant="h2">数据</Typography>
+      <Typography variant="h2">{view.title}</Typography>
 
       <Surface variant="base" className="settings-section">
         <form className="settings-stack" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
@@ -26,32 +20,29 @@ export function DataSettings({
             <Field id="settings-wx-path" label="微信数据路径">
               <Input
                 id="settings-wx-path"
-                value={formatPrivatePathSummary(settings.wxDataPath, "data-dir")}
+                value={view.pathSummary}
                 readOnly
               />
             </Field>
-            <Button variant="secondary" size="md" onClick={onChooseDataDirectory}>
-              选择目录
+            <Button type="button" variant="secondary" size="md" onClick={onOpenSetup}>
+              {view.primaryAction.label}
             </Button>
           </div>
-          <Field id="settings-data-key" label="数据解密密钥" hint="Data Key 只在设置中心配置，不保存在 UI 设置里。">
+          <Field id="settings-data-key" label="数据解密密钥" hint="解密密钥只在设置中心配置，不保存在 UI 设置里。">
             <Input
               id="settings-data-key"
               type="password"
               autoComplete="off"
               value=""
               disabled
-              placeholder="请在设置中心配置 data key"
+              placeholder={view.decryptionKeyLabel}
             />
           </Field>
         </form>
-        {saveMessage && (
-          <StatusIndicator
-            label={saveMessage}
-            tone={saveStatus === "error" ? "danger" : saveStatus === "saving" ? "info" : "success"}
-            busy={saveStatus === "saving"}
-          />
-        )}
+        <StatusIndicator label={view.serviceStatusLabel} tone={view.serviceStatusTone} />
+        <Typography variant="caption" color="var(--text-secondary)">
+          {view.serviceLabel}
+        </Typography>
       </Surface>
 
       <Surface variant="subtle" className="settings-section">

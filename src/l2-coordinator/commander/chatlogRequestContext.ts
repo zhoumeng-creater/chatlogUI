@@ -2,7 +2,6 @@ import type { SetupMode, SetupProfileSummary } from "@l2/data-clerk/types/setup"
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import type { RequestDiagnosticsOptions } from "@l4/network";
 import {
-  formatChatlogServiceLabel,
   getChatlogServiceBaseUrl,
 } from "@l4/network/chatlogEndpoint";
 
@@ -19,14 +18,15 @@ export type ChatlogRequestContext = RequestDiagnosticsOptions & {
 export function getActiveChatlogServiceSummary(
   profile: SetupProfileSummary | null,
 ): ActiveChatlogServiceSummary {
+  const mode = profile?.mode ?? "managed";
   const serviceBaseUrl = getChatlogServiceBaseUrl({
     serviceBaseUrl: profile?.httpAddr,
   });
 
   return {
     serviceBaseUrl,
-    serviceLabel: formatChatlogServiceLabel(serviceBaseUrl),
-    mode: profile?.mode ?? "managed",
+    serviceLabel: formatActiveServiceLabel(mode),
+    mode,
   };
 }
 
@@ -44,4 +44,8 @@ export function createCurrentChatlogRequestContext(
   options: RequestDiagnosticsOptions = {},
 ): ChatlogRequestContext {
   return createChatlogRequestContext(useSetupStore.getState().profile, options);
+}
+
+function formatActiveServiceLabel(mode: SetupMode): string {
+  return mode === "external" ? "已连接外部本机服务" : "应用管理的本机服务";
 }

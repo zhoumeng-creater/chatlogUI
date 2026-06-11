@@ -56,6 +56,7 @@ describe("updateNotificationViewModel", () => {
       dismissible: true,
       tone: "danger",
       statusText: "signature mismatch",
+      settingsActionLabel: "打开关于与更新",
     });
   });
 });

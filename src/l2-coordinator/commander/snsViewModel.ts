@@ -42,6 +42,7 @@ export interface SnsModuleView {
   timelinePosts: AdaptedSnsPost[];
   searchResults: AdaptedSnsPost[];
   notifications: AdaptedSnsNotification[];
+  notificationTargetIds: string[];
   selectedPost: AdaptedSnsPost | null;
   summary: SnsSummary;
   loadMore: SnsLoadMoreView;
@@ -71,6 +72,7 @@ export function buildSnsModuleView(
     timelinePosts: privacyOn ? timelinePosts.map(maskPost) : timelinePosts,
     searchResults: privacyOn ? state.searchResults.map(maskPost) : state.searchResults,
     notifications: privacyOn ? state.notifications.map(maskNotification) : state.notifications,
+    notificationTargetIds: notificationTargetIds(state),
     selectedPost: privacyOn && selectedPost ? maskPost(selectedPost) : selectedPost,
     summary,
     loadMore: {
@@ -84,11 +86,16 @@ export function buildSnsModuleView(
 
 export function deriveSnsBadge(state: Pick<SnsStoreSnapshot, "status" | "feed" | "notifications">): string | undefined {
   if (state.status === "loading") return "加载中";
+  if (state.status === "partial") return "部分可用";
   if (state.status === "error") return "异常";
   if (state.notifications.length > 0) return `${Math.min(state.notifications.length, 99)}通知`;
   if (state.feed.length > 0) return `${Math.min(state.feed.length, 99)}条`;
   if (state.status === "empty") return "无数据";
   return undefined;
+}
+
+function notificationTargetIds(state: SnsStoreSnapshot): string[] {
+  return Array.from(new Set([...state.feed, ...state.searchResults].map((post) => post.id)));
 }
 
 function filterTimelinePosts(posts: AdaptedSnsPost[], filters: SnsFilters): AdaptedSnsPost[] {
@@ -122,6 +129,8 @@ function maskPost(post: AdaptedSnsPost): AdaptedSnsPost {
           ...post.article,
           title: "已隐藏文章",
           description: post.article.description ? "已隐藏文章摘要" : "",
+          externalDomain: undefined,
+          externalScheme: undefined,
         }
       : null,
     finder: post.finder

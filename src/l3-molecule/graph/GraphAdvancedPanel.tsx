@@ -249,6 +249,7 @@ export function GraphAdvancedPanel({
           </Typography>
           <Input
             controlSize="sm"
+            aria-label="业务记录标题"
             value={privacyOn ? "" : businessDraft.title ?? ""}
             disabled={privacyOn}
             aria-describedby={privacyDisabledReasonId}
@@ -257,6 +258,7 @@ export function GraphAdvancedPanel({
           />
           <textarea
             className="graph-advanced-textarea"
+            aria-label="业务记录内容"
             value={privacyOn ? "" : businessDraft.content ?? ""}
             disabled={privacyOn}
             aria-describedby={privacyDisabledReasonId}
@@ -275,6 +277,7 @@ export function GraphAdvancedPanel({
           </Typography>
           <Input
             controlSize="sm"
+            aria-label="事件类型"
             value={privacyOn ? "" : eventDraft.eventType ?? ""}
             disabled={privacyOn}
             aria-describedby={privacyDisabledReasonId}
@@ -283,6 +286,7 @@ export function GraphAdvancedPanel({
           />
           <textarea
             className="graph-advanced-textarea"
+            aria-label="事件内容"
             value={privacyOn ? "" : eventDraft.content ?? ""}
             disabled={privacyOn}
             aria-describedby={privacyDisabledReasonId}
@@ -301,6 +305,7 @@ export function GraphAdvancedPanel({
           </Typography>
           <textarea
             className="graph-advanced-textarea"
+            aria-label="图谱问答问题"
             value={privacyOn ? "" : qaDraft.query}
             disabled={privacyOn}
             aria-describedby={privacyDisabledReasonId}

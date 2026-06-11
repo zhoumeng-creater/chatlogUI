@@ -23,7 +23,7 @@ interface SemanticQAEvidenceDrawerProps {
   privacyOn: boolean;
   onClose: () => void;
   onUseEntityCandidate: (candidate: SemanticEntityCandidateDisplayRow) => void;
-  onOpenSource?: (chat: string, label: string) => void;
+  onOpenSource?: (chat: string, label: string, localId?: number) => void;
 }
 
 export function SemanticQAEvidenceDrawer({
@@ -116,12 +116,17 @@ export function SemanticQAEvidenceDrawer({
                   variant="ghost"
                   size="sm"
                   className="qa-evidence__open"
-                  onClick={() => onOpenSource(row.chat, row.chatLabel)}
+                  onClick={() => onOpenSource(row.chat, row.chatLabel, row.localId > 0 ? row.localId : undefined)}
                 >
-                  <ExternalLink size={13} />打开会话
+                  <ExternalLink size={13} />{row.localId > 0 ? "打开到证据" : "打开会话"}
                 </Button>
               )}
             </div>
+            {row.chat && row.localId <= 0 && (
+              <Typography variant="caption" color="var(--color-text-tertiary)">
+                证据未提供消息锚点，打开后需在会话内手动核对。
+              </Typography>
+            )}
             <div className="qa-evidence__row-meta">
               {row.chatLabel} · {row.senderLabel} · {row.sourceLabel}
             </div>

@@ -4,11 +4,11 @@ import { classNames } from "@/utils/classNames";
 import { Bot, Database, Info, Palette, ShieldCheck } from "lucide-react";
 
 const CATEGORIES: { key: SettingsCategory; label: string; icon: ReactNode }[] = [
-  { key: "data", label: "数据", icon: <Database size={16} /> },
+  { key: "data", label: "数据与服务", icon: <Database size={16} /> },
   { key: "appearance", label: "外观", icon: <Palette size={16} /> },
-  { key: "ai", label: "AI 模型", icon: <Bot size={16} /> },
-  { key: "advanced", label: "高级诊断", icon: <ShieldCheck size={16} /> },
-  { key: "about", label: "关于", icon: <Info size={16} /> },
+  { key: "ai", label: "AI 与语义", icon: <Bot size={16} /> },
+  { key: "advanced", label: "隐私与诊断", icon: <ShieldCheck size={16} /> },
+  { key: "about", label: "关于与更新", icon: <Info size={16} /> },
 ];
 
 interface SettingsLayoutProps {
@@ -26,6 +26,7 @@ export function SettingsLayout({ children, activeCategory, onCategoryChange }: S
             key={cat.key}
             type="button"
             onClick={() => onCategoryChange(cat.key)}
+            aria-current={activeCategory === cat.key ? "page" : undefined}
             className={classNames(
               "settings-category-button",
               activeCategory === cat.key && "settings-category-button--active",

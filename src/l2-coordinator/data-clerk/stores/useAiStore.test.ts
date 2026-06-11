@@ -182,6 +182,30 @@ describe("useAiStore QA stream identity", () => {
       reason: "AI stream error",
     });
   });
+
+  it("clears QA history and resets active stream flags together", () => {
+    useAiStore.getState().addQAMessage({
+      id: "assistant-1",
+      role: "assistant",
+      content: "partial answer",
+      timestamp: 1,
+      isStreaming: true,
+    });
+    useAiStore.getState().setActiveQAStream("stream-current");
+    useAiStore.getState().setQAStatus("streaming");
+    useAiStore.getState().setQALoading(true);
+
+    useAiStore.getState().clearQAMessages();
+
+    expect(useAiStore.getState()).toMatchObject({
+      qaMessages: [],
+      qaStatus: "idle",
+      qaError: null,
+      activeQAStreamId: null,
+      qaStreaming: false,
+      qaLoading: false,
+    });
+  });
 });
 
 describe("useAiStore QA message completion", () => {
@@ -285,5 +309,236 @@ describe("useAiStore semantic discovery controls", () => {
 
     store.setDiscoverySourceLimit(-1);
     expect(useAiStore.getState().discoverySourceLimit).toBe(1);
+  });
+});
+
+describe("useAiStore semantic discovery request lifecycle", () => {
+  it("drops stale semantic search completions after a newer request starts", () => {
+    const store = useAiStore.getState() as ReturnType<typeof useAiStore.getState> & {
+      startSemanticSearchRequest: (requestId: string) => void;
+      completeSemanticSearchRequest: (
+        requestId: string,
+        results: NonNullable<ReturnType<typeof useAiStore.getState>["searchResults"]>,
+      ) => void;
+      failSemanticSearchRequest: (requestId: string, error: string) => void;
+    };
+
+    store.startSemanticSearchRequest("search-1");
+    store.startSemanticSearchRequest("search-2");
+    store.completeSemanticSearchRequest("search-1", {
+      query: "old",
+      results: [
+        {
+          chat: "synthetic-old-chat",
+          chatName: "Old chat",
+          sender: "Old sender",
+          senderId: "old-sender",
+          time: "2026-01-01 09:00",
+          content: "stale result",
+          relevanceScore: 0.5,
+          localId: 1,
+        },
+      ],
+    });
+
+    expect(useAiStore.getState()).toMatchObject({
+      searchResults: null,
+      searchLoading: true,
+      searchError: null,
+    });
+
+    store.failSemanticSearchRequest("search-1", "stale failure");
+    expect(useAiStore.getState().searchError).toBeNull();
+
+    store.completeSemanticSearchRequest("search-2", {
+      query: "fresh",
+      results: [],
+    });
+
+    expect(useAiStore.getState()).toMatchObject({
+      searchResults: { query: "fresh", results: [] },
+      searchLoading: false,
+      searchError: null,
+    });
+  });
+
+  it("keeps an active semantic search request when clearing a previous error", () => {
+    const store = useAiStore.getState() as ReturnType<typeof useAiStore.getState> & {
+      startSemanticSearchRequest: (requestId: string) => void;
+      completeSemanticSearchRequest: (
+        requestId: string,
+        results: NonNullable<ReturnType<typeof useAiStore.getState>["searchResults"]>,
+      ) => void;
+    };
+
+    useAiStore.getState().setSearchError("previous error");
+    store.startSemanticSearchRequest("search-active");
+    useAiStore.getState().setSearchError(null);
+    store.completeSemanticSearchRequest("search-active", {
+      query: "fresh",
+      results: [],
+    });
+
+    expect(useAiStore.getState()).toMatchObject({
+      activeSemanticSearchRequestId: null,
+      searchResults: { query: "fresh", results: [] },
+      searchLoading: false,
+      searchError: null,
+    });
+  });
+
+  it("drops stale semantic analysis topic and profile writes", () => {
+    const store = useAiStore.getState() as ReturnType<typeof useAiStore.getState> & {
+      startSemanticAnalysisRequest: (requestId: string) => void;
+      completeSemanticTopicsRequest: (
+        requestId: string,
+        topics: NonNullable<ReturnType<typeof useAiStore.getState>["topics"]>,
+      ) => void;
+      completeSemanticProfileRequest: (
+        requestId: string,
+        profile: NonNullable<ReturnType<typeof useAiStore.getState>["profile"]>,
+      ) => void;
+      failSemanticTopicsRequest: (requestId: string, error: string) => void;
+      failSemanticProfileRequest: (requestId: string, error: string) => void;
+    };
+
+    store.startSemanticAnalysisRequest("analysis-1");
+    store.startSemanticAnalysisRequest("analysis-2");
+    store.completeSemanticTopicsRequest("analysis-1", {
+      chat: "synthetic-old-chat",
+      topics: [{ topic: "stale", count: 1 }],
+    });
+    store.failSemanticProfileRequest("analysis-1", "stale failure");
+
+    expect(useAiStore.getState()).toMatchObject({
+      topics: null,
+      profile: null,
+      topicsLoading: true,
+      profileLoading: true,
+      topicsError: null,
+      profileError: null,
+    });
+
+    store.completeSemanticTopicsRequest("analysis-2", {
+      chat: "synthetic-new-chat",
+      topics: [{ topic: "fresh", count: 2 }],
+    });
+    store.completeSemanticProfileRequest("analysis-2", {
+      chat: "synthetic-new-chat",
+      profiles: [],
+    });
+
+    expect(useAiStore.getState()).toMatchObject({
+      topics: { chat: "synthetic-new-chat" },
+      profile: { chat: "synthetic-new-chat" },
+      topicsLoading: false,
+      profileLoading: false,
+      topicsError: null,
+      profileError: null,
+    });
+  });
+
+  it("invalidates active semantic analysis requests when the route scope changes", () => {
+    const store = useAiStore.getState() as ReturnType<typeof useAiStore.getState> & {
+      startSemanticAnalysisRequest: (requestId: string) => void;
+      cancelSemanticAnalysisRequest: () => void;
+      completeSemanticTopicsRequest: (
+        requestId: string,
+        topics: NonNullable<ReturnType<typeof useAiStore.getState>["topics"]>,
+      ) => void;
+      completeSemanticProfileRequest: (
+        requestId: string,
+        profile: NonNullable<ReturnType<typeof useAiStore.getState>["profile"]>,
+      ) => void;
+    };
+
+    store.startSemanticAnalysisRequest("analysis-old-scope");
+    store.cancelSemanticAnalysisRequest();
+
+    store.completeSemanticTopicsRequest("analysis-old-scope", {
+      chat: "synthetic-old-chat",
+      topics: [{ topic: "stale", count: 1 }],
+    });
+    store.completeSemanticProfileRequest("analysis-old-scope", {
+      chat: "synthetic-old-chat",
+      profiles: [],
+    });
+
+    expect(useAiStore.getState()).toMatchObject({
+      activeSemanticAnalysisRequestId: null,
+      topics: null,
+      profile: null,
+      topicsLoading: false,
+      profileLoading: false,
+      topicsError: null,
+      profileError: null,
+    });
+  });
+
+  it("drops stale semantic preview completions after pagination changes", () => {
+    const store = useAiStore.getState() as ReturnType<typeof useAiStore.getState> & {
+      startSemanticPreviewRequest: (requestId: string) => void;
+      completeSemanticPreviewRequest: (
+        requestId: string,
+        preview: NonNullable<ReturnType<typeof useAiStore.getState>["preview"]>,
+      ) => void;
+      failSemanticPreviewRequest: (requestId: string, error: string) => void;
+    };
+
+    store.startSemanticPreviewRequest("preview-1");
+    store.startSemanticPreviewRequest("preview-2");
+    store.completeSemanticPreviewRequest("preview-1", {
+      model: "synthetic-preview-model",
+      dim: 3,
+      kind: "all",
+      limit: 20,
+      offset: 0,
+      total: 1,
+      sampleDims: 3,
+      rows: [
+        {
+          id: "stale-row",
+          kind: "message",
+          identityLabel: "Stale identity",
+          contentPreview: "stale",
+          vectorNorm: 0,
+          sampleDimensions: 0,
+          coordinates: { x: 0, y: 0, z: 0 },
+          outlierScore: 0,
+          isOutlier: false,
+          updatedAt: 0,
+        },
+      ],
+      groups: [],
+      outliers: [],
+    });
+
+    expect(useAiStore.getState()).toMatchObject({
+      preview: null,
+      previewStatus: "loading",
+      previewError: null,
+    });
+
+    store.failSemanticPreviewRequest("preview-1", "stale failure");
+    expect(useAiStore.getState().previewError).toBeNull();
+
+    store.completeSemanticPreviewRequest("preview-2", {
+      model: "synthetic-preview-model",
+      dim: 3,
+      kind: "all",
+      limit: 20,
+      offset: 20,
+      total: 0,
+      sampleDims: 3,
+      rows: [],
+      groups: [],
+      outliers: [],
+    });
+
+    expect(useAiStore.getState()).toMatchObject({
+      preview: { offset: 20, rows: [] },
+      previewStatus: "empty",
+      previewError: null,
+    });
   });
 });

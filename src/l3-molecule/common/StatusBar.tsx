@@ -49,6 +49,7 @@ export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbR
   const isStarting = status === "starting";
   const isDbBusy = dbStatus === "connecting" || dbStatus === "decrypting";
   const indexIndicator = semanticStatus ?? getIndexIndicator(indexStatus);
+  const visibleServiceLabel = formatVisibleServiceLabel(serviceLabel);
 
   return (
     <footer className="app-statusbar">
@@ -97,11 +98,19 @@ export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbR
           </Typography>
         )}
         <Typography variant="caption" color="var(--text-muted)">
-          {serviceLabel ?? "本机服务未配置"}
+          {visibleServiceLabel}
         </Typography>
       </div>
     </footer>
   );
+}
+
+function formatVisibleServiceLabel(label: string | undefined): string {
+  if (!label) return "本机服务未配置";
+  if (/(?:https?:\/\/)?(?:127\.0\.0\.1|localhost|\[?::1\]?):\d{1,5}/i.test(label)) {
+    return "本机服务已连接";
+  }
+  return label;
 }
 
 function getIndexIndicator(indexStatus?: IndexStatusResponse | null): { label: string; tone: StatusTone; busy?: boolean } | null {

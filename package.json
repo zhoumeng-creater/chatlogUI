@@ -21,6 +21,8 @@
     "release:check:sidecar": "node scripts/verify-sidecar-artifacts.mjs --mode check",
     "release:check:sidecar:release": "node scripts/verify-sidecar-artifacts.mjs --target x86_64-pc-windows-msvc --mode release --stage-dir src-tauri/binaries",
     "release:check:sidecar:release:all-targets": "node scripts/verify-sidecar-artifacts.mjs --mode release --stage-dir src-tauri/binaries",
+    "release:collect:tauri-smoke": "node scripts/collect-tauri-smoke-evidence.mjs --bundle-root src-tauri/target/release/bundle",
+    "release:scan:diagnostics": "node scripts/collect-tauri-smoke-evidence.mjs --scan-file",
     "release:check:updater": "node scripts/verify-updater-manifest.mjs --bundle-root src-tauri/target --required-platforms windows-x86_64",
     "release:check:updater:all-platforms": "node scripts/verify-updater-manifest.mjs --bundle-root src-tauri/target --required-platforms windows-x86_64,darwin-x86_64,darwin-aarch64,linux-x86_64",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"

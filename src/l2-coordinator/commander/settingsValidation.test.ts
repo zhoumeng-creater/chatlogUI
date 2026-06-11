@@ -5,20 +5,61 @@ describe("settings validation", () => {
   it("strips UI-stored credentials and resets credential state", () => {
     const sanitized = sanitizeSettingsForStorage({
       aiProvider: "glm",
+      aiEndpoint: "https://synthetic-secret.example/v1",
+      aiModel: "legacy-ui-model",
       aiApiKey: "sk-synthetic-redaction-token",
       aiCredentialConfigured: true,
       wxDataPath: "E:/WeChat",
     });
 
+    expect("aiProvider" in sanitized).toBe(false);
+    expect("aiEndpoint" in sanitized).toBe(false);
+    expect("aiModel" in sanitized).toBe(false);
     expect("aiApiKey" in sanitized).toBe(false);
-    expect(sanitized.aiCredentialConfigured).toBe(false);
+    expect("aiCredentialConfigured" in sanitized).toBe(false);
     expect(sanitized.wxDataPath).toBe("E:/WeChat");
   });
 
-  it("rejects invalid AI endpoints before saving", () => {
-    const result = validateSettingsPatch({ aiEndpoint: "not-a-url" });
+  it("ignores legacy AI endpoint patches because semantic config belongs to AI workspace", () => {
+    const result = validateSettingsPatch({ aiEndpoint: "not-a-url" } as never);
 
-    expect(result.valid).toBe(false);
-    expect(result.errors[0]).toContain("API 端点");
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it("persists Settings with an explicit allowlist instead of keeping unknown secret-like fields", () => {
+    const sanitized = sanitizeSettingsForStorage({
+      theme: "dark",
+      fontSize: "large",
+      reduceAnimations: true,
+      windowMaterial: "mica",
+      wxDataPath: "E:/WeChat",
+      privacyOn: true,
+      developerMode: true,
+      password: "synthetic-password",
+      secret: "synthetic-secret",
+      accessToken: "synthetic-access-token",
+      authorization: "Bearer synthetic",
+      credential: "synthetic-credential",
+      privateKey: "synthetic-private-key",
+      sidecarPort: 8080,
+    });
+
+    expect(sanitized).toEqual({
+      theme: "dark",
+      fontSize: "large",
+      reduceAnimations: true,
+      windowMaterial: "mica",
+      wxDataPath: "E:/WeChat",
+      privacyOn: true,
+      developerMode: true,
+    });
+  });
+
+  it("ignores legacy sidecar port patches because service ownership belongs to Setup", () => {
+    const result = validateSettingsPatch({ sidecarPort: 0 } as never);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
   });
 });

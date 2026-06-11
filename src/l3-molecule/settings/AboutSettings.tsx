@@ -1,6 +1,6 @@
 import { Button, Surface, Typography } from "@l4/ui";
-import { DiagnosticsPanel } from "@l3/diagnostics/DiagnosticsPanel";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
+import { SettingsDiagnosticsDisclosure } from "./SettingsDiagnosticsDisclosure";
 import packageJson from "../../../package.json";
 
 interface AboutSettingsProps {
@@ -66,7 +66,7 @@ export function AboutSettings({
         </div>
       </Surface>
 
-      <DiagnosticsPanel
+      <SettingsDiagnosticsDisclosure
         report={diagnosticReport}
         copyText={diagnosticCopyText}
         onExport={onExportDiagnostics}

@@ -9,6 +9,7 @@ import {
 import { Button, Input, SegmentedControl, Select, Spinner, Typography } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
 import { SnsDetailInspector } from "./SnsDetailInspector";
+import { SnsExternalOpenDialog, type SnsExternalOpenPrompt } from "./SnsExternalOpenDialog";
 import { formatSnsNotificationLabel, formatSnsTime } from "./snsDisplay";
 import { SnsSearchPanel } from "./SnsSearchPanel";
 import { SnsTimeline } from "./SnsTimeline";
@@ -18,7 +19,7 @@ import type {
   SnsPostContentType,
 } from "./snsTypes";
 
-export type SnsModuleLoadStatus = "idle" | "loading" | "ready" | "empty" | "error";
+export type SnsModuleLoadStatus = "idle" | "loading" | "ready" | "empty" | "partial" | "error";
 export type SnsModuleActiveTab = "timeline" | "search" | "notifications";
 export type SnsModuleContentTypeFilter = "all" | SnsPostContentType;
 
@@ -38,6 +39,7 @@ export interface SnsModuleViewModel {
   timelinePosts: AdaptedSnsPost[];
   searchResults: AdaptedSnsPost[];
   notifications: AdaptedSnsNotification[];
+  notificationTargetIds: string[];
   selectedPost: AdaptedSnsPost | null;
   summary: {
     feedCount: number;
@@ -65,6 +67,8 @@ interface SnsModuleProps {
   searchError: string | null;
   selectedPostId: string | null;
   privacyOn: boolean;
+  externalOpenPrompt: SnsExternalOpenPrompt | null;
+  externalOpenError: string | null;
   onRefresh: () => void;
   onRetry: () => void;
   onLoadMore: () => void;
@@ -74,6 +78,9 @@ interface SnsModuleProps {
   onSearch: (query?: string) => void;
   onClearSearch: () => void;
   onSelectPost: (postId: string | null) => void;
+  onRequestArticleOpen: (postId: string) => void;
+  onConfirmExternalOpen: () => void;
+  onCancelExternalOpen: () => void;
 }
 
 const CONTENT_TYPE_OPTIONS: Array<{ value: SnsModuleContentTypeFilter; label: string }> = [
@@ -97,6 +104,8 @@ export function SnsModule({
   searchError,
   selectedPostId,
   privacyOn,
+  externalOpenPrompt,
+  externalOpenError,
   onRefresh,
   onRetry,
   onLoadMore,
@@ -106,6 +115,9 @@ export function SnsModule({
   onSearch,
   onClearSearch,
   onSelectPost,
+  onRequestArticleOpen,
+  onConfirmExternalOpen,
+  onCancelExternalOpen,
 }: SnsModuleProps) {
   return (
     <aside className="sns-module" aria-label="朋友圈">
@@ -143,6 +155,17 @@ export function SnsModule({
         </div>
       ) : (
         <>
+          {status === "partial" && (
+            <div className="sns-module__partial" role="status">
+              <Typography variant="label" weight={700}>
+                {error || view.errorCopy || "部分朋友圈数据加载失败"}
+              </Typography>
+              <Typography variant="caption" color="var(--text-secondary)">
+                其他朋友圈内容仍可查看，可刷新后重试缺失部分。
+              </Typography>
+            </div>
+          )}
+
           <SummaryStrip view={view} loading={status === "loading"} />
           <FilterPanel filters={filters} onFiltersChange={onFiltersChange} onApply={onRefresh} />
 
@@ -205,16 +228,30 @@ export function SnsModule({
               {activeTab === "notifications" && (
                 <NotificationList
                   notifications={view.notifications}
+                  notificationTargetIds={view.notificationTargetIds}
                   selectedPostId={selectedPostId}
                   privacyOn={privacyOn}
                   emptyCopy={view.emptyCopy}
                   onSelectPost={onSelectPost}
+                  onShowTimeline={() => onTabChange("timeline")}
                 />
               )}
             </div>
 
-            <SnsDetailInspector post={view.selectedPost} privacyOn={privacyOn} />
+            <SnsDetailInspector
+              post={view.selectedPost}
+              privacyOn={privacyOn}
+              onRequestArticleOpen={onRequestArticleOpen}
+            />
           </div>
+          {externalOpenPrompt && (
+            <SnsExternalOpenDialog
+              prompt={externalOpenPrompt}
+              error={externalOpenError}
+              onConfirm={onConfirmExternalOpen}
+              onCancel={onCancelExternalOpen}
+            />
+          )}
         </>
       )}
     </aside>
@@ -334,16 +371,20 @@ function FilterPanel({
 
 function NotificationList({
   notifications,
+  notificationTargetIds,
   selectedPostId,
   privacyOn,
   emptyCopy,
   onSelectPost,
+  onShowTimeline,
 }: {
   notifications: AdaptedSnsNotification[];
+  notificationTargetIds: string[];
   selectedPostId: string | null;
   privacyOn: boolean;
   emptyCopy: string;
   onSelectPost: (postId: string | null) => void;
+  onShowTimeline: () => void;
 }) {
   if (notifications.length === 0) {
     return (
@@ -357,26 +398,60 @@ function NotificationList({
 
   return (
     <div className="sns-notification-list" aria-label="朋友圈通知">
-      {notifications.map((notification) => (
-        <button
-          key={notification.id}
-          type="button"
-          className={classNames(
-            "sns-notification-row",
-            notification.feedId && selectedPostId === notification.feedId && "sns-notification-row--selected",
-          )}
-          onClick={() => onSelectPost(notification.feedId || null)}
-        >
-          <Bell size={15} />
-          <span className="sns-notification-row__main">
-            <strong>{formatSnsNotificationLabel(notification, privacyOn)}</strong>
-            <span>{privacyOn ? "已隐藏通知内容" : notification.content || notification.feedPreview || "互动通知"}</span>
-          </span>
-          <span className="sns-notification-row__time">
-            {formatSnsTime(notification.time, privacyOn)}
-          </span>
-        </button>
-      ))}
+      {notifications.map((notification) => {
+        const targetAvailable = Boolean(notification.feedId && notificationTargetIds.includes(notification.feedId));
+        const label = formatSnsNotificationLabel(notification, privacyOn);
+        const content = privacyOn ? "已隐藏通知内容" : notification.content || notification.feedPreview || "互动通知";
+        const time = formatSnsTime(notification.time, privacyOn);
+        if (!targetAvailable) {
+          return (
+            <div
+              key={notification.id}
+              role="group"
+              aria-label={`${label} 无法定位原动态`}
+              className="sns-notification-row sns-notification-row--unavailable"
+            >
+              <Bell size={15} />
+              <span className="sns-notification-row__main">
+                <strong>{label}</strong>
+                <span>{content}</span>
+                <span className="sns-notification-row__note">
+                  原动态未在当前结果中，刷新或调整筛选后再定位。
+                </span>
+                <Button type="button" variant="ghost" size="sm" onClick={onShowTimeline}>
+                  查看动态列表
+                </Button>
+              </span>
+              <span className="sns-notification-row__time">
+                {time}
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <button
+            key={notification.id}
+            type="button"
+            className={classNames(
+              "sns-notification-row",
+              targetAvailable && selectedPostId === notification.feedId && "sns-notification-row--selected",
+            )}
+            onClick={() => {
+              if (targetAvailable) onSelectPost(notification.feedId);
+            }}
+          >
+            <Bell size={15} />
+            <span className="sns-notification-row__main">
+              <strong>{label}</strong>
+              <span>{content}</span>
+            </span>
+            <span className="sns-notification-row__time">
+              {time}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -33,6 +33,7 @@ import {
   hasMeaningfulGraphEventDraft,
 } from "./graphResidualViewModel";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
+import { formatGraphFailureMessage } from "./graphErrorDisplay";
 
 function graphDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
@@ -42,44 +43,66 @@ function graphDiagnostics(method: "GET" | "POST" = "GET") {
   });
 }
 
+let graphLoadSequence = 0;
+let graphChildSequence = 0;
+
+function nextGraphLoadRequestId(): string {
+  graphLoadSequence += 1;
+  return `graph-load-${graphLoadSequence}`;
+}
+
+function nextGraphChildRequestId(prefix: string): string {
+  graphChildSequence += 1;
+  return `${prefix}-${graphChildSequence}`;
+}
+
 export function useGraphCommander() {
   const store = useGraphStore();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
 
   const loadGraph = useCallback(async (params: VisualizeParams = {}) => {
-    useGraphStore.setState({ loading: true, error: null });
+    const requestId = nextGraphLoadRequestId();
+    useGraphStore.getState().startGraphLoadRequest(requestId);
     try {
       const data = await fetchGraphVisualize(params, graphDiagnostics());
-      useGraphStore.getState().setVisualize(data as unknown as GraphVisualizeView);
+      useGraphStore.getState().completeGraphVisualizeRequest(requestId, data as unknown as GraphVisualizeView);
     } catch (error) {
-      useGraphStore.getState().setError(
-        error instanceof Error ? error.message : "加载图谱数据失败",
+      useGraphStore.getState().failGraphLoadRequest(
+        requestId,
+        formatGraphFailureMessage(error, "加载图谱数据失败"),
       );
     }
   }, []);
 
   const refreshStatus = useCallback(async () => {
+    const requestId = nextGraphChildRequestId("graph-status");
+    useGraphStore.getState().startGraphStatusRequest(requestId);
     try {
       const status = await fetchGraphStatus(graphDiagnostics());
-      useGraphStore.getState().setStatusSummary(status as unknown as GraphStatusView | null);
+      useGraphStore.getState().completeGraphStatusRequest(requestId, status as unknown as GraphStatusView | null);
     } catch (error) {
-      useGraphStore.getState().setError(
-        error instanceof Error ? error.message : "图谱状态查询失败",
+      useGraphStore.getState().failGraphStatusRequest(
+        requestId,
+        formatGraphFailureMessage(error, "图谱状态查询失败"),
       );
     }
   }, []);
 
   const loadGraphTimeline = useCallback(async (params: VisualizeParams = {}) => {
+    const requestId = nextGraphChildRequestId("graph-timeline");
+    useGraphStore.getState().startGraphTimelineRequest(requestId);
     try {
       const timeline = await fetchGraphTimeline(params, graphDiagnostics());
-      useGraphStore.getState().setTimeline(timeline);
+      useGraphStore.getState().completeGraphTimelineRequest(requestId, timeline);
     } catch {
-      useGraphStore.getState().setTimeline(null);
+      useGraphStore.getState().failGraphTimelineRequest(requestId);
     }
   }, []);
 
   const loadGraphSummary = useCallback(async (params: VisualizeParams = {}) => {
-    useGraphStore.setState({ loading: true, error: null, visualizationRequested: false });
+    const requestId = nextGraphLoadRequestId();
+    useGraphStore.getState().startGraphLoadRequest(requestId);
+    useGraphStore.getState().setVisualizationRequested(false);
     try {
       const requestParams = graphRequestParams(params);
       const [status, query, visualize, timeline] = await Promise.all([
@@ -88,15 +111,16 @@ export function useGraphCommander() {
         fetchGraphVisualize(requestParams, graphDiagnostics()),
         fetchGraphTimeline(requestParams, graphDiagnostics()),
       ]);
-      const graphStore = useGraphStore.getState();
-      graphStore.setStatusSummary(status as unknown as GraphStatusView | null);
-      graphStore.setQuery(query as unknown as GraphQueryView);
-      graphStore.setVisualize(visualize as unknown as GraphVisualizeView);
-      graphStore.setTimeline(timeline);
-      graphStore.setLoading(false);
+      useGraphStore.getState().completeGraphSummaryRequest(requestId, {
+        statusSummary: status as unknown as GraphStatusView | null,
+        query: query as unknown as GraphQueryView,
+        visualize: visualize as unknown as GraphVisualizeView,
+        timeline,
+      });
     } catch (error) {
-      useGraphStore.getState().setError(
-        error instanceof Error ? error.message : "加载图谱摘要失败",
+      useGraphStore.getState().failGraphLoadRequest(
+        requestId,
+        formatGraphFailureMessage(error, "加载图谱摘要失败"),
       );
     }
   }, []);
@@ -109,7 +133,7 @@ export function useGraphCommander() {
   }, [loadGraph]);
 
   const cancelGraphLoad = useCallback(() => {
-    useGraphStore.setState({ loading: false, loadStatus: "cancelled" });
+    useGraphStore.getState().cancelGraphLoadRequest();
   }, []);
 
   const retryGraphLoad = useCallback(async () => {
@@ -117,16 +141,21 @@ export function useGraphCommander() {
   }, [loadGraphSummary]);
 
   const runGraphAction = useCallback(async (action: "rebuild" | "reset-rebuild" | "pause" | "resume") => {
+    const requestId = nextGraphChildRequestId(`graph-action-${action}`);
+    useGraphStore.getState().startGraphActionRequest(requestId);
     try {
       const result = await manageGraph(action, graphDiagnostics("POST"));
-      useGraphStore.getState().setActionStatus(result);
-      if (action === "reset-rebuild") {
+      const applied = useGraphStore.getState().completeGraphActionRequest(requestId, result);
+      if (applied && action === "reset-rebuild") {
         useGraphStore.getState().cancelAdvancedConfirmation();
       }
-      await refreshStatus();
+      if (applied) {
+        await refreshStatus();
+      }
     } catch (error) {
-      useGraphStore.getState().setError(
-        error instanceof Error ? error.message : `图谱操作 ${action} 失败`,
+      useGraphStore.getState().failGraphActionRequest(
+        requestId,
+        formatGraphFailureMessage(error, `图谱操作 ${action} 失败`),
       );
     }
   }, [refreshStatus]);
@@ -140,27 +169,33 @@ export function useGraphCommander() {
   }, [runGraphAction]);
 
   const loadGraphConfig = useCallback(async () => {
-    useGraphStore.getState().setAdvancedConfigLoading();
+    const requestId = nextGraphChildRequestId("graph-config");
+    useGraphStore.getState().startGraphConfigRequest(requestId);
     try {
       const config = await fetchGraphConfig(graphDiagnostics());
-      useGraphStore.getState().setAdvancedConfig(config);
+      useGraphStore.getState().completeGraphConfigRequest(requestId, config);
     } catch (error) {
-      useGraphStore.getState().setAdvancedConfigError(
-        error instanceof Error ? error.message : "加载图谱高级配置失败",
+      useGraphStore.getState().failGraphConfigRequest(
+        requestId,
+        formatGraphFailureMessage(error, "加载图谱高级配置失败"),
       );
     }
   }, []);
 
   const saveGraphAdvancedConfig = useCallback(async (draft?: GraphConfigDraft) => {
     const nextDraft = draft ?? useGraphStore.getState().graphConfigDraft;
-    useGraphStore.getState().setAdvancedConfigLoading();
+    const requestId = nextGraphChildRequestId("graph-config");
+    useGraphStore.getState().startGraphConfigRequest(requestId);
     try {
       const config = await saveGraphConfig(nextDraft, graphDiagnostics("POST"));
-      useGraphStore.getState().setAdvancedConfig(config);
-      await refreshStatus();
+      const applied = useGraphStore.getState().completeGraphConfigRequest(requestId, config);
+      if (applied) {
+        await refreshStatus();
+      }
     } catch (error) {
-      useGraphStore.getState().setAdvancedConfigError(
-        error instanceof Error ? error.message : "保存图谱高级配置失败",
+      useGraphStore.getState().failGraphConfigRequest(
+        requestId,
+        formatGraphFailureMessage(error, "保存图谱高级配置失败"),
       );
     }
   }, [refreshStatus]);
@@ -176,14 +211,18 @@ export function useGraphCommander() {
       return;
     }
 
-    useGraphStore.getState().setIngestLoading();
+    const requestId = nextGraphChildRequestId("graph-ingest-business");
+    useGraphStore.getState().startGraphIngestRequest(requestId);
     try {
       const result = await ingestGraphBusiness(nextDraft, graphDiagnostics("POST"));
-      useGraphStore.getState().setIngestResult(result);
-      await refreshStatus();
+      const applied = useGraphStore.getState().completeGraphIngestRequest(requestId, result);
+      if (applied) {
+        await refreshStatus();
+      }
     } catch (error) {
-      useGraphStore.getState().setIngestError(
-        error instanceof Error ? error.message : "业务记录写入图谱失败",
+      useGraphStore.getState().failGraphIngestRequest(
+        requestId,
+        formatGraphFailureMessage(error, "业务记录写入图谱失败"),
       );
     }
   }, [refreshStatus]);
@@ -199,14 +238,18 @@ export function useGraphCommander() {
       return;
     }
 
-    useGraphStore.getState().setIngestLoading();
+    const requestId = nextGraphChildRequestId("graph-ingest-event");
+    useGraphStore.getState().startGraphIngestRequest(requestId);
     try {
       const result = await ingestGraphEvent(nextDraft, graphDiagnostics("POST"));
-      useGraphStore.getState().setIngestResult(result);
-      await refreshStatus();
+      const applied = useGraphStore.getState().completeGraphIngestRequest(requestId, result);
+      if (applied) {
+        await refreshStatus();
+      }
     } catch (error) {
-      useGraphStore.getState().setIngestError(
-        error instanceof Error ? error.message : "事件记录写入图谱失败",
+      useGraphStore.getState().failGraphIngestRequest(
+        requestId,
+        formatGraphFailureMessage(error, "事件记录写入图谱失败"),
       );
     }
   }, [refreshStatus]);
@@ -223,13 +266,15 @@ export function useGraphCommander() {
       return;
     }
 
-    useGraphStore.getState().setQALoading();
+    const requestId = nextGraphChildRequestId("graph-qa");
+    useGraphStore.getState().startGraphQARequest(requestId);
     try {
       const result = await askGraphQA({ ...nextDraft, query }, graphDiagnostics("POST"));
-      useGraphStore.getState().setQAResult(result);
+      useGraphStore.getState().completeGraphQARequest(requestId, result);
     } catch (error) {
-      useGraphStore.getState().setQAError(
-        error instanceof Error ? error.message : "图谱 QA 失败",
+      useGraphStore.getState().failGraphQARequest(
+        requestId,
+        formatGraphFailureMessage(error, "图谱 QA 失败"),
       );
     }
   }, []);
@@ -380,6 +425,7 @@ export function useGraphCommander() {
     visualize: store.visualize,
     timeline: store.timeline,
     actionStatus: store.actionStatus,
+    activeLoadRequestId: store.activeLoadRequestId,
     advancedConfigStatus: store.advancedConfigStatus,
     ingestStatus: store.ingestStatus,
     qaStatus: store.qaStatus,
