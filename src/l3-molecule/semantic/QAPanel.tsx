@@ -1,4 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
+import { Button } from '@l4/ui/Button';
+import { DisabledReason } from '@l4/ui/DisabledReason';
 import { QAMessage } from './QAMessage';
 import { QAInput, type QAComposerDraft, type QAEntityOverride, type QARecentChatOption } from './QAInput';
 import { SemanticQAEvidenceDrawer } from './SemanticQAEvidenceDrawer';
@@ -29,6 +32,7 @@ interface QAPanelProps {
   onStopQAStream: () => void;
   onRetryQAMessage: (messageId: string) => void;
   onCopyQAMessageAnswer: (messageId: string) => Promise<boolean>;
+  onClearQAMessages: () => void;
   onSelectEvidenceSource?: (chat: string, label: string, localId?: number) => void;
 }
 
@@ -44,19 +48,44 @@ export function QAPanel({
   onStopQAStream,
   onRetryQAMessage,
   onCopyQAMessageAnswer,
+  onClearQAMessages,
   onSelectEvidenceSource,
 }: QAPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [evidenceMessageId, setEvidenceMessageId] = useState<string | null>(null);
   const [entityOverride, setEntityOverride] = useState<QAEntityOverride | null>(null);
   const evidenceMessage = qaMessages.find((message) => message.id === evidenceMessageId);
+  const hasMessages = qaMessages.length > 0;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [qaMessages]);
 
+  const clearButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="qa-panel__clear"
+      aria-label="清空问答记录"
+      disabled={qaStreaming}
+      onClick={onClearQAMessages}
+    >
+      <Trash2 size={14} />
+      清空问答
+    </Button>
+  );
+
   return (
     <div className="qa-panel">
+      {hasMessages && (
+        <div className="qa-panel__toolbar">
+          {qaStreaming ? (
+            <DisabledReason reason="正在生成回答，停止后可清空" variant="compact">
+              {clearButton}
+            </DisabledReason>
+          ) : clearButton}
+        </div>
+      )}
       <div className="qa-panel__messages">
         {qaMessages.map((msg) => (
           <QAMessage

@@ -81,7 +81,11 @@ export function streamQA(
       try {
         let reading = true;
         while (reading) {
-          const { done, value } = await reader.read();
+          const { done, value } = await readNextChunkWithIdleWatchdog(
+            reader,
+            combinedSignal,
+            () => abortWithReason("timeout"),
+          );
           if (done) {
             for (const event of parser.flush()) onChunk(event);
             reading = false;
@@ -126,6 +130,44 @@ function combineSignals(...signals: AbortSignal[]): AbortSignal {
     signal.addEventListener('abort', () => controller.abort(signal.reason));
   }
   return controller.signal;
+}
+
+function readNextChunkWithIdleWatchdog(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  signal: AbortSignal,
+  onTimeout: () => void,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  if (signal.aborted) {
+    return Promise.reject(new DOMException("aborted", "AbortError"));
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      signal.removeEventListener("abort", abortListener);
+      callback();
+    };
+    const rejectAsAbort = () => {
+      void reader.cancel().catch(() => undefined);
+      finish(() => reject(new DOMException("aborted", "AbortError")));
+    };
+    const timeoutId = setTimeout(() => {
+      onTimeout();
+      rejectAsAbort();
+    }, SSE_TIMEOUT_MS);
+    const abortListener = () => {
+      rejectAsAbort();
+    };
+
+    signal.addEventListener("abort", abortListener, { once: true });
+    reader.read().then(
+      (result) => finish(() => resolve(result)),
+      (error) => finish(() => reject(error)),
+    );
+  });
 }
 
 function nowMs(): number {

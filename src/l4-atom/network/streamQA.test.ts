@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SSE_TIMEOUT_MS } from "@/utils/constants";
 import type { DiagnosticEvent } from "./diagnosticEvents";
 import { streamQA } from "./streamQA";
 import type { SemanticStreamEvent } from "./semanticStreamParser";
@@ -112,6 +113,97 @@ describe("streamQA", () => {
     streamQA({ query: "Timeout" }, vi.fn(), onError);
 
     await vi.advanceTimersByTimeAsync(60_000);
+    await Promise.resolve();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toMatchObject({
+      message: "ESEMANTIC_TIMEOUT",
+    });
+  });
+
+  it("keeps the SSE idle watchdog active after headers while waiting for body chunks", async () => {
+    vi.useFakeTimers();
+    const onError = vi.fn();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          new ReadableStream({
+            start() {
+              // Keep the body open without emitting a chunk.
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    streamQA({ query: "Headers returned then stalled" }, vi.fn(), onError);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(SSE_TIMEOUT_MS);
+    await Promise.resolve();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toMatchObject({
+      message: "ESEMANTIC_TIMEOUT",
+    });
+  });
+
+  it("resets the SSE idle watchdog whenever body chunks arrive", async () => {
+    vi.useFakeTimers();
+    const events: SemanticStreamEvent[] = [];
+    const onError = vi.fn();
+    let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+    const encoder = new TextEncoder();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              streamController = controller;
+              controller.enqueue(encoder.encode('event: delta\ndata: {"text":"one"}\n\n'));
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    streamQA(
+      { query: "Chunk reset" },
+      (event) => events.push(event),
+      onError,
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(events).toEqual([{ type: "delta", text: "one" }]);
+
+    await vi.advanceTimersByTimeAsync(SSE_TIMEOUT_MS / 2);
+    (streamController as unknown as ReadableStreamDefaultController<Uint8Array>).enqueue(
+      encoder.encode('event: delta\ndata: {"text":"two"}\n\n'),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(events).toEqual([
+      { type: "delta", text: "one" },
+      { type: "delta", text: "two" },
+    ]);
+    expect(onError).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(SSE_TIMEOUT_MS - 1);
+    await Promise.resolve();
+    expect(onError).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
     await Promise.resolve();
 
     expect(onError).toHaveBeenCalledTimes(1);

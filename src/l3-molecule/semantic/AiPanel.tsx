@@ -173,6 +173,7 @@ export function AiPanel({
                       onStopQAStream={ai.stopQAStream}
                       onRetryQAMessage={ai.retryQAMessage}
                       onCopyQAMessageAnswer={ai.copyQAMessageAnswer}
+                      onClearQAMessages={ai.clearQAMessages}
                       onSelectEvidenceSource={onSelectEvidenceSource}
                     />
                   )}

@@ -83,6 +83,9 @@ export function useAiCommander() {
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeQARef = useRef<{ streamId: string; aiMsgId: string } | null>(null);
   const indexPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const semanticSearchRequestCounterRef = useRef(0);
+  const semanticAnalysisRequestCounterRef = useRef(0);
+  const semanticPreviewRequestCounterRef = useRef(0);
   const currentConv = conversations.find(c => c.id === selectedConversationId);
   const currentChat = currentConv?.username;
 
@@ -423,7 +426,8 @@ export function useAiCommander() {
       aiStore.setSearchError(null);
       return;
     }
-    aiStore.setSearchLoading(true);
+    const requestId = nextSemanticRequestId("semantic-search", semanticSearchRequestCounterRef);
+    aiStore.startSemanticSearchRequest(requestId);
     aiStore.setSearchError(null);
     try {
       const params: SemanticSearchRequest = buildSemanticSearchRequest({
@@ -439,9 +443,9 @@ export function useAiCommander() {
       const results = await withOverloadRetry(() =>
         fetchSemanticSearch(params, semanticDiagnostics()),
       );
-      useAiStore.getState().setSearchResults(results);
+      useAiStore.getState().completeSemanticSearchRequest(requestId, results);
     } catch (error) {
-      useAiStore.getState().setSearchError(translateError(String(error)));
+      useAiStore.getState().failSemanticSearchRequest(requestId, translateError(String(error)));
     }
   }, []);
 
@@ -462,25 +466,25 @@ export function useAiCommander() {
     });
     if (!request) return;
 
-    store.setTopicsLoading(true);
-    store.setProfileLoading(true);
+    const requestId = nextSemanticRequestId("semantic-analysis", semanticAnalysisRequestCounterRef);
+    useAiStore.getState().startSemanticAnalysisRequest(requestId);
 
     try {
       const topics = await withOverloadRetry(() =>
         fetchSemanticTopics(request, semanticDiagnostics()),
       );
-      store.setTopics(topics);
+      useAiStore.getState().completeSemanticTopicsRequest(requestId, topics);
     } catch (error) {
-      store.setTopicsError(translateError(String(error)));
+      useAiStore.getState().failSemanticTopicsRequest(requestId, translateError(String(error)));
     }
 
     try {
       const profile = await withOverloadRetry(() =>
         fetchSemanticProfiles(request, semanticDiagnostics()),
       );
-      store.setProfile(profile);
+      useAiStore.getState().completeSemanticProfileRequest(requestId, profile);
     } catch (error) {
-      store.setProfileError(translateError(String(error)));
+      useAiStore.getState().failSemanticProfileRequest(requestId, translateError(String(error)));
     }
   }, [currentChat, store]);
 
@@ -494,7 +498,8 @@ export function useAiCommander() {
     const limit = overrides.limit ?? aiStore.previewLimit;
     const offset = overrides.offset ?? aiStore.previewOffset;
 
-    aiStore.setPreviewLoading();
+    const requestId = nextSemanticRequestId("semantic-preview", semanticPreviewRequestCounterRef);
+    aiStore.startSemanticPreviewRequest(requestId);
     try {
       const preview = await fetchSemanticIndexPreview(
         buildSemanticPreviewRequest({
@@ -505,10 +510,11 @@ export function useAiCommander() {
         }),
         semanticDiagnostics(),
       );
-      useAiStore.getState().setPreview(preview);
+      useAiStore.getState().completeSemanticPreviewRequest(requestId, preview);
     } catch (error) {
-      useAiStore.getState().setPreviewError(
-        error instanceof Error ? error.message : "加载语义索引预览失败",
+      useAiStore.getState().failSemanticPreviewRequest(
+        requestId,
+        translateError(error instanceof Error ? error.message : "加载语义索引预览失败"),
       );
     }
   }, []);
@@ -732,6 +738,11 @@ function clearIndexPolling(ref: MutableRefObject<ReturnType<typeof setInterval> 
 
 function createQAStreamId(): string {
   return `qa-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function nextSemanticRequestId(prefix: string, ref: MutableRefObject<number>): string {
+  ref.current += 1;
+  return `${prefix}-${ref.current}`;
 }
 
 function sourceCountFromDonePayload(payload: { evidence: Array<Record<string, unknown>>; metadata: Record<string, unknown> }): number {
