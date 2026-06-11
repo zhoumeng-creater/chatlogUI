@@ -46,7 +46,7 @@
 | P0-01 | P0 | 隐私、设置、诊断 | 设置、导入、手动配置、DevConsole 成功文案仍可能暴露完整本地路径或 `wxid` 形态。 | 建立统一隐私展示策略，默认脱敏路径、身份标识、密钥和诊断输出。 | 阶段 1、2、7、9 |
 | P0-02 | P0 | 连接 chatlog 服务 | 外部服务模式没有 URL 输入，用户无法真正配置已有服务。 | SetupCenter 增加外部服务路径，包含 URL 输入、测试、保存、HTTP/DB readiness。 | 阶段 1、2 |
 | P0-03 | P0 | 服务连接、主 API | Setup 的外部服务 readiness 不能可靠驱动 Workbench 主 API，多个 fetcher 仍围绕固定本地端口。 | 收敛为单一 base URL/readiness 来源，所有 L4 网络请求遵守同一配置。 | 阶段 1、2 |
-| P0-04 | P0 | 桌面壳、发布 | 源码已有窗口控制，但真实 native click、拖拽、关闭、安装包 smoke 缺少当前证据。 | 最后阶段补 Tauri dev 和 packaged app smoke，不能用历史证据冒充当前分支证据。 | 阶段 10 |
+| P0-04 | P0 | 桌面壳、发布 | 源码已有窗口控制，但真实 native click、拖拽、关闭、安装包 smoke 缺少当前证据。 | 最后阶段补 Tauri dev 和 packaged app smoke，不能用历史证据冒充当前分支证据；第十步做全局验收，第十一步专门关闭 Tauri/安装包 smoke release blockers。 | 阶段 10、11 |
 | P1-01 | P1 | Workbench IA | rail 和 toolbar 重复一级模块入口，层级语义不清。 | 定义一级页面、上下文 inspector、临时浮层三层容器；移除重复主导航。 | 阶段 3 |
 | P1-02 | P1 | Workbench 搜索/工具栏 | toolbar 被塞入标题、模块按钮、搜索、过滤器、搜索结果，成为可滚动混合页面。 | toolbar 回到轻量控制区；搜索结果迁移到稳定区域或独立搜索页面。 | 阶段 3、4 |
 | P1-03 | P1 | Developer/Diagnostics | 普通用户默认看到开发者控制台、开发模块和调试能力。 | 开发者工具默认隐藏，只在开发者模式、dev/beta、错误恢复、高级诊断中出现。 | 阶段 1、9 |
@@ -581,14 +581,20 @@
 
 覆盖问题：P0-04，以及所有涉及发布 readiness 的标准。
 
-分步骤计划：`docs/next-repair-baseline-step-10-global-acceptance-repair-plan.md`。该计划把全局可访问性、响应式、隐私 audit、Tauri dev smoke、packaged smoke、sidecar/updater release gate 和最终 go/no-go 合并到同一个验收阶段，避免把“全局验收”和“发布证据”拆成互相替代的两份证据。
+分步骤计划：
+
+- `docs/next-repair-baseline-step-10-global-acceptance-repair-plan.md`：全局 source/UI/browser/native build 验收，重新分类问题台账，产出 go/no-go 和 release blocker。
+- `docs/next-repair-baseline-step-11-tauri-installer-smoke-repair-plan.md`：承接第十步剩余 release blocker，专门执行或规划 Tauri dev、Windows x64 installer、packaged unknown-port、packaged diagnostics、updater metadata/policy 和 owner signoff 的 smoke 证据闭环。
+
+第十步和第十一步不能互相替代：第十步的 `pnpm verify`、E2E、Rust tests、`pnpm tauri build` 与 Tauri dev smoke 不能冒充安装包安装/卸载/诊断导出证据；第十一步的安装包 smoke 也不应无故重开已通过的全局页面架构。
 
 修复方向：
 
 - 在当前分支和最终实现上补 Tauri dev smoke。
-- 补 packaged app smoke：安装、启动、关闭、重启、窗口拖拽、窗口控制、sidecar 启停、端口占用、服务未就绪、DB 未就绪。
+- 补 packaged app smoke：安装、启动、关闭、重启、卸载或清理策略、窗口拖拽、窗口控制、sidecar 启停、端口占用、服务未就绪、DB 未就绪、诊断导出脱敏。
 - 若涉及外部服务 URL，补桌面 CSP/capabilities 证据。
 - 若涉及自动更新、签名、sidecar provenance、bundle 配置，使用 release-gate 流程重新验收。
+- 第十一步执行中每个 smoke/evidence/fix 单元都必须短中文提交并及时推送，不允许最后一股脑提交、推送或合并。
 
 依赖：
 
@@ -637,7 +643,8 @@
 | H | AI、Graph、Media、SNS 任务闭环和可靠性。 | 可按模块拆提交；高风险模块按需 PR。 |
 | I | Settings 配置收敛和返回上下文。 | 依赖 AI/Setup 归属决策；按需 PR。 |
 | J | 全局可访问性、视觉、响应式、隐私和诊断 audit。 | 可按页面拆提交，最终需要统一验收记录。 |
-| K | Tauri dev、packaged smoke、release evidence。 | 发布候选或 release gate 通常需要远端审查；按发布要求决定 PR。 |
+| K | 全局验收、Tauri dev、packaged smoke、release evidence。 | 发布候选或 release gate 通常需要远端审查；第十步先给出全局 go/no-go，第十一步再关闭安装包 smoke blockers。 |
+| L | Tauri / 安装包 smoke 证据闭环。 | 按 `docs/next-repair-baseline-step-11-tauri-installer-smoke-repair-plan.md` 执行；每个 smoke/evidence/fix 单元中文提交并及时推送。 |
 
 ## 18. 分阶段验证命令与证据
 
@@ -669,6 +676,7 @@
 8. AI、Graph、Media、SNS 的任务闭环和可靠性。
 9. Settings 配置归属和返回上下文。
 10. 全局验收、可访问性、响应式、隐私 audit、Tauri/package smoke 和 release evidence。
+11. Tauri / 安装包 smoke：Windows x64 installer install/open/quit/reopen/uninstall 或清理策略、packaged unknown-port、packaged diagnostics、updater metadata/policy、privacy audit、owner signoff。
 
 ## 20. 当前无阻塞疑问
 
