@@ -479,6 +479,7 @@ function MemberList({
 }) {
   if (members.length === 0) return <EmptyTab label="成员" />;
   const normalizedQuery = privacyOn ? "" : query.trim().toLowerCase();
+  const memberSearchDisabledReasonId = privacyOn ? "media-member-search-privacy-disabled-reason" : undefined;
   const filteredMembers = normalizedQuery
     ? members.filter((member) =>
         [member.displayName, member.username]
@@ -493,10 +494,18 @@ function MemberList({
           controlSize="sm"
           value={privacyOn ? "" : query}
           disabled={privacyOn}
+          aria-describedby={memberSearchDisabledReasonId}
           onChange={(event) => onQueryChange(event.currentTarget.value)}
           placeholder={privacyOn ? "隐私模式已隐藏成员搜索" : "搜索已加载成员"}
           aria-label="搜索已加载成员"
         />
+        {privacyOn && (
+          <DisabledReason
+            id={memberSearchDisabledReasonId}
+            reason="隐私模式下不筛选成员，避免暴露成员身份。"
+            variant="compact"
+          />
+        )}
         <Typography variant="caption" color="var(--text-secondary)">
           成员搜索仅筛选已加载成员。
         </Typography>
