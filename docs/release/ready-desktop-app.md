@@ -1,13 +1,13 @@
 # Ready Desktop App Release Runbook
 
-Canonical evidence lives in `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md`.
+Canonical evidence lives in `docs/release/release-evidence.md`.
 
 Related P5-C/D governance:
 
 - `docs/release/sidecar-artifacts.md`
 - `docs/release/release-governance.md`
 - `docs/release/privacy-audit.md`
-- `specs/002-advanced-capabilities/acceptance-checklist.md`
+- `docs/release/advanced-capabilities-acceptance.md`
 
 ## Required Commands
 
@@ -22,8 +22,7 @@ pnpm release:check:updater
 
 ## 2026-06-12 Step 11 Current Status
 
-Current Step 11 evidence is recorded in
-`docs/next-repair-baseline-step-11-tauri-installer-smoke-evidence.md`.
+Current Step 11 evidence is recorded in `docs/release/release-evidence.md`.
 
 - Source/Rust/package gates passed: `pnpm verify` passed with 169 Vitest files /
   710 tests plus production build; `cargo test` passed 22 Rust tests; `pnpm
@@ -48,7 +47,7 @@ Current Step 11 evidence is recorded in
 
 ## 2026-06-11 Step 10 Current Status
 
-Current canonical evidence is recorded in `docs/next-repair-baseline-step-10-global-acceptance-evidence.md`. Historical entries below remain audit context and must not be treated as current proof unless repeated in the Step 10 evidence file.
+Current canonical evidence is recorded in `docs/release/release-evidence.md`. Historical entries below remain audit context and must not be treated as current proof unless repeated in the release evidence file.
 
 - Source/UI gates passed: `pnpm fixtures:check` (71 route entries), governance Vitest (7 files / 57 tests), `pnpm e2e` (29 tests), `pnpm e2e:visual` (4 tests), `pnpm e2e:a11y` (10 tests), and `pnpm verify` (168 files / 702 tests plus production build).
 - Native gates passed: `cargo test` passed with 22 Rust tests; Tauri dev smoke passed using a temporary `127.0.0.1:5174` dev server because an existing Vite process occupied the default `5173`.
@@ -86,7 +85,7 @@ Current canonical evidence is recorded in `docs/next-repair-baseline-step-10-glo
 
 | Area | Status | Last evidence | Caveat |
 | --- | --- | --- | --- |
-| Ready desktop baseline | `packaged-smoke-verified` | `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md` on 2026-06-01 | Historical Windows x64 synthetic data only; not current Step 11 evidence |
+| Ready desktop baseline | `packaged-smoke-verified` | `docs/release/release-evidence.md` on 2026-06-01 | Historical Windows x64 synthetic data only; not current Step 11 evidence |
 | P4 diagnostics/privacy | `source-ui-verified` | P4-A evidence on 2026-06-02 | Not packaged smoke |
 | P4 media/chat extensions | `source-ui-verified` | P4-B implementation notes | Not packaged smoke |
 | P4 SNS | `source-ui-verified` | P4-C evidence on 2026-06-02 | Not packaged smoke |
@@ -105,7 +104,7 @@ Current canonical evidence is recorded in `docs/next-repair-baseline-step-10-glo
 
 ## P2-E Manual Gate
 
-The historical Windows x64 manual gate was executed locally against the 2026-06-01 NSIS artifact. Evidence is recorded in `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md`. It must not be treated as current Step 11 installer evidence.
+The historical Windows x64 manual gate was executed locally against the 2026-06-01 NSIS artifact. Evidence is recorded in `docs/release/release-evidence.md`. It must not be treated as current Step 11 installer evidence.
 
 Completed smoke coverage:
 

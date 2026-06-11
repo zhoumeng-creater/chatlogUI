@@ -4,10 +4,8 @@ This file is the redaction-safe evidence template for release readiness. Do not 
 
 ## 2026-06-12 Step 11 Tauri / Installer Smoke Evidence
 
-Canonical current Step 11 evidence is recorded in
-`docs/next-repair-baseline-step-11-tauri-installer-smoke-evidence.md`. This
-section supersedes Step 10 artifact checksums for current release go/no-go
-decisions.
+This section records the current Step 11 evidence and supersedes Step 10
+artifact checksums for current release go/no-go decisions.
 
 ### Build Under Test
 
@@ -46,7 +44,8 @@ decisions.
 
 ## 2026-06-11 Step 10 Current Global Acceptance Evidence
 
-Canonical current evidence is recorded in `docs/next-repair-baseline-step-10-global-acceptance-evidence.md`. This section supersedes older rows for current release go/no-go decisions.
+This section records the current Step 10 global acceptance evidence and
+supersedes older rows for current release go/no-go decisions.
 
 ### Build Under Test
 
@@ -83,6 +82,19 @@ Canonical current evidence is recorded in `docs/next-repair-baseline-step-10-glo
 | `src-tauri/target/release/bundle/nsis/chatlog_alpha_0.1.0_x64-setup.exe` | `4404aaff0aabb1cf4976b4ddc2ed5d872a491ee6a0fcd020383f9f5b2c0d9f2a` |
 | `src-tauri/target/release/chatlogUI.exe` | `7b8f9fe293404c2ae78ad6edb90529e4d8404034bf9c579dcbde0ce5790ca17f` |
 | `src-tauri/binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe` | `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af` |
+
+## Page Score And Visual Evidence
+
+These page scores are the acceptance checklist for the current remediation run. Scores use the project 10-item page score rubric from `docs/product-acceptance-standards.md`; the fresh E2E, a11y, visual, and manual snapshot checks passed for the listed synthetic/privacy-safe states.
+
+| Page | Score | Evidence and caveat |
+| --- | ---: | --- |
+| Setup `/`: 18/20 | 18 | Main task, three setup paths, readiness summary, diagnostics disclosure, desktop/narrow layout, and first-run recovery are clear. Minor caveat: desktop first viewport remains dense near the lower CTA edge. |
+| Settings `/settings`: 18/20 | 18 | Source-aware Settings, folded diagnostics, AI semantic ownership, data/service ownership, and endpoint-free service summary are coherent. |
+| Media `/media`: 17/20 | 17 | Independent route, scope status, empty/partial/error states, disabled reasons, privacy masking, and retry paths are present. Further polish can improve dense member/resource hierarchy. |
+| SNS `/sns`: 17/20 | 17 | Independent route, timeline/search/notification states, safe external-open confirmation, privacy masking, and empty-search recovery are present. Further polish can improve lower-frequency affordance explanations. |
+| AI `/ai`: 18/20 | 18 | AI is a single primary workspace; semantic setup/index/QA/search/analysis/preview states, cancellation, privacy, evidence, and Settings handoff are covered. Internal stats/AI modebar was removed in this remediation. |
+| Graph `/graph`: 18/20 | 18 | Summary/table default, explicit visualization, advanced/QA/timeline states, nonblank canvas checks, privacy labels, and narrow behavior are covered. |
 
 ## Build Under Test
 
@@ -285,7 +297,7 @@ This section records implementation guardrails only. It does not claim a publish
 | `prepare-sidecar.sh` release hardening | Guardrail passed | The script invokes sidecar verifier before and after preparation, labels mode/target/destination/checksum, can stage pinned URL artifacts only in release mode after checksum verification, and keeps check-mode placeholders scoped to non-release. Step 10 release-mode Windows check passed and recorded SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`; all-target release remains blocked until non-Windows provenance exists. |
 | Updater manifest checker | Guardrail passed | `scripts/verify-updater-manifest.test.mjs` covers signed manifest acceptance, bundle-root `latest.json` discovery, manifest/artifact SHA-256 evidence, target-specific artifact requirements, missing generated `latest.json` messaging, missing platform rejection, empty signature rejection, `.sig` file-reference rejection, and artifact-name mismatch rejection. Targeted tests passed: 8 tests. |
 | CI/CD gate ordering | Guardrail passed | `scripts/release-workflows.test.mjs` verifies `build-check.yml` listens to `master`, release matrix entries carry updater platform keys, updater manifest verification uses `--bundle-root src-tauri/target --required-platforms "${{ matrix.platform }}"`, and `release.yml` pins `tauri-apps/tauri-action@action-v0.6.2`. |
-| Governance docs | Guardrail documented | `docs/release/sidecar-artifacts.md`, `docs/release/release-governance.md`, `docs/release/privacy-audit.md`, `specs/002-advanced-capabilities/acceptance-checklist.md`, and `CHANGELOG.md` now define release states, privacy audit, sidecar/updater gates, dashboard status, and versioning notes. |
+| Governance docs | Guardrail documented | `docs/release/sidecar-artifacts.md`, `docs/release/release-governance.md`, `docs/release/privacy-audit.md`, `docs/release/advanced-capabilities-acceptance.md`, and `CHANGELOG.md` now define release states, privacy audit, sidecar/updater gates, dashboard status, and versioning notes. |
 | UI governance | Guardrail passed | Deprecated `AppleButton` and `GlassPanel` primitives were removed from the L4 UI barrel and source tree. Core L4 UI class composition now uses `classNames()`, and `scripts/ui-governance.test.mjs` prevents these legacy primitives and hand-built class joins from returning. |
 | Source/UI gates rerun | Passed | `pnpm fixtures:check` passed for 48 route entries; `pnpm e2e` passed 10 tests; `pnpm e2e:visual` passed 2 tests; `pnpm e2e:a11y` passed 4 tests. |
 | Full local verification | Passed | `pnpm verify` passed with 88 test files / 368 tests after switching Vitest to `--pool=threads` to avoid Windows fork-pool `spawn UNKNOWN`; production build succeeded. `cargo test` passed 20 Rust tests; `pnpm tauri build` produced MSI and NSIS bundles. |

@@ -381,9 +381,9 @@ describe("UI governance", () => {
     expect(layoutCss).not.toContain(".semantic-panel__modebar");
   });
 
-  it("keeps Step 10 visual evidence broad enough for global acceptance claims", async () => {
+  it("keeps release visual evidence broad enough for global acceptance claims", async () => {
     const visualSpec = await readFile("e2e/specs/visual.spec.ts", "utf8");
-    const evidence = await readFile("docs/next-repair-baseline-step-10-global-acceptance-evidence.md", "utf8");
+    const evidence = await readFile("docs/release/release-evidence.md", "utf8");
     const requiredSnapshots = [
       "setup-center-desktop.png",
       "settings-about-diagnostics-desktop.png",
