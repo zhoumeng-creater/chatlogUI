@@ -36,7 +36,7 @@ export function AnalyticsView() {
         <div>
           <Typography variant="h3">统计</Typography>
           <Typography variant="body" color="var(--text-secondary)">
-            查看当前会话的消息量、趋势和活跃对象；全局统计将在后续模块闭环中扩展。
+            查看当前会话的消息量、趋势和活跃对象；全局统计暂未接入本地接口。
           </Typography>
         </div>
         <Button variant="secondary" onClick={() => navigate(withSmokeQuery("/workbench"))}>
