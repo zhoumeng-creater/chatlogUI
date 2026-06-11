@@ -98,11 +98,41 @@ describe("Step 11 Tauri smoke evidence helper", () => {
     expect(findings[0]).toEqual(expect.objectContaining({ line: 1 }));
   });
 
+  it("flags JSON-shaped diagnostics secrets and private content", () => {
+    const findings = scanForbiddenSmokeText(
+      JSON.stringify({
+        dataKey: "raw-secret",
+        apiKey: "sk-raw",
+        authorization: "Bearer raw-token",
+        content: "synthetic-private-message",
+      }),
+    );
+
+    expect(findings.map((finding) => finding.label)).toEqual([
+      "raw data key",
+      "raw api key",
+      "raw token",
+      "private content marker",
+    ]);
+  });
+
+  it("flags absolute local paths outside user-profile folders", () => {
+    const findings = scanForbiddenSmokeText("artifact path: E:\\OneDrive - Default Directory\\chatlogUI\\secret.log");
+
+    expect(findings).toEqual([
+      expect.objectContaining({
+        label: "absolute Windows path",
+        line: 1,
+      }),
+    ]);
+  });
+
   it("accepts redacted packaged diagnostics summaries", () => {
     const findings = scanForbiddenSmokeText(
       [
         "Redaction status: passed",
         "Data key: [redacted]",
+        "{\"dataKey\":\"[redacted]\",\"content\":\"[redacted]\",\"authorization\":\"[redacted]\"}",
         "Artifact: chatlog_alpha_diagnostics.log",
         "Path summary: diagnostics directory",
       ].join("\n"),

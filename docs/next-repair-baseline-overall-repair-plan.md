@@ -30,7 +30,7 @@
 | `specs/001-ready-desktop-app/spec.md` | Ready-to-use desktop app 的产品化目标和用户故事参考。 |
 | `specs/001-ready-desktop-app/plan.md` | 桌面应用产品化架构和执行参考。 |
 | `specs/001-ready-desktop-app/tasks.md` | 既有产品化任务拆解参考。 |
-| `specs/001-ready-desktop-app/release-evidence.md` | 历史发布证据参考，不能替代当前分支的最新 smoke。 |
+| `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md` | 历史发布证据参考，不能替代当前分支的最新 smoke。 |
 
 边界说明：
 

@@ -48,7 +48,7 @@ When `chatlog_alpha` changes:
 1. Decide whether CI builds it from source or consumes a pinned artifact.
 2. Update `scripts/release/sidecar-artifacts.json` with version, target, source path or artifact path/URL, checksum, and `releaseAllowed`.
 3. Run `pnpm release:check:sidecar:release`.
-4. Record the accepted checksums in `specs/001-ready-desktop-app/release-evidence.md`.
+4. Record the accepted checksums in `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md`.
 5. Keep updater, installer, and sidecar checksums in the same release evidence bundle.
 
 URL-based release artifacts must be pinned with SHA-256 before `releaseAllowed` is set. The verifier refuses non-HTTPS URLs, basename mismatches, empty downloads, and checksum mismatches. Check-only targets are not downloaded.

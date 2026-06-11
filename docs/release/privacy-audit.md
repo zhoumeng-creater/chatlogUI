@@ -6,7 +6,7 @@ Use this checklist for each P4/P5 release candidate before publishing release ar
 
 - Date: 2026-06-12
 - App version: `0.1.0`
-- App commit: `8b2970afc366c551e95166612a7ca95f61f8f697`
+- Runtime baseline commit: `8343ac28f3577dca38a5fbdd3f00aa06a26323c9`; follow-up changes are release docs/tooling only and do not alter `src/` or `src-tauri/` runtime code.
 - Sidecar version/source: `github.com/zhoumeng-creater/chatlog_alpha@5b979cc666418c41467b1f9959cfdc6b3abbb86b`; Windows artifact SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`
 - Release candidate tag: not created
 - Operator: Codex
@@ -23,10 +23,10 @@ Use this checklist for each P4/P5 release candidate before publishing release ar
 - [x] Tauri CSP and capabilities stayed minimal; no Step 10 CSP/capability change was made.
 - [x] No telemetry or automatic diagnostic upload was added.
 - [x] Release notes and evidence added in Step 10/Step 11 do not contain private local paths, endpoint payloads, screenshots with real data, or real message snippets.
-- [x] Step 11 added `pnpm release:scan:diagnostics -- <file>` so packaged diagnostics artifacts can be scanned without echoing sensitive matched text.
+- [x] Step 11 added and hardened `pnpm release:scan:diagnostics -- <file>` so packaged diagnostics artifacts can be scanned without echoing sensitive matched text. The scanner covers key/value lines, JSON-shaped fields, `Authorization: Bearer ...`, private-content markers, WeChat IDs, and absolute Windows paths.
 - [ ] Packaged diagnostics artifact was reviewed after the current build. Source/browser/Rust privacy evidence passed and the scanner exists, but current packaged diagnostics export was not rerun.
 
 ## Result
 
 - Status: `release-blocked`
-- Notes: Step 11 completed current source/Rust/package gates, Windows sidecar checksum verification, installer artifact inventory, and diagnostics scan tooling. Release publish remains blocked until signed updater metadata, installer-level smoke, packaged conflict smoke, packaged diagnostics export review, and owner signoff are completed for a concrete release candidate.
+- Notes: Step 11 completed current source/Rust/package gates, Windows sidecar checksum verification, installer artifact inventory, and hardened diagnostics scan tooling. Release publish remains blocked until signed updater metadata, installer-level smoke, packaged conflict smoke, packaged diagnostics export review, final artifact freeze, and owner signoff are completed for a concrete release candidate.

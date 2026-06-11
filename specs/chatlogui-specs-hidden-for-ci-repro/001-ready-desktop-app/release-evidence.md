@@ -13,7 +13,8 @@ decisions.
 
 - Date: 2026-06-12 Asia/Shanghai
 - Branch: `codex/next-repair-baseline`
-- Commit: `8b2970afc366c551e95166612a7ca95f61f8f697`
+- Runtime baseline commit: `8343ac28f3577dca38a5fbdd3f00aa06a26323c9`; follow-up changes are release docs/tooling only and do not alter `src/` or `src-tauri/` runtime code.
+- Final release freeze: required before manual installer smoke; record `git rev-parse HEAD` and fresh artifact hashes after the last build.
 - App version: `0.1.0`
 - Tauri product/version: `chatlog_alpha` / `0.1.0`
 - Sidecar source/version:
@@ -23,8 +24,8 @@ decisions.
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| Step 11 evidence tooling | Passed | `scripts/collect-tauri-smoke-evidence.test.mjs` passed 1 file / 6 tests after red/green TDD. |
-| Full frontend verification | Passed | `pnpm verify` passed lint, typecheck, 169 Vitest files / 707 tests, and production build. |
+| Step 11 evidence tooling | Passed | `scripts/collect-tauri-smoke-evidence.test.mjs` passed 1 file / 8 tests after red/green TDD, including JSON-shaped diagnostics leakage and absolute Windows path scanning. |
+| Full frontend verification | Passed | `pnpm verify` passed lint, typecheck, 169 Vitest files / 710 tests, and production build. |
 | Rust/native tests | Passed | `cargo test` passed 22 tests in `src-tauri`. |
 | Tauri bundle build | Passed | `pnpm tauri build` rebuilt Windows x64 MSI and NSIS bundles. |
 | Installer artifact inventory | Passed | `pnpm release:collect:tauri-smoke -- --json` recorded safe relative artifact paths, sizes, and SHA-256 hashes. |
@@ -39,8 +40,8 @@ decisions.
 
 | Artifact | SHA-256 |
 | --- | --- |
-| `src-tauri/target/release/bundle/msi/chatlog_alpha_0.1.0_x64_zh-CN.msi` | `a101579a012164a85f929274571d7399a0094f690eb41a37c825ff6576716177` |
-| `src-tauri/target/release/bundle/nsis/chatlog_alpha_0.1.0_x64-setup.exe` | `09518986ae77a0ee9742f38bfdf477a3c5b481a63cc044e69d1bf4ce5684d8cd` |
+| `src-tauri/target/release/bundle/msi/chatlog_alpha_0.1.0_x64_zh-CN.msi` | `7b681a56c0fc0c148226a9eda81c43f8a5212a1fac94a3e3d7aaf34df26bdab9` |
+| `src-tauri/target/release/bundle/nsis/chatlog_alpha_0.1.0_x64-setup.exe` | `27561afc14541a0b09e4a01f96ae79d54c77bd83948c4ba150fd2ec9d863deff` |
 | `src-tauri/binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe` | `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af` |
 
 ## 2026-06-11 Step 10 Current Global Acceptance Evidence

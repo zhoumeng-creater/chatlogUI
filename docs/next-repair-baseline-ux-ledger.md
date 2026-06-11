@@ -175,7 +175,7 @@
 - `src/l3-molecule/common/AppLayout.tsx:47-54` 已接入窗口控制 cluster。
 - `src/l3-molecule/common/WindowControlCluster.tsx` 使用最小化、最大化/还原、关闭按钮。
 - `src/l4-atom/system/windowControls.ts` 调用 Tauri window API。
-- `specs/001-ready-desktop-app/release-evidence.md:238-239` 明确记录 native Tauri window-click smoke 和 packaged smoke 未运行。
+- `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md` 明确区分历史 packaged smoke、当前 source/UI 证据和仍未完成的 Step 11 packaged smoke。
 
 分析：源码层面已经不是“没有窗口控制”。但真实 Tauri 窗口点击、拖拽、关闭、sidecar 清理、安装后启动/退出/重开没有当前证据，发布体验不能标绿。
 

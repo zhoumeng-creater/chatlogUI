@@ -52,7 +52,7 @@ This checklist separates source/UI evidence from packaged release evidence for P
 
 ## Evidence And Signoff
 
-- [x] Source/UI evidence is recorded in `specs/001-ready-desktop-app/release-evidence.md`.
+- [x] Source/UI evidence is recorded in `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md`.
 - [x] P5-C/D governance docs exist under `docs/release/`.
 - [ ] Release evidence bundle names app commit, app version, sidecar source/checksum, installer checksums, updater artifact checksums, generated update JSON checksum, packaged smoke result, privacy audit result, and caveats.
 - [ ] Release owner signoff completed.

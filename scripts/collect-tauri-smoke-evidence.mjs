@@ -14,23 +14,27 @@ const ARTIFACT_KIND_ORDER = {
 const FORBIDDEN_SMOKE_TEXT_RULES = [
   {
     label: "raw data key",
-    pattern: /\bdata(?:[_\-\s]?key|key)\s*[:=]\s*(?!\[redacted\])\S+/i,
+    pattern: /["']?\bdata(?:[_\-\s]?key|key)["']?\s*[:=]\s*["']?(?!\[redacted\]|\*+)[^"',}\s]+/i,
   },
   {
     label: "raw api key",
-    pattern: /\bapi(?:[_\-\s]?key|key)\s*[:=]\s*(?!\[redacted\])\S+/i,
+    pattern: /["']?\bapi(?:[_\-\s]?key|key)["']?\s*[:=]\s*["']?(?!\[redacted\]|\*+)[^"',}\s]+/i,
   },
   {
     label: "raw token",
-    pattern: /\b(?:token|bearer)\s*[:=]\s*(?!\[redacted\])\S+/i,
+    pattern: /(?:["']?\b(?:token|authorization)["']?\s*[:=]\s*["']?(?!\[redacted\]|\*+)(?:bearer\s+)?[^"',}\s]+|\bbearer\s+(?!\[redacted\]|\*+)[^"',}\s]+)/i,
   },
   {
     label: "raw secret",
-    pattern: /\b(?:secret|credential|password)\s*[:=]\s*(?!\[redacted\])\S+/i,
+    pattern: /["']?\b(?:secret|credential|password)["']?\s*[:=]\s*["']?(?!\[redacted\]|\*+)[^"',}\s]+/i,
   },
   {
     label: "Windows user path",
     pattern: /[A-Za-z]:[\\/]+Users[\\/]+[^"'\r\n]+/i,
+  },
+  {
+    label: "absolute Windows path",
+    pattern: /[A-Za-z]:[\\/]+(?!Users[\\/])[^"'\r\n]+/i,
   },
   {
     label: "WeChat profile id",
@@ -39,6 +43,10 @@ const FORBIDDEN_SMOKE_TEXT_RULES = [
   {
     label: "private message marker",
     pattern: /\bprivate message\b/i,
+  },
+  {
+    label: "private content marker",
+    pattern: /(?:"(?:content|message|messageBody|chatContent|keyword|query|requestBody|responseBody|rawResponse)"\s*:\s*"(?!\[redacted\]|\*+)[^"]+"|synthetic-private-message)/i,
   },
   {
     label: "WeChat profile path",

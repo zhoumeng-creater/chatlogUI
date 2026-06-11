@@ -1,6 +1,6 @@
 # Ready Desktop App Release Runbook
 
-Canonical evidence lives in `specs/001-ready-desktop-app/release-evidence.md`.
+Canonical evidence lives in `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md`.
 
 Related P5-C/D governance:
 
@@ -26,16 +26,18 @@ Current Step 11 evidence is recorded in
 `docs/next-repair-baseline-step-11-tauri-installer-smoke-evidence.md`.
 
 - Source/Rust/package gates passed: `pnpm verify` passed with 169 Vitest files /
-  707 tests plus production build; `cargo test` passed 22 Rust tests; `pnpm
+  710 tests plus production build; `cargo test` passed 22 Rust tests; `pnpm
   tauri build` rebuilt the Windows x64 MSI and NSIS bundles.
 - Step 11 added `pnpm release:collect:tauri-smoke` for safe installer artifact
   inventory and `pnpm release:scan:diagnostics -- <file>` for packaged
-  diagnostics forbidden-marker scanning.
+  diagnostics forbidden-marker scanning. The scanner now covers key/value,
+  JSON-shaped fields, `Authorization: Bearer ...`, private-content markers, and
+  absolute Windows paths without echoing matched sensitive text.
 - Current Windows artifact inventory after the Step 11 build:
   - MSI `chatlog_alpha_0.1.0_x64_zh-CN.msi`, SHA-256
-    `a101579a012164a85f929274571d7399a0094f690eb41a37c825ff6576716177`.
+    `7b681a56c0fc0c148226a9eda81c43f8a5212a1fac94a3e3d7aaf34df26bdab9`.
   - NSIS `chatlog_alpha_0.1.0_x64-setup.exe`, SHA-256
-    `09518986ae77a0ee9742f38bfdf477a3c5b481a63cc044e69d1bf4ce5684d8cd`.
+    `27561afc14541a0b09e4a01f96ae79d54c77bd83948c4ba150fd2ec9d863deff`.
 - Windows sidecar release provenance passed again for
   `x86_64-pc-windows-msvc`, SHA-256
   `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`.
@@ -84,7 +86,7 @@ Current canonical evidence is recorded in `docs/next-repair-baseline-step-10-glo
 
 | Area | Status | Last evidence | Caveat |
 | --- | --- | --- | --- |
-| Ready desktop baseline | `packaged-smoke-verified` | `specs/001-ready-desktop-app/release-evidence.md` on 2026-06-01 | Windows x64 synthetic data only |
+| Ready desktop baseline | `packaged-smoke-verified` | `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md` on 2026-06-01 | Historical Windows x64 synthetic data only; not current Step 11 evidence |
 | P4 diagnostics/privacy | `source-ui-verified` | P4-A evidence on 2026-06-02 | Not packaged smoke |
 | P4 media/chat extensions | `source-ui-verified` | P4-B implementation notes | Not packaged smoke |
 | P4 SNS | `source-ui-verified` | P4-C evidence on 2026-06-02 | Not packaged smoke |
@@ -103,7 +105,7 @@ Current canonical evidence is recorded in `docs/next-repair-baseline-step-10-glo
 
 ## P2-E Manual Gate
 
-The Windows x64 manual gate has been executed locally against the latest NSIS artifact. Evidence is recorded in `specs/001-ready-desktop-app/release-evidence.md`.
+The historical Windows x64 manual gate was executed locally against the 2026-06-01 NSIS artifact. Evidence is recorded in `specs/chatlogui-specs-hidden-for-ci-repro/001-ready-desktop-app/release-evidence.md`. It must not be treated as current Step 11 installer evidence.
 
 Completed smoke coverage:
 
