@@ -1,6 +1,6 @@
 import { Bell, FileText, Image, MessageSquare, RefreshCw, Star, Users } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Button, DisabledReason, SegmentedControl, Spinner, Typography } from "@l4/ui";
+import { Button, DisabledReason, Input, SegmentedControl, Spinner, Typography } from "@l4/ui";
 import type {
   MediaAttachment,
   MediaEndpointState,
@@ -61,6 +61,7 @@ export function MediaLibrary({
   const [activeTab, setActiveTab] = useState<MediaTab>(() =>
     chooseInitialMediaTab({ attachments, favorites, members, unread, newMessages }),
   );
+  const [memberQuery, setMemberQuery] = useState("");
   const mediaCounts = useMemo(() => summarizeMediaCounts(attachments), [attachments]);
   const totalItems = attachments.length + favorites.length + members.length + unread.total + newMessages.length;
   const refreshDisabledReasonId = !currentChat ? "media-library-refresh-disabled-reason" : undefined;
@@ -181,12 +182,21 @@ export function MediaLibrary({
             )}
             {activeTab === "favorites" && (
               <EndpointTabState label="收藏" endpoint={endpointStatus.favorites} onRetry={onRetry}>
-                <FavoriteList favorites={favorites} privacyOn={privacyOn} />
+                <FavoriteList
+                  favorites={favorites}
+                  privacyOn={privacyOn}
+                  onPreviewAttachment={onPreviewAttachment}
+                />
               </EndpointTabState>
             )}
             {activeTab === "members" && (
               <EndpointTabState label="成员" endpoint={endpointStatus.members} onRetry={onRetry}>
-                <MemberList members={members} privacyOn={privacyOn} />
+                <MemberList
+                  members={members}
+                  privacyOn={privacyOn}
+                  query={memberQuery}
+                  onQueryChange={setMemberQuery}
+                />
               </EndpointTabState>
             )}
             {activeTab === "unread" && (
@@ -256,7 +266,10 @@ function MediaBoundaryNotes({
 }) {
   const notes: string[] = [];
   if (memberCount > MEMBER_PREVIEW_LIMIT) {
-    notes.push(`仅展示前 ${MEMBER_PREVIEW_LIMIT} 位成员；成员搜索和分页需等待后端提供游标能力。`);
+    notes.push(`仅展示前 ${MEMBER_PREVIEW_LIMIT} 位成员；超过已加载范围的分页需等待后端提供游标能力。`);
+  }
+  if (memberCount > 0) {
+    notes.push("成员搜索仅筛选已加载成员；不会向后端发起全量成员查询。");
   }
   if (unreadTotal > 0 || newMessageCount > 0) {
     notes.push("当前接口未返回可定位消息锚点，未读与增量消息暂按摘要展示。");
@@ -409,9 +422,11 @@ function AttachmentList({
 function FavoriteList({
   favorites,
   privacyOn,
+  onPreviewAttachment,
 }: {
   favorites: MediaFavoriteItem[];
   privacyOn: boolean;
+  onPreviewAttachment: (attachment: MediaAttachment) => void;
 }) {
   if (favorites.length === 0) return <EmptyTab label="收藏" />;
 
@@ -420,7 +435,30 @@ function FavoriteList({
       {favorites.map((favorite) => (
         <div key={favorite.id} className="media-library__row">
           <Star size={16} />
-          <span>{formatFavoritePreview(favorite, privacyOn)}</span>
+          <div className="media-library__row-stack">
+            <span>{formatFavoritePreview(favorite, privacyOn)}</span>
+            {favorite.attachments.length > 0 ? (
+              <div className="media-library__inline-actions" aria-label="收藏附件预览">
+                {favorite.attachments.map((attachment) => (
+                  <Button
+                    key={attachment.id}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onPreviewAttachment(attachment)}
+                  >
+                    <Image size={14} />
+                    预览附件
+                    <span className="media-library__inline-action-label">
+                      {formatAttachmentLabel(attachment, privacyOn)}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <span className="media-library__row-note">收藏没有可用媒体预览</span>
+            )}
+          </div>
           <span className="media-library__row-meta">{privacyOn ? "已隐藏时间" : favorite.time}</span>
         </div>
       ))}
@@ -431,22 +469,51 @@ function FavoriteList({
 function MemberList({
   members,
   privacyOn,
+  query,
+  onQueryChange,
 }: {
   members: MediaMember[];
   privacyOn: boolean;
+  query: string;
+  onQueryChange: (query: string) => void;
 }) {
   if (members.length === 0) return <EmptyTab label="成员" />;
-  const visibleMembers = members.slice(0, MEMBER_PREVIEW_LIMIT);
+  const normalizedQuery = privacyOn ? "" : query.trim().toLowerCase();
+  const filteredMembers = normalizedQuery
+    ? members.filter((member) =>
+        [member.displayName, member.username]
+          .some((value) => value.toLowerCase().includes(normalizedQuery)))
+    : members;
+  const visibleMembers = filteredMembers.slice(0, MEMBER_PREVIEW_LIMIT);
 
   return (
-    <div className="media-library__list media-library__list--members">
-      {visibleMembers.map((member) => (
-        <div key={member.username} className="media-library__row">
-          <Users size={16} />
-          <span>{formatMemberDisplayName(member, privacyOn)}</span>
+    <>
+      <div className="media-library__member-tools">
+        <Input
+          controlSize="sm"
+          value={privacyOn ? "" : query}
+          disabled={privacyOn}
+          onChange={(event) => onQueryChange(event.currentTarget.value)}
+          placeholder={privacyOn ? "隐私模式已隐藏成员搜索" : "搜索已加载成员"}
+          aria-label="搜索已加载成员"
+        />
+        <Typography variant="caption" color="var(--text-secondary)">
+          成员搜索仅筛选已加载成员。
+        </Typography>
+      </div>
+      {visibleMembers.length === 0 ? (
+        <EmptyTab label="匹配成员" />
+      ) : (
+        <div className="media-library__list media-library__list--members">
+          {visibleMembers.map((member) => (
+            <div key={member.username} className="media-library__row">
+              <Users size={16} />
+              <span>{formatMemberDisplayName(member, privacyOn)}</span>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }
 

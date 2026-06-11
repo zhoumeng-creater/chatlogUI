@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
 import {
   useMediaStore,
@@ -17,6 +17,13 @@ import {
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { getActiveChatlogServiceSummary } from "./chatlogRequestContext";
 
+let mediaLoadSequence = 0;
+
+function nextMediaLoadRequestId(): string {
+  mediaLoadSequence += 1;
+  return `media-load-${mediaLoadSequence}`;
+}
+
 export function useMediaCommander() {
   const store = useMediaStore();
   const messages = useChatStore((state) => state.messages);
@@ -27,6 +34,7 @@ export function useMediaCommander() {
     () => getActiveChatlogServiceSummary(setupProfile),
     [setupProfile],
   );
+  const activeLoadControllerRef = useRef<AbortController | null>(null);
   const currentConversation = conversations.find((item) => item.id === selectedConversationId);
 
   const attachments = useMemo(
@@ -35,7 +43,11 @@ export function useMediaCommander() {
   );
 
   const loadMediaModule = useCallback(async (chat?: string, isGroup = false) => {
-    useMediaStore.getState().setLoading();
+    activeLoadControllerRef.current?.abort();
+    const requestId = nextMediaLoadRequestId();
+    const controller = new AbortController();
+    activeLoadControllerRef.current = controller;
+    useMediaStore.getState().startMediaLoadRequest(requestId, { chat: chat ?? "", isGroup });
 
     try {
       const diagnostics = {
@@ -45,36 +57,48 @@ export function useMediaCommander() {
       const [favoritesResult, unreadResult, membersResult, newMessagesResult] = await Promise.allSettled([
         fetchFavorites(
           { chat, limit: 50 },
-          createDiagnosticHttpOptions({
-            ...diagnostics,
-            endpointFamily: "favorites",
-            method: "GET",
-          }),
+          withMediaAbortSignal(
+            createDiagnosticHttpOptions({
+              ...diagnostics,
+              endpointFamily: "favorites",
+              method: "GET",
+            }),
+            controller.signal,
+          ),
         ),
         fetchUnread(
-          createDiagnosticHttpOptions({
-            ...diagnostics,
-            endpointFamily: "unread",
-            method: "GET",
-          }),
+          withMediaAbortSignal(
+            createDiagnosticHttpOptions({
+              ...diagnostics,
+              endpointFamily: "unread",
+              method: "GET",
+            }),
+            controller.signal,
+          ),
         ),
         isGroup && chat
           ? fetchMembers(
               { chat },
-              createDiagnosticHttpOptions({
-                ...diagnostics,
-                endpointFamily: "members",
-                method: "GET",
-              }),
+              withMediaAbortSignal(
+                createDiagnosticHttpOptions({
+                  ...diagnostics,
+                  endpointFamily: "members",
+                  method: "GET",
+                }),
+                controller.signal,
+              ),
             )
           : Promise.resolve({ count: 0, members: [] }),
         fetchNewMessages(
           { chat, limit: 50 },
-          createDiagnosticHttpOptions({
-            ...diagnostics,
-            endpointFamily: "new_messages",
-            method: "GET",
-          }),
+          withMediaAbortSignal(
+            createDiagnosticHttpOptions({
+              ...diagnostics,
+              endpointFamily: "new_messages",
+              method: "GET",
+            }),
+            controller.signal,
+          ),
         ),
       ]);
 
@@ -89,14 +113,18 @@ export function useMediaCommander() {
         newMessages: endpointState(newMessagesResult, newMessages.length, "增量消息加载失败"),
       };
 
-      useMediaStore.getState().setData({
+      useMediaStore.getState().completeMediaLoadRequest(requestId, {
         favorites,
         members,
         unread,
         newMessages,
       }, endpointStatus);
     } catch {
-      useMediaStore.getState().setError("加载媒体与扩展信息失败");
+      useMediaStore.getState().failMediaLoadRequest(requestId, "加载媒体与扩展信息失败");
+    } finally {
+      if (activeLoadControllerRef.current === controller) {
+        activeLoadControllerRef.current = null;
+      }
     }
   }, []);
 
@@ -124,4 +152,11 @@ function endpointState<T>(
 ): MediaEndpointState {
   if (result.status === "rejected") return { status: "error", error };
   return { status: itemCount > 0 ? "ready" : "empty", error: null };
+}
+
+function withMediaAbortSignal<T extends object>(
+  options: T,
+  signal: AbortSignal,
+): T & { signal: AbortSignal } {
+  return { ...options, signal };
 }

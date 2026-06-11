@@ -130,6 +130,95 @@ describe("MediaLibrary", () => {
     expect(html).toContain("Member 49");
     expect(html).not.toContain("Member 50");
   });
+
+  it("previews favorite attachments through the media sheet and degrades text-only favorites honestly", () => {
+    const html = renderToStaticMarkup(
+      <MediaLibrary
+        currentChat="synthetic_room"
+        privacyOn={false}
+        attachments={[]}
+        favorites={[
+          {
+            id: "favorite-with-attachment",
+            chat: "synthetic_room",
+            sender: "synthetic_sender",
+            time: "2026-01-02 09:00",
+            type: "image",
+            content: "",
+            attachments: [{
+              id: "favorite-media",
+              kind: "image",
+              resourceKind: "image",
+              resourceKey: "synthetic-private-key",
+              label: "Favorite image",
+              redactedEndpointLabel: "media:image",
+              source: "favorite",
+            }],
+          },
+          {
+            id: "favorite-text",
+            chat: "synthetic_room",
+            sender: "synthetic_sender",
+            time: "2026-01-02 09:01",
+            type: "text",
+            content: "Synthetic saved text",
+            attachments: [],
+          },
+        ]}
+        members={[]}
+        unread={{ total: 0, chats: [] }}
+        newMessages={[]}
+        status="ready"
+        error={null}
+        endpointStatus={{
+          ...emptyEndpointStatus(),
+          favorites: { status: "ready", error: null },
+        }}
+        selectedAttachment={null}
+        previewResourceUrl=""
+        onRetry={vi.fn()}
+        onPreviewAttachment={vi.fn()}
+        onClosePreview={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("预览附件");
+    expect(html).toContain("Favorite image");
+    expect(html).toContain("收藏没有可用媒体预览");
+    expect(html).not.toContain('target="_blank"');
+    expect(html).not.toContain("synthetic-private-key");
+  });
+
+  it("labels member search as local to loaded members", () => {
+    const html = renderToStaticMarkup(
+      <MediaLibrary
+        currentChat="synthetic_room"
+        privacyOn={false}
+        attachments={[]}
+        favorites={[]}
+        members={[
+          { username: "member-a", displayName: "Member A" },
+          { username: "member-b", displayName: "Member B" },
+        ]}
+        unread={{ total: 0, chats: [] }}
+        newMessages={[]}
+        status="ready"
+        error={null}
+        endpointStatus={{
+          ...emptyEndpointStatus(),
+          members: { status: "ready", error: null },
+        }}
+        selectedAttachment={null}
+        previewResourceUrl=""
+        onRetry={vi.fn()}
+        onPreviewAttachment={vi.fn()}
+        onClosePreview={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("搜索已加载成员");
+    expect(html).toContain("成员搜索仅筛选已加载成员");
+  });
 });
 
 function emptyEndpointStatus() {

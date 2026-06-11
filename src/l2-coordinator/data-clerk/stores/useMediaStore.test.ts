@@ -35,4 +35,62 @@ describe("useMediaStore", () => {
       },
     });
   });
+
+  it("drops stale media load completions and failures after a newer request or cancel", () => {
+    const store = useMediaStore.getState();
+
+    store.startMediaLoadRequest("media-a", { chat: "room-a", isGroup: false });
+    store.startMediaLoadRequest("media-b", { chat: "room-b", isGroup: true });
+
+    expect(store.completeMediaLoadRequest("media-a", mediaData("stale"))).toBe(false);
+    expect(useMediaStore.getState()).toMatchObject({
+      activeLoadRequestId: "media-b",
+      activeLoadScope: { chat: "room-b", isGroup: true },
+      favorites: [],
+      status: "loading",
+    });
+
+    expect(store.failMediaLoadRequest("media-a", "old media error")).toBe(false);
+    expect(useMediaStore.getState().error).toBeNull();
+
+    expect(store.completeMediaLoadRequest("media-b", mediaData("fresh"))).toBe(true);
+    expect(useMediaStore.getState()).toMatchObject({
+      activeLoadRequestId: null,
+      activeLoadScope: null,
+      status: "ready",
+      favorites: [{ content: "fresh favorite" }],
+      unread: { total: 1 },
+    });
+
+    store.startMediaLoadRequest("media-c", { chat: "room-c", isGroup: false });
+    store.cancelMediaLoadRequest();
+
+    expect(store.completeMediaLoadRequest("media-c", mediaData("cancelled"))).toBe(false);
+    expect(store.failMediaLoadRequest("media-c", "cancelled error")).toBe(false);
+    expect(useMediaStore.getState()).toMatchObject({
+      activeLoadRequestId: null,
+      activeLoadScope: null,
+      status: "cancelled",
+      favorites: [{ content: "fresh favorite" }],
+    });
+  });
 });
+
+function mediaData(label: "stale" | "fresh" | "cancelled") {
+  return {
+    favorites: [
+      {
+        id: `${label}-favorite`,
+        chat: "room",
+        sender: "sender",
+        time: "2026-01-02 09:00",
+        type: "text",
+        content: `${label} favorite`,
+        attachments: [],
+      },
+    ],
+    members: [],
+    unread: { total: 1, chats: [{ chat: "room", count: 1 }] },
+    newMessages: [],
+  };
+}

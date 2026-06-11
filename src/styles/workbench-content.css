@@ -652,6 +652,37 @@
   font-variant-numeric: tabular-nums;
 }
 
+.media-library__row-stack {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.media-library__row-note {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.media-library__inline-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.media-library__inline-action-label {
+  min-width: 0;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-library__member-tools {
+  display: grid;
+  gap: var(--space-1);
+}
+
 .media-library__empty {
   display: flex;
   min-height: 120px;

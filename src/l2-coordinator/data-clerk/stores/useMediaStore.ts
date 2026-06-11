@@ -12,8 +12,13 @@ export type MediaFavoriteItem = AdaptedFavoriteItem;
 export type MediaMember = AdaptedMediaMember;
 export type MediaNewMessage = AdaptedNewMessage;
 export type MediaUnreadResponse = AdaptedUnreadResponse;
-export type MediaLoadStatus = "idle" | "loading" | "ready" | "empty" | "partial" | "error";
+export type MediaLoadStatus = "idle" | "loading" | "ready" | "empty" | "partial" | "error" | "cancelled";
 export type MediaEndpointKey = "favorites" | "members" | "unread" | "newMessages";
+
+export interface MediaLoadScope {
+  chat: string;
+  isGroup: boolean;
+}
 
 export interface MediaEndpointState {
   status: MediaLoadStatus;
@@ -31,9 +36,20 @@ interface MediaState {
   error: string | null;
   endpointStatus: MediaEndpointStatus;
   selectedAttachment: MediaAttachment | null;
+  activeLoadRequestId: string | null;
+  activeLoadScope: MediaLoadScope | null;
 }
 
 interface MediaActions {
+  startMediaLoadRequest: (requestId: string, scope: MediaLoadScope) => void;
+  completeMediaLoadRequest: (requestId: string, data: {
+    favorites: MediaFavoriteItem[];
+    members: MediaMember[];
+    unread: AdaptedUnreadResponse;
+    newMessages: MediaNewMessage[];
+  }, endpointStatus?: MediaEndpointStatus) => boolean;
+  failMediaLoadRequest: (requestId: string, error: string) => boolean;
+  cancelMediaLoadRequest: () => void;
   setLoading: () => void;
   setData: (data: {
     favorites: MediaFavoriteItem[];
@@ -78,12 +94,71 @@ function createInitialState(): MediaState {
     error: null,
     endpointStatus: createEndpointStatus("idle"),
     selectedAttachment: null,
+    activeLoadRequestId: null,
+    activeLoadScope: null,
   };
 }
 
 export const useMediaStore = create<MediaStore>((set) => ({
   ...createInitialState(),
-  setLoading: () => set({ status: "loading", error: null, endpointStatus: createEndpointStatus("loading") }),
+
+  startMediaLoadRequest: (activeLoadRequestId, activeLoadScope) =>
+    set({
+      activeLoadRequestId,
+      activeLoadScope,
+      status: "loading",
+      error: null,
+      endpointStatus: createEndpointStatus("loading"),
+      selectedAttachment: null,
+    }),
+
+  completeMediaLoadRequest: (requestId, data, endpointStatusMap) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeLoadRequestId !== requestId) return state;
+      applied = true;
+      return {
+        favorites: data.favorites,
+        members: data.members,
+        unread: data.unread,
+        newMessages: data.newMessages,
+        endpointStatus: endpointStatusMap ?? deriveEndpointStatus(data),
+        ...deriveMediaStatus(data, endpointStatusMap),
+        activeLoadRequestId: null,
+        activeLoadScope: null,
+      };
+    });
+    return applied;
+  },
+
+  failMediaLoadRequest: (requestId, error) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeLoadRequestId !== requestId) return state;
+      applied = true;
+      return {
+        status: "error",
+        error,
+        endpointStatus: createEndpointStatus("error", error),
+        activeLoadRequestId: null,
+        activeLoadScope: null,
+      };
+    });
+    return applied;
+  },
+
+  cancelMediaLoadRequest: () =>
+    set({ status: "cancelled", activeLoadRequestId: null, activeLoadScope: null }),
+
+  setLoading: () =>
+    set({
+      status: "loading",
+      error: null,
+      endpointStatus: createEndpointStatus("loading"),
+      activeLoadRequestId: null,
+      activeLoadScope: null,
+      selectedAttachment: null,
+    }),
   setData: ({ favorites, members, unread, newMessages }, endpointStatusMap) =>
     set({
       favorites,
@@ -92,8 +167,17 @@ export const useMediaStore = create<MediaStore>((set) => ({
       newMessages,
       endpointStatus: endpointStatusMap ?? deriveEndpointStatus({ favorites, members, unread, newMessages }),
       ...deriveMediaStatus({ favorites, members, unread, newMessages }, endpointStatusMap),
+      activeLoadRequestId: null,
+      activeLoadScope: null,
     }),
-  setError: (error) => set({ status: "error", error, endpointStatus: createEndpointStatus("error", error) }),
+  setError: (error) =>
+    set({
+      status: "error",
+      error,
+      endpointStatus: createEndpointStatus("error", error),
+      activeLoadRequestId: null,
+      activeLoadScope: null,
+    }),
   selectAttachment: (attachment) => set({ selectedAttachment: attachment }),
   clear: () => set(createInitialState()),
 }));
