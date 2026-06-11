@@ -581,6 +581,8 @@
 
 覆盖问题：P0-04，以及所有涉及发布 readiness 的标准。
 
+分步骤计划：`docs/next-repair-baseline-step-10-global-acceptance-repair-plan.md`。该计划把全局可访问性、响应式、隐私 audit、Tauri dev smoke、packaged smoke、sidecar/updater release gate 和最终 go/no-go 合并到同一个验收阶段，避免把“全局验收”和“发布证据”拆成互相替代的两份证据。
+
 修复方向：
 
 - 在当前分支和最终实现上补 Tauri dev smoke。
@@ -666,8 +668,7 @@
 7. Analytics/Media/SNS/AI/Graph 页面壳拆分。
 8. AI、Graph、Media、SNS 的任务闭环和可靠性。
 9. Settings 配置归属和返回上下文。
-10. 全局可访问性、响应式、隐私 audit。
-11. Tauri/package smoke 和 release evidence。
+10. 全局验收、可访问性、响应式、隐私 audit、Tauri/package smoke 和 release evidence。
 
 ## 20. 当前无阻塞疑问
 
