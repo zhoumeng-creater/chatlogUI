@@ -240,7 +240,11 @@ export const useAiStore = create<AiStore>((set, get) => ({
     set({ searchResults: results, searchLoading: false, searchError: null, activeSemanticSearchRequestId: null }),
   setSearchLoading: (loading: boolean) => set({ searchLoading: loading }),
   setSearchError: (searchError: string | null) =>
-    set({ searchError, searchLoading: false, activeSemanticSearchRequestId: null }),
+    set((state) => ({
+      searchError,
+      searchLoading: searchError ? false : state.searchLoading,
+      activeSemanticSearchRequestId: searchError ? null : state.activeSemanticSearchRequestId,
+    })),
   setDiscoveryWindow: (discoveryWindow: string) => set({ discoveryWindow }),
   setDiscoverySearchScope: (discoverySearchScope) => set({ discoverySearchScope }),
   setDiscoveryDepth: (discoveryDepth: string) => set({ discoveryDepth }),

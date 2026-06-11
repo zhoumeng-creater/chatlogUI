@@ -362,6 +362,31 @@ describe("useAiStore semantic discovery request lifecycle", () => {
     });
   });
 
+  it("keeps an active semantic search request when clearing a previous error", () => {
+    const store = useAiStore.getState() as ReturnType<typeof useAiStore.getState> & {
+      startSemanticSearchRequest: (requestId: string) => void;
+      completeSemanticSearchRequest: (
+        requestId: string,
+        results: NonNullable<ReturnType<typeof useAiStore.getState>["searchResults"]>,
+      ) => void;
+    };
+
+    useAiStore.getState().setSearchError("previous error");
+    store.startSemanticSearchRequest("search-active");
+    useAiStore.getState().setSearchError(null);
+    store.completeSemanticSearchRequest("search-active", {
+      query: "fresh",
+      results: [],
+    });
+
+    expect(useAiStore.getState()).toMatchObject({
+      activeSemanticSearchRequestId: null,
+      searchResults: { query: "fresh", results: [] },
+      searchLoading: false,
+      searchError: null,
+    });
+  });
+
   it("drops stale semantic analysis topic and profile writes", () => {
     const store = useAiStore.getState() as ReturnType<typeof useAiStore.getState> & {
       startSemanticAnalysisRequest: (requestId: string) => void;
