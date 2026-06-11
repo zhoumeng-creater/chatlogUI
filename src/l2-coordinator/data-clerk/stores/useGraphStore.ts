@@ -40,6 +40,7 @@ interface GraphState {
   visualize: GraphVisualizeView | null;
   timeline: GraphTimelineView | null;
   actionStatus: GraphActionResult | null;
+  activeLoadRequestId: string | null;
   activeTab: GraphWorkbenchTabId;
   visualizationRequested: boolean;
   loading: boolean;
@@ -87,6 +88,16 @@ interface GraphActions {
   setVisualize: (visualize: GraphVisualizeView | null) => void;
   setTimeline: (timeline: GraphTimelineView | null) => void;
   setActionStatus: (status: GraphActionResult | null) => void;
+  startGraphLoadRequest: (requestId: string) => void;
+  completeGraphVisualizeRequest: (requestId: string, visualize: GraphVisualizeView) => boolean;
+  completeGraphSummaryRequest: (requestId: string, payload: {
+    statusSummary: GraphStatusView | null;
+    query: GraphQueryView;
+    visualize: GraphVisualizeView;
+    timeline: GraphTimelineView;
+  }) => boolean;
+  failGraphLoadRequest: (requestId: string, error: string) => boolean;
+  cancelGraphLoadRequest: () => void;
   setActiveTab: (tab: GraphWorkbenchTabId) => void;
   setGraphFilters: (filters: GraphFilterPatch) => void;
   clearGraphFilters: () => void;
@@ -134,6 +145,7 @@ const initialState: GraphState = {
   visualize: null,
   timeline: null,
   actionStatus: null,
+  activeLoadRequestId: null,
   activeTab: "overview",
   visualizationRequested: false,
   loading: false,
@@ -202,24 +214,60 @@ export const useGraphStore = create<GraphStore>((set) => ({
 
   setQuery: (query: GraphQueryView | null) => set({ query }),
 
-  setVisualize: (visualize: GraphVisualizeView | null) =>
-    set({
-      visualize,
-      loadStatus: visualize?.state ?? "idle",
-      data:
-        visualize?.state === "loaded"
-          ? {
-              nodes: visualize.nodes as VisualizeResult["nodes"],
-              edges: visualize.edges as VisualizeResult["edges"],
-              timeline: visualize.timelineRows as VisualizeResult["timeline"],
-              generated_at: visualize.generatedAt,
-            }
-          : null,
-    }),
+  setVisualize: (visualize: GraphVisualizeView | null) => set(graphVisualizePatch(visualize)),
 
   setTimeline: (timeline: GraphTimelineView | null) => set({ timeline }),
 
   setActionStatus: (actionStatus: GraphActionResult | null) => set({ actionStatus }),
+
+  startGraphLoadRequest: (activeLoadRequestId) =>
+    set({ activeLoadRequestId, loading: true, error: null, loadStatus: "loading" }),
+
+  completeGraphVisualizeRequest: (requestId, visualize) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeLoadRequestId !== requestId) return state;
+      applied = true;
+      return {
+        ...graphVisualizePatch(visualize),
+        loading: false,
+        error: null,
+        activeLoadRequestId: null,
+      };
+    });
+    return applied;
+  },
+
+  completeGraphSummaryRequest: (requestId, payload) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeLoadRequestId !== requestId) return state;
+      applied = true;
+      return {
+        statusSummary: payload.statusSummary,
+        query: payload.query,
+        timeline: payload.timeline,
+        ...graphVisualizePatch(payload.visualize),
+        loading: false,
+        error: null,
+        activeLoadRequestId: null,
+      };
+    });
+    return applied;
+  },
+
+  failGraphLoadRequest: (requestId, error) => {
+    let applied = false;
+    set((state) => {
+      if (state.activeLoadRequestId !== requestId) return state;
+      applied = true;
+      return { error, loading: false, loadStatus: "error", activeLoadRequestId: null };
+    });
+    return applied;
+  },
+
+  cancelGraphLoadRequest: () =>
+    set({ loading: false, loadStatus: "cancelled", activeLoadRequestId: null }),
 
   setActiveTab: (activeTab: GraphWorkbenchTabId) => set({ activeTab }),
 
@@ -312,3 +360,19 @@ export const useGraphStore = create<GraphStore>((set) => ({
 
   reset: () => set(initialState),
 }));
+
+function graphVisualizePatch(visualize: GraphVisualizeView | null): Pick<GraphState, "visualize" | "loadStatus" | "data"> {
+  return {
+    visualize,
+    loadStatus: visualize?.state ?? "idle",
+    data:
+      visualize?.state === "loaded"
+        ? {
+            nodes: visualize.nodes as VisualizeResult["nodes"],
+            edges: visualize.edges as VisualizeResult["edges"],
+            timeline: visualize.timelineRows as VisualizeResult["timeline"],
+            generated_at: visualize.generatedAt,
+          }
+        : null,
+  };
+}

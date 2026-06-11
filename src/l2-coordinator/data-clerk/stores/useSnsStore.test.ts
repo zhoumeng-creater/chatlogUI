@@ -89,6 +89,42 @@ describe("useSnsStore", () => {
       selectedPostId: null,
     });
   });
+
+  it("ignores stale timeline and search completions after a newer request starts", () => {
+    useSnsStore.getState().setLoading("feed-a");
+    useSnsStore.getState().setLoading("feed-b");
+    useSnsStore.getState().setData({ feed: [post("stale-feed", "text")], notifications: [] }, "feed-a");
+
+    expect(useSnsStore.getState()).toMatchObject({
+      status: "loading",
+      feed: [],
+      activeFeedRequestId: "feed-b",
+    });
+
+    useSnsStore.getState().setData({ feed: [post("fresh-feed", "image")], notifications: [] }, "feed-b");
+    expect(useSnsStore.getState()).toMatchObject({
+      status: "ready",
+      feed: [{ id: "fresh-feed" }],
+      activeFeedRequestId: null,
+    });
+
+    useSnsStore.getState().setSearchLoading("search-a");
+    useSnsStore.getState().setSearchLoading("search-b");
+    useSnsStore.getState().setSearchResults([post("stale-search", "text")], "search-a");
+
+    expect(useSnsStore.getState()).toMatchObject({
+      searchStatus: "loading",
+      searchResults: [],
+      activeSearchRequestId: "search-b",
+    });
+
+    useSnsStore.getState().setSearchError("搜索朋友圈失败", "search-b");
+    expect(useSnsStore.getState()).toMatchObject({
+      searchStatus: "error",
+      searchError: "搜索朋友圈失败",
+      activeSearchRequestId: null,
+    });
+  });
 });
 
 function post(id: string, contentType: AdaptedSnsPost["contentType"]): AdaptedSnsPost {

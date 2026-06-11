@@ -15,6 +15,12 @@ import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { buildSnsModuleView } from "./snsViewModel";
 
 const SNS_CORRELATION_ID = "p4c-sns";
+let snsRequestSequence = 0;
+
+function nextSnsRequestId(prefix: "feed" | "search"): string {
+  snsRequestSequence += 1;
+  return `${prefix}-${snsRequestSequence}`;
+}
 
 export function useSnsCommander() {
   const store = useSnsStore();
@@ -24,7 +30,8 @@ export function useSnsCommander() {
   const loadSnsModule = useCallback(async (overrides: Partial<SnsFilters> = {}) => {
     const current = useSnsStore.getState();
     const filters = { ...current.filters, ...overrides };
-    useSnsStore.getState().setLoading();
+    const requestId = nextSnsRequestId("feed");
+    useSnsStore.getState().setLoading(requestId);
 
     try {
       const [feed, notifications] = await Promise.all([
@@ -60,13 +67,14 @@ export function useSnsCommander() {
         ),
       ]);
 
+      if (!useSnsStore.getState().isFeedRequestActive(requestId)) return;
       useSnsStore.getState().setData({
         feed: feed.posts,
         notifications: notifications.items,
-      });
+      }, requestId);
       useSnsStore.getState().updateFilters(filters);
     } catch {
-      useSnsStore.getState().setError("加载朋友圈失败");
+      useSnsStore.getState().setError("加载朋友圈失败", requestId);
     }
   }, []);
 
@@ -81,7 +89,8 @@ export function useSnsCommander() {
       return;
     }
 
-    useSnsStore.getState().setSearchLoading();
+    const requestId = nextSnsRequestId("search");
+    useSnsStore.getState().setSearchLoading(requestId);
     try {
       const results = await fetchSnsSearch(
         {
@@ -100,9 +109,9 @@ export function useSnsCommander() {
           recoveryHint: "retry",
         }),
       );
-      useSnsStore.getState().setSearchResults(results.posts);
+      useSnsStore.getState().setSearchResults(results.posts, requestId);
     } catch {
-      useSnsStore.getState().setSearchError("搜索朋友圈失败");
+      useSnsStore.getState().setSearchError("搜索朋友圈失败", requestId);
     }
   }, []);
 

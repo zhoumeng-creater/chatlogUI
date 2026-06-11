@@ -42,17 +42,26 @@ function graphDiagnostics(method: "GET" | "POST" = "GET") {
   });
 }
 
+let graphLoadSequence = 0;
+
+function nextGraphLoadRequestId(): string {
+  graphLoadSequence += 1;
+  return `graph-load-${graphLoadSequence}`;
+}
+
 export function useGraphCommander() {
   const store = useGraphStore();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
 
   const loadGraph = useCallback(async (params: VisualizeParams = {}) => {
-    useGraphStore.setState({ loading: true, error: null });
+    const requestId = nextGraphLoadRequestId();
+    useGraphStore.getState().startGraphLoadRequest(requestId);
     try {
       const data = await fetchGraphVisualize(params, graphDiagnostics());
-      useGraphStore.getState().setVisualize(data as unknown as GraphVisualizeView);
+      useGraphStore.getState().completeGraphVisualizeRequest(requestId, data as unknown as GraphVisualizeView);
     } catch (error) {
-      useGraphStore.getState().setError(
+      useGraphStore.getState().failGraphLoadRequest(
+        requestId,
         error instanceof Error ? error.message : "加载图谱数据失败",
       );
     }
@@ -79,7 +88,9 @@ export function useGraphCommander() {
   }, []);
 
   const loadGraphSummary = useCallback(async (params: VisualizeParams = {}) => {
-    useGraphStore.setState({ loading: true, error: null, visualizationRequested: false });
+    const requestId = nextGraphLoadRequestId();
+    useGraphStore.getState().startGraphLoadRequest(requestId);
+    useGraphStore.getState().setVisualizationRequested(false);
     try {
       const requestParams = graphRequestParams(params);
       const [status, query, visualize, timeline] = await Promise.all([
@@ -88,14 +99,15 @@ export function useGraphCommander() {
         fetchGraphVisualize(requestParams, graphDiagnostics()),
         fetchGraphTimeline(requestParams, graphDiagnostics()),
       ]);
-      const graphStore = useGraphStore.getState();
-      graphStore.setStatusSummary(status as unknown as GraphStatusView | null);
-      graphStore.setQuery(query as unknown as GraphQueryView);
-      graphStore.setVisualize(visualize as unknown as GraphVisualizeView);
-      graphStore.setTimeline(timeline);
-      graphStore.setLoading(false);
+      useGraphStore.getState().completeGraphSummaryRequest(requestId, {
+        statusSummary: status as unknown as GraphStatusView | null,
+        query: query as unknown as GraphQueryView,
+        visualize: visualize as unknown as GraphVisualizeView,
+        timeline,
+      });
     } catch (error) {
-      useGraphStore.getState().setError(
+      useGraphStore.getState().failGraphLoadRequest(
+        requestId,
         error instanceof Error ? error.message : "加载图谱摘要失败",
       );
     }
@@ -109,7 +121,7 @@ export function useGraphCommander() {
   }, [loadGraph]);
 
   const cancelGraphLoad = useCallback(() => {
-    useGraphStore.setState({ loading: false, loadStatus: "cancelled" });
+    useGraphStore.getState().cancelGraphLoadRequest();
   }, []);
 
   const retryGraphLoad = useCallback(async () => {
@@ -380,6 +392,7 @@ export function useGraphCommander() {
     visualize: store.visualize,
     timeline: store.timeline,
     actionStatus: store.actionStatus,
+    activeLoadRequestId: store.activeLoadRequestId,
     advancedConfigStatus: store.advancedConfigStatus,
     ingestStatus: store.ingestStatus,
     qaStatus: store.qaStatus,

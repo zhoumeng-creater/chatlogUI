@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { useGraphStore } from "./useGraphStore";
+import type { GraphVisualizeView } from "@l4/network/graphAdapters";
 
 describe("useGraphStore", () => {
   beforeEach(() => {
@@ -70,4 +71,51 @@ describe("useGraphStore", () => {
       selectedGraphItemId: "relation-2",
     });
   });
+
+  it("drops stale graph load completions after a newer request or cancel", () => {
+    useGraphStore.getState().startGraphLoadRequest("graph-a");
+    useGraphStore.getState().startGraphLoadRequest("graph-b");
+
+    expect(useGraphStore.getState()).toMatchObject({
+      activeLoadRequestId: "graph-b",
+      loading: true,
+      loadStatus: "loading",
+    });
+
+    expect(useGraphStore.getState().completeGraphVisualizeRequest("graph-a", visualize("stale"))).toBe(false);
+    expect(useGraphStore.getState().visualize).toBeNull();
+    expect(useGraphStore.getState().activeLoadRequestId).toBe("graph-b");
+
+    expect(useGraphStore.getState().completeGraphVisualizeRequest("graph-b", visualize("fresh"))).toBe(true);
+    expect(useGraphStore.getState()).toMatchObject({
+      activeLoadRequestId: null,
+      loading: false,
+      loadStatus: "loaded",
+      visualize: { generatedAt: 2 },
+    });
+
+    useGraphStore.getState().startGraphLoadRequest("graph-c");
+    useGraphStore.getState().cancelGraphLoadRequest();
+    expect(useGraphStore.getState().completeGraphVisualizeRequest("graph-c", visualize("cancelled"))).toBe(false);
+    expect(useGraphStore.getState()).toMatchObject({
+      activeLoadRequestId: null,
+      loadStatus: "cancelled",
+    });
+  });
 });
+
+function visualize(kind: "stale" | "fresh" | "cancelled"): GraphVisualizeView {
+  return {
+    state: "loaded",
+    nodes: [],
+    edges: [],
+    timelineRows: [],
+    generatedAt: kind === "fresh" ? 2 : 1,
+    error: "",
+    summary: {
+      nodeCount: 0,
+      edgeCount: 0,
+      timelineCount: 0,
+    },
+  };
+}

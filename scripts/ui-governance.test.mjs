@@ -321,4 +321,23 @@ describe("UI governance", () => {
     const foundMarkers = forbiddenMarkers.filter((marker) => searchView.includes(marker));
     expect(foundMarkers).toEqual([]);
   });
+
+  it("keeps independent primary pages on a shared privacy-safe scope status contract", async () => {
+    const pageFiles = [
+      "src/l1-entry/pages/AnalyticsView.tsx",
+      "src/l1-entry/pages/MediaView.tsx",
+      "src/l1-entry/pages/SnsView.tsx",
+      "src/l1-entry/pages/AiWorkspaceView.tsx",
+      "src/l1-entry/pages/GraphView.tsx",
+    ];
+
+    for (const file of pageFiles) {
+      const text = await readFile(file, "utf8");
+      expect(text, file).toContain("<WorkspaceScopeStatus");
+      expect(text, file).toContain("workspaceRouteScope");
+    }
+
+    const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
+    expect(workbenchView).not.toContain("<WorkspaceScopeStatus");
+  });
 });

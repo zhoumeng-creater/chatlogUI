@@ -31,19 +31,23 @@ interface SnsState {
   error: string | null;
   searchError: string | null;
   filters: SnsFilters;
+  activeFeedRequestId: string | null;
+  activeSearchRequestId: string | null;
 }
 
 interface SnsActions {
-  setLoading: () => void;
-  setData: (data: { feed: AdaptedSnsPost[]; notifications: AdaptedSnsNotification[] }) => void;
-  setError: (error: string) => void;
-  setSearchLoading: () => void;
-  setSearchResults: (results: AdaptedSnsPost[]) => void;
-  setSearchError: (error: string) => void;
+  setLoading: (requestId?: string | null) => void;
+  setData: (data: { feed: AdaptedSnsPost[]; notifications: AdaptedSnsNotification[] }, requestId?: string) => void;
+  setError: (error: string, requestId?: string) => void;
+  setSearchLoading: (requestId?: string | null) => void;
+  setSearchResults: (results: AdaptedSnsPost[], requestId?: string) => void;
+  setSearchError: (error: string, requestId?: string) => void;
   setSearchQuery: (searchQuery: string) => void;
   setActiveTab: (activeTab: SnsActiveTab) => void;
   updateFilters: (filters: Partial<SnsFilters>) => void;
   selectPost: (selectedPostId: string | null) => void;
+  isFeedRequestActive: (requestId: string) => boolean;
+  isSearchRequestActive: (requestId: string) => boolean;
   reset: () => void;
 }
 
@@ -71,28 +75,46 @@ const initialState: SnsState = {
   error: null,
   searchError: null,
   filters: defaultSnsFilters,
+  activeFeedRequestId: null,
+  activeSearchRequestId: null,
 };
 
-export const useSnsStore = create<SnsStore>((set) => ({
+export const useSnsStore = create<SnsStore>((set, get) => ({
   ...initialState,
-  setLoading: () => set({ status: "loading", error: null }),
-  setData: ({ feed, notifications }) =>
-    set({
+  setLoading: (requestId = null) => set({ status: "loading", error: null, activeFeedRequestId: requestId }),
+  setData: ({ feed, notifications }, requestId) =>
+    set((state) => {
+      if (requestId && state.activeFeedRequestId !== requestId) return state;
+      return {
       feed,
       notifications,
       status: feed.length || notifications.length ? "ready" : "empty",
       error: null,
+      activeFeedRequestId: null,
+      };
     }),
-  setError: (error) => set({ status: "error", error }),
-  setSearchLoading: () => set({ searchStatus: "loading", searchError: null }),
-  setSearchResults: (searchResults) =>
-    set({
+  setError: (error, requestId) =>
+    set((state) => {
+      if (requestId && state.activeFeedRequestId !== requestId) return state;
+      return { status: "error", error, activeFeedRequestId: null };
+    }),
+  setSearchLoading: (requestId = null) =>
+    set({ searchStatus: "loading", searchError: null, activeSearchRequestId: requestId }),
+  setSearchResults: (searchResults, requestId) =>
+    set((state) => {
+      if (requestId && state.activeSearchRequestId !== requestId) return state;
+      return {
       searchResults,
       searchStatus: searchResults.length ? "ready" : "empty",
       searchError: null,
+      activeSearchRequestId: null,
+      };
     }),
-  setSearchError: (searchError) =>
-    set({ searchStatus: "error", searchError, searchResults: [], selectedPostId: null }),
+  setSearchError: (searchError, requestId) =>
+    set((state) => {
+      if (requestId && state.activeSearchRequestId !== requestId) return state;
+      return { searchStatus: "error", searchError, searchResults: [], selectedPostId: null, activeSearchRequestId: null };
+    }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setActiveTab: (activeTab) => set({ activeTab }),
   updateFilters: (filters) =>
@@ -103,6 +125,8 @@ export const useSnsStore = create<SnsStore>((set) => ({
       },
     })),
   selectPost: (selectedPostId) => set({ selectedPostId }),
+  isFeedRequestActive: (requestId) => get().activeFeedRequestId === requestId,
+  isSearchRequestActive: (requestId) => get().activeSearchRequestId === requestId,
   reset: () =>
     set({
       ...initialState,

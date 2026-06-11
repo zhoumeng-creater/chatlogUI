@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
 import { Spinner, Typography } from "@l4/ui";
 
 const LazyGraphModule = lazy(() =>
@@ -11,10 +12,17 @@ const LazyGraphModule = lazy(() =>
 
 export function GraphView() {
   const [params] = useSearchParams();
-  useScopedWorkspaceConversation(params.get("chat"));
+  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+  const { workspaceRouteScope } = useScopedWorkspaceConversation({
+    scope: params.get("scope") ?? "all",
+    scopedChat: params.get("chat"),
+    focus: params.get("focus"),
+    source: params.get("source"),
+    privacyOn,
+    defaultScope: "all",
+  });
   const graph = useGraphCommander();
   const { openGraph } = graph;
-  const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
 
   useEffect(() => {
     void openGraph();
@@ -30,6 +38,10 @@ export function GraphView() {
           </Typography>
         </div>
       </header>
+      <WorkspaceScopeStatus
+        workspaceRouteScope={workspaceRouteScope}
+        items={[graphStatusItem(graph.loading, graph.error, graph.loadStatus)]}
+      />
       <div className="workspace-page__surface workspace-page__module-surface graph-workspace__surface">
         <Suspense fallback={<div className="panel-loading"><Spinner size={20} label="加载图谱..." /></div>}>
           <LazyGraphModule graph={graph} privacyOn={privacyOn} />
@@ -37,4 +49,19 @@ export function GraphView() {
       </div>
     </div>
   );
+}
+
+function graphStatusItem(
+  loading: boolean,
+  error: string | null,
+  loadStatus: string,
+): WorkspaceScopeStatusItem {
+  if (loading || loadStatus === "loading") return { label: "图谱", value: "加载中", tone: "info", busy: true };
+  if (loadStatus === "cancelled") return { label: "图谱", value: "已取消", tone: "warning" };
+  if (error || loadStatus === "error" || loadStatus === "malformed" || loadStatus === "oversized") {
+    return { label: "图谱", value: "异常", tone: "danger" };
+  }
+  if (loadStatus === "loaded") return { label: "图谱", value: "已加载", tone: "success" };
+  if (loadStatus === "empty") return { label: "图谱", value: "暂无数据", tone: "neutral" };
+  return { label: "图谱", value: "待加载", tone: "neutral" };
 }

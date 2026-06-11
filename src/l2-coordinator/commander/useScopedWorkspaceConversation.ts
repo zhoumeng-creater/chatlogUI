@@ -1,45 +1,84 @@
 import { useEffect, useMemo } from "react";
-import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
 import { useChatCommander } from "./useChatCommander";
+import {
+  buildWorkspaceRouteScopeView,
+  findConversationForScopedChat,
+  type WorkspaceScopeMode,
+} from "./workspaceRouteScope";
 
-export function findConversationForScopedChat(
-  conversations: Conversation[],
-  scopedChat: string | null | undefined,
-): Conversation | null {
-  const target = scopedChat?.trim();
-  if (!target) return null;
-  return conversations.find((conversation) =>
-    conversation.username === target || conversation.id === target,
-  ) ?? null;
+export { findConversationForScopedChat };
+
+export interface UseScopedWorkspaceConversationInput {
+  scope?: string | null;
+  scopedChat?: string | null;
+  chat?: string | null;
+  focus?: string | null;
+  source?: string | null;
+  privacyOn?: boolean;
+  defaultScope?: WorkspaceScopeMode;
 }
 
-export function useScopedWorkspaceConversation(scopedChat: string | null | undefined) {
+export function useScopedWorkspaceConversation(
+  input: string | null | undefined | UseScopedWorkspaceConversationInput,
+) {
   const chat = useChatCommander();
   const { conversations, loadConversations, selectedConversationId, selectAndLoad } = chat;
+  const scopeInput = typeof input === "object" && input !== null
+    ? input
+    : { scopedChat: input };
+  const scopedChat = scopeInput.scopedChat ?? scopeInput.chat ?? null;
+  const explicitAllScope = scopeInput.scope === "all";
+  const shouldResolveConversation =
+    !explicitAllScope &&
+    (scopeInput.defaultScope !== "all" ||
+      scopeInput.scope === "currentChat" ||
+      !!scopedChat?.trim());
 
   useEffect(() => {
+    if (!shouldResolveConversation) return;
     void loadConversations();
-  }, [loadConversations]);
-
-  const scopedConversation = useMemo(
-    () => findConversationForScopedChat(conversations, scopedChat),
-    [conversations, scopedChat],
-  );
+  }, [loadConversations, shouldResolveConversation]);
 
   useEffect(() => {
+    if (explicitAllScope) return;
+    const scopedConversation = findConversationForScopedChat(conversations, scopedChat);
     if (!scopedConversation) return;
     if (selectedConversationId === scopedConversation.id) return;
     void selectAndLoad(scopedConversation.id, scopedConversation.username);
-  }, [scopedConversation, selectedConversationId, selectAndLoad]);
+  }, [conversations, explicitAllScope, scopedChat, selectedConversationId, selectAndLoad]);
 
-  const currentConversation = useMemo(
-    () => conversations.find((conversation) => conversation.id === selectedConversationId) ?? scopedConversation,
-    [conversations, scopedConversation, selectedConversationId],
+  const selectedConversation = useMemo(
+    () => conversations.find((conversation) => conversation.id === selectedConversationId) ?? null,
+    [conversations, selectedConversationId],
+  );
+
+  const workspaceRouteScope = useMemo(
+    () => buildWorkspaceRouteScopeView({
+      scope: scopeInput.scope,
+      scopedChat,
+      focus: scopeInput.focus,
+      source: scopeInput.source,
+      conversations,
+      selectedConversation,
+      privacyOn: scopeInput.privacyOn ?? false,
+      defaultScope: scopeInput.defaultScope,
+    }),
+    [
+      conversations,
+      scopedChat,
+      scopeInput.defaultScope,
+      scopeInput.focus,
+      scopeInput.privacyOn,
+      scopeInput.scope,
+      scopeInput.source,
+      selectedConversation,
+    ],
   );
 
   return {
     chat,
-    currentConversation,
-    currentChat: currentConversation?.username ?? "",
+    workspaceRouteScope,
+    currentConversation: workspaceRouteScope.currentConversation,
+    currentChat: workspaceRouteScope.currentChat,
   };
 }

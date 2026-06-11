@@ -816,6 +816,48 @@
   gap: var(--space-3);
 }
 
+.workspace-page__status-strip {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+}
+
+.workspace-page__status-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.workspace-page__status-items {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.workspace-page__status-chip {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .workspace-page__surface,
 .workspace-page__grid {
   min-width: 0;
@@ -4060,6 +4102,15 @@
   .workspace-page__header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .workspace-page__status-strip {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workspace-page__status-items {
+    justify-content: flex-start;
   }
 
   .workbench-chat-toolbar__actions {

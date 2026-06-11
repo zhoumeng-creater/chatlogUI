@@ -1,8 +1,10 @@
 import { Bell, FileText, Image, MessageSquare, RefreshCw, Star, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Button, DisabledReason, SegmentedControl, Spinner, Typography } from "@l4/ui";
 import type {
   MediaAttachment,
+  MediaEndpointState,
+  MediaEndpointStatus,
   MediaFavoriteItem,
   MediaLoadStatus,
   MediaMember,
@@ -30,6 +32,7 @@ interface MediaLibraryProps {
   newMessages: MediaNewMessage[];
   status: MediaLoadStatus;
   error: string | null;
+  endpointStatus: MediaEndpointStatus;
   selectedAttachment: MediaAttachment | null;
   previewResourceUrl: string;
   onRetry: () => void;
@@ -47,6 +50,7 @@ export function MediaLibrary({
   newMessages,
   status,
   error,
+  endpointStatus,
   selectedAttachment,
   previewResourceUrl,
   onRetry,
@@ -96,7 +100,7 @@ export function MediaLibrary({
             打开会话后显示附件、收藏、成员、未读和增量消息。
           </Typography>
         </div>
-      ) : error ? (
+      ) : error && status !== "partial" ? (
         <div className="workbench-error-state" role="alert">
           <Typography variant="label" weight={700}>
             媒体扩展加载失败
@@ -110,6 +114,10 @@ export function MediaLibrary({
         </div>
       ) : (
         <>
+          {status === "partial" && (
+            <PartialEndpointAlert endpointStatus={endpointStatus} />
+          )}
+
           <SummaryStrip
             attachmentCount={attachments.length}
             favoritesCount={favorites.length}
@@ -156,16 +164,24 @@ export function MediaLibrary({
               />
             )}
             {activeTab === "favorites" && (
-              <FavoriteList favorites={favorites} privacyOn={privacyOn} />
+              <EndpointTabState label="收藏" endpoint={endpointStatus.favorites} onRetry={onRetry}>
+                <FavoriteList favorites={favorites} privacyOn={privacyOn} />
+              </EndpointTabState>
             )}
             {activeTab === "members" && (
-              <MemberList members={members} privacyOn={privacyOn} />
+              <EndpointTabState label="成员" endpoint={endpointStatus.members} onRetry={onRetry}>
+                <MemberList members={members} privacyOn={privacyOn} />
+              </EndpointTabState>
             )}
             {activeTab === "unread" && (
-              <UnreadList unread={unread} privacyOn={privacyOn} />
+              <EndpointTabState label="未读" endpoint={endpointStatus.unread} onRetry={onRetry}>
+                <UnreadList unread={unread} privacyOn={privacyOn} />
+              </EndpointTabState>
             )}
             {activeTab === "new" && (
-              <NewMessageList messages={newMessages} privacyOn={privacyOn} />
+              <EndpointTabState label="增量消息" endpoint={endpointStatus.newMessages} onRetry={onRetry}>
+                <NewMessageList messages={newMessages} privacyOn={privacyOn} />
+              </EndpointTabState>
             )}
           </div>
         </>
@@ -179,6 +195,73 @@ export function MediaLibrary({
       />
     </aside>
   );
+}
+
+function PartialEndpointAlert({ endpointStatus }: { endpointStatus: MediaEndpointStatus }) {
+  const failedLabels = failedEndpointLabels(endpointStatus);
+  if (failedLabels.length === 0) return null;
+
+  return (
+    <div className="media-library__partial" role="status">
+      <Typography variant="label" weight={700}>
+        部分媒体扩展加载失败
+      </Typography>
+      <Typography variant="caption" color="var(--text-secondary)">
+        {failedLabels.join("、")}加载失败，其他内容仍可查看。
+      </Typography>
+    </div>
+  );
+}
+
+function EndpointTabState({
+  label,
+  endpoint,
+  onRetry,
+  children,
+}: {
+  label: string;
+  endpoint: MediaEndpointState;
+  onRetry: () => void;
+  children: ReactNode;
+}) {
+  if (endpoint.status === "loading") {
+    return (
+      <div className="media-library__loading">
+        <Spinner size={18} label={`加载${label}...`} color="var(--text-muted)" />
+      </div>
+    );
+  }
+
+  if (endpoint.status === "error") {
+    return (
+      <div className="media-library__endpoint-error" role="alert">
+        <Typography variant="label" weight={700}>
+          {endpoint.error || `${label}加载失败`}
+        </Typography>
+        <Typography variant="caption" color="var(--text-secondary)">
+          其他媒体内容仍可查看，可刷新后重试。
+        </Typography>
+        <Button variant="secondary" size="sm" onClick={onRetry}>
+          重试
+        </Button>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+function failedEndpointLabels(endpointStatus: MediaEndpointStatus): string[] {
+  const labels: Array<[keyof MediaEndpointStatus, string]> = [
+    ["favorites", "收藏"],
+    ["members", "成员"],
+    ["unread", "未读"],
+    ["newMessages", "增量消息"],
+  ];
+
+  return labels
+    .filter(([key]) => endpointStatus[key].status === "error")
+    .map(([, label]) => label);
 }
 
 function SummaryStrip({

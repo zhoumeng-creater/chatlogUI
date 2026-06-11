@@ -1,6 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
-import { useMediaStore, type MediaAttachment } from "@l2/data-clerk/stores/useMediaStore";
+import {
+  useMediaStore,
+  type MediaAttachment,
+  type MediaEndpointState,
+  type MediaEndpointStatus,
+} from "@l2/data-clerk/stores/useMediaStore";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import {
   buildMediaResourceUrl,
@@ -37,7 +42,7 @@ export function useMediaCommander() {
         correlationId: "p4b-media",
         recoveryHint: "retry" as const,
       };
-      const [favorites, unread, members, newMessages] = await Promise.all([
+      const [favoritesResult, unreadResult, membersResult, newMessagesResult] = await Promise.allSettled([
         fetchFavorites(
           { chat, limit: 50 },
           createDiagnosticHttpOptions({
@@ -73,12 +78,23 @@ export function useMediaCommander() {
         ),
       ]);
 
+      const favorites = favoritesResult.status === "fulfilled" ? favoritesResult.value.items : [];
+      const unread = unreadResult.status === "fulfilled" ? unreadResult.value : { total: 0, chats: [] };
+      const members = membersResult.status === "fulfilled" ? membersResult.value.members : [];
+      const newMessages = newMessagesResult.status === "fulfilled" ? newMessagesResult.value.messages : [];
+      const endpointStatus: MediaEndpointStatus = {
+        favorites: endpointState(favoritesResult, favorites.length, "收藏加载失败"),
+        members: endpointState(membersResult, members.length, "成员加载失败"),
+        unread: endpointState(unreadResult, unread.total, "未读加载失败"),
+        newMessages: endpointState(newMessagesResult, newMessages.length, "增量消息加载失败"),
+      };
+
       useMediaStore.getState().setData({
-        favorites: favorites.items,
-        members: members.members,
+        favorites,
+        members,
         unread,
-        newMessages: newMessages.messages,
-      });
+        newMessages,
+      }, endpointStatus);
     } catch {
       useMediaStore.getState().setError("加载媒体与扩展信息失败");
     }
@@ -99,4 +115,13 @@ export function useMediaCommander() {
     previewAttachment: (attachment: MediaAttachment) => useMediaStore.getState().selectAttachment(attachment),
     closePreview: () => useMediaStore.getState().selectAttachment(null),
   };
+}
+
+function endpointState<T>(
+  result: PromiseSettledResult<T>,
+  itemCount: number,
+  error: string,
+): MediaEndpointState {
+  if (result.status === "rejected") return { status: "error", error };
+  return { status: itemCount > 0 ? "ready" : "empty", error: null };
 }
