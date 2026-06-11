@@ -22,6 +22,9 @@ export interface AdaptedSnsArticle {
   title: string;
   description: string;
   hasExternalUrl: boolean;
+  externalDomain?: string;
+  externalScheme?: "http" | "https";
+  sensitiveExternalUrl?: string;
 }
 
 export interface AdaptedSnsFinder {

@@ -62,6 +62,74 @@ describe("MediaLibrary", () => {
     expect(html).toContain("收藏加载失败");
     expect(html).toContain("未读 2");
   });
+
+  it("states media tab limitations instead of rendering dead unread or new-message rows", () => {
+    const html = renderToStaticMarkup(
+      <MediaLibrary
+        currentChat="synthetic_room"
+        privacyOn={false}
+        attachments={[]}
+        favorites={[]}
+        members={[]}
+        unread={{ total: 2, chats: [{ chat: "synthetic_room", count: 2 }] }}
+        newMessages={[{
+          id: "message-1",
+          chat: "synthetic_room",
+          sender: "synthetic_sender",
+          content: "Synthetic new message",
+          time: "2026-01-02 09:00",
+          attachments: [],
+        }]}
+        status="ready"
+        error={null}
+        endpointStatus={{
+          ...emptyEndpointStatus(),
+          unread: { status: "ready", error: null },
+          newMessages: { status: "ready", error: null },
+        }}
+        selectedAttachment={null}
+        previewResourceUrl=""
+        onRetry={vi.fn()}
+        onPreviewAttachment={vi.fn()}
+        onClosePreview={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("当前接口未返回可定位消息锚点");
+    expect(html).toContain("未读与增量消息暂按摘要展示");
+  });
+
+  it("caps large member lists and explains the display boundary", () => {
+    const html = renderToStaticMarkup(
+      <MediaLibrary
+        currentChat="synthetic_room"
+        privacyOn={false}
+        attachments={[]}
+        favorites={[]}
+        members={Array.from({ length: 55 }, (_, index) => ({
+          username: `member-${index}`,
+          displayName: `Member ${index}`,
+        }))}
+        unread={{ total: 0, chats: [] }}
+        newMessages={[]}
+        status="ready"
+        error={null}
+        endpointStatus={{
+          ...emptyEndpointStatus(),
+          members: { status: "ready", error: null },
+        }}
+        selectedAttachment={null}
+        previewResourceUrl=""
+        onRetry={vi.fn()}
+        onPreviewAttachment={vi.fn()}
+        onClosePreview={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("仅展示前 50 位成员");
+    expect(html).toContain("Member 49");
+    expect(html).not.toContain("Member 50");
+  });
 });
 
 function emptyEndpointStatus() {

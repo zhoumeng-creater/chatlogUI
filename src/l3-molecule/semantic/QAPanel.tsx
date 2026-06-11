@@ -29,7 +29,7 @@ interface QAPanelProps {
   onStopQAStream: () => void;
   onRetryQAMessage: (messageId: string) => void;
   onCopyQAMessageAnswer: (messageId: string) => Promise<boolean>;
-  onSelectEvidenceSource?: (chat: string, label: string) => void;
+  onSelectEvidenceSource?: (chat: string, label: string, localId?: number) => void;
 }
 
 export function QAPanel({

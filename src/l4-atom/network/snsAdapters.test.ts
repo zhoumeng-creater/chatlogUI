@@ -4,6 +4,7 @@ import {
   adaptSnsFeedResponse,
   adaptSnsNotificationsResponse,
   adaptSnsSearchResponse,
+  getSensitiveSnsArticleUrl,
   isLocalSnsProxyUrl,
   type RawSnsFeedResponse,
   type RawSnsNotificationResponse,
@@ -33,6 +34,8 @@ describe("P4-C SNS adapters", () => {
         title: "Synthetic Article Title",
         description: "Synthetic article description",
         hasExternalUrl: true,
+        externalDomain: "synthetic.invalid",
+        externalScheme: "https",
       },
       finder: {
         nickname: "Synthetic Finder",
@@ -55,7 +58,7 @@ describe("P4-C SNS adapters", () => {
     const serialized = JSON.stringify(feed.posts[0]);
     expect(serialized).not.toContain("<sns>");
     expect(serialized).not.toContain("raw_content");
-    expect(serialized).not.toContain("synthetic.invalid");
+    expect(serialized).not.toContain("/private");
     expect(serialized).not.toContain("token");
     expect(serialized).not.toContain("key");
   });
@@ -101,6 +104,38 @@ describe("P4-C SNS adapters", () => {
     expect(JSON.stringify(post)).not.toContain("sns-secret-key");
     expect(JSON.stringify(post)).not.toContain("synthetic.invalid");
     expect(JSON.stringify(post)).not.toContain("sns-token");
+  });
+
+  it("keeps article open URLs non-enumerable while exposing only safe domain summaries", () => {
+    const post = adaptSnsFeedResponse({
+      count: 1,
+      items: [
+        {
+          id: 1,
+          content_type: "article",
+          article: {
+            title: "Synthetic Article",
+            description: "Synthetic desc",
+            url: "https://article.synthetic.invalid/private/path?token=sns-token&key=sns-secret-key",
+          },
+        },
+      ],
+    }).posts[0];
+
+    expect(post.article).toMatchObject({
+      hasExternalUrl: true,
+      externalDomain: "article.synthetic.invalid",
+      externalScheme: "https",
+    });
+    expect(getSensitiveSnsArticleUrl(post.article)).toBe(
+      "https://article.synthetic.invalid/private/path?token=sns-token&key=sns-secret-key",
+    );
+    expect(Object.keys(post.article ?? {})).not.toContain("sensitiveExternalUrl");
+    const serialized = JSON.stringify(post);
+    expect(serialized).toContain("article.synthetic.invalid");
+    expect(serialized).not.toContain("/private/path");
+    expect(serialized).not.toContain("sns-secret-key");
+    expect(serialized).not.toContain("sns-token");
   });
 
   it("normalizes notifications and malformed rows with stable fallback labels", () => {

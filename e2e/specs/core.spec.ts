@@ -139,7 +139,7 @@ test.describe("core synthetic routes", () => {
     const routes = [
       { path: "/search", nav: "搜索", label: "搜索工作区" },
       { path: "/media", nav: "媒体", text: "当前阶段聚焦当前会话媒体" },
-      { path: "/sns", nav: "朋友圈", text: "浏览 timeline、通知和搜索结果" },
+      { path: "/sns", nav: "朋友圈", text: "外部文章会先确认域名" },
       { path: "/analytics", nav: "统计", text: "选择会话后查看统计" },
       { path: "/ai", nav: "AI", text: "语义索引、问答、语义搜索和证据" },
       { path: "/graph", nav: "图谱", text: "图谱画布、摘要、节点详情和问答" },

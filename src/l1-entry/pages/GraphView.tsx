@@ -12,8 +12,9 @@ const LazyGraphModule = lazy(() =>
 
 export function GraphView() {
   const [params] = useSearchParams();
+  const hasContextFocus = Boolean(params.get("focus"));
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { workspaceRouteScope } = useScopedWorkspaceConversation({
+  const { currentConversation, workspaceRouteScope } = useScopedWorkspaceConversation({
     scope: params.get("scope") ?? "all",
     scopedChat: params.get("chat"),
     focus: params.get("focus"),
@@ -22,11 +23,14 @@ export function GraphView() {
     defaultScope: "all",
   });
   const graph = useGraphCommander();
-  const { openGraph } = graph;
+  const { focusOnChat, openGraph } = graph;
 
   useEffect(() => {
-    void openGraph();
-  }, [openGraph]);
+    void openGraph().then(() => {
+      if (!hasContextFocus || !currentConversation) return;
+      focusOnChat(currentConversation.displayName || currentConversation.username);
+    });
+  }, [currentConversation, focusOnChat, hasContextFocus, openGraph]);
 
   return (
     <div className="workspace-page graph-workspace">

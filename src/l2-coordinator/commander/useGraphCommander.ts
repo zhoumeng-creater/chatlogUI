@@ -33,6 +33,7 @@ import {
   hasMeaningfulGraphEventDraft,
 } from "./graphResidualViewModel";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
+import { formatGraphFailureMessage } from "./graphErrorDisplay";
 
 function graphDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
@@ -62,7 +63,7 @@ export function useGraphCommander() {
     } catch (error) {
       useGraphStore.getState().failGraphLoadRequest(
         requestId,
-        error instanceof Error ? error.message : "加载图谱数据失败",
+        formatGraphFailureMessage(error, "加载图谱数据失败"),
       );
     }
   }, []);
@@ -73,7 +74,7 @@ export function useGraphCommander() {
       useGraphStore.getState().setStatusSummary(status as unknown as GraphStatusView | null);
     } catch (error) {
       useGraphStore.getState().setError(
-        error instanceof Error ? error.message : "图谱状态查询失败",
+        formatGraphFailureMessage(error, "图谱状态查询失败"),
       );
     }
   }, []);
@@ -108,7 +109,7 @@ export function useGraphCommander() {
     } catch (error) {
       useGraphStore.getState().failGraphLoadRequest(
         requestId,
-        error instanceof Error ? error.message : "加载图谱摘要失败",
+        formatGraphFailureMessage(error, "加载图谱摘要失败"),
       );
     }
   }, []);
@@ -138,7 +139,7 @@ export function useGraphCommander() {
       await refreshStatus();
     } catch (error) {
       useGraphStore.getState().setError(
-        error instanceof Error ? error.message : `图谱操作 ${action} 失败`,
+        formatGraphFailureMessage(error, `图谱操作 ${action} 失败`),
       );
     }
   }, [refreshStatus]);
@@ -158,7 +159,7 @@ export function useGraphCommander() {
       useGraphStore.getState().setAdvancedConfig(config);
     } catch (error) {
       useGraphStore.getState().setAdvancedConfigError(
-        error instanceof Error ? error.message : "加载图谱高级配置失败",
+        formatGraphFailureMessage(error, "加载图谱高级配置失败"),
       );
     }
   }, []);
@@ -172,7 +173,7 @@ export function useGraphCommander() {
       await refreshStatus();
     } catch (error) {
       useGraphStore.getState().setAdvancedConfigError(
-        error instanceof Error ? error.message : "保存图谱高级配置失败",
+        formatGraphFailureMessage(error, "保存图谱高级配置失败"),
       );
     }
   }, [refreshStatus]);
@@ -195,7 +196,7 @@ export function useGraphCommander() {
       await refreshStatus();
     } catch (error) {
       useGraphStore.getState().setIngestError(
-        error instanceof Error ? error.message : "业务记录写入图谱失败",
+        formatGraphFailureMessage(error, "业务记录写入图谱失败"),
       );
     }
   }, [refreshStatus]);
@@ -218,7 +219,7 @@ export function useGraphCommander() {
       await refreshStatus();
     } catch (error) {
       useGraphStore.getState().setIngestError(
-        error instanceof Error ? error.message : "事件记录写入图谱失败",
+        formatGraphFailureMessage(error, "事件记录写入图谱失败"),
       );
     }
   }, [refreshStatus]);
@@ -241,7 +242,7 @@ export function useGraphCommander() {
       useGraphStore.getState().setQAResult(result);
     } catch (error) {
       useGraphStore.getState().setQAError(
-        error instanceof Error ? error.message : "图谱 QA 失败",
+        formatGraphFailureMessage(error, "图谱 QA 失败"),
       );
     }
   }, []);

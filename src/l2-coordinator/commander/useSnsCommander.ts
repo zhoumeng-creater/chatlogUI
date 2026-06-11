@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import {
   defaultSnsFilters,
@@ -10,7 +10,9 @@ import {
   fetchSnsFeed,
   fetchSnsNotifications,
   fetchSnsSearch,
+  getSensitiveSnsArticleUrl,
 } from "@l4/network";
+import { openExternalUrl } from "@l4/system";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { buildSnsModuleView } from "./snsViewModel";
 
@@ -22,9 +24,19 @@ function nextSnsRequestId(prefix: "feed" | "search"): string {
   return `${prefix}-${snsRequestSequence}`;
 }
 
+interface SnsExternalOpenPromptState {
+  postId: string;
+  title: string;
+  domain: string;
+  scheme: "http" | "https";
+  url: string;
+}
+
 export function useSnsCommander() {
   const store = useSnsStore();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+  const [externalOpenPromptState, setExternalOpenPromptState] = useState<SnsExternalOpenPromptState | null>(null);
+  const [externalOpenError, setExternalOpenError] = useState<string | null>(null);
   const view = useMemo(() => buildSnsModuleView(store, privacyOn), [store, privacyOn]);
 
   const loadSnsModule = useCallback(async (overrides: Partial<SnsFilters> = {}) => {
@@ -141,10 +153,63 @@ export function useSnsCommander() {
     useSnsStore.getState().setSearchResults([]);
   }, []);
 
+  const requestArticleOpen = useCallback((postId: string) => {
+    setExternalOpenError(null);
+    if (privacyOn) {
+      setExternalOpenError("隐私模式下不打开外部文章，避免暴露浏览上下文。");
+      return;
+    }
+
+    const state = useSnsStore.getState();
+    const post = [...state.feed, ...state.searchResults].find((item) => item.id === postId);
+    const article = post?.article;
+    const url = getSensitiveSnsArticleUrl(article);
+    if (!post || !article?.externalDomain || !article.externalScheme || !url) {
+      setExternalOpenError("这条文章没有可安全确认的外链，已阻止打开。");
+      return;
+    }
+
+    setExternalOpenPromptState({
+      postId,
+      title: article.title || article.description || "朋友圈文章",
+      domain: article.externalDomain,
+      scheme: article.externalScheme,
+      url,
+    });
+  }, [privacyOn]);
+
+  const confirmExternalOpen = useCallback(async () => {
+    const prompt = externalOpenPromptState;
+    if (!prompt) return;
+    const result = await openExternalUrl(prompt.url);
+    if (!result.ok) {
+      setExternalOpenError(result.message);
+      return;
+    }
+    setExternalOpenPromptState(null);
+    setExternalOpenError(null);
+  }, [externalOpenPromptState]);
+
+  const cancelExternalOpen = useCallback(() => {
+    setExternalOpenPromptState(null);
+    setExternalOpenError(null);
+  }, []);
+
+  const externalOpenPrompt = externalOpenPromptState
+    ? {
+        postId: externalOpenPromptState.postId,
+        title: externalOpenPromptState.title,
+        domain: externalOpenPromptState.domain,
+        scheme: externalOpenPromptState.scheme,
+      }
+    : null;
+
   return {
     ...store,
     view,
     privacyOn,
+    externalOpenPrompt,
+    externalOpenError,
     loadSnsModule,
     refresh,
     retry: refresh,
@@ -154,5 +219,8 @@ export function useSnsCommander() {
     updateFilters,
     selectTab,
     selectPost: (postId: string | null) => useSnsStore.getState().selectPost(postId),
+    requestArticleOpen,
+    confirmExternalOpen,
+    cancelExternalOpen,
   };
 }

@@ -10,6 +10,8 @@ export type { SidecarLogPayload } from "./listenSidecarLogs";
 export { exportDiagnosticsReport } from "./exportDiagnostics";
 export type { ExportDiagnosticsPayload, ExportDiagnosticsLine } from "./exportDiagnostics";
 export { copyTextToClipboard } from "./clipboard";
+export { openExternalUrl } from "./openExternalUrl";
+export type { OpenExternalUrlResult } from "./openExternalUrl";
 export {
   closeCurrentWindow,
   listenCurrentWindowStateChange,

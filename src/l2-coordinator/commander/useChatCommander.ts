@@ -1,7 +1,10 @@
 import { useCallback, useRef } from "react";
-import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
+import {
+  useChatStore,
+  type ChatMessageAnchor,
+  type ChatReturnToSearch,
+} from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import { ChatlogHttpError, fetchConversations, fetchHistory } from "@l4/network";
-import type { SearchHitNavigationResult } from "./searchNavigation";
 import {
   buildAnchorHistoryRequest,
   findAnchoredMessage,
@@ -10,6 +13,13 @@ import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 const HISTORY_PAGE_SIZE = 50;
 const ANCHOR_WINDOW_SECONDS = 300;
+
+export interface AnchoredChatNavigationTarget {
+  conversationId: string;
+  chat: string;
+  anchor: ChatMessageAnchor;
+  returnToSearch: ChatReturnToSearch;
+}
 
 function hasMoreHistory(result: { count: number; limit: number; messages: unknown[] }) {
   const loadedCount = result.count || result.messages.length;
@@ -158,7 +168,7 @@ export function useChatCommander() {
   );
 
   const selectAndLoadAtAnchor = useCallback(
-    async (target: Extract<SearchHitNavigationResult, { ok: true }>) => {
+    async (target: AnchoredChatNavigationTarget) => {
       const request = startHistoryRequest();
       useChatStore.getState().selectConversation(target.conversationId);
       useChatStore.getState().setAnchorLoading(target.anchor, target.returnToSearch);

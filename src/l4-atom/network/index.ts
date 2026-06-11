@@ -47,6 +47,7 @@ export {
   adaptSnsFeedResponse,
   adaptSnsSearchResponse,
   adaptSnsNotificationsResponse,
+  getSensitiveSnsArticleUrl,
   isLocalSnsProxyUrl,
 } from "./snsAdapters";
 export type {

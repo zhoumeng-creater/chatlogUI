@@ -29,7 +29,7 @@ export function SnsView() {
         <div>
           <Typography variant="h3">朋友圈</Typography>
           <Typography variant="body" color="var(--text-secondary)">
-            浏览 timeline、通知和搜索结果；外部打开与完整详情闭环将在 SNS 后续阶段继续补齐。
+            浏览动态、通知和搜索结果；外部文章会先确认域名，再交给系统浏览器打开。
           </Typography>
         </div>
       </header>
@@ -49,6 +49,8 @@ export function SnsView() {
           searchError={sns.searchError}
           selectedPostId={sns.selectedPostId}
           privacyOn={sns.privacyOn}
+          externalOpenPrompt={sns.externalOpenPrompt}
+          externalOpenError={sns.externalOpenError}
           onRefresh={sns.refresh}
           onRetry={sns.retry}
           onLoadMore={sns.loadMore}
@@ -58,6 +60,9 @@ export function SnsView() {
           onSearch={sns.runSearch}
           onClearSearch={sns.clearSearch}
           onSelectPost={sns.selectPost}
+          onRequestArticleOpen={sns.requestArticleOpen}
+          onConfirmExternalOpen={sns.confirmExternalOpen}
+          onCancelExternalOpen={sns.cancelExternalOpen}
         />
       </div>
     </div>

@@ -51,7 +51,7 @@ export function buildWorkspaceRouteScopeView(input: WorkspaceRouteScopeInput): W
   const mode = normalizeScope(input.scope, hasScopedChat, input.defaultScope ?? "currentChat");
   const scopedConversation = findConversationForScopedChat(input.conversations, scopedChat);
   const sourceLabel = safeSourceLabel(input.source);
-  const focusLabel = safeFocusLabel(input.focus, input.privacyOn);
+  const focusLabel = safeFocusLabel(input.focus);
 
   if (mode === "all") {
     return {
@@ -138,7 +138,7 @@ function safeSourceLabel(source: string | null | undefined): string | null {
   return sourceLabels[normalized] ?? "来自上下文入口";
 }
 
-function safeFocusLabel(focus: string | null | undefined, privacyOn: boolean): string | null {
+function safeFocusLabel(focus: string | null | undefined): string | null {
   if (!focus?.trim()) return null;
-  return privacyOn ? "已带入隐私保护焦点" : "已带入上下文焦点";
+  return "已从上下文进入，可在本页筛选定位对象。";
 }

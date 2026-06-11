@@ -122,6 +122,8 @@ function maskPost(post: AdaptedSnsPost): AdaptedSnsPost {
           ...post.article,
           title: "已隐藏文章",
           description: post.article.description ? "已隐藏文章摘要" : "",
+          externalDomain: undefined,
+          externalScheme: undefined,
         }
       : null,
     finder: post.finder

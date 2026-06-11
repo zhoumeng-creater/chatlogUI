@@ -17,6 +17,10 @@ export interface ConversationInspectorTitleInput {
 
 export interface ScopedWorkspaceRouteOptions {
   scope?: "currentChat" | "all";
+  /**
+   * Accepted for call-site compatibility only. Private chat identifiers are
+   * resolved from current app state and must not be serialized into URLs.
+   */
   chat?: string;
   focus?: string;
   source?: string;
@@ -40,8 +44,7 @@ export function buildScopedWorkspaceRoute(
 ): string {
   const params = new URLSearchParams();
   if (options.scope) params.set("scope", options.scope);
-  if (options.chat) params.set("chat", options.chat);
-  if (options.focus) params.set("focus", options.focus);
+  if (options.focus) params.set("focus", "context");
   if (options.source) params.set("source", options.source);
 
   const query = params.toString();

@@ -9,6 +9,7 @@ import {
 import { Button, Input, SegmentedControl, Select, Spinner, Typography } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
 import { SnsDetailInspector } from "./SnsDetailInspector";
+import { SnsExternalOpenDialog, type SnsExternalOpenPrompt } from "./SnsExternalOpenDialog";
 import { formatSnsNotificationLabel, formatSnsTime } from "./snsDisplay";
 import { SnsSearchPanel } from "./SnsSearchPanel";
 import { SnsTimeline } from "./SnsTimeline";
@@ -65,6 +66,8 @@ interface SnsModuleProps {
   searchError: string | null;
   selectedPostId: string | null;
   privacyOn: boolean;
+  externalOpenPrompt: SnsExternalOpenPrompt | null;
+  externalOpenError: string | null;
   onRefresh: () => void;
   onRetry: () => void;
   onLoadMore: () => void;
@@ -74,6 +77,9 @@ interface SnsModuleProps {
   onSearch: (query?: string) => void;
   onClearSearch: () => void;
   onSelectPost: (postId: string | null) => void;
+  onRequestArticleOpen: (postId: string) => void;
+  onConfirmExternalOpen: () => void;
+  onCancelExternalOpen: () => void;
 }
 
 const CONTENT_TYPE_OPTIONS: Array<{ value: SnsModuleContentTypeFilter; label: string }> = [
@@ -97,6 +103,8 @@ export function SnsModule({
   searchError,
   selectedPostId,
   privacyOn,
+  externalOpenPrompt,
+  externalOpenError,
   onRefresh,
   onRetry,
   onLoadMore,
@@ -106,6 +114,9 @@ export function SnsModule({
   onSearch,
   onClearSearch,
   onSelectPost,
+  onRequestArticleOpen,
+  onConfirmExternalOpen,
+  onCancelExternalOpen,
 }: SnsModuleProps) {
   return (
     <aside className="sns-module" aria-label="朋友圈">
@@ -213,8 +224,20 @@ export function SnsModule({
               )}
             </div>
 
-            <SnsDetailInspector post={view.selectedPost} privacyOn={privacyOn} />
+            <SnsDetailInspector
+              post={view.selectedPost}
+              privacyOn={privacyOn}
+              onRequestArticleOpen={onRequestArticleOpen}
+            />
           </div>
+          {externalOpenPrompt && (
+            <SnsExternalOpenDialog
+              prompt={externalOpenPrompt}
+              error={externalOpenError}
+              onConfirm={onConfirmExternalOpen}
+              onCancel={onCancelExternalOpen}
+            />
+          )}
         </>
       )}
     </aside>

@@ -47,6 +47,9 @@ export interface AdaptedSnsArticle {
   title: string;
   description: string;
   hasExternalUrl: boolean;
+  externalDomain?: string;
+  externalScheme?: "http" | "https";
+  sensitiveExternalUrl?: string;
 }
 
 export interface AdaptedSnsFinder {
@@ -221,7 +224,22 @@ function adaptArticle(raw: RawSnsArticle | null | undefined): AdaptedSnsArticle 
   const description = stringValue(raw.description, "");
   const hasExternalUrl = Boolean(stringValue(raw.url, "") || stringValue(raw.cover_url, ""));
   if (!title && !description && !hasExternalUrl) return null;
-  return { title, description, hasExternalUrl };
+  const safeUrl = safeExternalArticleUrl(raw.url);
+  const article: AdaptedSnsArticle = {
+    title,
+    description,
+    hasExternalUrl,
+  };
+  if (safeUrl) {
+    article.externalDomain = safeUrl.hostname;
+    article.externalScheme = safeUrl.protocol === "https:" ? "https" : "http";
+    defineSensitiveArticleUrl(article, safeUrl.toString());
+  }
+  return article;
+}
+
+export function getSensitiveSnsArticleUrl(article: AdaptedSnsArticle | null | undefined): string {
+  return article?.sensitiveExternalUrl ?? "";
 }
 
 function adaptFinder(raw: RawSnsFinderFeed | null | undefined): AdaptedSnsFinder | null {
@@ -262,6 +280,30 @@ function defineSensitive(
     configurable: false,
     writable: false,
   });
+}
+
+function defineSensitiveArticleUrl(
+  target: AdaptedSnsArticle,
+  value: string,
+): void {
+  Object.defineProperty(target, "sensitiveExternalUrl", {
+    value,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+}
+
+function safeExternalArticleUrl(value?: string | null): URL | null {
+  const raw = stringValue(value, "");
+  if (!raw) return null;
+
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" || url.protocol === "http:" ? url : null;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeContentType(value?: string | null): SnsPostContentType {

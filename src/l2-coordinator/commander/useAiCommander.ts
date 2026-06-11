@@ -78,7 +78,7 @@ function semanticDiagnostics(method: "GET" | "POST" = "GET") {
 export function useAiCommander() {
   const store = useAiStore();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { selectedConversationId, selectAndLoad } = useChatCommander();
+  const { selectedConversationId, selectAndLoad, selectAndLoadAtAnchor } = useChatCommander();
   const conversations = useChatStore((s) => s.conversations);
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeQARef = useRef<{ streamId: string; aiMsgId: string } | null>(null);
@@ -363,9 +363,36 @@ export function useAiCommander() {
       privacyOn,
     });
     if (target.status !== "ready") return target;
+    if (target.localId && target.localId > 0) {
+      void selectAndLoadAtAnchor({
+        conversationId: target.conversationId,
+        chat: target.chat,
+        anchor: {
+          source: "ai",
+          chat: target.chat,
+          messageId: "",
+          localId: target.localId,
+          timestamp: null,
+          time: null,
+        },
+        returnToSearch: {
+          returnRoute: "/ai",
+          activeResultId: `semantic-${target.localId}`,
+          querySnapshot: {
+            query: store.searchQuery,
+            filter: "all",
+            scope: "current",
+            scopeChat: target.chat,
+          },
+          sourceConversationId: target.conversationId,
+        },
+      });
+      return target;
+    }
+
     void selectAndLoad(target.conversationId, target.chat);
     return target;
-  }, [conversations, privacyOn, selectAndLoad]);
+  }, [conversations, privacyOn, selectAndLoad, selectAndLoadAtAnchor, store.searchQuery]);
 
   const recentDiscoveryChats = useMemo(() => conversations
     .filter((conversation) => conversation.username)

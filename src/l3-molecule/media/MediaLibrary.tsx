@@ -1,5 +1,5 @@
 import { Bell, FileText, Image, MessageSquare, RefreshCw, Star, Users } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, DisabledReason, SegmentedControl, Spinner, Typography } from "@l4/ui";
 import type {
   MediaAttachment,
@@ -21,6 +21,7 @@ import {
 import { MediaPreviewSheet } from "./MediaPreviewSheet";
 
 type MediaTab = "attachments" | "favorites" | "members" | "unread" | "new";
+const MEMBER_PREVIEW_LIMIT = 50;
 
 interface MediaLibraryProps {
   currentChat: string;
@@ -57,10 +58,19 @@ export function MediaLibrary({
   onPreviewAttachment,
   onClosePreview,
 }: MediaLibraryProps) {
-  const [activeTab, setActiveTab] = useState<MediaTab>("attachments");
+  const [activeTab, setActiveTab] = useState<MediaTab>(() =>
+    chooseInitialMediaTab({ attachments, favorites, members, unread, newMessages }),
+  );
   const mediaCounts = useMemo(() => summarizeMediaCounts(attachments), [attachments]);
   const totalItems = attachments.length + favorites.length + members.length + unread.total + newMessages.length;
   const refreshDisabledReasonId = !currentChat ? "media-library-refresh-disabled-reason" : undefined;
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (mediaTabHasContent(activeTab, { attachments, favorites, members, unread, newMessages })) return;
+    const nextTab = chooseInitialMediaTab({ attachments, favorites, members, unread, newMessages });
+    if (nextTab !== activeTab) setActiveTab(nextTab);
+  }, [activeTab, attachments, favorites, members, newMessages, status, unread]);
 
   return (
     <aside className="media-library" aria-label="媒体与扩展">
@@ -150,6 +160,12 @@ export function MediaLibrary({
             ]}
           />
 
+          <MediaBoundaryNotes
+            memberCount={members.length}
+            unreadTotal={unread.total}
+            newMessageCount={newMessages.length}
+          />
+
           <div className="media-library__body">
             {status === "loading" && (
               <div className="media-library__loading">
@@ -194,6 +210,67 @@ export function MediaLibrary({
         onClose={onClosePreview}
       />
     </aside>
+  );
+}
+
+function chooseInitialMediaTab(data: {
+  attachments: MediaAttachment[];
+  favorites: MediaFavoriteItem[];
+  members: MediaMember[];
+  unread: MediaUnreadResponse;
+  newMessages: MediaNewMessage[];
+}): MediaTab {
+  if (data.attachments.length > 0) return "attachments";
+  if (data.favorites.length > 0) return "favorites";
+  if (data.members.length > 0) return "members";
+  if (data.unread.total > 0) return "unread";
+  if (data.newMessages.length > 0) return "new";
+  return "attachments";
+}
+
+function mediaTabHasContent(
+  tab: MediaTab,
+  data: {
+    attachments: MediaAttachment[];
+    favorites: MediaFavoriteItem[];
+    members: MediaMember[];
+    unread: MediaUnreadResponse;
+    newMessages: MediaNewMessage[];
+  },
+): boolean {
+  if (tab === "attachments") return data.attachments.length > 0;
+  if (tab === "favorites") return data.favorites.length > 0;
+  if (tab === "members") return data.members.length > 0;
+  if (tab === "unread") return data.unread.total > 0;
+  return data.newMessages.length > 0;
+}
+
+function MediaBoundaryNotes({
+  memberCount,
+  unreadTotal,
+  newMessageCount,
+}: {
+  memberCount: number;
+  unreadTotal: number;
+  newMessageCount: number;
+}) {
+  const notes: string[] = [];
+  if (memberCount > MEMBER_PREVIEW_LIMIT) {
+    notes.push(`仅展示前 ${MEMBER_PREVIEW_LIMIT} 位成员；成员搜索和分页需等待后端提供游标能力。`);
+  }
+  if (unreadTotal > 0 || newMessageCount > 0) {
+    notes.push("当前接口未返回可定位消息锚点，未读与增量消息暂按摘要展示。");
+  }
+  if (notes.length === 0) return null;
+
+  return (
+    <div className="media-library__partial" role="status">
+      {notes.map((note) => (
+        <Typography key={note} variant="caption" color="var(--text-secondary)">
+          {note}
+        </Typography>
+      ))}
+    </div>
   );
 }
 
@@ -359,10 +436,11 @@ function MemberList({
   privacyOn: boolean;
 }) {
   if (members.length === 0) return <EmptyTab label="成员" />;
+  const visibleMembers = members.slice(0, MEMBER_PREVIEW_LIMIT);
 
   return (
     <div className="media-library__list media-library__list--members">
-      {members.map((member) => (
+      {visibleMembers.map((member) => (
         <div key={member.username} className="media-library__row">
           <Users size={16} />
           <span>{formatMemberDisplayName(member, privacyOn)}</span>

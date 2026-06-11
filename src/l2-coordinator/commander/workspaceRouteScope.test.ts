@@ -24,7 +24,7 @@ describe("buildWorkspaceRouteScopeView", () => {
     expect(view.currentChat).toBe("room_secret_001");
     expect(view.scopeLabel).toBe("当前会话（已隐藏）");
     expect(view.sourceLabel).toBe("来自搜索结果");
-    expect(view.focusLabel).toBe("已带入隐私保护焦点");
+    expect(view.focusLabel).toBe("已从上下文进入，可在本页筛选定位对象。");
 
     const visibleCopy = [view.scopeLabel, view.scopeDescription, view.sourceLabel, view.focusLabel].join(" ");
     expect(visibleCopy).not.toContain("room_secret_001");

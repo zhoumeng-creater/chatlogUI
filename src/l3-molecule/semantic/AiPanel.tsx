@@ -26,7 +26,7 @@ interface AiPanelProps {
   currentChat: string;
   currentContact: string;
   privacyOn: boolean;
-  onSelectAndLoad: (conversationId: string, chat: string) => void;
+  onSelectEvidenceSource: (chat: string, label: string, localId?: number) => void;
   onModeChange: (mode: PanelMode) => void;
 }
 
@@ -36,7 +36,7 @@ export function AiPanel({
   currentChat,
   currentContact,
   privacyOn,
-  onSelectAndLoad,
+  onSelectEvidenceSource,
   onModeChange,
 }: AiPanelProps) {
   const [activeTab, setActiveTab] = useState<AiTab>('qa');
@@ -173,7 +173,7 @@ export function AiPanel({
                       onStopQAStream={ai.stopQAStream}
                       onRetryQAMessage={ai.retryQAMessage}
                       onCopyQAMessageAnswer={ai.copyQAMessageAnswer}
-                      onSelectEvidenceSource={onSelectAndLoad}
+                      onSelectEvidenceSource={onSelectEvidenceSource}
                     />
                   )}
                   {activeTab === 'search' && (

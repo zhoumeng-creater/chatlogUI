@@ -46,8 +46,40 @@ export function AiWorkspaceView() {
             currentChat={currentConversation?.username ?? ""}
             currentContact={currentConversation?.displayName ?? ""}
             privacyOn={privacyOn}
-            onSelectAndLoad={(conversationId, chatName) => {
-              void chat.selectAndLoad(conversationId, chatName).then(() => navigate(withSmokeQuery("/workbench")));
+            onSelectEvidenceSource={(sourceChat, _label, localId) => {
+              const conversation = chat.conversations.find((item) =>
+                item.username === sourceChat || item.id === sourceChat,
+              );
+              if (!conversation) return;
+
+              if (localId && localId > 0) {
+                void chat.selectAndLoadAtAnchor({
+                  conversationId: conversation.id,
+                  chat: conversation.username,
+                  anchor: {
+                    source: "ai",
+                    chat: conversation.username,
+                    messageId: "",
+                    localId,
+                    timestamp: null,
+                    time: null,
+                  },
+                  returnToSearch: {
+                    returnRoute: withSmokeQuery("/ai"),
+                    activeResultId: `ai-evidence-${localId}`,
+                    querySnapshot: {
+                      query: "AI 证据",
+                      filter: "all",
+                      scope: "current",
+                      scopeChat: conversation.username,
+                    },
+                    sourceConversationId: conversation.id,
+                  },
+                }).then(() => navigate(withSmokeQuery("/workbench")));
+                return;
+              }
+
+              void chat.selectAndLoad(conversation.id, conversation.username).then(() => navigate(withSmokeQuery("/workbench")));
             }}
             onModeChange={(mode) => {
               if (mode === "stats") navigate(withSmokeQuery("/analytics"));
