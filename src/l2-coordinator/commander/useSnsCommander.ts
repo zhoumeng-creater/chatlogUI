@@ -4,6 +4,8 @@ import {
   defaultSnsFilters,
   useSnsStore,
   type SnsActiveTab,
+  type SnsEndpointState,
+  type SnsEndpointStatus,
   type SnsFilters,
 } from "@l2/data-clerk/stores/useSnsStore";
 import {
@@ -46,7 +48,7 @@ export function useSnsCommander() {
     useSnsStore.getState().setLoading(requestId);
 
     try {
-      const [feed, notifications] = await Promise.all([
+      const [feedResult, notificationsResult] = await Promise.allSettled([
         fetchSnsFeed(
           {
             limit: filters.limit,
@@ -80,10 +82,17 @@ export function useSnsCommander() {
       ]);
 
       if (!useSnsStore.getState().isFeedRequestActive(requestId)) return;
+      const feed = feedResult.status === "fulfilled" ? feedResult.value.posts : [];
+      const notifications = notificationsResult.status === "fulfilled" ? notificationsResult.value.items : [];
+      const endpointStatus: SnsEndpointStatus = {
+        feed: endpointState(feedResult, feed.length, "动态加载失败"),
+        notifications: endpointState(notificationsResult, notifications.length, "通知加载失败"),
+      };
+
       useSnsStore.getState().setData({
-        feed: feed.posts,
-        notifications: notifications.items,
-      }, requestId);
+        feed,
+        notifications,
+      }, requestId, endpointStatus);
       useSnsStore.getState().updateFilters(filters);
     } catch {
       useSnsStore.getState().setError("加载朋友圈失败", requestId);
@@ -223,4 +232,13 @@ export function useSnsCommander() {
     confirmExternalOpen,
     cancelExternalOpen,
   };
+}
+
+function endpointState<T>(
+  result: PromiseSettledResult<T>,
+  itemCount: number,
+  error: string,
+): SnsEndpointState {
+  if (result.status === "rejected") return { status: "error", error };
+  return { status: itemCount > 0 ? "ready" : "empty", error: null };
 }

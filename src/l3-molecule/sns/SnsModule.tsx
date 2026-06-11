@@ -19,7 +19,7 @@ import type {
   SnsPostContentType,
 } from "./snsTypes";
 
-export type SnsModuleLoadStatus = "idle" | "loading" | "ready" | "empty" | "error";
+export type SnsModuleLoadStatus = "idle" | "loading" | "ready" | "empty" | "partial" | "error";
 export type SnsModuleActiveTab = "timeline" | "search" | "notifications";
 export type SnsModuleContentTypeFilter = "all" | SnsPostContentType;
 
@@ -39,6 +39,7 @@ export interface SnsModuleViewModel {
   timelinePosts: AdaptedSnsPost[];
   searchResults: AdaptedSnsPost[];
   notifications: AdaptedSnsNotification[];
+  notificationTargetIds: string[];
   selectedPost: AdaptedSnsPost | null;
   summary: {
     feedCount: number;
@@ -154,6 +155,17 @@ export function SnsModule({
         </div>
       ) : (
         <>
+          {status === "partial" && (
+            <div className="sns-module__partial" role="status">
+              <Typography variant="label" weight={700}>
+                {error || view.errorCopy || "部分朋友圈数据加载失败"}
+              </Typography>
+              <Typography variant="caption" color="var(--text-secondary)">
+                其他朋友圈内容仍可查看，可刷新后重试缺失部分。
+              </Typography>
+            </div>
+          )}
+
           <SummaryStrip view={view} loading={status === "loading"} />
           <FilterPanel filters={filters} onFiltersChange={onFiltersChange} onApply={onRefresh} />
 
@@ -216,6 +228,7 @@ export function SnsModule({
               {activeTab === "notifications" && (
                 <NotificationList
                   notifications={view.notifications}
+                  notificationTargetIds={view.notificationTargetIds}
                   selectedPostId={selectedPostId}
                   privacyOn={privacyOn}
                   emptyCopy={view.emptyCopy}
@@ -357,12 +370,14 @@ function FilterPanel({
 
 function NotificationList({
   notifications,
+  notificationTargetIds,
   selectedPostId,
   privacyOn,
   emptyCopy,
   onSelectPost,
 }: {
   notifications: AdaptedSnsNotification[];
+  notificationTargetIds: string[];
   selectedPostId: string | null;
   privacyOn: boolean;
   emptyCopy: string;
@@ -380,26 +395,38 @@ function NotificationList({
 
   return (
     <div className="sns-notification-list" aria-label="朋友圈通知">
-      {notifications.map((notification) => (
-        <button
-          key={notification.id}
-          type="button"
-          className={classNames(
-            "sns-notification-row",
-            notification.feedId && selectedPostId === notification.feedId && "sns-notification-row--selected",
-          )}
-          onClick={() => onSelectPost(notification.feedId || null)}
-        >
-          <Bell size={15} />
-          <span className="sns-notification-row__main">
-            <strong>{formatSnsNotificationLabel(notification, privacyOn)}</strong>
-            <span>{privacyOn ? "已隐藏通知内容" : notification.content || notification.feedPreview || "互动通知"}</span>
-          </span>
-          <span className="sns-notification-row__time">
-            {formatSnsTime(notification.time, privacyOn)}
-          </span>
-        </button>
-      ))}
+      {notifications.map((notification) => {
+        const targetAvailable = Boolean(notification.feedId && notificationTargetIds.includes(notification.feedId));
+        return (
+          <button
+            key={notification.id}
+            type="button"
+            className={classNames(
+              "sns-notification-row",
+              targetAvailable && selectedPostId === notification.feedId && "sns-notification-row--selected",
+              !targetAvailable && "sns-notification-row--unavailable",
+            )}
+            disabled={!targetAvailable}
+            onClick={() => {
+              if (targetAvailable) onSelectPost(notification.feedId);
+            }}
+          >
+            <Bell size={15} />
+            <span className="sns-notification-row__main">
+              <strong>{formatSnsNotificationLabel(notification, privacyOn)}</strong>
+              <span>{privacyOn ? "已隐藏通知内容" : notification.content || notification.feedPreview || "互动通知"}</span>
+              {!targetAvailable && (
+                <span className="sns-notification-row__note">
+                  原动态未在当前结果中，刷新或调整筛选后再定位。
+                </span>
+              )}
+            </span>
+            <span className="sns-notification-row__time">
+              {formatSnsTime(notification.time, privacyOn)}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

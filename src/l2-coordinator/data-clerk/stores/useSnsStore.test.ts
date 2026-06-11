@@ -125,6 +125,50 @@ describe("useSnsStore", () => {
       activeSearchRequestId: null,
     });
   });
+
+  it("keeps feed and notification partial failures independent", () => {
+    useSnsStore.getState().setLoading("feed-a");
+    useSnsStore.getState().setData(
+      {
+        feed: [post("fresh-feed", "image")],
+        notifications: [],
+      },
+      "feed-a",
+      {
+        feed: { status: "ready", error: null },
+        notifications: { status: "error", error: "通知加载失败" },
+      },
+    );
+
+    expect(useSnsStore.getState()).toMatchObject({
+      status: "partial",
+      error: "部分朋友圈数据加载失败",
+      feed: [{ id: "fresh-feed" }],
+      notifications: [],
+      endpointStatus: {
+        feed: { status: "ready", error: null },
+        notifications: { status: "error", error: "通知加载失败" },
+      },
+    });
+  });
+
+  it("invalidates active feed and search requests when filters change", () => {
+    useSnsStore.getState().setLoading("feed-a");
+    useSnsStore.getState().setSearchLoading("search-a");
+
+    useSnsStore.getState().updateFilters({ user: "new-author" });
+
+    useSnsStore.getState().setData({ feed: [post("stale-feed", "text")], notifications: [] }, "feed-a");
+    useSnsStore.getState().setSearchResults([post("stale-search", "text")], "search-a");
+
+    expect(useSnsStore.getState()).toMatchObject({
+      activeFeedRequestId: null,
+      activeSearchRequestId: null,
+      feed: [],
+      searchResults: [],
+      filters: { user: "new-author" },
+    });
+  });
 });
 
 function post(id: string, contentType: AdaptedSnsPost["contentType"]): AdaptedSnsPost {

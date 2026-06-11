@@ -77,6 +77,7 @@ function snsStatusItem(status: string, searchStatus: string, activeTab: string):
     return { label: "朋友圈", value: "搜索异常", tone: "danger" };
   }
   if (status === "loading") return { label: "朋友圈", value: "加载中", tone: "info", busy: true };
+  if (status === "partial") return { label: "朋友圈", value: "部分可用", tone: "warning" };
   if (status === "error") return { label: "朋友圈", value: "异常", tone: "danger" };
   if (status === "ready") return { label: "朋友圈", value: "已加载", tone: "success" };
   if (status === "empty") return { label: "朋友圈", value: "暂无动态", tone: "neutral" };

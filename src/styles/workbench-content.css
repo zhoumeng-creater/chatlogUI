@@ -901,6 +901,15 @@
   background: color-mix(in srgb, var(--danger) 8%, transparent);
 }
 
+.sns-module__partial {
+  display: grid;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--border-subtle));
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  background: color-mix(in srgb, var(--warning) 9%, var(--surface-base));
+}
+
 .sns-module__load-more {
   width: 100%;
   justify-content: center;
@@ -1067,6 +1076,22 @@
 .sns-notification-row__time {
   color: var(--text-secondary);
   font-size: 11px;
+}
+
+.sns-notification-row--unavailable {
+  cursor: default;
+  opacity: 0.78;
+}
+
+.sns-notification-row--unavailable:hover {
+  background: var(--surface-base);
+}
+
+.sns-notification-row__main .sns-notification-row__note {
+  overflow: visible;
+  color: var(--text-muted);
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .sns-detail {
