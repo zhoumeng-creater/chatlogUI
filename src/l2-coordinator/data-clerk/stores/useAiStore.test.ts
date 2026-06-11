@@ -438,6 +438,43 @@ describe("useAiStore semantic discovery request lifecycle", () => {
     });
   });
 
+  it("invalidates active semantic analysis requests when the route scope changes", () => {
+    const store = useAiStore.getState() as ReturnType<typeof useAiStore.getState> & {
+      startSemanticAnalysisRequest: (requestId: string) => void;
+      cancelSemanticAnalysisRequest: () => void;
+      completeSemanticTopicsRequest: (
+        requestId: string,
+        topics: NonNullable<ReturnType<typeof useAiStore.getState>["topics"]>,
+      ) => void;
+      completeSemanticProfileRequest: (
+        requestId: string,
+        profile: NonNullable<ReturnType<typeof useAiStore.getState>["profile"]>,
+      ) => void;
+    };
+
+    store.startSemanticAnalysisRequest("analysis-old-scope");
+    store.cancelSemanticAnalysisRequest();
+
+    store.completeSemanticTopicsRequest("analysis-old-scope", {
+      chat: "synthetic-old-chat",
+      topics: [{ topic: "stale", count: 1 }],
+    });
+    store.completeSemanticProfileRequest("analysis-old-scope", {
+      chat: "synthetic-old-chat",
+      profiles: [],
+    });
+
+    expect(useAiStore.getState()).toMatchObject({
+      activeSemanticAnalysisRequestId: null,
+      topics: null,
+      profile: null,
+      topicsLoading: false,
+      profileLoading: false,
+      topicsError: null,
+      profileError: null,
+    });
+  });
+
   it("drops stale semantic preview completions after pagination changes", () => {
     const store = useAiStore.getState() as ReturnType<typeof useAiStore.getState> & {
       startSemanticPreviewRequest: (requestId: string) => void;

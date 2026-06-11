@@ -51,6 +51,7 @@ export function MediaView() {
           attachments={media.attachments}
           favorites={media.favorites}
           members={media.members}
+          memberTotal={media.memberTotal}
           unread={media.unread}
           newMessages={media.newMessages}
           status={media.status}

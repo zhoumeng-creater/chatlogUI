@@ -20,6 +20,9 @@ describe("SnsExternalOpenDialog", () => {
 
     expect(html).toContain("打开外部文章");
     expect(html).toContain("HTTPS · article.synthetic.invalid");
+    expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('aria-labelledby="sns-external-open-title"');
+    expect(html).toContain('tabindex="-1"');
     expect(html).toContain("不会显示完整 URL、参数或密钥");
     expect(html).not.toContain("/private/path");
     expect(html).not.toContain("sns-secret-key");
@@ -48,4 +51,5 @@ describe("SnsExternalOpenDialog", () => {
     expect(html).not.toContain("/private/path");
     expect(html).not.toContain("sns-token");
   });
+
 });

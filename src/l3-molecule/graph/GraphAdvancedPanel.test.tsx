@@ -93,4 +93,38 @@ describe("GraphAdvancedPanel", () => {
     expect(html).toContain("正在执行图谱问答");
     expect(html).toContain("完成后可再次提问");
   });
+
+  it("labels advanced graph draft fields without relying on placeholder text", () => {
+    const html = renderToStaticMarkup(
+      <GraphAdvancedPanel
+        view={graphView}
+        configDraft={{ workers: 1, enqueueWorkers: 1 }}
+        businessDraft={{ title: "Synthetic title", content: "Synthetic content" }}
+        eventDraft={{ eventType: "Synthetic event", content: "Synthetic event content" }}
+        qaDraft={{ query: "Synthetic graph question" }}
+        privacyOn={false}
+        graphPaused={false}
+        onLoadConfig={vi.fn()}
+        onSaveConfig={vi.fn()}
+        onRebuild={vi.fn()}
+        onResetRebuild={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onConfigDraftChange={vi.fn()}
+        onBusinessDraftChange={vi.fn()}
+        onEventDraftChange={vi.fn()}
+        onQADraftChange={vi.fn()}
+        onBusinessIngest={vi.fn()}
+        onEventIngest={vi.fn()}
+        onGraphQA={vi.fn()}
+        onCancelConfirmation={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('aria-label="业务记录标题"');
+    expect(html).toContain('aria-label="业务记录内容"');
+    expect(html).toContain('aria-label="事件类型"');
+    expect(html).toContain('aria-label="事件内容"');
+    expect(html).toContain('aria-label="图谱问答问题"');
+  });
 });

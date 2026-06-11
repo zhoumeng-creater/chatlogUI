@@ -32,6 +32,7 @@ interface AiPreviewActions {
   failSemanticTopicsRequest: (requestId: string, error: string) => void;
   completeSemanticProfileRequest: (requestId: string, profile: ContactProfileData) => void;
   failSemanticProfileRequest: (requestId: string, error: string) => void;
+  cancelSemanticAnalysisRequest: () => void;
   startSemanticPreviewRequest: (requestId: string) => void;
   completeSemanticPreviewRequest: (requestId: string, preview: SemanticIndexPreviewView) => void;
   failSemanticPreviewRequest: (requestId: string, error: string) => void;
@@ -365,6 +366,16 @@ export const useAiStore = create<AiStore>((set, get) => ({
           ? state.activeSemanticAnalysisRequestId
           : null,
       };
+    }),
+  cancelSemanticAnalysisRequest: () =>
+    set({
+      activeSemanticAnalysisRequestId: null,
+      topics: null,
+      profile: null,
+      topicsLoading: false,
+      profileLoading: false,
+      topicsError: null,
+      profileError: null,
     }),
 
   startSemanticPreviewRequest: (activeSemanticPreviewRequestId: string) =>

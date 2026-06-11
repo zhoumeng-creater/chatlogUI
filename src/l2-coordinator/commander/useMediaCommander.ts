@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useChatStore } from "@l2/data-clerk/stores/useChatStore";
 import {
   useMediaStore,
@@ -24,6 +24,20 @@ function nextMediaLoadRequestId(): string {
   return `media-load-${mediaLoadSequence}`;
 }
 
+interface MediaLoadControllerRef {
+  current: AbortController | null;
+}
+
+export function cancelActiveMediaLoad(activeLoadControllerRef: MediaLoadControllerRef): boolean {
+  const controller = activeLoadControllerRef.current;
+  if (!controller) return false;
+
+  controller.abort();
+  activeLoadControllerRef.current = null;
+  useMediaStore.getState().cancelMediaLoadRequest();
+  return true;
+}
+
 export function useMediaCommander() {
   const store = useMediaStore();
   const messages = useChatStore((state) => state.messages);
@@ -36,6 +50,12 @@ export function useMediaCommander() {
   );
   const activeLoadControllerRef = useRef<AbortController | null>(null);
   const currentConversation = conversations.find((item) => item.id === selectedConversationId);
+
+  useEffect(() => {
+    return () => {
+      cancelActiveMediaLoad(activeLoadControllerRef);
+    };
+  }, []);
 
   const attachments = useMemo(
     () => messages.flatMap((message) => message.attachments ?? []),
@@ -105,6 +125,7 @@ export function useMediaCommander() {
       const favorites = favoritesResult.status === "fulfilled" ? favoritesResult.value.items : [];
       const unread = unreadResult.status === "fulfilled" ? unreadResult.value : { total: 0, chats: [] };
       const members = membersResult.status === "fulfilled" ? membersResult.value.members : [];
+      const memberTotal = membersResult.status === "fulfilled" ? membersResult.value.count : 0;
       const newMessages = newMessagesResult.status === "fulfilled" ? newMessagesResult.value.messages : [];
       const endpointStatus: MediaEndpointStatus = {
         favorites: endpointState(favoritesResult, favorites.length, "收藏加载失败"),
@@ -116,6 +137,7 @@ export function useMediaCommander() {
       useMediaStore.getState().completeMediaLoadRequest(requestId, {
         favorites,
         members,
+        memberTotal,
         unread,
         newMessages,
       }, endpointStatus);

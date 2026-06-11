@@ -1,5 +1,15 @@
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import { ExternalLink } from "lucide-react";
-import { Button, Typography } from "@l4/ui";
+import {
+  Button,
+  focusInitialOverlayTarget,
+  getOverlayDialogProps,
+  restoreFocusTarget,
+  shouldCloseOverlayOnKey,
+  trapOverlayFocus,
+  Typography,
+  type FocusTarget,
+} from "@l4/ui";
 
 export interface SnsExternalOpenPrompt {
   postId: string;
@@ -15,16 +25,44 @@ interface SnsExternalOpenDialogProps {
   onCancel: () => void;
 }
 
+const SNS_EXTERNAL_OPEN_TITLE_ID = "sns-external-open-title";
+
 export function SnsExternalOpenDialog({
   prompt,
   error,
   onConfirm,
   onCancel,
 }: SnsExternalOpenDialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const restoreTargetRef = useRef<FocusTarget | null>(null);
+
+  useEffect(() => {
+    restoreTargetRef.current = document.activeElement as FocusTarget | null;
+    focusInitialOverlayTarget(dialogRef.current);
+
+    return () => {
+      restoreFocusTarget(restoreTargetRef.current);
+      restoreTargetRef.current = null;
+    };
+  }, []);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (trapOverlayFocus(dialogRef.current, document.activeElement, event)) return;
+    if (shouldCloseOverlayOnKey(event.key, { dismissible: true })) {
+      event.preventDefault();
+      onCancel();
+    }
+  };
+
   return (
-    <div className="sns-external-open" role="dialog" aria-modal="false" aria-label="打开外部文章确认">
+    <div
+      {...getOverlayDialogProps({ titleId: SNS_EXTERNAL_OPEN_TITLE_ID })}
+      ref={dialogRef}
+      className="sns-external-open"
+      onKeyDown={handleKeyDown}
+    >
       <div className="sns-external-open__copy">
-        <Typography variant="label" weight={700}>
+        <Typography id={SNS_EXTERNAL_OPEN_TITLE_ID} variant="label" weight={700}>
           打开外部文章
         </Typography>
         <Typography variant="caption" color="var(--text-secondary)">

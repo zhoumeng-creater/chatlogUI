@@ -48,6 +48,9 @@ describe("SnsModule", () => {
 
     expect(html).toContain("原动态未在当前结果中");
     expect(html).toContain("刷新或调整筛选后再定位");
+    expect(html).toContain("查看动态列表");
+    expect(html).toContain('role="group"');
+    expect(html).not.toContain("disabled=\"\"");
   });
 });
 

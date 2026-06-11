@@ -29,6 +29,7 @@ interface MediaLibraryProps {
   attachments: MediaAttachment[];
   favorites: MediaFavoriteItem[];
   members: MediaMember[];
+  memberTotal?: number;
   unread: MediaUnreadResponse;
   newMessages: MediaNewMessage[];
   status: MediaLoadStatus;
@@ -47,6 +48,7 @@ export function MediaLibrary({
   attachments,
   favorites,
   members,
+  memberTotal,
   unread,
   newMessages,
   status,
@@ -63,6 +65,10 @@ export function MediaLibrary({
   );
   const [memberQuery, setMemberQuery] = useState("");
   const mediaCounts = useMemo(() => summarizeMediaCounts(attachments), [attachments]);
+  const reportedMemberTotal = Math.max(memberTotal ?? members.length, members.length);
+  const memberLabel = reportedMemberTotal > members.length
+    ? `${members.length}/${reportedMemberTotal}`
+    : members.length.toLocaleString();
   const totalItems = attachments.length + favorites.length + members.length + unread.total + newMessages.length;
   const refreshDisabledReasonId = !currentChat ? "media-library-refresh-disabled-reason" : undefined;
 
@@ -155,7 +161,7 @@ export function MediaLibrary({
             options={[
               { value: "attachments", label: `附件 ${attachments.length}` },
               { value: "favorites", label: `收藏 ${favorites.length}` },
-              { value: "members", label: `成员 ${members.length}` },
+              { value: "members", label: `成员 ${memberLabel}` },
               { value: "unread", label: `未读 ${unread.total}` },
               { value: "new", label: `增量 ${newMessages.length}` },
             ]}
@@ -163,6 +169,7 @@ export function MediaLibrary({
 
           <MediaBoundaryNotes
             memberCount={members.length}
+            memberTotal={reportedMemberTotal}
             unreadTotal={unread.total}
             newMessageCount={newMessages.length}
           />
@@ -257,16 +264,19 @@ function mediaTabHasContent(
 
 function MediaBoundaryNotes({
   memberCount,
+  memberTotal,
   unreadTotal,
   newMessageCount,
 }: {
   memberCount: number;
+  memberTotal: number;
   unreadTotal: number;
   newMessageCount: number;
 }) {
   const notes: string[] = [];
-  if (memberCount > MEMBER_PREVIEW_LIMIT) {
-    notes.push(`仅展示前 ${MEMBER_PREVIEW_LIMIT} 位成员；超过已加载范围的分页需等待后端提供游标能力。`);
+  if (memberTotal >= MEMBER_PREVIEW_LIMIT || memberCount >= MEMBER_PREVIEW_LIMIT) {
+    const totalCopy = memberTotal > memberCount ? `后端报告 ${memberTotal.toLocaleString()} 位成员；` : "";
+    notes.push(`当前仅展示前 ${MEMBER_PREVIEW_LIMIT} 位成员；${totalCopy}超过已加载范围的分页需等待后端提供游标能力。`);
   }
   if (memberCount > 0) {
     notes.push("成员搜索仅筛选已加载成员；不会向后端发起全量成员查询。");

@@ -131,6 +131,39 @@ describe("MediaLibrary", () => {
     expect(html).not.toContain("Member 50");
   });
 
+  it("states the member display cap even when the loaded window is exactly full", () => {
+    const html = renderToStaticMarkup(
+      <MediaLibrary
+        currentChat="synthetic_room"
+        privacyOn={false}
+        attachments={[]}
+        favorites={[]}
+        members={Array.from({ length: 50 }, (_, index) => ({
+          username: `member-${index}`,
+          displayName: `Member ${index}`,
+        }))}
+        memberTotal={80}
+        unread={{ total: 0, chats: [] }}
+        newMessages={[]}
+        status="ready"
+        error={null}
+        endpointStatus={{
+          ...emptyEndpointStatus(),
+          members: { status: "ready", error: null },
+        }}
+        selectedAttachment={null}
+        previewResourceUrl=""
+        onRetry={vi.fn()}
+        onPreviewAttachment={vi.fn()}
+        onClosePreview={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("当前仅展示前 50 位成员");
+    expect(html).toContain("后端报告 80 位成员");
+    expect(html).toContain("Member 49");
+  });
+
   it("previews favorite attachments through the media sheet and degrades text-only favorites honestly", () => {
     const html = renderToStaticMarkup(
       <MediaLibrary

@@ -30,6 +30,7 @@ export type MediaEndpointStatus = Record<MediaEndpointKey, MediaEndpointState>;
 interface MediaState {
   favorites: MediaFavoriteItem[];
   members: MediaMember[];
+  memberTotal: number;
   unread: AdaptedUnreadResponse;
   newMessages: MediaNewMessage[];
   status: MediaLoadStatus;
@@ -45,6 +46,7 @@ interface MediaActions {
   completeMediaLoadRequest: (requestId: string, data: {
     favorites: MediaFavoriteItem[];
     members: MediaMember[];
+    memberTotal?: number;
     unread: AdaptedUnreadResponse;
     newMessages: MediaNewMessage[];
   }, endpointStatus?: MediaEndpointStatus) => boolean;
@@ -54,6 +56,7 @@ interface MediaActions {
   setData: (data: {
     favorites: MediaFavoriteItem[];
     members: MediaMember[];
+    memberTotal?: number;
     unread: AdaptedUnreadResponse;
     newMessages: MediaNewMessage[];
   }, endpointStatus?: MediaEndpointStatus) => void;
@@ -88,6 +91,7 @@ function createInitialState(): MediaState {
   return {
     favorites: [],
     members: [],
+    memberTotal: 0,
     unread: emptyUnread,
     newMessages: [],
     status: "idle",
@@ -110,6 +114,7 @@ export const useMediaStore = create<MediaStore>((set) => ({
       error: null,
       endpointStatus: createEndpointStatus("loading"),
       selectedAttachment: null,
+      memberTotal: 0,
     }),
 
   completeMediaLoadRequest: (requestId, data, endpointStatusMap) => {
@@ -120,6 +125,7 @@ export const useMediaStore = create<MediaStore>((set) => ({
       return {
         favorites: data.favorites,
         members: data.members,
+        memberTotal: data.memberTotal ?? data.members.length,
         unread: data.unread,
         newMessages: data.newMessages,
         endpointStatus: endpointStatusMap ?? deriveEndpointStatus(data),
@@ -158,11 +164,13 @@ export const useMediaStore = create<MediaStore>((set) => ({
       activeLoadRequestId: null,
       activeLoadScope: null,
       selectedAttachment: null,
+      memberTotal: 0,
     }),
-  setData: ({ favorites, members, unread, newMessages }, endpointStatusMap) =>
+  setData: ({ favorites, members, memberTotal, unread, newMessages }, endpointStatusMap) =>
     set({
       favorites,
       members,
+      memberTotal: memberTotal ?? members.length,
       unread,
       newMessages,
       endpointStatus: endpointStatusMap ?? deriveEndpointStatus({ favorites, members, unread, newMessages }),

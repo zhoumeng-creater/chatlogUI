@@ -260,6 +260,24 @@ describe("UI governance", () => {
     expect(adHocConfirmations).toEqual([]);
   });
 
+  it("keeps SNS external-open confirmation on the shared overlay focus lifecycle", async () => {
+    const text = await readFile("src/l3-molecule/sns/SnsExternalOpenDialog.tsx", "utf8");
+
+    expect(text).toContain("focusInitialOverlayTarget");
+    expect(text).toContain("trapOverlayFocus");
+    expect(text).toContain("restoreFocusTarget");
+    expect(text).toContain("shouldCloseOverlayOnKey");
+    expect(text).toContain("onKeyDown");
+    expect(text).toContain("getOverlayDialogProps");
+  });
+
+  it("keeps empty SNS search submissions out of the error state", async () => {
+    const text = await readFile("src/l2-coordinator/commander/useSnsCommander.ts", "utf8");
+
+    expect(text).not.toContain('setSearchError("请输入朋友圈搜索关键词")');
+    expect(text).toContain("setSearchResults([])");
+  });
+
   it("keeps setup foundation components off demo utility color classes", async () => {
     const files = await collectSourceFiles("src/l3-molecule/setup");
     const demoClassUsages = [];

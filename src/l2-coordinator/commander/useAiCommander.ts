@@ -550,14 +550,22 @@ export function useAiCommander() {
 
   const previousChatRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!currentChat || previousChatRef.current === currentChat) return;
+    const aiStore = useAiStore.getState();
+
+    if (!currentChat) {
+      previousChatRef.current = undefined;
+      aiStore.setSearchResults(null);
+      aiStore.setSearchQuery("");
+      aiStore.cancelSemanticAnalysisRequest();
+      return;
+    }
+
+    if (previousChatRef.current === currentChat) return;
     previousChatRef.current = currentChat;
 
-    const aiStore = useAiStore.getState();
     aiStore.setSearchResults(null);
     aiStore.setSearchQuery("");
-    aiStore.setTopics(null);
-    aiStore.setProfile(null);
+    aiStore.cancelSemanticAnalysisRequest();
   }, [currentChat]);
 
   const latestAssistantMessage =

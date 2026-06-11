@@ -74,6 +74,28 @@ describe("useMediaStore", () => {
       favorites: [{ content: "fresh favorite" }],
     });
   });
+
+  it("preserves backend member total separately from the loaded member window", () => {
+    const store = useMediaStore.getState();
+
+    store.startMediaLoadRequest("media-members", { chat: "room-members", isGroup: true });
+    expect(store.completeMediaLoadRequest("media-members", {
+      favorites: [],
+      members: Array.from({ length: 50 }, (_, index) => ({
+        username: `member-${index}`,
+        displayName: `Member ${index}`,
+      })),
+      memberTotal: 80,
+      unread: { total: 0, chats: [] },
+      newMessages: [],
+    })).toBe(true);
+
+    expect(useMediaStore.getState()).toMatchObject({
+      members: expect.arrayContaining([expect.objectContaining({ username: "member-49" })]),
+      memberTotal: 80,
+      status: "ready",
+    });
+  });
 });
 
 function mediaData(label: "stale" | "fresh" | "cancelled") {

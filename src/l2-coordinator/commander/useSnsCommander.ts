@@ -106,7 +106,8 @@ export function useSnsCommander() {
     useSnsStore.getState().setActiveTab("search");
 
     if (!keyword) {
-      useSnsStore.getState().setSearchError("请输入朋友圈搜索关键词");
+      useSnsStore.getState().setSearchResults([]);
+      useSnsStore.getState().selectPost(null);
       return;
     }
 

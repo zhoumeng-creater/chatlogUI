@@ -233,6 +233,7 @@ export function SnsModule({
                   privacyOn={privacyOn}
                   emptyCopy={view.emptyCopy}
                   onSelectPost={onSelectPost}
+                  onShowTimeline={() => onTabChange("timeline")}
                 />
               )}
             </div>
@@ -375,6 +376,7 @@ function NotificationList({
   privacyOn,
   emptyCopy,
   onSelectPost,
+  onShowTimeline,
 }: {
   notifications: AdaptedSnsNotification[];
   notificationTargetIds: string[];
@@ -382,6 +384,7 @@ function NotificationList({
   privacyOn: boolean;
   emptyCopy: string;
   onSelectPost: (postId: string | null) => void;
+  onShowTimeline: () => void;
 }) {
   if (notifications.length === 0) {
     return (
@@ -397,6 +400,35 @@ function NotificationList({
     <div className="sns-notification-list" aria-label="朋友圈通知">
       {notifications.map((notification) => {
         const targetAvailable = Boolean(notification.feedId && notificationTargetIds.includes(notification.feedId));
+        const label = formatSnsNotificationLabel(notification, privacyOn);
+        const content = privacyOn ? "已隐藏通知内容" : notification.content || notification.feedPreview || "互动通知";
+        const time = formatSnsTime(notification.time, privacyOn);
+        if (!targetAvailable) {
+          return (
+            <div
+              key={notification.id}
+              role="group"
+              aria-label={`${label} 无法定位原动态`}
+              className="sns-notification-row sns-notification-row--unavailable"
+            >
+              <Bell size={15} />
+              <span className="sns-notification-row__main">
+                <strong>{label}</strong>
+                <span>{content}</span>
+                <span className="sns-notification-row__note">
+                  原动态未在当前结果中，刷新或调整筛选后再定位。
+                </span>
+                <Button type="button" variant="ghost" size="sm" onClick={onShowTimeline}>
+                  查看动态列表
+                </Button>
+              </span>
+              <span className="sns-notification-row__time">
+                {time}
+              </span>
+            </div>
+          );
+        }
+
         return (
           <button
             key={notification.id}
@@ -404,25 +436,18 @@ function NotificationList({
             className={classNames(
               "sns-notification-row",
               targetAvailable && selectedPostId === notification.feedId && "sns-notification-row--selected",
-              !targetAvailable && "sns-notification-row--unavailable",
             )}
-            disabled={!targetAvailable}
             onClick={() => {
               if (targetAvailable) onSelectPost(notification.feedId);
             }}
           >
             <Bell size={15} />
             <span className="sns-notification-row__main">
-              <strong>{formatSnsNotificationLabel(notification, privacyOn)}</strong>
-              <span>{privacyOn ? "已隐藏通知内容" : notification.content || notification.feedPreview || "互动通知"}</span>
-              {!targetAvailable && (
-                <span className="sns-notification-row__note">
-                  原动态未在当前结果中，刷新或调整筛选后再定位。
-                </span>
-              )}
+              <strong>{label}</strong>
+              <span>{content}</span>
             </span>
             <span className="sns-notification-row__time">
-              {formatSnsTime(notification.time, privacyOn)}
+              {time}
             </span>
           </button>
         );
