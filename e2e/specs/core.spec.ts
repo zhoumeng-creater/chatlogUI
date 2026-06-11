@@ -347,6 +347,7 @@ test.describe("core synthetic routes", () => {
     await page.goto("/settings?source=ai&section=semantic");
 
     await expect(page.getByRole("heading", { name: "AI 与语义" })).toBeVisible();
+    await expect(page.getByText("检查中")).toHaveCount(0, { timeout: 5_000 });
     await expect(page.getByRole("button", { name: "前往 AI 工作台配置" })).toBeVisible();
     await expect(page.locator("#settings-ai-endpoint")).toHaveCount(0);
     await expect(page.getByText("127.0.0.1:5030")).toHaveCount(0);

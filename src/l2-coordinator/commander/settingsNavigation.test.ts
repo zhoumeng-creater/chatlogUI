@@ -84,4 +84,33 @@ describe("settingsNavigation", () => {
     expect(route).not.toContain("wxid_synthetic_private");
     expect(route).not.toContain("Private");
   });
+
+  it("supports update recovery Settings routes with safe return targets", () => {
+    expect(
+      buildSettingsRoute({
+        source: "update",
+        returnRoute: "/graph?focus=Private%20Entity&chat=wxid_synthetic_private",
+        section: "about",
+      }),
+    ).toBe("/settings?source=update&return=graph&section=about");
+
+    expect(deriveSettingsReturnAction({
+      source: "update",
+      returnRoute: "/graph?focus=Private%20Entity&chat=wxid_synthetic_private",
+      dbReady: true,
+    })).toEqual({
+      label: "返回图谱",
+      target: "/graph",
+      replace: true,
+    });
+
+    expect(deriveSettingsReturnAction({
+      source: "update",
+      dbReady: true,
+    })).toEqual({
+      label: "留在关于与更新",
+      target: "/settings?section=about",
+      replace: true,
+    });
+  });
 });

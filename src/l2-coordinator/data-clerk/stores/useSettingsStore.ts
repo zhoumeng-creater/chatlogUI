@@ -50,9 +50,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Record<string, unknown>;
-        const cleaned = migrateSettings(parsed);
         set({
-          settings: { ...SETTINGS_DEFAULTS, ...cleaned },
+          settings: normalizeSettingsState(parsed),
           loaded: true,
           activeCategory: "data",
         });
@@ -66,7 +65,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   saveToStorage: () => {
     try {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(get().settings));
+      const settings = normalizeSettingsState(get().settings as unknown as Record<string, unknown>);
+      set({ settings });
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
       return true;
     } catch {
       // storage full or unavailable
@@ -86,7 +87,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   togglePrivacy: () => {
     set((state) => {
-      const newSettings = { ...state.settings, privacyOn: !state.settings.privacyOn };
+      const newSettings = normalizeSettingsState({
+        ...(state.settings as unknown as Record<string, unknown>),
+        privacyOn: !state.settings.privacyOn,
+      });
       try {
         localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(newSettings));
       } catch {
@@ -96,3 +100,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     });
   },
 }));
+
+function normalizeSettingsState(input: Record<string, unknown>): SettingsState {
+  return {
+    ...SETTINGS_DEFAULTS,
+    ...sanitizeSettingsForStorage(input),
+  };
+}

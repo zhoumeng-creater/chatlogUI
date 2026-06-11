@@ -26,4 +26,40 @@ describe("settings validation", () => {
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
   });
+
+  it("persists Settings with an explicit allowlist instead of keeping unknown secret-like fields", () => {
+    const sanitized = sanitizeSettingsForStorage({
+      theme: "dark",
+      fontSize: "large",
+      reduceAnimations: true,
+      windowMaterial: "mica",
+      wxDataPath: "E:/WeChat",
+      privacyOn: true,
+      developerMode: true,
+      password: "synthetic-password",
+      secret: "synthetic-secret",
+      accessToken: "synthetic-access-token",
+      authorization: "Bearer synthetic",
+      credential: "synthetic-credential",
+      privateKey: "synthetic-private-key",
+      sidecarPort: 8080,
+    });
+
+    expect(sanitized).toEqual({
+      theme: "dark",
+      fontSize: "large",
+      reduceAnimations: true,
+      windowMaterial: "mica",
+      wxDataPath: "E:/WeChat",
+      privacyOn: true,
+      developerMode: true,
+    });
+  });
+
+  it("ignores legacy sidecar port patches because service ownership belongs to Setup", () => {
+    const result = validateSettingsPatch({ sidecarPort: 0 } as never);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
 });

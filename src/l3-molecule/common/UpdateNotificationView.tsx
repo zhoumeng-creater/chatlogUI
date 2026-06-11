@@ -15,6 +15,7 @@ interface UpdateNotificationViewState {
   statusText: string;
   progressValue: number | null;
   progressLabel: string;
+  settingsActionLabel: string | null;
 }
 
 interface UpdateNotificationActions {
@@ -22,6 +23,7 @@ interface UpdateNotificationActions {
   download: () => void;
   install: () => void;
   retry: () => void;
+  openSettings?: () => void;
 }
 
 interface UpdateNotificationViewProps {
@@ -199,6 +201,11 @@ export function UpdateNotificationView({
                   <Button variant="secondary" size="sm" onClick={actions.dismiss}>
                     稍后提醒
                   </Button>
+                  {view.settingsActionLabel && actions.openSettings && (
+                    <Button variant="secondary" size="sm" onClick={actions.openSettings}>
+                      {view.settingsActionLabel}
+                    </Button>
+                  )}
                   <Button variant="primary" size="sm" onClick={actions.retry}>
                     重试
                   </Button>

@@ -9,7 +9,6 @@ export interface SettingsState {
   reduceAnimations: boolean;
   windowMaterial: WindowMaterial;
   wxDataPath: string;
-  sidecarPort: number;
   privacyOn: boolean;
   developerMode: boolean;
 }
@@ -20,7 +19,6 @@ export const SETTINGS_DEFAULTS: SettingsState = {
   reduceAnimations: false,
   windowMaterial: "none",
   wxDataPath: "",
-  sidecarPort: 5030,
   privacyOn: false,
   developerMode: false,
 };

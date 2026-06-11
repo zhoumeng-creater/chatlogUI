@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
+import type { AiPhase } from "@/l2-coordinator/api-docs/semantic";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import { useAiCommander } from "./useAiCommander";
@@ -32,6 +33,7 @@ export function useSettingsPageCommander() {
   const ai = useAiCommander();
   const [updateStatusText, setUpdateStatusText] = useState("");
   const appliedSearchRef = useRef<string | null>(null);
+  const semanticStatusRequestedRef = useRef(false);
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const initialCategory = useMemo(
     () => normalizeSettingsInitialCategory({
@@ -57,6 +59,19 @@ export function useSettingsPageCommander() {
       settings.setActiveCategory(initialCategory);
     }
   }, [initialCategory, location.search, settings]);
+
+  useEffect(() => {
+    if (!shouldInitializeSettingsSemanticSummary({
+      settingsLoaded: settings.loaded,
+      aiPhase: ai.phase,
+      alreadyRequested: semanticStatusRequestedRef.current,
+    })) {
+      return;
+    }
+
+    semanticStatusRequestedRef.current = true;
+    void ai.initialize();
+  }, [ai, settings.loaded]);
 
   const checkForUpdates = useCallback(async () => {
     setUpdateStatusText("正在检查更新...");
@@ -107,4 +122,12 @@ export function useSettingsPageCommander() {
     updateStatusText,
     diagnostics,
   };
+}
+
+export function shouldInitializeSettingsSemanticSummary(input: {
+  settingsLoaded: boolean;
+  aiPhase: AiPhase;
+  alreadyRequested: boolean;
+}): boolean {
+  return input.settingsLoaded && !input.alreadyRequested && input.aiPhase === "idle";
 }

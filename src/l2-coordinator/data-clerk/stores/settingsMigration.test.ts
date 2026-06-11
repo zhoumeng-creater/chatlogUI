@@ -11,7 +11,7 @@ describe("migrateSettings", () => {
 
     expect("dataKey" in migrated).toBe(false);
     expect(migrated.wxDataPath).toBe("E:/WeChat");
-    expect(migrated.sidecarPort).toBe(5030);
+    expect("sidecarPort" in migrated).toBe(false);
   });
 
   it("removes legacy Settings AI fields and does not claim credentials are configured", () => {
@@ -46,6 +46,9 @@ describe("migrateSettings", () => {
       privacyOn: true,
       dataKey: "secret",
       sidecarPort: 8080,
+      password: "synthetic-password",
+      secret: "synthetic-secret",
+      accessToken: "synthetic-access-token",
     };
 
     const migrated = migrateSettings(original);
@@ -56,8 +59,11 @@ describe("migrateSettings", () => {
     expect(migrated.theme).toBe("dark");
     expect(migrated.fontSize).toBe("large");
     expect(migrated.privacyOn).toBe(true);
-    expect(migrated.sidecarPort).toBe(8080);
+    expect("sidecarPort" in migrated).toBe(false);
     expect("dataKey" in migrated).toBe(false);
+    expect("password" in migrated).toBe(false);
+    expect("secret" in migrated).toBe(false);
+    expect("accessToken" in migrated).toBe(false);
   });
 
   it("defaults developer mode to false and preserves only boolean values", () => {
