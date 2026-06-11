@@ -16,7 +16,7 @@ Check-mode placeholders are allowed only for packaging compile checks. They are 
 
 - Strategy: `windows-checksum-artifact-plus-pinned-ci-source`
 - Owner: release operator and project owner
-- Date: 2026-06-11
+- Date: 2026-06-12
 - Sidecar source/release: Windows x64 uses `github.com/zhoumeng-creater/chatlog_alpha@5b979cc666418c41467b1f9959cfdc6b3abbb86b`
 - Targets covered: Windows x64 release mode
 - Targets excluded: macOS Intel, macOS Apple Silicon, Linux x64
@@ -26,7 +26,7 @@ Check-mode placeholders are allowed only for packaging compile checks. They are 
 
 | Target | Binary | Current state | Release state |
 | --- | --- | --- | --- |
-| `x86_64-pc-windows-msvc` | `chatlog_alpha-x86_64-pc-windows-msvc.exe` | Local ignored binary present; SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`; CI source ref pinned | Release-mode check passed for Windows x64 on 2026-06-11 |
+| `x86_64-pc-windows-msvc` | `chatlog_alpha-x86_64-pc-windows-msvc.exe` | Local ignored binary present; SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`; CI source ref pinned | Release-mode check passed for Windows x64 on 2026-06-12 |
 | `x86_64-apple-darwin` | `chatlog_alpha-x86_64-apple-darwin` | Missing locally; check-mode placeholder allowed | Blocked |
 | `aarch64-apple-darwin` | `chatlog_alpha-aarch64-apple-darwin` | Missing locally; check-mode placeholder allowed | Blocked |
 | `x86_64-unknown-linux-gnu` | `chatlog_alpha-x86_64-unknown-linux-gnu` | Missing locally; check-mode placeholder allowed | Blocked |
@@ -39,7 +39,7 @@ pnpm release:check:sidecar:release
 node scripts/verify-sidecar-artifacts.mjs --target x86_64-pc-windows-msvc --mode release --stage-dir src-tauri/binaries
 ```
 
-`release:check:sidecar` is expected to pass in the current repository because check-mode placeholders are allowed for non-release targets. `release:check:sidecar:release` is scoped to Windows x64 in `package.json` and passed on 2026-06-11. `release:check:sidecar:release:all-targets` remains blocked until non-Windows provenance exists.
+`release:check:sidecar` is expected to pass in the current repository because check-mode placeholders are allowed for non-release targets. `release:check:sidecar:release` is scoped to Windows x64 in `package.json` and passed on 2026-06-12. `release:check:sidecar:release:all-targets` remains blocked until non-Windows provenance exists.
 
 ## Updating Provenance
 

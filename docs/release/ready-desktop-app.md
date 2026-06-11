@@ -16,8 +16,33 @@ pnpm verify
 Push-Location src-tauri; cargo test; Pop-Location
 pnpm tauri build
 pnpm release:check:sidecar:release
+pnpm release:collect:tauri-smoke -- --json
 pnpm release:check:updater
 ```
+
+## 2026-06-12 Step 11 Current Status
+
+Current Step 11 evidence is recorded in
+`docs/next-repair-baseline-step-11-tauri-installer-smoke-evidence.md`.
+
+- Source/Rust/package gates passed: `pnpm verify` passed with 169 Vitest files /
+  707 tests plus production build; `cargo test` passed 22 Rust tests; `pnpm
+  tauri build` rebuilt the Windows x64 MSI and NSIS bundles.
+- Step 11 added `pnpm release:collect:tauri-smoke` for safe installer artifact
+  inventory and `pnpm release:scan:diagnostics -- <file>` for packaged
+  diagnostics forbidden-marker scanning.
+- Current Windows artifact inventory after the Step 11 build:
+  - MSI `chatlog_alpha_0.1.0_x64_zh-CN.msi`, SHA-256
+    `a101579a012164a85f929274571d7399a0094f690eb41a37c825ff6576716177`.
+  - NSIS `chatlog_alpha_0.1.0_x64-setup.exe`, SHA-256
+    `09518986ae77a0ee9742f38bfdf477a3c5b481a63cc044e69d1bf4ce5684d8cd`.
+- Windows sidecar release provenance passed again for
+  `x86_64-pc-windows-msvc`, SHA-256
+  `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`.
+- Release publish remains blocked: generated signed updater `latest.json` is
+  missing, local signing env vars are unset, installer-level smoke was not
+  completed in this run, packaged unknown-port UI smoke was not rerun, packaged
+  diagnostics export was not rerun, and release owner signoff is absent.
 
 ## 2026-06-11 Step 10 Current Status
 
@@ -68,9 +93,10 @@ Current canonical evidence is recorded in `docs/next-repair-baseline-step-10-glo
 | P5-A/B fixtures/E2E/visual/a11y | `source-ui-verified-current` | Step 10 evidence on 2026-06-11 | Mock backend only |
 | P5-C sidecar provenance | `windows-release-artifact-verified` | Step 10 `release:check:sidecar:release` | Windows x64 only; non-Windows remain caveats |
 | P5-C updater signing | `release-blocked` | Step 10 updater check | Needs signed generated `latest.json` and artifact checksum evidence |
-| P5-C platform smoke | `partial-packaged-smoke-current` | Step 10 direct release exe launch/quit/reopen smoke | Needs installer-level smoke and packaged unknown-port UI rerun |
-| P5-D privacy audit | `source-browser-audit-current` | Step 10 privacy/a11y/E2E/Rust evidence | Needs current packaged diagnostics artifact review |
-| Windows x64 release candidate | `release-blocked` | Step 10 evidence bundle | Needs updater metadata, installer-level smoke, packaged conflict/diagnostics smoke, and owner signoff |
+| P5-C installer inventory | `installer-artifacts-inventoried-current` | Step 11 artifact inventory on 2026-06-12 | Needs installed-app UI smoke |
+| P5-C platform smoke | `needs-manual-smoke` | Step 11 confirms current artifacts only | Needs installer-level smoke and packaged unknown-port UI rerun |
+| P5-D privacy audit | `source-browser-rust-audit-current` | Step 11 source/Rust gates and diagnostics scanner | Needs current packaged diagnostics artifact review |
+| Windows x64 release candidate | `release-blocked` | Step 11 evidence bundle | Needs updater metadata, installer-level smoke, packaged conflict/diagnostics smoke, packaged diagnostics review, and owner signoff |
 | macOS Intel | `platform-caveat` | no smoke | not included in first release until sidecar provenance, signing/notarization, and smoke evidence exist |
 | macOS Apple Silicon | `platform-caveat` | no smoke | not included in first release until sidecar provenance, signing/notarization, and smoke evidence exist |
 | Linux x64 | `platform-caveat` | no smoke | not included in first release until sidecar provenance and runtime smoke evidence exist |

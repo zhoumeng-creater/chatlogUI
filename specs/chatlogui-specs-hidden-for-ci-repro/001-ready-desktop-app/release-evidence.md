@@ -2,6 +2,47 @@
 
 This file is the redaction-safe evidence template for release readiness. Do not paste raw `dataKey`, API keys, tokens, private chat text, real contact names, or full private local paths.
 
+## 2026-06-12 Step 11 Tauri / Installer Smoke Evidence
+
+Canonical current Step 11 evidence is recorded in
+`docs/next-repair-baseline-step-11-tauri-installer-smoke-evidence.md`. This
+section supersedes Step 10 artifact checksums for current release go/no-go
+decisions.
+
+### Build Under Test
+
+- Date: 2026-06-12 Asia/Shanghai
+- Branch: `codex/next-repair-baseline`
+- Commit: `8b2970afc366c551e95166612a7ca95f61f8f697`
+- App version: `0.1.0`
+- Tauri product/version: `chatlog_alpha` / `0.1.0`
+- Sidecar source/version:
+  `github.com/zhoumeng-creater/chatlog_alpha@5b979cc666418c41467b1f9959cfdc6b3abbb86b`
+
+### Current Results
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Step 11 evidence tooling | Passed | `scripts/collect-tauri-smoke-evidence.test.mjs` passed 1 file / 6 tests after red/green TDD. |
+| Full frontend verification | Passed | `pnpm verify` passed lint, typecheck, 169 Vitest files / 707 tests, and production build. |
+| Rust/native tests | Passed | `cargo test` passed 22 tests in `src-tauri`. |
+| Tauri bundle build | Passed | `pnpm tauri build` rebuilt Windows x64 MSI and NSIS bundles. |
+| Installer artifact inventory | Passed | `pnpm release:collect:tauri-smoke -- --json` recorded safe relative artifact paths, sizes, and SHA-256 hashes. |
+| Sidecar provenance | Passed for Windows x64 | `pnpm release:check:sidecar:release -- --json` verified the Windows artifact with SHA-256 `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af`. |
+| Updater release metadata | Blocked | `pnpm release:check:updater -- --json` failed because no generated `latest.json` exists under `src-tauri/target`; signing env vars are unset. |
+| Installer-level packaged smoke | Not completed | Current artifacts were inventoried, but no install/open/quit/reopen/uninstall UI smoke is claimed in this Step 11 run. |
+| Packaged unknown-port UI smoke | Not completed | Rust/source classification remains covered, but current installed-app UI smoke under a smoke-owned unknown listener was not run. |
+| Packaged diagnostics export review | Not completed | Source/Rust redaction and the new scan command exist, but no current installed-app diagnostics export file was produced and scanned in this Step 11 run. |
+| Release readiness | Blocked | Needs signed updater metadata or owner-approved updater-disabled policy, installer-level smoke, packaged unknown-port UI smoke, packaged diagnostics export review, and owner signoff. |
+
+### Current Package Checksums
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `src-tauri/target/release/bundle/msi/chatlog_alpha_0.1.0_x64_zh-CN.msi` | `a101579a012164a85f929274571d7399a0094f690eb41a37c825ff6576716177` |
+| `src-tauri/target/release/bundle/nsis/chatlog_alpha_0.1.0_x64-setup.exe` | `09518986ae77a0ee9742f38bfdf477a3c5b481a63cc044e69d1bf4ce5684d8cd` |
+| `src-tauri/binaries/chatlog_alpha-x86_64-pc-windows-msvc.exe` | `c48551dc4a93f8387260ae826ddb5498aaf88e80f34d2b39355660f3585ed9af` |
+
 ## 2026-06-11 Step 10 Current Global Acceptance Evidence
 
 Canonical current evidence is recorded in `docs/next-repair-baseline-step-10-global-acceptance-evidence.md`. This section supersedes older rows for current release go/no-go decisions.
