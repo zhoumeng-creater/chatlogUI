@@ -23,10 +23,8 @@ export function SettingsView() {
       case "ai":
         return (
           <AIModelSettings
-            settings={commander.settings}
-            saveStatus={commander.saveStatus}
-            saveMessage={commander.saveMessage}
-            onChange={commander.updateAndSave}
+            view={commander.aiSemanticView}
+            onOpenSemanticSettings={() => navigate(commander.aiSemanticView.primaryAction.target)}
           />
         );
       case "appearance":
@@ -41,10 +39,8 @@ export function SettingsView() {
       case "data":
         return (
           <DataSettings
-            settings={commander.settings}
-            saveStatus={commander.saveStatus}
-            saveMessage={commander.saveMessage}
-            onChooseDataDirectory={commander.chooseDataDirectory}
+            view={commander.dataServiceView}
+            onOpenSetup={() => navigate(commander.dataServiceView.primaryAction.target)}
           />
         );
       case "advanced":
@@ -78,10 +74,10 @@ export function SettingsView() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/workbench", { replace: true })}
+          onClick={() => navigate(commander.returnAction.target, { replace: commander.returnAction.replace })}
         >
           <ArrowLeft size={15} />
-          返回工作台
+          {commander.returnAction.label}
         </Button>
         <Typography variant="label" weight={600}>设置</Typography>
         </div>

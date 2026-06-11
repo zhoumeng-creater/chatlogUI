@@ -37,7 +37,8 @@ test.describe("P3-E privacy diagnostics closeout", () => {
     privacyGuard.assertNoLeaks();
 
     await page.goto("/settings");
-    await page.getByRole("button", { name: "关于" }).click();
+    await page.getByRole("button", { name: "关于与更新" }).click();
+    await page.getByRole("button", { name: "查看脱敏诊断" }).click();
     await page.getByRole("button", { name: "复制诊断" }).click();
     await expect(page.getByRole("button", { name: "已复制" })).toBeVisible();
     const copiedDiagnostics = await page.evaluate(() => navigator.clipboard.readText());

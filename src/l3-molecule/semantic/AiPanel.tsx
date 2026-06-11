@@ -23,6 +23,7 @@ type AiCommander = ReturnType<typeof useAiCommander>;
 interface AiPanelProps {
   mode: PanelMode;
   ai: AiCommander;
+  openSetupOnMount?: boolean;
   currentChat: string;
   currentContact: string;
   privacyOn: boolean;
@@ -33,6 +34,7 @@ interface AiPanelProps {
 export function AiPanel({
   mode,
   ai,
+  openSetupOnMount = false,
   currentChat,
   currentContact,
   privacyOn,
@@ -43,6 +45,7 @@ export function AiPanel({
   const [showWizard, setShowWizard] = useState(false);
   const aiRef = useRef(ai);
   const analysisRequestKey = useRef<string | null>(null);
+  const routeSetupOpenedRef = useRef(false);
 
   useEffect(() => {
     aiRef.current = ai;
@@ -53,6 +56,19 @@ export function AiPanel({
       aiRef.current.initialize();
     }
   }, [mode]);
+
+  useEffect(() => {
+    if (!openSetupOnMount) {
+      routeSetupOpenedRef.current = false;
+      return;
+    }
+    if (mode !== 'ai' || routeSetupOpenedRef.current) return;
+    if (ai.moduleView.kind === 'checking_config') return;
+    routeSetupOpenedRef.current = true;
+    if (ai.moduleView.kind !== 'setup_required') {
+      setShowWizard(true);
+    }
+  }, [ai.moduleView.kind, mode, openSetupOnMount]);
 
   useEffect(() => {
     if (mode !== 'ai' || activeTab !== 'analysis' || !currentChat) return;

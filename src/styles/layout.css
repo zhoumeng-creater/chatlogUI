@@ -2098,6 +2098,33 @@
   text-align: center;
 }
 
+.settings-summary-row,
+.settings-disclosure-header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.settings-summary-row__copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.settings-disclosure-button {
+  justify-self: start;
+}
+
+.settings-disclosure-button svg {
+  transition: transform 160ms ease;
+}
+
+.settings-disclosure-button__chevron--open {
+  transform: rotate(180deg);
+}
+
 .settings-inline {
   display: flex;
   min-width: 0;
@@ -2511,7 +2538,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: var(--space-2);
-  min-height: 36px;
+  min-height: 40px;
   margin-bottom: 4px;
   padding: 0 10px;
   border: 0;
@@ -4111,6 +4138,11 @@
   .workbench-chat-toolbar,
   .workspace-page__header {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-summary-row,
+  .settings-disclosure-header {
     flex-direction: column;
   }
 

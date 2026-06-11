@@ -329,14 +329,28 @@ test.describe("core synthetic routes", () => {
     await page.goto("/settings");
 
     await expect(page.getByText("设置", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "数据" })).toBeVisible();
-    await page.getByRole("button", { name: "关于" }).click();
+    await expect(page.getByRole("heading", { name: "数据与服务" })).toBeVisible();
+    await expect(page.getByText("127.0.0.1:5030")).toHaveCount(0);
+    await page.getByRole("button", { name: "关于与更新" }).click();
     await expect(page.getByRole("heading", { name: "关于" })).toBeVisible();
     await expect(page.getByRole("button", { name: "检查更新" })).toBeVisible();
-    await expect(page.getByText("诊断摘要").first()).toBeVisible();
+    await expect(page.getByText("脱敏诊断").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "查看脱敏诊断" })).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByText("Export manifest version")).toHaveCount(0);
     await page.getByRole("button", { name: "检查更新" }).click();
     await expect(page.getByText("已是最新版本")).toBeVisible();
     await expectStableSyntheticPage(page);
+  });
+
+  test("settings semantic deep link opens the AI summary without endpoint forms", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/settings?source=ai&section=semantic");
+
+    await expect(page.getByRole("heading", { name: "AI 与语义" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "前往 AI 工作台配置" })).toBeVisible();
+    await expect(page.locator("#settings-ai-endpoint")).toHaveCount(0);
+    await expect(page.getByText("127.0.0.1:5030")).toHaveCount(0);
+    await assertNoForbiddenVisibleText(page);
   });
 });
 

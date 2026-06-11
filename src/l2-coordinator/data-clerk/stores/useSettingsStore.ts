@@ -23,7 +23,7 @@ interface SettingsStoreActions {
   setActiveCategory: (category: SettingsCategory) => void;
   updateSettings: (partial: Partial<SettingsState>) => void;
   loadFromStorage: () => void;
-  saveToStorage: () => void;
+  saveToStorage: () => boolean;
   setSaveFeedback: (status: SettingsSaveStatus, message?: string | null) => void;
   reset: () => void;
   togglePrivacy: () => void;
@@ -67,8 +67,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   saveToStorage: () => {
     try {
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(get().settings));
+      return true;
     } catch {
       // storage full or unavailable
+      return false;
     }
   },
 

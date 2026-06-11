@@ -35,14 +35,20 @@ export function useSettingsCommander() {
 
     setSaveFeedback("saving", "正在保存设置...");
     updateSettings(sanitizeSettingsForStorage(partial as Record<string, unknown>));
-    saveToStorage();
-    setSaveFeedback("saved", "设置已保存");
+    const saved = saveToStorage();
+    if (saved) {
+      setSaveFeedback("saved", "设置已保存");
+      return;
+    }
+    setSaveFeedback("error", "设置暂时无法保存，请检查浏览器或桌面存储权限后重试。");
   }, [saveToStorage, setSaveFeedback, updateSettings]);
 
   const reset = useCallback(() => {
     resetStore();
-    saveToStorage();
-  }, [resetStore, saveToStorage]);
+    if (!saveToStorage()) {
+      setSaveFeedback("error", "设置暂时无法保存，请检查浏览器或桌面存储权限后重试。");
+    }
+  }, [resetStore, saveToStorage, setSaveFeedback]);
 
   return {
     settings,

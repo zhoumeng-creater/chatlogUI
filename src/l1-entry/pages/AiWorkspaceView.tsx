@@ -43,6 +43,7 @@ export function AiWorkspaceView() {
           <LazyAiPanel
             mode="ai"
             ai={ai}
+            openSetupOnMount={params.get("panel") === "semantic"}
             currentChat={currentConversation?.username ?? ""}
             currentContact={currentConversation?.displayName ?? ""}
             privacyOn={privacyOn}

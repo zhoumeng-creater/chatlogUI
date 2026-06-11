@@ -247,7 +247,7 @@ Settings 不可：
 
 要求：
 
-- `wxDataPath` 只显示安全摘要，不显示 `C:\`、`WeChat Files`、`wxid_*`。
+- `wxDataPath` 只显示安全摘要，不显示 `C:\`、`WeChat Files`、`wxid_synthetic_*` 以外的身份形态。
 - `dataKey` 只能显示“已配置/未配置/请在设置中心配置”，不出现 reveal 或保存到 UI localStorage。
 - 如果保留“选择目录”入口，动作必须清楚说明它会进入 Setup/导入流程，而不是在 Settings 页面完成独立配置。
 - `sidecarPort` 不作为普通 Settings 表单字段；旧字段只能作为迁移兼容，不作为 UI truth source。
