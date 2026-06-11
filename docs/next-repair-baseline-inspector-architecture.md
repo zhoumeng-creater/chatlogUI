@@ -1022,3 +1022,20 @@ Setup Center 的首启页面应按下面优先级组织，而不是把步骤、�
 - 隐私模式下深链接参数、标题、摘要、诊断不暴露私密路径/`wxid`/聊天内容。
 - Setup Center 三条路径在桌面、中等宽度、窄屏的截图与键盘流程。
 - 外部服务 URL 保存后，Workbench 主 API 和 Tauri CSP/allowlist 的真实联通证据。
+
+## 十、2026-06-11 Step 10 Architecture Reclassification
+
+本节是当前架构验收结论。前文是第 5 步之前的架构问题分析；当前代码已经经过后续步骤重构，不能再按前文的旧状态判断。
+
+| Topic | Current status | Evidence |
+| --- | --- | --- |
+| L3 runtime imports from L2 | Accepted | `scripts/architecture-boundary.test.mjs` passed with an empty runtime allowlist. |
+| L1/L3 raw network access | Accepted | Current `pnpm verify` and governance scans passed; browser E2E exercises feature flows through L2/L4 contracts rather than page-level fetches. |
+| Workbench inspector scope | Accepted | `scripts/ui-governance.test.mjs` checks `WorkbenchView.tsx` does not contain full module containers such as `<SearchResults`, `<MediaLibrary`, `<SnsModule`, `<DeveloperToolsModule`, or `<LazyAiPanel`. |
+| Independent primary pages | Accepted | Governance checks require `WorkspaceScopeStatus` on `/analytics`, `/media`, `/sns`, `/ai`, and `/graph`; E2E verified those routes render independently. |
+| Search page ownership | Accepted | Governance checks require `.search-workspace__results` ownership on `SearchView` and no `<SearchResults` in Workbench. E2E covered search hit open/return and stale guards. |
+| Setup orchestration boundary | Accepted | Setup view delegates through `useSetupCenterCommander`; E2E covered setup paths and external service behavior. |
+| Tauri/system boundary | Accepted | UI governance keeps current-window APIs in L4 system atoms. Rust tests cover sidecar ownership, unknown process classification, and redaction. |
+| Release architecture | Blocked only by release evidence | No architecture blocker remains for source/UI. Release publish is blocked by updater metadata, installer-level smoke, packaged conflict/diagnostics smoke, and owner signoff. |
+
+Current architecture decision: the inspector/route architecture is accepted for Step 10 source/UI scope. Remaining work is release evidence, not a reason to reopen the Workbench inspector architecture repair unless new regressions appear.

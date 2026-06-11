@@ -452,3 +452,24 @@ Graph 已经从“只渲染 canvas”进化到摘要、列表、时间线、显�
 - 剩余风险：是否还需要 release gate、packaged smoke、真实 sidecar 或真实 DB 证据。
 
 建议 commit 标题保持中文短句；如果确实创建 PR，PR 标题也应保持中文短句，正文按问题 ID 组织。若发现本台账的判断不准确，应先更新台账再修代码，不能让过时结论继续指导后续工作。
+
+## 2026-06-11 Step 10 Current Evidence Reclassification
+
+This appendix reclassifies the UX ledger after the Step 10 global acceptance run. Earlier "存在" or "需运行证据" rows remain useful history, but current go/no-go decisions must use this section and `docs/next-repair-baseline-step-10-global-acceptance-evidence.md`.
+
+| Area | Current status | Evidence |
+| --- | --- | --- |
+| Setup Center three-path flow | Source/browser accepted | `pnpm e2e` covered setup desktop/narrow, collapsed diagnostics, external loopback connection, invalid external URL field error, and single ready CTA. |
+| Global base URL / external service path | Source/browser accepted | E2E connected a non-default loopback mock service and verified no remote `example.com` request was made for invalid external URL. |
+| Workbench IA and primary routes | Source/browser accepted | E2E covered `/workbench`, `/dashboard`, and independent `/search`, `/media`, `/sns`, `/analytics`, `/ai`, `/graph` surfaces. UI governance prevents Workbench toolbar/inspector regression into full module containers. |
+| Search closed loop | Source/browser accepted | E2E covered open result, keyboard activation, return to result list, stale response protection, stale load-more protection, missing anchor recovery, and privacy masking. |
+| Privacy masking | Source/browser/Rust accepted | Fixture validation, browser privacy/a11y scans, `p3e-governance`, JS redaction tests, and Rust diagnostics tests passed. Current packaged diagnostics export was not rerun. |
+| AI/semantic reliability | Source/browser accepted | E2E covered semantic config, setup confirmation, search/topics/profile/preview, QA streaming with evidence, retry, empty, and failure states. |
+| Graph reliability | Source/browser accepted | E2E/a11y/visual covered graph list/detail/timeline/advanced/explicit visualization/QA, nonblank canvas readiness, keyboard access, and privacy-on narrow visual state. |
+| Media/SNS | Source/browser accepted | E2E covered media module and SNS feed/search-related surfaces with synthetic data and privacy scan coverage. |
+| Developer/diagnostics visibility | Source/browser accepted with release caveat | Developer entry remains hidden by default; explicit test entry opens shell-level diagnostics. Packaged diagnostics export still needs current release-candidate review. |
+| Desktop shell controls | Source/browser/Tauri-dev accepted | E2E covered visible/keyboard-reachable window controls; Step 10 Tauri dev smoke confirmed real Tauri window start/close with no residual sidecar. |
+| Windows package build | Build accepted | `pnpm tauri build` produced current MSI/NSIS artifacts and checksums are recorded in Step 10 evidence. |
+| Release readiness | Blocked | Signed updater metadata, installer-level smoke, packaged unknown-port UI smoke, packaged diagnostics review, and owner signoff remain missing. |
+
+Current UX release decision: source/UI acceptance is green for the covered synthetic matrix; release publish is still no-go because R1 evidence is incomplete.
