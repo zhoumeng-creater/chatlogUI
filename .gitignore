@@ -66,6 +66,8 @@ docs/
 docs/*
 !docs/product-acceptance-standards.md
 !docs/ui-development-standards.md
+!docs/ux-issue-audits/
+!docs/ux-issue-audits/**
 specs/
 !e2e/specs/
 !e2e/specs/**
