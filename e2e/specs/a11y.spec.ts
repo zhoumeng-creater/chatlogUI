@@ -2,7 +2,15 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { expectNoCriticalA11yViolations } from "../utils/a11y";
 import { expectGraphCanvasReady } from "../utils/graph";
 import { assertNoForbiddenVisibleText, installPrivacyLeakGuard } from "../utils/privacy-scan";
-import { setDesktop, setNarrow } from "../utils/viewport";
+import {
+  COMPACT_VIEWPORT,
+  hasPageHorizontalOverflow,
+  setCompact,
+  setDesktop,
+  setNarrow,
+  setRootTextScale,
+  setZoomEquivalent400,
+} from "../utils/viewport";
 import {
   expectWindowControlsKeyboardReachable,
   expectWindowControlsVisible,
@@ -43,6 +51,101 @@ async function expectCommandTooltipInsideViewport(page: Page, buttonName: string
   expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height);
 }
 
+async function installTask14LongContentFixture(page: Page) {
+  await page.locator("#app-main").evaluate((main) => {
+    main.querySelector(".task14-long-content-fixture")?.remove();
+
+    const section = document.createElement("section");
+    section.className = "task14-long-content-fixture workspace-scope-controller";
+    section.setAttribute("role", "region");
+    section.setAttribute("aria-label", "Task 14 长内容响应式样例");
+    section.setAttribute("data-text-scale-fixture", "true");
+    section.innerHTML = `
+      <div class="workspace-scope-controller__summary">
+        <div class="workspace-scope-controller__copy">
+          <div class="workspace-scope-controller__chips" aria-label="长内容样例">
+            <span class="workspace-scope-controller__chip" data-testid="task14-long-group" data-task14-control="group">
+              <span>群聊：超长中文群聊名称用于验证紧凑响应式不会溢出或遮挡主要操作</span>
+            </span>
+            <span class="workspace-scope-controller__chip" data-testid="task14-long-url" data-task14-control="url">
+              <span>https://example.invalid/task-14/responsive/very-long-english-url-without-natural-breaks/emoji-😀/code-snippet-const-value-equals-chatlogUI</span>
+            </span>
+          </div>
+          <p class="search-result-row__content" data-testid="task14-long-copy" data-task14-control="copy">
+            emoji 😀 · code-snippet const syntheticValue = "超长中文消息与 URL 混排"; · https://example.invalid/task-14/responsive/long-copy
+          </p>
+        </div>
+        <div class="workspace-scope-controller__actions">
+          <button type="button" class="ui-button ui-button--secondary ui-button--md" data-testid="task14-long-action" data-task14-control="action">
+            检查焦点
+          </button>
+        </div>
+      </div>
+    `;
+
+    main.prepend(section);
+  });
+}
+
+async function focusTask14FixtureActionWithKeyboard(page: Page) {
+  const action = page.getByTestId("task14-long-action");
+  for (let index = 0; index < 80; index += 1) {
+    if (await action.evaluate((element) => element === document.activeElement)) return;
+    await page.keyboard.press("Tab");
+  }
+  throw new Error("Task 14 long-content action was not reachable by keyboard");
+}
+
+async function expectFocusedElementInsideViewport(page: Page) {
+  const focusState = await page.evaluate(() => {
+    const element = document.activeElement as HTMLElement | null;
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      boxShadow: style.boxShadow,
+      outlineStyle: style.outlineStyle,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(focusState).not.toBeNull();
+  expect(focusState!.x).toBeGreaterThanOrEqual(0);
+  expect(focusState!.y).toBeGreaterThanOrEqual(0);
+  expect(focusState!.x + focusState!.width).toBeLessThanOrEqual(focusState!.viewportWidth + 1);
+  expect(focusState!.y + focusState!.height).toBeLessThanOrEqual(focusState!.viewportHeight + 1);
+  expect(focusState!.boxShadow !== "none" || focusState!.outlineStyle !== "none").toBe(true);
+}
+
+async function expectNoFixtureOverlap(page: Page) {
+  const boxes = await page.locator("[data-task14-control]").evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        id: element.getAttribute("data-task14-control") ?? "",
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+      };
+    }),
+  );
+
+  for (let first = 0; first < boxes.length; first += 1) {
+    for (let second = first + 1; second < boxes.length; second += 1) {
+      const a = boxes[first];
+      const b = boxes[second];
+      const overlaps = a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      expect(overlaps, `${a.id} overlaps ${b.id}`).toBe(false);
+    }
+  }
+}
+
 test.describe("accessibility and keyboard gate", () => {
   test("passes axe critical/serious checks on representative routes", async ({ page }) => {
     await setDesktop(page);
@@ -62,6 +165,8 @@ test.describe("accessibility and keyboard gate", () => {
     await setDesktop(page);
     await openSyntheticWorkbench(page);
 
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: "跳到主内容" })).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: "开启隐私模式" })).toBeFocused();
 
@@ -92,6 +197,25 @@ test.describe("accessibility and keyboard gate", () => {
 
     await assertNoForbiddenVisibleText(page);
     privacyGuard.assertNoLeaks();
+  });
+
+  test("keeps 320px text-scale and zoom-equivalent long-content fixtures reflowed", async ({ page }) => {
+    await setCompact(page);
+    await setZoomEquivalent400(page);
+    expect(page.viewportSize()).toEqual(COMPACT_VIEWPORT);
+    await openSyntheticWorkbench(page);
+    await setRootTextScale(page, 2);
+    await installTask14LongContentFixture(page);
+
+    const fixture = page.getByRole("region", { name: "Task 14 长内容响应式样例" });
+    await expect(fixture).toBeVisible();
+    await expect.poll(() => hasPageHorizontalOverflow(page)).toBe(false);
+    await expectNoFixtureOverlap(page);
+
+    await focusTask14FixtureActionWithKeyboard(page);
+    await expect(page.getByTestId("task14-long-action")).toBeFocused();
+    await expectFocusedElementInsideViewport(page);
+    await expect.poll(() => hasPageHorizontalOverflow(page)).toBe(false);
   });
 
   test("keeps unified scope menu keyboard reachable and axe-clean", async ({ page }) => {

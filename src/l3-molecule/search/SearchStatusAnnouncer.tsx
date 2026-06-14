@@ -1,4 +1,5 @@
 import type { SearchStatus } from "@l2/data-clerk/stores/useSearchStore";
+import { StatusAnnouncer } from "@l3/common/StatusAnnouncer";
 
 interface SearchStatusAnnouncerProps {
   status: SearchStatus;
@@ -13,12 +14,12 @@ export function SearchStatusAnnouncer({
   loading,
   totalCount,
   loadedCount,
-  query,
 }: SearchStatusAnnouncerProps) {
   return (
-    <div className="sr-only" role="status" aria-live="polite">
-      {getSearchStatusText({ status, loading, totalCount, loadedCount, query })}
-    </div>
+    <StatusAnnouncer
+      message={getSearchStatusText({ status, loading, totalCount, loadedCount })}
+      privacySafeMessage={getSearchStatusText({ status, loading, totalCount, loadedCount })}
+    />
   );
 }
 
@@ -27,9 +28,8 @@ function getSearchStatusText({
   loading,
   totalCount,
   loadedCount,
-  query,
-}: SearchStatusAnnouncerProps): string {
-  if (loading || status === "loading") return `正在搜索 ${query || "聊天记录"}`;
+}: Omit<SearchStatusAnnouncerProps, "query">): string {
+  if (loading || status === "loading") return "正在搜索聊天记录";
   if (status === "ready") return `已加载 ${loadedCount} / 共 ${totalCount} 条搜索结果`;
   if (status === "empty") return "没有找到搜索结果";
   if (status === "cancelled") return "搜索已取消";

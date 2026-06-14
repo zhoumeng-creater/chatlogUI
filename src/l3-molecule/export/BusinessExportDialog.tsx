@@ -6,6 +6,7 @@ import type {
 } from "@/l2-coordinator/commander/businessExportModel";
 import type { BusinessExportResultSummary } from "@/l2-coordinator/data-clerk/stores";
 import { Button, DisabledReason, SpringModal, StatusIndicator } from "@/l4-atom/ui";
+import { StatusAnnouncer } from "@/l3-molecule/common/StatusAnnouncer";
 
 interface BusinessExportDialogProps {
   artifact: BusinessExportArtifact | null;
@@ -76,6 +77,12 @@ export function BusinessExportDialog({
             busy={isWriting || status === "preparing"}
           />
         </header>
+        <StatusAnnouncer
+          privacyOn={privacyOn}
+          politeness={status === "failed" ? "assertive" : "polite"}
+          message={getExportAnnouncement(status, job.rowCount)}
+          privacySafeMessage={getExportAnnouncement(status, job.rowCount)}
+        />
 
         <dl className="business-export-dialog__meta">
           <div>
@@ -222,5 +229,27 @@ function getStatusTone(status: BusinessExportStatus): "neutral" | "info" | "succ
       return "info";
     default:
       return "neutral";
+  }
+}
+
+function getExportAnnouncement(status: BusinessExportStatus, rowCount: number): string {
+  switch (status) {
+    case "preparing":
+      return "正在准备导出";
+    case "confirming":
+    case "partial":
+      return `导出待确认，共 ${rowCount} 条记录`;
+    case "writing":
+      return "正在保存导出文件";
+    case "completed":
+      return `导出完成，共 ${rowCount} 条记录`;
+    case "failed":
+      return "导出失败";
+    case "cancelling":
+      return "已停止等待导出";
+    case "cancelled":
+      return "导出已取消";
+    default:
+      return "导出未开始";
   }
 }

@@ -1,11 +1,54 @@
-import { expect, test } from "@playwright/test";
-import { setDesktop, setNarrow } from "../utils/viewport";
+import { expect, test, type Page } from "@playwright/test";
+import {
+  COMPACT_VIEWPORT,
+  hasPageHorizontalOverflow,
+  setDesktop,
+  setNarrow,
+  setRootTextScale,
+  setZoomEquivalent400,
+} from "../utils/viewport";
 import { expectGraphCanvasReady } from "../utils/graph";
 import {
   enablePrivacyMode,
   openSyntheticWorkbench,
   openWorkbenchModule,
 } from "../utils/workbench";
+
+async function installTask14VisualLongContentFixture(page: Page) {
+  await page.locator("#app-main").evaluate((main) => {
+    main.querySelector(".task14-long-content-fixture")?.remove();
+
+    const section = document.createElement("section");
+    section.className = "task14-long-content-fixture workspace-scope-controller";
+    section.setAttribute("role", "region");
+    section.setAttribute("aria-label", "Task 14 长内容响应式样例");
+    section.setAttribute("data-text-scale-fixture", "true");
+    section.innerHTML = `
+      <div class="workspace-scope-controller__summary">
+        <div class="workspace-scope-controller__copy">
+          <div class="workspace-scope-controller__chips" aria-label="长内容样例">
+            <span class="workspace-scope-controller__chip">
+              <span>群聊：超长中文群聊名称用于视觉验证紧凑响应式不会溢出</span>
+            </span>
+            <span class="workspace-scope-controller__chip">
+              <span>https://example.invalid/task-14/responsive/visual-long-url/emoji-😀/code-snippet-const-value-equals-chatlogUI</span>
+            </span>
+          </div>
+          <p class="search-result-row__content">
+            emoji 😀 · code-snippet const visualValue = "超长中文消息与 URL 混排"; · https://example.invalid/task-14/responsive/visual-copy
+          </p>
+        </div>
+        <div class="workspace-scope-controller__actions">
+          <button type="button" class="ui-button ui-button--secondary ui-button--md">
+            检查焦点
+          </button>
+        </div>
+      </div>
+    `;
+
+    main.prepend(section);
+  });
+}
 
 test.describe("visual regression synthetic states", () => {
   test.beforeEach(async ({ page }) => {
@@ -126,6 +169,22 @@ test.describe("visual regression synthetic states", () => {
     await openWorkbenchModule(page, "图谱");
     await expect(page.getByLabel("知识图谱模块")).toBeVisible();
     await expect(page).toHaveScreenshot("graph-workbench-privacy-narrow.png", {
+      fullPage: true,
+    });
+  });
+
+  test("captures compact text-scale long-content evidence", async ({ page }) => {
+    await setZoomEquivalent400(page);
+    expect(page.viewportSize()).toEqual(COMPACT_VIEWPORT);
+    await openSyntheticWorkbench(page);
+    await setRootTextScale(page, 2);
+    await installTask14VisualLongContentFixture(page);
+    await expect(page.getByRole("region", { name: "Task 14 长内容响应式样例" })).toBeVisible();
+    await expect.poll(() => hasPageHorizontalOverflow(page)).toBe(false);
+    await page.mouse.move(24, 780);
+    await page.waitForTimeout(450);
+
+    await expect(page).toHaveScreenshot("task14-long-content-compact.png", {
       fullPage: true,
     });
   });

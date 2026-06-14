@@ -5,6 +5,7 @@ import { GlobalCommandCluster } from "./GlobalCommandCluster";
 import { WindowControlCluster } from "./WindowControlCluster";
 
 interface AppShellView {
+  productName: string;
   title: string;
   privacyOn: boolean;
   developerConsoleAction: {
@@ -37,7 +38,11 @@ interface AppLayoutProps {
 export function AppLayout({ children, shell, actions }: AppLayoutProps) {
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#app-main">
+        跳到主内容
+      </a>
       <AppTitleBar
+        productName={shell.productName}
         title={shell.title}
         status={<AppStatusCluster privacyOn={shell.privacyOn} />}
         actions={(
@@ -65,7 +70,7 @@ export function AppLayout({ children, shell, actions }: AppLayoutProps) {
         )}
       />
 
-      <main className="app-main">{children}</main>
+      <main id="app-main" className="app-main" tabIndex={-1}>{children}</main>
     </div>
   );
 }

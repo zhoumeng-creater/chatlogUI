@@ -281,6 +281,78 @@ describe("UI governance", () => {
     expect(text).toContain("getOverlayDialogProps");
   });
 
+  it("keeps app shell keyboard skip navigation wired to the main region", async () => {
+    const appLayout = await readFile("src/l3-molecule/common/AppLayout.tsx", "utf8");
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+
+    expect(appLayout).toContain('className="skip-link"');
+    expect(appLayout).toContain('href="#app-main"');
+    expect(appLayout).toContain('id="app-main"');
+    expect(appLayout).toContain("tabIndex={-1}");
+    expect(layoutCss).toContain(".skip-link:focus-visible");
+  });
+
+  it("keeps high-signal status updates on the shared privacy-safe announcer", async () => {
+    const statusAnnouncer = await readFile("src/l3-molecule/common/StatusAnnouncer.tsx", "utf8");
+    const adoptionFiles = [
+      "src/l3-molecule/search/SearchStatusAnnouncer.tsx",
+      "src/l3-molecule/export/BusinessExportDialog.tsx",
+      "src/l3-molecule/semantic/QAPanel.tsx",
+      "src/l3-molecule/media/MediaLibrary.tsx",
+      "src/l3-molecule/workspace/WorkspaceScopeController.tsx",
+    ];
+
+    expect(statusAnnouncer).toContain("maskDiagnosticText");
+    expect(statusAnnouncer).toContain("containsUnsafeDisplayText");
+    expect(statusAnnouncer).toContain("privacySafeMessage");
+
+    for (const file of adoptionFiles) {
+      const text = await readFile(file, "utf8");
+      expect(text, file).toContain("StatusAnnouncer");
+    }
+  });
+
+  it("keeps Task 14 responsive scale and long-content fixtures explicit", async () => {
+    const viewport = await readFile("e2e/utils/viewport.ts", "utf8");
+    const a11y = await readFile("e2e/specs/a11y.spec.ts", "utf8");
+    const visual = await readFile("e2e/specs/visual.spec.ts", "utf8");
+
+    for (const marker of ["COMPACT_VIEWPORT", "setCompact", "setRootTextScale", "setZoomEquivalent400"]) {
+      expect(viewport, marker).toContain(marker);
+      expect(a11y, marker).toContain(marker);
+    }
+
+    for (const marker of [
+      "task14-long-content-fixture",
+      "超长中文群聊名称",
+      "https://example.invalid/task-14/responsive/",
+      "emoji",
+      "code-snippet",
+      "hasPageHorizontalOverflow",
+      "expectFocusedElementInsideViewport",
+      "expectNoFixtureOverlap",
+    ]) {
+      expect(a11y, marker).toContain(marker);
+    }
+
+    for (const marker of ["setRootTextScale", "setZoomEquivalent400", "task14-long-content-compact.png"]) {
+      expect(visual, marker).toContain(marker);
+    }
+  });
+
+  it("keeps workspace popovers on the shared overlay focus lifecycle", async () => {
+    const commandBar = await readFile("src/l3-molecule/workspace/WorkspaceCommandBar.tsx", "utf8");
+    const scopeController = await readFile("src/l3-molecule/workspace/WorkspaceScopeController.tsx", "utf8");
+
+    for (const marker of ["focusInitialOverlayTarget", "restoreFocusTarget", "shouldCloseOverlayOnKey"]) {
+      expect(commandBar, marker).toContain(marker);
+      expect(scopeController, marker).toContain(marker);
+    }
+
+    expect(scopeController).toContain("trapOverlayFocus");
+    expect(scopeController).toContain("getOverlayDialogProps");
+  });
+
   it("keeps empty SNS search submissions out of the error state", async () => {
     const text = await readFile("src/l2-coordinator/commander/useSnsCommander.ts", "utf8");
 

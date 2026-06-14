@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   Download,
@@ -12,6 +12,11 @@ import type {
   WorkspaceCommandId,
 } from "@l2/commander/workspaceCommandBarModel";
 import { Button, DisabledReason, IconButton, Tooltip } from "@l4/ui";
+import {
+  focusInitialOverlayTarget,
+  restoreFocusTarget,
+  shouldCloseOverlayOnKey,
+} from "@/l4-atom/ui/overlayFocus";
 
 interface WorkspaceCommandBarProps {
   model: WorkspaceCommandBarModel;
@@ -20,6 +25,8 @@ interface WorkspaceCommandBarProps {
 
 export function WorkspaceCommandBar({ model, onAction }: WorkspaceCommandBarProps) {
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const restoreTargetRef = useRef<HTMLElement | null>(null);
   const menuId = useId().replace(/:/g, "");
   const overflowButtonId = `${menuId}-trigger`;
   const overflowCount = model.overflow.length;
@@ -27,14 +34,21 @@ export function WorkspaceCommandBar({ model, onAction }: WorkspaceCommandBarProp
   useEffect(() => {
     if (!overflowOpen) return undefined;
 
+    const focusFrame = window.requestAnimationFrame(() => {
+      focusInitialOverlayTarget(menuRef.current);
+    });
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (!shouldCloseOverlayOnKey(event.key, { dismissible: true })) return;
       setOverflowOpen(false);
-      document.getElementById(overflowButtonId)?.focus();
+      restoreFocusTarget(restoreTargetRef.current ?? document.getElementById(overflowButtonId));
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [overflowButtonId, overflowOpen]);
 
   return (
@@ -68,9 +82,13 @@ export function WorkspaceCommandBar({ model, onAction }: WorkspaceCommandBarProp
             aria-haspopup="menu"
             aria-expanded={overflowOpen}
             aria-controls={menuId}
-            onClick={() => setOverflowOpen((open) => !open)}
+            onClick={(event) => {
+              restoreTargetRef.current = event.currentTarget;
+              setOverflowOpen((open) => !open);
+            }}
           />
           <div
+            ref={menuRef}
             id={menuId}
             className="workspace-command-bar__menu"
             role="menu"
@@ -83,6 +101,7 @@ export function WorkspaceCommandBar({ model, onAction }: WorkspaceCommandBarProp
                 onAction={(id) => {
                   onAction(id);
                   setOverflowOpen(false);
+                  restoreFocusTarget(restoreTargetRef.current ?? document.getElementById(overflowButtonId));
                 }}
               />
             ))}

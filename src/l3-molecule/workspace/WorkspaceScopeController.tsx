@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 import type {
   WorkspaceScopeClearAction,
@@ -7,6 +7,14 @@ import type {
 } from "@l2/commander/workspaceScopeModel";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 import { Button, DisabledReason, IconButton, Typography } from "@l4/ui";
+import {
+  focusInitialOverlayTarget,
+  getOverlayDialogProps,
+  restoreFocusTarget,
+  shouldCloseOverlayOnKey,
+  trapOverlayFocus,
+} from "@/l4-atom/ui/overlayFocus";
+import { StatusAnnouncer } from "../common/StatusAnnouncer";
 
 interface WorkspaceScopeControllerProps {
   model: WorkspaceScopeModel;
@@ -24,6 +32,8 @@ export function WorkspaceScopeController({
   onReset,
 }: WorkspaceScopeControllerProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const restoreTargetRef = useRef<HTMLElement | null>(null);
   const generatedId = useId().replace(/:/g, "");
   const menuId = `workspace-scope-menu-${generatedId}`;
   const triggerId = `workspace-scope-trigger-${generatedId}`;
@@ -32,16 +42,13 @@ export function WorkspaceScopeController({
     if (!menuOpen) return undefined;
 
     const focusFrame = window.requestAnimationFrame(() => {
-      const menu = document.getElementById(menuId);
-      const firstControl = menu?.querySelector<HTMLElement>("button:not([disabled])");
-      const fallback = menu instanceof HTMLElement ? menu : null;
-      (firstControl ?? fallback)?.focus();
+      focusInitialOverlayTarget(menuRef.current);
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (!shouldCloseOverlayOnKey(event.key, { dismissible: true })) return;
       setMenuOpen(false);
-      document.getElementById(triggerId)?.focus();
+      restoreFocusTarget(restoreTargetRef.current ?? document.getElementById(triggerId));
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -49,7 +56,7 @@ export function WorkspaceScopeController({
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [menuId, menuOpen, triggerId]);
+  }, [menuOpen, triggerId]);
 
   const controls = (
     <ScopeControls
@@ -58,6 +65,15 @@ export function WorkspaceScopeController({
       onSelectMessageType={onSelectMessageType}
     />
   );
+
+  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (trapOverlayFocus(menuRef.current, document.activeElement, event)) return;
+    if (!shouldCloseOverlayOnKey(event.key, { dismissible: true })) return;
+
+    event.preventDefault();
+    setMenuOpen(false);
+    restoreFocusTarget(restoreTargetRef.current ?? document.getElementById(triggerId));
+  };
 
   return (
     <section
@@ -87,7 +103,10 @@ export function WorkspaceScopeController({
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
             aria-controls={menuId}
-            onClick={() => setMenuOpen((open) => !open)}
+            onClick={(event) => {
+              restoreTargetRef.current = event.currentTarget;
+              setMenuOpen((open) => !open);
+            }}
           />
         </div>
       </div>
@@ -117,18 +136,16 @@ export function WorkspaceScopeController({
         {controls}
       </div>
       <div
+        ref={menuRef}
         id={menuId}
         className="workspace-scope-controller__menu"
-        role="dialog"
-        aria-label={`${model.title}设置`}
-        tabIndex={-1}
+        {...getOverlayDialogProps({ label: `${model.title}设置`, modal: false })}
+        onKeyDown={handleMenuKeyDown}
         hidden={!menuOpen}
       >
         {controls}
       </div>
-      <div className="sr-only" role="status" aria-live="polite">
-        {model.announcement}
-      </div>
+      <StatusAnnouncer message={model.announcement} />
     </section>
   );
 }

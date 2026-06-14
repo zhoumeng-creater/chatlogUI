@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 interface AppTitleBarProps {
+  productName: string;
   title: string;
   status: ReactNode;
   actions: ReactNode;
@@ -10,11 +11,11 @@ interface AppTitleBarProps {
 const dragRegionStyle = { WebkitAppRegion: "drag" } as CSSProperties;
 const noDragRegionStyle = { WebkitAppRegion: "no-drag" } as CSSProperties;
 
-export function AppTitleBar({ title, status, actions, windowControls }: AppTitleBarProps) {
+export function AppTitleBar({ productName, title, status, actions, windowControls }: AppTitleBarProps) {
   return (
     <header className="app-titlebar" style={dragRegionStyle}>
       <div className="app-titlebar__brand" style={noDragRegionStyle}>
-        <span className="app-titlebar__product">chatlog_alpha</span>
+        <span className="app-titlebar__product">{productName}</span>
         {status}
       </div>
       <div className="app-titlebar__center" aria-label={title}>

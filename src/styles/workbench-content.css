@@ -136,12 +136,12 @@
 .conversation-row__time {
   flex: 0 0 auto;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .conversation-row__unread {
   color: var(--accent);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -251,7 +251,7 @@
   justify-content: center;
   margin: var(--space-4) 0 var(--space-3);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .message-row {
@@ -326,7 +326,7 @@
   gap: var(--space-2);
   margin: 0 0 3px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .message-attachments {
@@ -808,7 +808,7 @@
   padding: 3px 8px;
   background: var(--surface-subtle);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -962,7 +962,7 @@
 .media-library__row-meta {
   margin-left: auto;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -975,7 +975,7 @@
 
 .media-library__row-note {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .media-library__inline-actions {
@@ -1390,7 +1390,7 @@
   flex: 1 1 0;
   gap: 4px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -1591,7 +1591,7 @@
 .sns-post-row__time {
   flex: 0 0 auto;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .sns-post-row__content {
@@ -1660,7 +1660,7 @@
   padding: 3px 6px;
   background: var(--surface-subtle);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
@@ -1694,7 +1694,7 @@
 .sns-notification-row__main span,
 .sns-notification-row__time {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .sns-notification-row--unavailable {
@@ -1756,7 +1756,7 @@
   padding: 3px 6px;
   background: var(--surface-subtle);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -1873,7 +1873,7 @@
   gap: var(--space-1);
   padding: 5px 6px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .sns-media-grid__meta span {
@@ -2004,7 +2004,7 @@
 
 .developer-list-row small {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .developer-form-row {
