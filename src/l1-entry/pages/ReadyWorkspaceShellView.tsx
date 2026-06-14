@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppShellCommander, useUpdateNotificationCommander } from "@l2/commander";
 import { useDevConsoleCommander } from "@l2/commander/useDevConsoleCommander";
@@ -27,8 +27,13 @@ export function ReadyWorkspaceShellView({
   const appShell = useAppShellCommander(workspaceTitle);
   const devConsole = useDevConsoleCommander();
   const updateNotification = useUpdateNotificationCommander();
-  const showRailLabels = useShowRailLabels();
+  const workspaceRail = shell.workspaceRail;
+  const setLastPrimaryRoute = workspaceRail.setLastPrimaryRoute;
   const railItems = buildPrimaryWorkspaceRailItems(activeWorkspace);
+
+  useEffect(() => {
+    setLastPrimaryRoute(activeWorkspace);
+  }, [activeWorkspace, setLastPrimaryRoute]);
 
   if (!shell.view.renderWorkbench) {
     return (
@@ -65,12 +70,21 @@ export function ReadyWorkspaceShellView({
   return (
     <AppLayout shell={appShell.view} actions={appShell.actions}>
       <div className="page-column">
-        <div className="ready-workspace-shell page-fill">
+        <div
+          className="ready-workspace-shell page-fill"
+          data-rail-mode={workspaceRail.mode}
+        >
           <aside className="ready-workspace-shell__rail" aria-label="一级工作区导航">
             <PrimaryWorkspaceRail
-              showLabels={showRailLabels}
+              railMode={workspaceRail.mode}
+              showLabels={workspaceRail.showLabels}
+              canToggleLabels={workspaceRail.canToggleLabels}
               items={railItems}
-              onNavigate={(route) => navigate(withSmokeQuery(route))}
+              onToggleLabels={workspaceRail.toggleLabels}
+              onNavigate={(route, id) => {
+                setLastPrimaryRoute(id);
+                navigate(withSmokeQuery(route));
+              }}
             />
           </aside>
           <section className="ready-workspace-shell__content" aria-label={workspaceTitle}>
@@ -93,21 +107,6 @@ export function ReadyWorkspaceShellView({
       </div>
     </AppLayout>
   );
-}
-
-function useShowRailLabels(): boolean {
-  const [width, setWidth] = useState(() =>
-    typeof window === "undefined" ? 1366 : window.innerWidth,
-  );
-
-  useEffect(() => {
-    const handleResize = () => setWidth(window.innerWidth);
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  return width >= 1280;
 }
 
 function withSmokeQuery(route: string): string {

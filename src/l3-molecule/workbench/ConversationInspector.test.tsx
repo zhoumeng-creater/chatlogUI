@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ConversationInspector } from "./ConversationInspector";
 
 describe("ConversationInspector", () => {
-  it("renders context summary and scoped deep-link actions instead of full modules", () => {
+  it("renders context summary and a limited recommendation instead of repeated module entrances", () => {
     const html = renderToStaticMarkup(
       <ConversationInspector
         conversationTitle="Synthetic Chat"
@@ -16,21 +16,18 @@ describe("ConversationInspector", () => {
         }}
         privacyOn={false}
         onRetryStats={vi.fn()}
-        onOpenSearch={vi.fn()}
         onOpenAnalytics={vi.fn()}
-        onOpenMedia={vi.fn()}
-        onOpenAi={vi.fn()}
-        onOpenGraph={vi.fn()}
       />,
     );
 
     expect(html).toContain("会话详情");
     expect(html).toContain("当前会话统计");
-    expect(html).toContain("搜索此会话");
+    expect(html).toContain("建议下一步");
     expect(html).toContain("查看完整统计");
-    expect(html).toContain("打开媒体库");
-    expect(html).toContain("问这个会话");
-    expect(html).toContain("在图谱中查看");
+    expect(html).not.toContain("搜索此会话");
+    expect(html).not.toContain("打开媒体库");
+    expect(html).not.toContain("问这个会话");
+    expect(html).not.toContain("在图谱中查看");
     expect(html).not.toContain("媒体与扩展");
     expect(html).not.toContain("开发者工具");
   });
@@ -48,11 +45,7 @@ describe("ConversationInspector", () => {
         }}
         privacyOn={false}
         onRetryStats={vi.fn()}
-        onOpenSearch={vi.fn()}
         onOpenAnalytics={vi.fn()}
-        onOpenMedia={vi.fn()}
-        onOpenAi={vi.fn()}
-        onOpenGraph={vi.fn()}
       />,
     );
 

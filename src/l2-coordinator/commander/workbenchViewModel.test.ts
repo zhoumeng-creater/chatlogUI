@@ -21,6 +21,8 @@ function layout(mode: WorkbenchLayout["mode"]): WorkbenchLayout {
     showConversationList: mode !== "single",
     inspectorMode: mode === "compact" ? "drawer" : "inline",
     gridTemplateColumns: "minmax(0, 1fr)",
+    panelWidths: { conversationList: 320, inspector: 320 },
+    splitters: [],
   };
 }
 

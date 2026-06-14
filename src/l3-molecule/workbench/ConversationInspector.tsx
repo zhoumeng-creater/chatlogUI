@@ -1,4 +1,4 @@
-import { BarChart3, Bot, Images, Network, Search } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { Button, Spinner, Typography } from "@l4/ui";
 
 export interface ConversationInspectorStats {
@@ -14,11 +14,7 @@ interface ConversationInspectorProps {
   stats: ConversationInspectorStats;
   privacyOn: boolean;
   onRetryStats: () => void;
-  onOpenSearch: () => void;
   onOpenAnalytics: () => void;
-  onOpenMedia: () => void;
-  onOpenAi: () => void;
-  onOpenGraph: () => void;
 }
 
 export function ConversationInspector({
@@ -27,11 +23,7 @@ export function ConversationInspector({
   stats,
   privacyOn,
   onRetryStats,
-  onOpenSearch,
   onOpenAnalytics,
-  onOpenMedia,
-  onOpenAi,
-  onOpenGraph,
 }: ConversationInspectorProps) {
   const safeConversationTitle = privacyOn && hasConversation ? "已隐藏会话" : conversationTitle;
 
@@ -85,30 +77,14 @@ export function ConversationInspector({
             )}
           </section>
 
-          <section className="conversation-inspector__section" aria-label="上下文入口">
+          <section className="conversation-inspector__section" aria-label="建议下一步">
             <Typography variant="label" weight={700}>
-              上下文入口
+              建议下一步
             </Typography>
             <div className="conversation-inspector__actions">
-              <Button variant="secondary" size="sm" onClick={onOpenSearch}>
-                <Search size={15} />
-                搜索此会话
-              </Button>
               <Button variant="ghost" size="sm" onClick={onOpenAnalytics}>
                 <BarChart3 size={15} />
                 查看完整统计
-              </Button>
-              <Button variant="ghost" size="sm" onClick={onOpenMedia}>
-                <Images size={15} />
-                打开媒体库
-              </Button>
-              <Button variant="ghost" size="sm" onClick={onOpenAi}>
-                <Bot size={15} />
-                问这个会话
-              </Button>
-              <Button variant="ghost" size="sm" onClick={onOpenGraph}>
-                <Network size={15} />
-                在图谱中查看
               </Button>
             </div>
           </section>

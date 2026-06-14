@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { IconButton, Typography } from "@l4/ui";
-import type { WorkbenchLayout } from "@l2/commander/workbenchLayout";
+import type { WorkbenchLayout, WorkbenchPanel } from "@l2/commander/workbenchLayout";
 import {
   getWorkbenchDrawerDialogProps,
   restoreFocusTarget,
@@ -9,6 +9,7 @@ import {
   trapWorkbenchDrawerFocus,
   type FocusTarget,
 } from "./workbenchAccessibility";
+import { WorkspacePanelSplitter } from "@l3/workspace/WorkspacePanelSplitter";
 
 interface WorkbenchFrameProps {
   layout: WorkbenchLayout;
@@ -17,6 +18,8 @@ interface WorkbenchFrameProps {
   inspector: ReactNode;
   inspectorTitle: string;
   inspectorOpen: boolean;
+  onResizePanel?: (panel: WorkbenchPanel, value: number) => void;
+  onResetPanel?: (panel: WorkbenchPanel) => void;
   onCloseInspector: () => void;
   children: ReactNode;
 }
@@ -28,6 +31,8 @@ export function WorkbenchFrame({
   inspector,
   inspectorTitle,
   inspectorOpen,
+  onResizePanel,
+  onResetPanel,
   onCloseInspector,
   children,
 }: WorkbenchFrameProps) {
@@ -35,6 +40,8 @@ export function WorkbenchFrame({
   const previousFocusRef = useRef<FocusTarget | null>(null);
   const drawerTitleId = useId();
   const drawerIsOpen = layout.inspectorMode === "drawer" && inspectorOpen;
+  const conversationListSplitter = layout.splitters.find((splitter) => splitter.panel === "conversationList");
+  const inspectorSplitter = layout.splitters.find((splitter) => splitter.panel === "inspector");
 
   useEffect(() => {
     if (!drawerIsOpen || typeof document === "undefined") return undefined;
@@ -65,9 +72,18 @@ export function WorkbenchFrame({
         style={{ gridTemplateColumns: layout.gridTemplateColumns }}
       >
         {layout.showConversationList && (
-          <aside className="workbench-frame__list" aria-label="会话列表">
-            {conversationList}
-          </aside>
+          <>
+            <aside className="workbench-frame__list" aria-label="会话列表">
+              {conversationList}
+            </aside>
+            {layout.inspectorMode === "inline" && conversationListSplitter && (
+              <WorkspacePanelSplitter
+                {...conversationListSplitter}
+                onChange={(value) => onResizePanel?.(conversationListSplitter.panel, value)}
+                onReset={() => onResetPanel?.(conversationListSplitter.panel)}
+              />
+            )}
+          </>
         )}
 
         <section className="workbench-frame__main" aria-label="会话工作区">
@@ -80,9 +96,18 @@ export function WorkbenchFrame({
         </section>
 
         {layout.inspectorMode === "inline" && (
-          <aside className="workbench-frame__inspector" aria-label={inspectorTitle}>
-            {inspector}
-          </aside>
+          <>
+            {inspectorSplitter && (
+              <WorkspacePanelSplitter
+                {...inspectorSplitter}
+                onChange={(value) => onResizePanel?.(inspectorSplitter.panel, value)}
+                onReset={() => onResetPanel?.(inspectorSplitter.panel)}
+              />
+            )}
+            <aside className="workbench-frame__inspector" aria-label={inspectorTitle}>
+              {inspector}
+            </aside>
+          </>
         )}
       </div>
 
