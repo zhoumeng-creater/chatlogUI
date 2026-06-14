@@ -14,6 +14,10 @@ describe("graphResidualAdapters", () => {
       workers: 4,
       enqueueWorkers: 2,
     });
+    expect(adaptGraphConfig({ status: { workers: 5, enqueue_workers: 3 } })).toEqual({
+      workers: 5,
+      enqueueWorkers: 3,
+    });
     expect(buildGraphConfigPayload({ workers: -1, enqueueWorkers: 0 })).toEqual({
       workers: 1,
       enqueue_workers: 1,
@@ -44,7 +48,6 @@ describe("graphResidualAdapters", () => {
       ok: true,
       count: 1,
       ids: [1001],
-      status: { ready: true },
     });
     expect(result).toMatchObject({
       kind: "business",

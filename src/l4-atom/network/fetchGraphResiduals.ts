@@ -5,6 +5,11 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import type {
+  RawGraphActionResponse,
+  RawGraphConfigResponse,
+  RawGraphQAResponse,
+} from "./chatlogRawTypes";
 import {
   adaptGraphConfig,
   adaptGraphIngestResponse,
@@ -24,7 +29,7 @@ import {
 export async function fetchGraphConfig(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphConfigView> {
-  const raw = await requestJson(buildChatlogApiUrl("/api/v1/graph/config?format=json", diagnosticOptions?.serviceBaseUrl), {
+  const raw = await requestJson<RawGraphConfigResponse>(buildChatlogApiUrl("/api/v1/graph/config", diagnosticOptions?.serviceBaseUrl), {
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "graph_config",
@@ -38,7 +43,7 @@ export async function saveGraphConfig(
   draft: GraphConfigDraft,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphConfigView> {
-  const raw = await requestJson(buildChatlogApiUrl("/api/v1/graph/config?format=json", diagnosticOptions?.serviceBaseUrl), {
+  const raw = await requestJson<RawGraphConfigResponse>(buildChatlogApiUrl("/api/v1/graph/config", diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
     headers: { "Content-Type": "application/json" },
@@ -48,10 +53,7 @@ export async function saveGraphConfig(
       method: "POST",
     }),
   });
-  const record = raw && typeof raw === "object" && !Array.isArray(raw)
-    ? (raw as Record<string, unknown>)
-    : {};
-  return adaptGraphConfig(record.status ?? raw);
+  return adaptGraphConfig(raw);
 }
 
 export async function ingestGraphBusiness(
@@ -72,7 +74,7 @@ export async function askGraphQA(
   draft: GraphQADraft,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphQAResponseView> {
-  const raw = await requestJson(buildChatlogApiUrl("/api/v1/graph/qa?format=json", diagnosticOptions?.serviceBaseUrl), {
+  const raw = await requestJson<RawGraphQAResponse>(buildChatlogApiUrl("/api/v1/graph/qa", diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: 45000,
     headers: { "Content-Type": "application/json" },
@@ -90,7 +92,7 @@ async function ingestGraph(
   draft: GraphIngestDraft,
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphIngestResult> {
-  const raw = await requestJson(buildChatlogApiUrl(`/api/v1/graph/ingest/${kind}?format=json`, diagnosticOptions?.serviceBaseUrl), {
+  const raw = await requestJson<RawGraphActionResponse>(buildChatlogApiUrl(`/api/v1/graph/ingest/${kind}`, diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: 30000,
     headers: { "Content-Type": "application/json" },

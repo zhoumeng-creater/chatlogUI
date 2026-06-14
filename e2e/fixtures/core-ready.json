@@ -231,12 +231,17 @@
       "count": 3,
       "limit": 50,
       "offset": 0,
+      "query_since": 1767254400,
+      "query_until": 1767340800,
+      "query_range_label": "Synthetic fixed history range",
       "messages": [
         {
           "local_id": 1001,
           "timestamp": 1767254400,
           "time": "2026-01-01 08:00",
           "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
           "type": "text",
           "content": "Synthetic message for UI state only"
         },
@@ -245,6 +250,8 @@
           "timestamp": 1767254460,
           "time": "2026-01-01 08:01",
           "sender": "self_synthetic",
+          "sender_name": "Synthetic Self",
+          "is_self": true,
           "type": "image",
           "content": "Synthetic image attachment summary",
           "media_type": "image",
@@ -255,16 +262,23 @@
           "timestamp": 1767254520,
           "time": "2026-01-01 08:02",
           "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
           "type": "text",
           "content": "Synthetic long transcript row for stable browser checks"
         }
       ]
     },
     "/api/v1/search": {
+      "query": "synthetic",
+      "chats": ["session_synthetic_001"],
       "total_count": 1,
       "count": 1,
       "limit": 20,
       "offset": 0,
+      "query_since": 1767254400,
+      "query_until": 1767340800,
+      "query_range_label": "Synthetic fixed search range",
       "messages": [
         {
           "local_id": 1001,
@@ -273,6 +287,8 @@
           "chat": "session_synthetic_001",
           "username": "session_synthetic_001",
           "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
           "type": "text",
           "content": "Synthetic search result for UI state only"
         }
@@ -290,6 +306,8 @@
       "active_days": 2,
       "first_message_time": 1767254400,
       "last_message_time": 1767340800,
+      "query_since": 1767254400,
+      "query_until": 1767340800,
       "query_range_label": "Synthetic fixed range",
       "by_type": [
         {

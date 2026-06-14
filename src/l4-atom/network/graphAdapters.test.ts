@@ -6,6 +6,7 @@ import {
   adaptGraphTimeline,
   adaptGraphVisualize,
 } from "./graphAdapters";
+import { containsSensitiveDiagnosticText } from "@/utils/maskSecrets";
 
 describe("adaptGraphStatus", () => {
   it("maps ready and running graph status", () => {
@@ -43,6 +44,23 @@ describe("adaptGraphStatus", () => {
       state: "error",
       lastError: "graph worker failed",
     });
+  });
+
+  it("redacts backend graph status errors before they reach UI state", () => {
+    const status = adaptGraphStatus({
+      enabled: true,
+      last_error: [
+        "token=raw-token",
+        "message: synthetic-private-message",
+        "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_real",
+      ].join(" "),
+    });
+
+    expect(status.state).toBe("error");
+    expect(status.lastError).not.toContain("raw-token");
+    expect(status.lastError).not.toContain("synthetic-private-message");
+    expect(status.lastError).not.toContain("wxid_synthetic_real");
+    expect(containsSensitiveDiagnosticText(status.lastError)).toBe(false);
   });
 
   it("maps sidecar-shaped queue, worker, timing, rate, and status labels", () => {
@@ -244,5 +262,23 @@ describe("graph query, timeline, and action adapters", () => {
       status: "running",
       error: "",
     });
+  });
+
+  it("redacts graph action backend errors before callers render them", () => {
+    const result = adaptGraphActionResult({
+      ok: false,
+      accepted: false,
+      status: "error",
+      error: [
+        "api_key=sk-synthetic-redaction-token",
+        "query=synthetic-private-message",
+        "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_real",
+      ].join(" "),
+    });
+
+    expect(result.error).not.toContain("sk-synthetic-redaction-token");
+    expect(result.error).not.toContain("synthetic-private-message");
+    expect(result.error).not.toContain("wxid_synthetic_real");
+    expect(containsSensitiveDiagnosticText(result.error)).toBe(false);
   });
 });

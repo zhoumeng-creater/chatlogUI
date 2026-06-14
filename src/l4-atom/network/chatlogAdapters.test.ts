@@ -10,6 +10,7 @@ import {
   adaptStatsResponse,
   adaptDashboardTrendResponse,
   normalizeChatType,
+  mergeUnreadCounts,
   mergeConversations,
   adaptSessionToConversation,
   adoptContactToConversation,
@@ -228,6 +229,42 @@ describe("adaptHistoryMessage", () => {
     expect(result.direction).toBe("unknown");
   });
 
+  it("uses explicit backend direction before self flags", () => {
+    expect(adaptHistoryMessage({ direction: "self", is_self: false }).direction).toBe("self");
+    expect(adaptHistoryMessage({ direction: "outgoing" }).direction).toBe("self");
+    expect(adaptHistoryMessage({ direction: "other", is_self: true }).direction).toBe("other");
+    expect(adaptHistoryMessage({ direction: "incoming" }).direction).toBe("other");
+  });
+
+  it("maps is_self and from_me flags to message direction", () => {
+    expect(adaptHistoryMessage({ is_self: true }).direction).toBe("self");
+    expect(adaptHistoryMessage({ is_self: 1 }).direction).toBe("self");
+    expect(adaptHistoryMessage({ is_self: false }).direction).toBe("other");
+    expect(adaptHistoryMessage({ is_self: 0 }).direction).toBe("other");
+    expect(adaptHistoryMessage({ from_me: true }).direction).toBe("self");
+    expect(adaptHistoryMessage({ from_me: false }).direction).toBe("other");
+  });
+
+  it("preserves group sender and talker display names", () => {
+    const result = adaptHistoryMessage({
+      chat: "Synthetic Work Group",
+      username: "room123@chatroom",
+      talker: "room123@chatroom",
+      talker_name: "Synthetic Work Group",
+      sender: "wxid_synthetic_member",
+      sender_name: "Synthetic Member",
+      is_group: true,
+    });
+
+    expect(result).toMatchObject({
+      talker: "room123@chatroom",
+      talkerName: "Synthetic Work Group",
+      sender: "wxid_synthetic_member",
+      senderName: "Synthetic Member",
+      isGroup: true,
+    });
+  });
+
   it("generates id from local_id when present", () => {
     const result = adaptHistoryMessage({
       chat: "wxid_synthetic_chat",
@@ -326,6 +363,29 @@ describe("adaptHistoryResponse", () => {
     expect(result.messages).toHaveLength(2);
     expect(result.messages[0].content).toBe("msg1");
     expect(result.messages[1].content).toBe("msg2");
+  });
+
+  it("sorts history messages into stable chronological render order", () => {
+    const result = adaptHistoryResponse({
+      chat: "wxid_synthetic_chat",
+      total_count: 4,
+      count: 4,
+      limit: 50,
+      offset: 0,
+      messages: [
+        { local_id: 40, timestamp: 400, content: "newer" },
+        { local_id: 10, timestamp: 100, content: "older" },
+        { local_id: 30, timestamp: 300, content: "middle-b" },
+        { local_id: 20, timestamp: 300, content: "middle-a" },
+      ],
+    });
+
+    expect(result.messages.map((message) => message.content)).toEqual([
+      "older",
+      "middle-a",
+      "middle-b",
+      "newer",
+    ]);
   });
 
   it("handles empty messages array", () => {
@@ -599,12 +659,28 @@ describe("normalizeChatType", () => {
     expect(normalizeChatType(undefined, "gh_1234567890a")).toBe("official_account");
   });
 
+  it("normalizes service, subscription, enterprise, and system account types", () => {
+    expect(normalizeChatType("service_account", "service_synthetic")).toBe("service_account");
+    expect(normalizeChatType("subscription", "subscription_synthetic")).toBe("subscription_account");
+    expect(normalizeChatType("enterprise_contact", "wxid_synthetic_work")).toBe("enterprise_contact");
+    expect(normalizeChatType("enterprise_account", "corp_synthetic")).toBe("enterprise_account");
+    expect(normalizeChatType("system", "filehelper")).toBe("system");
+    expect(normalizeChatType(undefined, "gh_service_synthetic")).toBe("official_account");
+    expect(normalizeChatType(undefined, "wework_synthetic")).toBe("enterprise_account");
+  });
+
   it('returns "folded" for chat_type "folded"', () => {
     expect(normalizeChatType("folded", "anything")).toBe("folded");
   });
 
   it('returns "private" for chat_type "private"', () => {
     expect(normalizeChatType("private", "wxid_synthetic_user")).toBe("private");
+  });
+
+  it('returns "private" for common private-session chat_type aliases', () => {
+    expect(normalizeChatType("friend", "wxid_synthetic_user")).toBe("private");
+    expect(normalizeChatType("contact", "wxid_synthetic_user")).toBe("private");
+    expect(normalizeChatType("single", "wxid_synthetic_user")).toBe("private");
   });
 
   it('returns "private" for undefined chat_type with normal username', () => {
@@ -654,6 +730,17 @@ describe("adaptSessionToConversation", () => {
     });
     expect(result.isGroup).toBe(true);
     expect(result.chatType).toBe("group");
+  });
+
+  it("treats friend sessions as private conversations", () => {
+    const result = adaptSessionToConversation({
+      username: "wxid_synthetic_friend",
+      chat: "Friend Chat",
+      chat_type: "friend",
+    });
+
+    expect(result.isGroup).toBe(false);
+    expect(result.chatType).toBe("private");
   });
 
   it("falls back displayName to username when chat is missing", () => {
@@ -825,5 +912,20 @@ describe("mergeConversations", () => {
     );
 
     expect(result).toEqual([]);
+  });
+
+  it("merges unread counts only from the unread endpoint result", () => {
+    const conversations = mergeConversations(sessions, contacts, chatrooms);
+    const merged = mergeUnreadCounts(conversations, {
+      total: 5,
+      chats: [
+        { chat: "wxid_synthetic_a", count: 3 },
+        { chat: "group1@chatroom", count: 2 },
+      ],
+    });
+
+    expect(merged.find((item) => item.id === "wxid_synthetic_a")?.unread).toBe(3);
+    expect(merged.find((item) => item.id === "group1@chatroom")?.unread).toBe(2);
+    expect(merged.find((item) => item.id === "wxid_synthetic_b")?.unread).toBe(0);
   });
 });

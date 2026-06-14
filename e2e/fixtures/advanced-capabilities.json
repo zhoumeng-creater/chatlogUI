@@ -232,6 +232,8 @@
           "id": "new_message_synthetic_001",
           "chat": "session_synthetic_001",
           "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
           "time": "2026-01-02 08:00",
           "timestamp": 1767340800,
           "type": "image",

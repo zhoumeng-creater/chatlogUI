@@ -16,7 +16,6 @@ export async function fetchMembers(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ) {
   const params = new URLSearchParams();
-  params.set("format", "json");
   params.set("chat", options.chat);
 
   const raw = await requestJson<RawMembersResponse>(

@@ -9,6 +9,7 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import type { RawGraphQueryResponse } from "./chatlogRawTypes";
 import { adaptGraphQuery, type GraphQueryView } from "./graphAdapters";
 
 interface GraphQueryParams {
@@ -38,7 +39,7 @@ export async function fetchGraphQuery(
   if (options.start) url.searchParams.set("start", options.start);
   if (options.end) url.searchParams.set("end", options.end);
 
-  const data = await requestJson(url.toString(), {
+  const data = await requestJson<RawGraphQueryResponse>(url.toString(), {
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "graph",

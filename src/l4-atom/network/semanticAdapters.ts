@@ -1,4 +1,13 @@
 import { maskDiagnosticText } from "@/utils/maskSecrets";
+import type {
+  RawSemanticConfigResponse,
+  RawSemanticConnectionTestResponse,
+  RawSemanticIndexActionResponse,
+  RawSemanticIndexStatusResponse,
+  RawSemanticProfilesResponse,
+  RawSemanticSearchResponse,
+  RawSemanticTopicsResponse,
+} from "./chatlogRawTypes";
 
 type RawRecord = Record<string, unknown>;
 
@@ -214,7 +223,7 @@ export interface SemanticQAEntityCandidate {
   source: string;
 }
 
-export function adaptSemanticConfig(raw: unknown): SemanticConfigView {
+export function adaptSemanticConfig(raw: RawSemanticConfigResponse): SemanticConfigView {
   const data = asRecord(raw);
   const enableRerank = boolValue(data.enable_rerank);
   const enableQa = boolValue(data.enable_qa, true);
@@ -284,7 +293,7 @@ export function adaptSemanticConfig(raw: unknown): SemanticConfigView {
   };
 }
 
-export function adaptConnectionTestResult(raw: unknown): ConnectionTestResult {
+export function adaptConnectionTestResult(raw: RawSemanticConnectionTestResponse): ConnectionTestResult {
   const data = asRecord(raw);
   const ok = boolValue(data.ok);
   const error = stringValue(data.error);
@@ -294,7 +303,7 @@ export function adaptConnectionTestResult(raw: unknown): ConnectionTestResult {
   };
 }
 
-export function adaptSemanticIndexStatus(raw: unknown): SemanticIndexStatus {
+export function adaptSemanticIndexStatus(raw: RawSemanticIndexStatusResponse): SemanticIndexStatus {
   const data = asRecord(raw);
   const ready = boolValue(data.ready);
   const running = boolValue(data.running);
@@ -355,7 +364,7 @@ export function adaptSemanticIndexStatus(raw: unknown): SemanticIndexStatus {
   };
 }
 
-export function adaptSemanticIndexActionResult(raw: unknown): SemanticIndexActionResult {
+export function adaptSemanticIndexActionResult(raw: RawSemanticIndexActionResponse): SemanticIndexActionResult {
   const data = asRecord(raw);
   return {
     ok: boolValue(data.ok),
@@ -365,7 +374,7 @@ export function adaptSemanticIndexActionResult(raw: unknown): SemanticIndexActio
   };
 }
 
-export function adaptSemanticSearch(raw: unknown): SemanticSearchResultSet {
+export function adaptSemanticSearch(raw: RawSemanticSearchResponse): SemanticSearchResultSet {
   const data = asRecord(raw);
   const results = arrayValue(data.results).map((item) => {
     const result = asRecord(item);
@@ -403,7 +412,7 @@ export function adaptSemanticSearch(raw: unknown): SemanticSearchResultSet {
   };
 }
 
-export function adaptSemanticTopics(raw: unknown): SemanticTopicsView {
+export function adaptSemanticTopics(raw: RawSemanticTopicsResponse): SemanticTopicsView {
   const data = asRecord(raw);
   return {
     window: stringValue(data.window),
@@ -432,7 +441,7 @@ export function adaptSemanticTopics(raw: unknown): SemanticTopicsView {
   };
 }
 
-export function adaptSemanticProfiles(raw: unknown): SemanticProfilesView {
+export function adaptSemanticProfiles(raw: RawSemanticProfilesResponse): SemanticProfilesView {
   const data = asRecord(raw);
   return {
     window: stringValue(data.window),

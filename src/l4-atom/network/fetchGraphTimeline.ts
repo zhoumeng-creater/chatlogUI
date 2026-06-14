@@ -5,6 +5,7 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import type { RawGraphTimelineResponse } from "./chatlogRawTypes";
 import { adaptGraphTimeline, type GraphTimelineView } from "./graphAdapters";
 
 interface GraphTimelineParams {
@@ -26,7 +27,7 @@ export async function fetchGraphTimeline(
   if (params.end) url.searchParams.set("end", params.end);
   if (params.limit !== undefined) url.searchParams.set("limit", String(params.limit));
 
-  const data = await requestJson(url.toString(), {
+  const data = await requestJson<RawGraphTimelineResponse>(url.toString(), {
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "graph",

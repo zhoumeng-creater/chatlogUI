@@ -18,7 +18,6 @@ export async function fetchNewMessages(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ) {
   const params = new URLSearchParams();
-  params.set("format", "json");
   if (options.chat) params.set("chat", options.chat);
   if (options.since !== undefined) params.set("since", String(options.since));
   if (options.limit !== undefined) params.set("limit", String(options.limit));

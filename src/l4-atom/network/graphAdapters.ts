@@ -1,3 +1,12 @@
+import type {
+  RawGraphActionResponse,
+  RawGraphQueryResponse,
+  RawGraphStatusResponse,
+  RawGraphTimelineResponse,
+  RawGraphVisualizeResponse,
+} from "./chatlogRawTypes";
+import { maskDiagnosticText } from "@/utils/maskSecrets";
+
 type RawRecord = Record<string, unknown>;
 
 export type GraphLoadStatus =
@@ -165,12 +174,12 @@ export interface GraphActionResult {
   error: string;
 }
 
-export function adaptGraphStatus(raw: unknown): GraphStatusView {
+export function adaptGraphStatus(raw: RawGraphStatusResponse): GraphStatusView {
   const data = asRecord(raw);
   const enabled = boolValue(data.enabled);
   const paused = boolValue(data.paused);
   const running = boolValue(data.running);
-  const lastError = stringValue(data.last_error);
+  const lastError = safeGraphDiagnosticText(stringValue(data.last_error));
   const historyQueued = boolValue(data.history_queued);
   const processing = numberValue(data.processing);
   const workers = numberValue(data.workers);
@@ -211,7 +220,7 @@ export function adaptGraphStatus(raw: unknown): GraphStatusView {
 }
 
 export function adaptGraphVisualize(
-  raw: unknown,
+  raw: RawGraphVisualizeResponse,
   options: { visualizationCap: number },
 ): GraphVisualizeView {
   const data = asRecord(raw);
@@ -253,7 +262,7 @@ export function adaptGraphVisualize(
   };
 }
 
-export function adaptGraphQuery(raw: unknown): GraphQueryView {
+export function adaptGraphQuery(raw: RawGraphQueryResponse): GraphQueryView {
   const data = asRecord(raw);
   return {
     entities: arrayValue(data.entities).map(adaptQueryEntity),
@@ -263,7 +272,7 @@ export function adaptGraphQuery(raw: unknown): GraphQueryView {
   };
 }
 
-export function adaptGraphTimeline(raw: unknown): GraphTimelineView {
+export function adaptGraphTimeline(raw: RawGraphTimelineResponse): GraphTimelineView {
   const data = asRecord(raw);
   const rows = arrayValue(data.items).map(adaptTimelineRow);
   return {
@@ -272,13 +281,13 @@ export function adaptGraphTimeline(raw: unknown): GraphTimelineView {
   };
 }
 
-export function adaptGraphActionResult(raw: unknown): GraphActionResult {
+export function adaptGraphActionResult(raw: RawGraphActionResponse): GraphActionResult {
   const data = asRecord(raw);
   return {
     ok: boolValue(data.ok),
     accepted: boolValue(data.accepted),
     status: stringValue(data.status),
-    error: stringValue(data.error),
+    error: safeGraphDiagnosticText(stringValue(data.error)),
   };
 }
 
@@ -506,6 +515,10 @@ function arrayValue(value: unknown): unknown[] {
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function safeGraphDiagnosticText(value: string): string {
+  return value ? maskDiagnosticText(value, { privacyMode: true }) : "";
 }
 
 function idValue(value: unknown): string {

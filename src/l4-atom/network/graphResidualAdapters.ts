@@ -1,3 +1,9 @@
+import type {
+  RawGraphActionResponse,
+  RawGraphConfigResponse,
+  RawGraphQAResponse,
+} from "./chatlogRawTypes";
+
 type RawRecord = Record<string, unknown>;
 
 export interface GraphConfigView {
@@ -58,8 +64,10 @@ export interface GraphQAResponseView {
   evidenceSummary: string;
 }
 
-export function adaptGraphConfig(raw: unknown): GraphConfigView {
-  const data = asRecord(raw);
+export function adaptGraphConfig(raw: RawGraphConfigResponse): GraphConfigView {
+  const root = asRecord(raw);
+  const status = asRecord(root.status);
+  const data = Object.keys(status).length > 0 ? status : root;
   return {
     workers: positiveInt(data.workers, 1),
     enqueueWorkers: positiveInt(data.enqueue_workers, 1),
@@ -98,7 +106,7 @@ export function buildGraphIngestPayload(kind: GraphIngestKind, draft: GraphInges
   };
 }
 
-export function adaptGraphIngestResponse(kind: GraphIngestKind, raw: unknown): GraphIngestResult {
+export function adaptGraphIngestResponse(kind: GraphIngestKind, raw: RawGraphActionResponse): GraphIngestResult {
   const data = asRecord(raw);
   const ids = arrayValue(data.ids);
   return {
@@ -118,7 +126,7 @@ export function buildGraphQAPayload(draft: GraphQADraft): RawRecord {
   return payload;
 }
 
-export function adaptGraphQAResponse(raw: unknown): GraphQAResponseView {
+export function adaptGraphQAResponse(raw: RawGraphQAResponse): GraphQAResponseView {
   const data = asRecord(raw);
   const answerPreview = truncatePreview(stringValue(data.answer));
   const evidenceCount = countEvidence(data.evidence);
