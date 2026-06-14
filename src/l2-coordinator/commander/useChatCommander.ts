@@ -4,11 +4,18 @@ import {
   type ChatMessageAnchor,
   type ChatReturnToSearch,
 } from "@/l2-coordinator/data-clerk/stores/useChatStore";
-import { ChatlogHttpError, fetchConversations, fetchHistory } from "@l4/network";
+import { ChatlogHttpError, fetchConversations, fetchHistory, fetchUnread } from "@l4/network";
+import { toApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 import {
   buildAnchorHistoryRequest,
   findAnchoredMessage,
 } from "./chatHistoryAnchor";
+import {
+  CHAT_HISTORY_ORDERING_CONTRACT,
+  getLatestPageFollowupRequest,
+  getOlderHistoryRequest,
+  hasOlderHistory,
+} from "./chatHistoryPaging";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 const HISTORY_PAGE_SIZE = 50;
@@ -19,11 +26,6 @@ export interface AnchoredChatNavigationTarget {
   chat: string;
   anchor: ChatMessageAnchor;
   returnToSearch: ChatReturnToSearch;
-}
-
-function hasMoreHistory(result: { count: number; limit: number; messages: unknown[] }) {
-  const loadedCount = result.count || result.messages.length;
-  return result.limit > 0 && loadedCount >= result.limit;
 }
 
 export function useChatCommander() {
@@ -86,6 +88,25 @@ export function useChatCommander() {
       }
 
       useChatStore.getState().setConversations(conversations, contactsByUsername, chatRoomsByName);
+      useChatStore.getState().setUnreadLoading();
+      try {
+        const unread = await fetchUnread(createDiagnosticHttpOptions({
+          endpointFamily: "unread",
+          method: "GET",
+          recoveryHint: "retry",
+        }));
+        const unreadByChat = Object.fromEntries(
+          unread.chats.map((item) => [item.chat, item.count]),
+        );
+        useChatStore.getState().mergeConversationUnread(unreadByChat);
+      } catch (error) {
+        const errorModel = toApiErrorModel(error);
+        if (errorModel.category === "unsupported-endpoint") {
+          useChatStore.getState().setUnreadUnavailable();
+        } else {
+          useChatStore.getState().setUnreadError(errorModel.message);
+        }
+      }
     } catch {
       useChatStore.getState().setConversationsError("加载会话列表失败");
     } finally {
@@ -98,7 +119,7 @@ export function useChatCommander() {
     useChatStore.getState().clearAnchor();
     useChatStore.getState().setMessagesLoading(true);
     try {
-      const result = await fetchHistory(
+      let result = await fetchHistory(
         { chat, limit: HISTORY_PAGE_SIZE, offset: 0 },
         {
           ...createDiagnosticHttpOptions({
@@ -110,11 +131,24 @@ export function useChatCommander() {
         },
       );
       if (!isCurrentHistoryRequest(request.requestId)) return;
+      const latestFollowup = getLatestPageFollowupRequest(result, CHAT_HISTORY_ORDERING_CONTRACT);
+      if (latestFollowup) {
+        result = await fetchHistory(latestFollowup, {
+          ...createDiagnosticHttpOptions({
+            endpointFamily: "history",
+            method: "GET",
+            recoveryHint: "retry",
+          }),
+          signal: request.controller.signal,
+        });
+        if (!isCurrentHistoryRequest(request.requestId)) return;
+      }
       useChatStore.getState().setMessages(
         result.messages,
         result.totalCount,
         result.offset,
-        hasMoreHistory(result),
+        hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
+        "latest",
       );
     } catch (error) {
       if (!isCurrentHistoryRequest(request.requestId)) return;
@@ -122,23 +156,34 @@ export function useChatCommander() {
         useChatStore.getState().setAnchorCancelled();
         return;
       }
-      useChatStore.getState().setMessagesError("加载聊天记录失败");
+      useChatStore.getState().setMessagesError(toApiErrorModel(error));
     } finally {
       clearCurrentHistoryRequest(request.requestId);
     }
   }, [clearCurrentHistoryRequest, isCancelledHistoryError, isCurrentHistoryRequest, startHistoryRequest]);
 
   const loadMoreHistory = useCallback(async (chat: string) => {
-    const { messages, messagesLoading, messagesHasMore } = useChatStore.getState();
+    const { messages, messagesLoading, messagesHasMore, messagesOffset } = useChatStore.getState();
     if (messagesLoading || !messagesHasMore) return;
 
     const request = startHistoryRequest();
     useChatStore.getState().setMessagesLoading(true);
-    const nextOffset = messages.length;
+    const olderRequest = getOlderHistoryRequest({
+      chat,
+      contract: CHAT_HISTORY_ORDERING_CONTRACT,
+      currentOffset: messagesOffset,
+      loadedCount: messages.length,
+      limit: HISTORY_PAGE_SIZE,
+    });
+    if (!olderRequest) {
+      useChatStore.getState().appendMessages([], messagesOffset, false);
+      clearCurrentHistoryRequest(request.requestId);
+      return;
+    }
 
     try {
       const result = await fetchHistory(
-        { chat, limit: HISTORY_PAGE_SIZE, offset: nextOffset },
+        olderRequest,
         {
           ...createDiagnosticHttpOptions({
             endpointFamily: "history",
@@ -149,11 +194,15 @@ export function useChatCommander() {
         },
       );
       if (!isCurrentHistoryRequest(request.requestId)) return;
-      useChatStore.getState().appendMessages(result.messages, result.offset, hasMoreHistory(result));
+      useChatStore.getState().appendMessages(
+        result.messages,
+        result.offset,
+        hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
+      );
     } catch (error) {
       if (!isCurrentHistoryRequest(request.requestId)) return;
       if (isCancelledHistoryError(error)) return;
-      useChatStore.getState().setMessagesError("加载更多记录失败");
+      useChatStore.getState().setMessagesError(toApiErrorModel(error));
     } finally {
       clearCurrentHistoryRequest(request.requestId);
     }
@@ -195,7 +244,8 @@ export function useChatCommander() {
           result.messages,
           result.totalCount,
           result.offset,
-          hasMoreHistory(result),
+          hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
+          "anchor",
         );
         const hit = findAnchoredMessage(result.messages, target.anchor);
         if (hit) {
@@ -209,7 +259,7 @@ export function useChatCommander() {
           useChatStore.getState().setAnchorCancelled();
           return;
         }
-        useChatStore.getState().setMessagesError("加载聊天记录失败");
+        useChatStore.getState().setMessagesError(toApiErrorModel(error));
         useChatStore.getState().setAnchorError("已打开会话，但无法加载搜索命中附近的聊天记录。");
       } finally {
         clearCurrentHistoryRequest(request.requestId);

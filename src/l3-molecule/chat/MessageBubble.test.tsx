@@ -9,6 +9,10 @@ const message: ChatMessage = {
   timestamp: 1_714_288_000,
   time: "2024-04-28 09:20",
   sender: "Synthetic Sender",
+  senderName: "Synthetic Sender",
+  talker: "Synthetic Chat",
+  talkerName: "Synthetic Chat",
+  isSelf: false,
   type: "text",
   content: "Synthetic private message body",
   chat: "Synthetic Chat",
@@ -27,5 +31,26 @@ describe("MessageBubble", () => {
     expect(html).toContain("message-row--search-hit");
     expect(html).toContain('aria-label="搜索命中消息"');
     expect(html).not.toContain('aria-label="Synthetic private message body"');
+  });
+
+  it("renders group sender display from senderName and masks it in privacy mode", () => {
+    const groupMessage: ChatMessage = {
+      ...message,
+      isGroup: true,
+      direction: "other",
+      sender: "wxid_synthetic_member",
+      senderName: "Synthetic Group Member",
+    };
+
+    const visible = renderToStaticMarkup(
+      <MessageBubble message={groupMessage} privacyOn={false} />,
+    );
+    const masked = renderToStaticMarkup(
+      <MessageBubble message={groupMessage} privacyOn />,
+    );
+
+    expect(visible).toContain("Synthetic Group Member");
+    expect(masked).not.toContain("Synthetic Group Member");
+    expect(masked).toContain("********* ***** ******");
   });
 });

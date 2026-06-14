@@ -55,3 +55,10 @@ export function findTranscriptMessageRowIndex(
   );
   return messageIdIndex >= 0 ? messageIdIndex : null;
 }
+
+export function findLastTranscriptMessageRowIndex(rows: TranscriptRow[]): number | null {
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    if (rows[index]?.kind === "message") return index;
+  }
+  return null;
+}

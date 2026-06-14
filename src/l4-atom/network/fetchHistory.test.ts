@@ -23,6 +23,33 @@ describe("fetchHistory", () => {
     expect(url.searchParams.get("until")).toBe("200");
   });
 
+  it("passes self/media filters and relies on one shared format=json parameter", async () => {
+    const urls: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify({ count: 0, messages: [] }), { status: 200 });
+    };
+
+    try {
+      await fetchHistory({
+        chat: "wxid_synthetic_user",
+        limit: 50,
+        offset: 0,
+        isSelf: true,
+        hasMedia: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    const url = new URL(urls[0]);
+    expect(url.searchParams.get("is_self")).toBe("1");
+    expect(url.searchParams.get("has_media")).toBe("1");
+    expect(url.searchParams.getAll("format")).toEqual(["json"]);
+  });
+
+
   it("honors caller abort signals", async () => {
     vi.useFakeTimers();
     const controller = new AbortController();

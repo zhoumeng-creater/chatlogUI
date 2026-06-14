@@ -1,12 +1,25 @@
 import { create } from "zustand";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
+import type { ApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 import type { MediaAttachment } from "./useMediaStore";
+
+export type ConversationChatType =
+  | "private"
+  | "group"
+  | "official_account"
+  | "subscription_account"
+  | "service_account"
+  | "enterprise_contact"
+  | "enterprise_account"
+  | "system"
+  | "folded"
+  | "unknown";
 
 export interface Conversation {
   id: string;
   username: string;
   displayName: string;
-  chatType: string;
+  chatType: ConversationChatType | string;
   isGroup: boolean;
   summary: string;
   timestamp: number;
@@ -20,11 +33,17 @@ export interface Conversation {
 
 export interface ChatMessage {
   id: string;
+  seq?: number;
   localId: number;
   timestamp: number;
   time: string;
+  talker?: string;
+  talkerName?: string;
   sender: string;
+  senderName?: string;
+  isSelf?: boolean;
   type: string;
+  subType?: string;
   content: string;
   chat: string;
   username: string;
@@ -33,11 +52,16 @@ export interface ChatMessage {
   mediaType?: string;
   mediaUrl?: string;
   imageUrl?: string;
+  fileName?: string;
+  hour?: number;
+  hasMedia?: boolean;
   attachments?: MediaAttachment[];
   direction: "self" | "other" | "unknown";
 }
 
 export type LoadStatus = "idle" | "loading" | "ready" | "empty" | "error";
+export type UnreadStatus = "idle" | "loading" | "ready" | "unavailable" | "error";
+export type TranscriptScrollIntent = "none" | "latest" | "anchor" | "preserve";
 export type ChatAnchorStatus = "idle" | "loading" | "hit" | "missing" | "error" | "cancelled";
 export type ChatAnchorSource = "search" | "media" | "ai" | "graph" | "sns";
 
@@ -68,6 +92,8 @@ interface ChatState {
   chatRoomsByName: Record<string, unknown>;
   conversationsStatus: LoadStatus;
   conversationsError: string | null;
+  unreadStatus: UnreadStatus;
+  unreadError: string | null;
   selectedConversationId: string | null;
   messages: ChatMessage[];
   messagesLoading: boolean;
@@ -75,7 +101,10 @@ interface ChatState {
   messagesTotalCount: number;
   messagesOffset: number;
   messagesStatus: LoadStatus;
-  messagesError: string | null;
+  messagesError: string | ApiErrorModel | null;
+  scrollIntent: TranscriptScrollIntent;
+  scrollAnchorMessageId: string | null;
+  scrollAnchorLocalId: number | null;
   anchorStatus: ChatAnchorStatus;
   activeAnchor: ChatMessageAnchor | null;
   highlightedMessageId: string | null;
@@ -91,11 +120,22 @@ interface ChatActions {
   ) => void;
   setConversationsLoading: () => void;
   setConversationsError: (error: string) => void;
+  setUnreadLoading: () => void;
+  mergeConversationUnread: (unreadByChat: Record<string, number>) => void;
+  setUnreadUnavailable: () => void;
+  setUnreadError: (error: string) => void;
   selectConversation: (id: string) => void;
-  setMessages: (messages: ChatMessage[], totalCount: number, offset: number, hasMore?: boolean) => void;
+  setMessages: (
+    messages: ChatMessage[],
+    totalCount: number,
+    offset: number,
+    hasMore?: boolean,
+    scrollIntent?: TranscriptScrollIntent,
+  ) => void;
   appendMessages: (messages: ChatMessage[], offset: number, hasMore?: boolean) => void;
   setMessagesLoading: (loading: boolean) => void;
-  setMessagesError: (error: string) => void;
+  setMessagesError: (error: string | ApiErrorModel) => void;
+  clearScrollIntent: () => void;
   setAnchorLoading: (anchor: ChatMessageAnchor, returnToSearch: ChatReturnToSearch) => void;
   setAnchorHit: (messageId: string) => void;
   setAnchorMissing: () => void;
@@ -114,6 +154,8 @@ const initialState: ChatState = {
   chatRoomsByName: {},
   conversationsStatus: "idle",
   conversationsError: null,
+  unreadStatus: "idle",
+  unreadError: null,
   selectedConversationId: null,
   messages: [],
   messagesLoading: false,
@@ -122,6 +164,9 @@ const initialState: ChatState = {
   messagesOffset: 0,
   messagesStatus: "idle",
   messagesError: null,
+  scrollIntent: "none",
+  scrollAnchorMessageId: null,
+  scrollAnchorLocalId: null,
   anchorStatus: "idle",
   activeAnchor: null,
   highlightedMessageId: null,
@@ -146,11 +191,25 @@ export const useChatStore = create<ChatStore>((set) => ({
       chatRoomsByName,
       conversationsStatus: conversations.length === 0 ? "empty" : "ready",
       conversationsError: null,
+      unreadStatus: "idle",
+      unreadError: null,
     }),
   setConversationsLoading: () =>
     set({ conversationsStatus: "loading", conversationsError: null }),
   setConversationsError: (error) =>
     set({ conversationsStatus: "error", conversationsError: error }),
+  setUnreadLoading: () => set({ unreadStatus: "loading", unreadError: null }),
+  mergeConversationUnread: (unreadByChat) =>
+    set((state) => ({
+      conversations: state.conversations.map((conversation) => ({
+        ...conversation,
+        unread: unreadByChat[conversation.username] ?? unreadByChat[conversation.id] ?? 0,
+      })),
+      unreadStatus: "ready",
+      unreadError: null,
+    })),
+  setUnreadUnavailable: () => set({ unreadStatus: "unavailable", unreadError: null }),
+  setUnreadError: (unreadError) => set({ unreadStatus: "error", unreadError }),
   selectConversation: (id) =>
     set({
       selectedConversationId: id,
@@ -159,20 +218,30 @@ export const useChatStore = create<ChatStore>((set) => ({
       messagesOffset: 0,
       messagesStatus: "idle",
       messagesError: null,
+      scrollIntent: "none",
+      scrollAnchorMessageId: null,
+      scrollAnchorLocalId: null,
       ...clearedAnchorState,
     }),
-  setMessages: (messages, totalCount, offset, hasMore = false) =>
-    set({
-      messages,
-      messagesTotalCount: totalCount,
-      messagesOffset: offset,
-      messagesHasMore: hasMore,
-      messagesLoading: false,
-      messagesStatus: messages.length === 0 ? "empty" : "ready",
-      messagesError: null,
+  setMessages: (messages, totalCount, offset, hasMore = false, scrollIntent = "latest") =>
+    set(() => {
+      const anchorMessage = scrollIntent === "latest" ? messages[messages.length - 1] : null;
+      return {
+        messages,
+        messagesTotalCount: totalCount,
+        messagesOffset: offset,
+        messagesHasMore: hasMore,
+        messagesLoading: false,
+        messagesStatus: messages.length === 0 ? "empty" : "ready",
+        messagesError: null,
+        scrollIntent,
+        scrollAnchorMessageId: anchorMessage?.id ?? null,
+        scrollAnchorLocalId: anchorMessage?.localId ?? null,
+      };
     }),
   appendMessages: (newMessages, offset, hasMore = false) =>
     set((state) => {
+      const previousFirstMessage = state.messages[0] ?? null;
       const messages = [...newMessages, ...state.messages];
       return {
         messages,
@@ -181,11 +250,28 @@ export const useChatStore = create<ChatStore>((set) => ({
         messagesLoading: false,
         messagesStatus: messages.length === 0 ? "empty" : "ready",
         messagesError: null,
+        scrollIntent: previousFirstMessage ? "preserve" : "latest",
+        scrollAnchorMessageId: previousFirstMessage?.id ?? messages[messages.length - 1]?.id ?? null,
+        scrollAnchorLocalId: previousFirstMessage?.localId ?? messages[messages.length - 1]?.localId ?? null,
       };
     }),
-  setMessagesLoading: (loading) => set({ messagesLoading: loading, messagesStatus: "loading" }),
+  setMessagesLoading: (loading) =>
+    set((state) => ({
+      messagesLoading: loading,
+      messagesStatus: loading && state.messages.length === 0 ? "loading" : state.messagesStatus,
+    })),
   setMessagesError: (error) =>
-    set({ messagesLoading: false, messagesStatus: "error", messagesError: error }),
+    set((state) => ({
+      messagesLoading: false,
+      messagesStatus: state.messages.length > 0 ? "ready" : "error",
+      messagesError: error,
+    })),
+  clearScrollIntent: () =>
+    set({
+      scrollIntent: "none",
+      scrollAnchorMessageId: null,
+      scrollAnchorLocalId: null,
+    }),
   setAnchorLoading: (activeAnchor, returnToSearch) =>
     set({
       anchorStatus: "loading",
@@ -229,6 +315,9 @@ export const useChatStore = create<ChatStore>((set) => ({
       messagesOffset: 0,
       messagesStatus: "idle",
       messagesError: null,
+      scrollIntent: "none",
+      scrollAnchorMessageId: null,
+      scrollAnchorLocalId: null,
       ...clearedAnchorState,
     }),
 }));

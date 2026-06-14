@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, SkeletonLoader, Typography } from "@l4/ui";
-import type { Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
+import type { Conversation, LoadStatus, UnreadStatus } from "@l2/data-clerk/stores/useChatStore";
 import { ConversationListToolbar } from "./ConversationListToolbar";
 import { ConversationRow } from "./ConversationRow";
 import {
@@ -13,6 +13,7 @@ interface ConversationListProps {
   conversations: Conversation[];
   conversationsStatus: LoadStatus;
   conversationsError: string | null;
+  unreadStatus: UnreadStatus;
   selectedConversationId: string | null;
   privacyOn: boolean;
   onLoadConversations: () => void;
@@ -24,6 +25,7 @@ export function ConversationList({
     conversations,
     conversationsStatus,
     conversationsError,
+    unreadStatus,
     selectedConversationId,
   privacyOn,
   onLoadConversations,
@@ -31,7 +33,7 @@ export function ConversationList({
   onConversationOpened,
 }: ConversationListProps) {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<ConversationFilter>("recent");
+  const [filter, setFilter] = useState<ConversationFilter>("all");
 
   const visibleConversations = useMemo(
     () => filterConversations(conversations, query, filter),
@@ -84,6 +86,7 @@ export function ConversationList({
                 conversation={conversation}
                 selected={conversation.id === selectedConversationId}
                 privacyOn={privacyOn}
+                unreadStatus={unreadStatus}
                 onOpen={openConversation}
               />
             </div>

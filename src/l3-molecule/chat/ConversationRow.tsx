@@ -1,16 +1,18 @@
 import { Avatar, StatusIndicator } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
-import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
+import type { Conversation, UnreadStatus } from "@l2/data-clerk/stores/useChatStore";
 import {
   formatConversationA11yLabel,
   getConversationBadge,
   maskDisplayText,
+  shouldShowUnreadBadge,
 } from "./conversationDisplay";
 
 interface ConversationRowProps {
   conversation: Conversation;
   selected: boolean;
   privacyOn: boolean;
+  unreadStatus: UnreadStatus;
   onOpen: (conversation: Conversation) => void;
 }
 
@@ -18,6 +20,7 @@ export function ConversationRow({
   conversation,
   selected,
   privacyOn,
+  unreadStatus,
   onOpen,
 }: ConversationRowProps) {
   const badge = getConversationBadge(conversation);
@@ -26,8 +29,9 @@ export function ConversationRow({
     : conversation.displayName;
   const summary = privacyOn ? maskDisplayText(conversation.summary) : conversation.summary;
   const fallback = displayName.slice(0, conversation.isGroup ? 1 : 2);
-  const accessibilityLabel = formatConversationA11yLabel(conversation, privacyOn);
+  const accessibilityLabel = formatConversationA11yLabel(conversation, privacyOn, unreadStatus);
   const avatarAlt = privacyOn ? "已隐藏会话头像" : conversation.displayName;
+  const showUnread = shouldShowUnreadBadge(conversation, unreadStatus);
 
   return (
     <button
@@ -52,7 +56,7 @@ export function ConversationRow({
           <span className="conversation-row__summary">{summary || "没有消息摘要"}</span>
           <StatusIndicator label={badge.label} tone={badge.tone} />
         </span>
-        {conversation.unread > 0 && (
+        {showUnread && (
           <span className="conversation-row__unread">
             {conversation.unread.toLocaleString()} 条未读
           </span>

@@ -1,10 +1,11 @@
-import type { Conversation, LoadStatus } from "@l2/data-clerk/stores/useChatStore";
+import type { Conversation, LoadStatus, UnreadStatus } from "@l2/data-clerk/stores/useChatStore";
 import { ConversationList } from "./ConversationList";
 
 interface ContactListProps {
   conversations: Conversation[];
   conversationsStatus: LoadStatus;
   conversationsError: string | null;
+  unreadStatus: UnreadStatus;
   selectedConversationId: string | null;
   privacyOn: boolean;
   onLoadConversations: () => void;
@@ -16,6 +17,7 @@ export function ContactList({
   conversations,
   conversationsStatus,
   conversationsError,
+  unreadStatus,
   selectedConversationId,
   privacyOn,
   onLoadConversations,
@@ -27,6 +29,7 @@ export function ContactList({
       conversations={conversations}
       conversationsStatus={conversationsStatus}
       conversationsError={conversationsError}
+      unreadStatus={unreadStatus}
       selectedConversationId={selectedConversationId}
       privacyOn={privacyOn}
       onLoadConversations={onLoadConversations}

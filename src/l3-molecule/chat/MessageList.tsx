@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button, Spinner, Typography } from "@l4/ui";
 import type {
@@ -6,12 +6,16 @@ import type {
   ChatMessageAnchor,
   Conversation,
   LoadStatus,
+  TranscriptScrollIntent,
 } from "@l2/data-clerk/stores/useChatStore";
+import type { ApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
+import type { ChatReadingState } from "@/l2-coordinator/commander/chatReadingState";
 import { classNames } from "@/utils/classNames";
 import { MessageBubble } from "./MessageBubble";
 import {
   buildTranscriptRows,
   estimateTranscriptRowHeight,
+  findLastTranscriptMessageRowIndex,
   findTranscriptMessageRowIndex,
 } from "./transcriptRows";
 
@@ -21,12 +25,17 @@ interface MessageListProps {
   messagesLoading: boolean;
   messagesHasMore: boolean;
   messagesStatus: LoadStatus;
-  messagesError: string | null;
+  messagesError: string | ApiErrorModel | null;
+  readingState: ChatReadingState;
+  scrollIntent: TranscriptScrollIntent;
+  scrollAnchorMessageId: string | null;
+  scrollAnchorLocalId: number | null;
   activeAnchor: ChatMessageAnchor | null;
   highlightedMessageId: string | null;
   privacyOn: boolean;
   onLoadHistory: (chat: string) => void;
   onLoadMoreHistory: (chat: string) => void;
+  onScrollIntentHandled: () => void;
 }
 
 export function MessageList({
@@ -36,14 +45,20 @@ export function MessageList({
   messagesHasMore,
   messagesStatus,
   messagesError,
+  readingState,
+  scrollIntent,
+  scrollAnchorMessageId,
+  scrollAnchorLocalId,
   activeAnchor,
   highlightedMessageId,
   privacyOn,
   onLoadHistory,
   onLoadMoreHistory,
+  onScrollIntentHandled,
 }: MessageListProps) {
   const activeChat = conversation?.username || "";
   const containerRef = useRef<HTMLDivElement>(null);
+  const [nearLatest, setNearLatest] = useState(true);
   const rows = useMemo(() => buildTranscriptRows(messages), [messages]);
   const highlightedRowIndex = useMemo(() => {
     if (!highlightedMessageId && !activeAnchor) return null;
@@ -63,7 +78,49 @@ export function MessageList({
   useEffect(() => {
     if (highlightedRowIndex === null) return;
     rowVirtualizer.scrollToIndex(highlightedRowIndex, { align: "center" });
-  }, [highlightedRowIndex, rowVirtualizer]);
+    if (scrollIntent === "anchor") {
+      onScrollIntentHandled();
+    }
+  }, [highlightedRowIndex, onScrollIntentHandled, rowVirtualizer, scrollIntent]);
+
+  const scrollAnchorRowIndex = useMemo(() => {
+    if (scrollIntent === "latest") return findLastTranscriptMessageRowIndex(rows);
+    if (scrollIntent === "preserve") {
+      return findTranscriptMessageRowIndex(rows, {
+        messageId: scrollAnchorMessageId,
+        localId: scrollAnchorLocalId,
+      });
+    }
+    return null;
+  }, [rows, scrollAnchorLocalId, scrollAnchorMessageId, scrollIntent]);
+
+  useEffect(() => {
+    if (scrollIntent !== "latest" && scrollIntent !== "preserve") return;
+    if (scrollAnchorRowIndex === null) return;
+    rowVirtualizer.scrollToIndex(scrollAnchorRowIndex, {
+      align: scrollIntent === "latest" ? "end" : "start",
+    });
+    onScrollIntentHandled();
+  }, [onScrollIntentHandled, rowVirtualizer, scrollAnchorRowIndex, scrollIntent]);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const updateNearLatest = () => {
+      const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+      setNearLatest(distanceFromBottom < 120);
+    };
+    updateNearLatest();
+    element.addEventListener("scroll", updateNearLatest, { passive: true });
+    return () => element.removeEventListener("scroll", updateNearLatest);
+  }, [rows.length]);
+
+  const scrollToLatest = () => {
+    const index = findLastTranscriptMessageRowIndex(rows);
+    if (index === null) return;
+    rowVirtualizer.scrollToIndex(index, { align: "end" });
+    setNearLatest(true);
+  };
 
   if (!conversation) {
     return (
@@ -72,23 +129,23 @@ export function MessageList({
           选择会话
         </Typography>
         <Typography variant="body" color="var(--text-secondary)">
-          从左侧会话列表打开聊天记录。
+          {readingState.description}
         </Typography>
       </div>
     );
   }
 
-  if (messagesStatus === "error") {
+  if (messagesStatus === "error" && messages.length === 0) {
     return (
       <div className="workbench-error-state" role="alert">
         <Typography variant="label" weight={700}>
-          聊天记录加载失败
+          {readingState.title}
         </Typography>
         <Typography variant="body" color="var(--text-secondary)">
-          {messagesError ?? "无法读取该会话的历史消息。"}
+          {readingState.description}
         </Typography>
         <Button variant="secondary" size="sm" onClick={() => onLoadHistory(activeChat)}>
-          重试
+          {readingState.primaryAction ?? "重试"}
         </Button>
       </div>
     );
@@ -98,17 +155,34 @@ export function MessageList({
     return (
       <div className="workbench-empty-state">
         <Typography variant="label" weight={700}>
-          没有消息
+          {readingState.title}
         </Typography>
         <Typography variant="body" color="var(--text-secondary)">
-          后端没有返回该会话的聊天记录。
+          {readingState.description}
         </Typography>
+        <Button variant="secondary" size="sm" onClick={() => onLoadHistory(activeChat)}>
+          {readingState.primaryAction ?? "重试"}
+        </Button>
       </div>
     );
   }
 
   return (
     <div ref={containerRef} className="message-list">
+      {messagesError && messages.length > 0 && (
+        <div className="message-list__inline-error" role="status">
+          <Typography variant="caption" color="var(--text-secondary)">
+            {readingState.title}：{readingState.description}
+          </Typography>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => activeChat && onLoadMoreHistory(activeChat)}
+          >
+            {readingState.primaryAction ?? "重试"}
+          </Button>
+        </div>
+      )}
       {messagesHasMore && (
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
           <Button
@@ -120,6 +194,17 @@ export function MessageList({
             加载更早消息
           </Button>
         </div>
+      )}
+
+      {!nearLatest && rows.length > 0 && (
+        <Button
+          className="message-list__jump-latest"
+          variant="secondary"
+          size="sm"
+          onClick={scrollToLatest}
+        >
+          跳到最新
+        </Button>
       )}
 
       {messagesLoading && messages.length === 0 && (
@@ -168,7 +253,7 @@ export function MessageList({
 
       {!messagesHasMore && messages.length > 0 && (
         <div className="message-date-divider">
-          已加载全部 {messages.length.toLocaleString()} 条消息
+          {readingState.title} · 已加载 {messages.length.toLocaleString()} 条消息
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { StatusIndicator, Typography } from "@l4/ui";
 import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
-import { maskDisplayText } from "./conversationDisplay";
+import { getConversationBadge, maskDisplayText } from "./conversationDisplay";
 
 interface TranscriptHeaderProps {
   conversation: Conversation;
@@ -14,6 +14,7 @@ export function TranscriptHeader({ conversation, totalCount, privacyOn }: Transc
     : conversation.displayName;
   const username = privacyOn ? maskDisplayText(conversation.username) : conversation.username;
   const countLabel = totalCount ? ` · ${totalCount.toLocaleString()} 条` : "";
+  const badge = getConversationBadge(conversation);
 
   return (
     <header className="transcript-header">
@@ -30,8 +31,8 @@ export function TranscriptHeader({ conversation, totalCount, privacyOn }: Transc
         </Typography>
       </div>
       <StatusIndicator
-        tone={conversation.isGroup ? "success" : "neutral"}
-        label={`${conversation.isGroup ? "群聊" : "私聊"}${countLabel}`}
+        tone={badge.tone}
+        label={`${badge.label}${countLabel}`}
       />
     </header>
   );

@@ -2,9 +2,13 @@ import { Input } from "@l4/ui";
 import type { ConversationFilter } from "./conversationDisplay";
 
 const FILTERS: { value: ConversationFilter; label: string }[] = [
+  { value: "all", label: "全部" },
   { value: "recent", label: "最近" },
   { value: "private", label: "私聊" },
   { value: "group", label: "群聊" },
+  { value: "official_service", label: "公众号/服务号" },
+  { value: "enterprise_system", label: "企业/系统" },
+  { value: "folded_unknown", label: "折叠/未知" },
 ];
 
 interface ConversationListToolbarProps {
