@@ -244,12 +244,36 @@ export interface AiExportInput {
   scopeSummary: string;
   question: string;
   answer: string;
-  evidence: Array<{
-    chat: string;
-    time: string;
-    text: string;
-    score?: number;
-  }>;
+  requestSnapshot?: AiExportRequestSnapshot | null;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+  evidence: AiExportEvidenceInput[];
+}
+
+export interface AiExportRequestSnapshot {
+  query?: string;
+  scope?: string;
+  chat?: string;
+  chats?: string[];
+  window?: string;
+  retrievalDepth?: string;
+  sourceLimit?: number;
+  topN?: number;
+  createdAt?: number;
+}
+
+export interface AiExportEvidenceInput {
+  chat?: string;
+  time?: string;
+  text?: string;
+  score?: number;
+  sender?: string;
+  source?: string;
+  localId?: number;
+  rerankScore?: number;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export interface GraphExportInput {
@@ -704,24 +728,67 @@ export function createMediaManifestExportArtifact(input: MediaManifestExportInpu
 
 export function createAiExportArtifact(input: AiExportInput): BusinessExportArtifact {
   const redactContent = shouldRedactExportContent(input);
-  const evidence = input.evidence.map((item, index) => ({
-    index: index + 1,
-    chat: exportText(item.chat, redactContent, "已隐藏会话"),
-    time: item.time,
-    text: exportText(item.text, redactContent, "已隐藏证据内容"),
-    score: item.score,
-  }));
+  const request = input.requestSnapshot ?? {};
+  const metadata = input.metadata ?? {};
+  const requestWindow = firstString(request.window, metadata.window);
+  const requestDepth = firstString(request.retrievalDepth, metadata.retrievalDepth, metadata.depth);
+  const requestSourceLimit = firstNumber(request.sourceLimit, metadata.sourceLimit, metadata.source_limit);
+  const requestTopN = firstNumber(request.topN, metadata.topN, metadata.top_n);
+  const evidence = input.evidence.map((item, index) => {
+    const metadataRecord = asExportRecord(item.metadata);
+    const chat = firstString(
+      item.chat,
+      item.talker_name,
+      item.chat_name,
+      item.talker,
+    );
+    const sender = firstString(item.sender, item.sender_name);
+    const source = firstString(item.source, item.chunk_type, metadataRecord.chunk_type, "message");
+    const text = firstString(item.text, item.content, item.snippet, item.summary);
+    const localId = firstNumber(item.localId, item.local_id, item.seq);
+    const score = firstNumber(item.score);
+    const rerankScore = firstNumber(item.rerankScore, item.rerank_score);
+    const reason = firstString(item.reason, metadataRecord.reason);
+    return {
+      index: index + 1,
+      chat: exportText(chat, redactContent, "已隐藏会话"),
+      sender: exportText(sender, redactContent, "已隐藏发送者"),
+      time: firstString(item.time, item.created_at, item.timestamp),
+      text: exportText(text, redactContent, "已隐藏证据内容"),
+      source,
+      localId,
+      score,
+      rerankScore,
+      reason: reason ? exportText(reason, redactContent, "已隐藏证据说明") : "",
+    };
+  });
   const content = [
     "# AI 问答与证据",
     "",
     `生成时间: ${input.generatedAt.toISOString()}`,
     `范围: ${sanitizeScopeSummary(input.scopeSummary)}`,
+    `检索窗口: ${requestWindow || "未指定"}`,
+    `检索深度: ${requestDepth || "standard"}`,
+    `来源上限: ${formatExportOptionalNumber(requestSourceLimit)}`,
+    `Top N: ${formatExportOptionalNumber(requestTopN)}`,
     `问题: ${exportText(input.question, redactContent, "已隐藏问题")}`,
     `答案: ${exportText(input.answer, redactContent, "已隐藏回答内容")}`,
+    input.reason ? `检索说明: ${exportText(input.reason, redactContent, "已隐藏推理摘要")}` : "",
     `证据数量: ${evidence.length}`,
     "",
     "## 证据",
-    ...evidence.map((item) => `- ${item.index}. ${item.time} · ${item.chat} · 相似度 ${item.score ?? "未知"} · ${item.text}`),
+    ...evidence.map((item) => [
+      `- 证据 ${item.index}`,
+      item.time || "未知时间",
+      item.chat,
+      item.sender,
+      item.source,
+      item.localId === null ? "" : `localId ${item.localId}`,
+      item.score === null ? "score 未知" : `score ${item.score}`,
+      item.rerankScore === null ? "" : `rerank ${item.rerankScore}`,
+      item.reason,
+      item.text,
+    ].filter(Boolean).join(" · ")),
     "",
   ].join("\n");
 
@@ -947,6 +1014,34 @@ function formatExportDelta(deltaPercent: number | null): string {
   if (deltaPercent === null || !Number.isFinite(deltaPercent)) return "无法计算";
   const rounded = Math.round(deltaPercent);
   return `${rounded > 0 ? "+" : ""}${rounded}%`;
+}
+
+function asExportRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function firstString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return "";
+}
+
+function firstNumber(...values: unknown[]): number | null {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+      return Number(value);
+    }
+  }
+  return null;
+}
+
+function formatExportOptionalNumber(value: number | null): string {
+  return value === null ? "未指定" : String(value);
 }
 
 function measureUtf8Bytes(value: string): number {

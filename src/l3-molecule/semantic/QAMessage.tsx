@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Copy, ListChecks, RotateCcw } from 'lucide-react';
+import { Copy, Download, ListChecks, RotateCcw } from 'lucide-react';
 import { Typography } from '@l4/ui/Typography';
 import { CodeBlock } from '@l4/ui/CodeBlock';
 import { Button } from '@l4/ui/Button';
+import { DisabledReason } from '@l4/ui/DisabledReason';
 import { classNames } from '@/utils/classNames';
 import {
   getSemanticAnswerSegments,
@@ -30,9 +31,19 @@ interface QAMessageProps {
   onOpenEvidence?: (messageId: string) => void;
   onRetry?: (messageId: string) => void;
   onCopy?: (messageId: string) => Promise<boolean>;
+  onExport?: (messageId: string) => void;
+  exportDisabledReason?: string | null;
 }
 
-export function QAMessage({ message, privacyOn, onOpenEvidence, onRetry, onCopy }: QAMessageProps) {
+export function QAMessage({
+  message,
+  privacyOn,
+  onOpenEvidence,
+  onRetry,
+  onCopy,
+  onExport,
+  exportDisabledReason,
+}: QAMessageProps) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const isUser = message.role === 'user';
   const displayContent = getSemanticDisplayText(message.content, privacyOn);
@@ -127,6 +138,29 @@ export function QAMessage({ message, privacyOn, onOpenEvidence, onRetry, onCopy 
                   >
                     <Copy size={14} />{copyState === 'copied' ? '已复制' : '复制'}
                   </Button>
+                )}
+                {onExport && (
+                  exportDisabledReason ? (
+                    <DisabledReason reason={exportDisabledReason} variant="compact">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="qa-message__action"
+                        disabled
+                      >
+                        <Download size={14} />导出
+                      </Button>
+                    </DisabledReason>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="qa-message__action"
+                      onClick={() => onExport(message.id)}
+                    >
+                      <Download size={14} />导出
+                    </Button>
+                  )
                 )}
                 {Boolean(message.requestSnapshot) && onRetry && (
                   <Button

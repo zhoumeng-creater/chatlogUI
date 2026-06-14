@@ -63,6 +63,50 @@ describe("QAPanel", () => {
     expect(html).toContain("disabled=\"\"");
   });
 
+  it("announces stopped and failed QA states with aria-live without exposing answer content", () => {
+    const stoppedHtml = renderToStaticMarkup(
+      <QAPanel
+        {...baseProps}
+        qaStreaming={false}
+        qaStatus="stopped"
+        qaMessages={[
+          {
+            id: "assistant-1",
+            role: "assistant",
+            content: "Synthetic partial answer",
+            timestamp: 1,
+            completionStatus: "stopped",
+          },
+        ]}
+      />,
+    );
+
+    expect(stoppedHtml).toContain('role="status"');
+    expect(stoppedHtml).toContain('aria-live="polite"');
+    expect(stoppedHtml).toContain("已停止，保留当前回答");
+
+    const failedHtml = renderToStaticMarkup(
+      <QAPanel
+        {...baseProps}
+        qaStreaming={false}
+        qaStatus="failed"
+        qaError="Synthetic provider unavailable"
+        qaMessages={[
+          {
+            id: "assistant-1",
+            role: "assistant",
+            content: "",
+            timestamp: 1,
+            completionStatus: "failed",
+          },
+        ]}
+      />,
+    );
+
+    expect(failedHtml).toContain('role="alert"');
+    expect(failedHtml).toContain("Synthetic provider unavailable");
+  });
+
   it("does not render a clear action for an empty QA history", () => {
     const html = renderToStaticMarkup(
       <QAPanel

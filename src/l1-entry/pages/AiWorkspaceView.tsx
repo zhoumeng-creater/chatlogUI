@@ -5,6 +5,7 @@ import {
   type WorkspaceScopeClearAction,
   type WorkspaceScopeKind,
 } from "@l2/commander/workspaceScopeModel";
+import { buildAiEvidenceNavigationTarget } from "@l2/commander/semanticDiscoveryNavigation";
 import { useAiCommander } from "@l2/commander/useAiCommander";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
 import { BusinessExportDialog } from "@l3/export";
@@ -104,34 +105,14 @@ export function AiWorkspaceView() {
               );
               if (!conversation) return;
 
-              if (localId && localId > 0) {
-                void chat.selectAndLoadAtAnchor({
-                  conversationId: conversation.id,
-                  chat: conversation.username,
-                  anchor: {
-                    source: "ai",
-                    chat: conversation.username,
-                    messageId: "",
-                    localId,
-                    timestamp: null,
-                    time: null,
-                  },
-                  returnToSearch: {
-                    returnRoute: withSmokeQuery("/ai"),
-                    activeResultId: `ai-evidence-${localId}`,
-                    querySnapshot: {
-                      query: "AI 证据",
-                      filter: "all",
-                      scope: "current",
-                      scopeChat: conversation.username,
-                    },
-                    sourceConversationId: conversation.id,
-                  },
-                }).then(() => navigate(withSmokeQuery("/workbench")));
-                return;
-              }
-
-              void chat.selectAndLoad(conversation.id, conversation.username).then(() => navigate(withSmokeQuery("/workbench")));
+              void chat.selectAndLoadAtAnchor(buildAiEvidenceNavigationTarget({
+                conversationId: conversation.id,
+                chat: conversation.username,
+                localId,
+                returnRoute: withSmokeQuery("/ai"),
+                activeResultId: localId && localId > 0 ? `ai-evidence-${localId}` : `ai-evidence-${conversation.id}`,
+                query: "AI 证据",
+              })).then(() => navigate(withSmokeQuery("/workbench")));
             }}
           />
         </Suspense>

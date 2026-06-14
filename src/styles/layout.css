@@ -3439,7 +3439,83 @@
 }
 
 .semantic-panel__content {
-  height: 100%;
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+}
+
+.semantic-primary-task {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--accent) 8%);
+}
+
+.semantic-primary-task__copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.semantic-primary-task__status {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.semantic-primary-task__status span {
+  max-width: 190px;
+  overflow: hidden;
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semantic-primary-task__action {
+  min-width: 92px;
+}
+
+.semantic-panel__content > .qa-panel {
+  flex: 1 1 380px;
+  min-height: 300px;
+}
+
+.semantic-panel__secondary {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.semantic-panel__secondary-header {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.semantic-panel__secondary-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.semantic-panel__secondary-action {
+  min-width: 82px;
 }
 
 .semantic-state {
@@ -3834,6 +3910,20 @@
   gap: var(--space-2);
 }
 
+.qa-evidence__header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.qa-evidence__export {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .qa-evidence__reason {
   display: block;
   margin-top: 6px;
@@ -3928,6 +4018,23 @@
 }
 
 @media (max-width: 560px) {
+  .semantic-primary-task {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .semantic-primary-task__action {
+    width: 100%;
+  }
+
+  .semantic-panel__secondary-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .semantic-panel__secondary-action {
+    flex: 1 1 120px;
+  }
+
   .qa-input__sourcebar {
     align-items: stretch;
   }
