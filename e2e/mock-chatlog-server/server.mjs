@@ -28,6 +28,11 @@ export async function startMockChatlogServer({
         });
       });
     });
+    const sockets = new Set();
+    server.on("connection", (socket) => {
+      sockets.add(socket);
+      socket.once("close", () => sockets.delete(socket));
+    });
 
     await listen(server, port);
     const address = server.address();
@@ -40,7 +45,7 @@ export async function startMockChatlogServer({
 
     return {
       baseUrl: `http://${HOST}:${resolvedPort}`,
-      close: () => close(server),
+      close: () => close(server, sockets),
     };
   }
 
@@ -57,9 +62,31 @@ function listen(server, port) {
   });
 }
 
-function close(server) {
+function close(server, sockets = new Set()) {
   return new Promise((resolve, reject) => {
-    server.close((error) => (error ? reject(error) : resolve()));
+    const forceClose = setTimeout(() => {
+      if (typeof server.closeAllConnections === "function") {
+        server.closeAllConnections();
+        return;
+      }
+      for (const socket of sockets) {
+        socket.destroy();
+      }
+    }, 500);
+    forceClose.unref?.();
+
+    server.close((error) => {
+      clearTimeout(forceClose);
+      if (error) reject(error);
+      else resolve();
+    });
+
+    if (typeof server.closeIdleConnections === "function") {
+      server.closeIdleConnections();
+    }
+    for (const socket of sockets) {
+      socket.end();
+    }
   });
 }
 
@@ -191,9 +218,16 @@ async function main() {
   const server = await startMockChatlogServer({ port, rootDir: process.cwd() });
   console.log(`Mock chatlog server listening on ${server.baseUrl}`);
 
-  const stop = async () => {
-    await server.close();
-    process.exit(0);
+  let stopping = false;
+  const stop = () => {
+    if (stopping) return;
+    stopping = true;
+    const exitNow = setTimeout(() => process.exit(0), 1_000);
+    exitNow.unref?.();
+    server.close().finally(() => {
+      clearTimeout(exitNow);
+      process.exit(0);
+    });
   };
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);

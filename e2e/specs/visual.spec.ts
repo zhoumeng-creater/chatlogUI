@@ -80,6 +80,17 @@ test.describe("visual regression synthetic states", () => {
       fullPage: true,
     });
 
+    await setNarrow(page);
+    await page.goto("/media?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+    await expect(page.getByRole("region", { name: "媒体筛选" })).toBeVisible();
+    const imageRow = page.locator(".media-library__row--attachment").filter({ hasText: "图片" }).first();
+    await expect(imageRow).toBeVisible();
+    await imageRow.getByRole("button", { name: "打开原始资源" }).click();
+    await expect(page.getByRole("dialog", { name: "打开原始资源" })).toBeVisible();
+    await expect(page).toHaveScreenshot("media-operation-narrow.png", {
+      fullPage: true,
+    });
+
     await page.goto("/sns?codex-smoke=workbench-ready");
     await expect(page.getByText("外部文章会先确认域名")).toBeVisible();
     await expect(page).toHaveScreenshot("sns-workspace-desktop.png", {

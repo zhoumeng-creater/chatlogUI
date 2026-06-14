@@ -197,6 +197,132 @@ test.describe("core synthetic routes", () => {
     }
   });
 
+  test("media operation loop filters previews copies cancels open locates and exports manifest", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/media?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const media = page.getByRole("complementary", { name: "媒体与扩展" });
+    await expect(media).toBeVisible();
+    await expect(page.getByRole("region", { name: "媒体筛选" })).toBeVisible();
+    await expect(media.getByText("图片 4")).toBeVisible();
+    await expect(media.getByText("视频 1")).toBeVisible();
+    await expect(media.getByText("语音 1")).toBeVisible();
+    await expect(media.getByText("文件 1")).toBeVisible();
+
+    await page.getByRole("combobox", { name: "媒体状态" }).selectOption("missing");
+    await expect(media.locator(".media-library__row--attachment").filter({ hasText: "资源缺失" })).toBeVisible();
+    await page.getByRole("combobox", { name: "媒体状态" }).selectOption("all");
+
+    await page.getByRole("combobox", { name: "媒体类型" }).selectOption("video");
+    const videoRow = media.locator(".media-library__row--attachment").filter({ hasText: "视频" });
+    await expect(videoRow).toBeVisible();
+    await videoRow.getByRole("button", { name: "预览媒体" }).click();
+    await expect(page.getByRole("dialog", { name: /视频/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: /视频/ })).toHaveCount(0);
+
+    await page.getByRole("combobox", { name: "媒体类型" }).selectOption("image");
+    const imageRow = media.locator(".media-library__row--attachment").filter({ hasText: "图片" }).first();
+    await expect(imageRow).toBeVisible();
+    const copySummaryButton = imageRow.getByRole("button", { name: "复制媒体摘要" });
+    await copySummaryButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("已复制媒体摘要。")).toBeVisible();
+
+    const openOriginalButton = imageRow.getByRole("button", { name: "打开原始资源" });
+    await openOriginalButton.focus();
+    await page.keyboard.press("Enter");
+    const prompt = page.getByRole("dialog", { name: "打开原始资源" });
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText("本机媒体资源");
+    await expect(prompt).not.toContainText("media_synthetic_image_key");
+    await expect(prompt.getByRole("button", { name: "取消" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(prompt).toHaveCount(0);
+
+    await page.getByRole("button", { name: "导出" }).click();
+    const exportDialog = page.getByRole("dialog", { name: "导出媒体清单" });
+    await expect(exportDialog).toBeVisible();
+    await expect(exportDialog).toContainText("当前只导出已加载媒体记录");
+    await expect(exportDialog).toContainText("当前导出筛选后可见媒体记录");
+    await expect(exportDialog).toContainText("CSV");
+    await expect(exportDialog).not.toContainText("media_synthetic_image_key");
+    await exportDialog.getByRole("button", { name: "关闭" }).click();
+
+    const locateSourceButton = imageRow.getByRole("button", { name: "定位来源消息" });
+    await locateSourceButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/workbench/);
+    await expect(page.getByText("来自媒体库")).toBeVisible();
+    await expect(page.getByRole("button", { name: "返回媒体库" })).toBeVisible();
+  });
+
+  test("keeps loaded media usable when an extension endpoint is partial", async ({ page }) => {
+    await setDesktop(page);
+    await page.route("**/api/v1/favorites**", async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "synthetic favorites unavailable",
+        }),
+      });
+    });
+
+    await page.goto("/media?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const media = page.getByRole("complementary", { name: "媒体与扩展" });
+    await expect(page.getByText("部分媒体扩展加载失败")).toBeVisible();
+    await expect(page.getByText(/收藏加载失败/)).toBeVisible();
+    await expect(media.getByText("图片 3")).toBeVisible();
+    await expect(media.getByRole("button", { name: "预览媒体" }).first()).toBeEnabled();
+  });
+
+  test("loads analytics controls, comparison, explanations, and export metadata", async ({ page }) => {
+    await setDesktop(page);
+    const statsRequests: string[] = [];
+    const trendRequests: string[] = [];
+
+    await page.route("**/api/v1/stats**", async (route) => {
+      statsRequests.push(route.request().url());
+      await route.continue();
+    });
+    await page.route("**/api/v1/dashboard/trend**", async (route) => {
+      trendRequests.push(route.request().url());
+      await route.continue();
+    });
+
+    await page.goto("/analytics?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const scopeController = page.getByRole("region", { name: "统计范围", exact: true });
+    await expect(scopeController).toBeVisible();
+    await expect(scopeController.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话：Synthetic Session Alpha");
+    await expect(scopeController.locator('[data-scope-field="dateRange"]')).toContainText("时间：近 7 天");
+    await expect(page.getByRole("region", { name: "统计控制" })).toBeVisible();
+    await expect(page.getByText("当前导出范围：近 7 天 · 按日 · 全部成员")).toBeVisible();
+    await expect(page.getByText("消息总数").first()).toBeVisible();
+    await expect(page.getByText("指标说明")).toBeVisible();
+    await expect(page.getByText("统计值来自当前范围")).toBeVisible();
+
+    await page.getByRole("button", { name: "近 30 天" }).click();
+    await expect(page.getByText("当前导出范围：近 30 天 · 按日 · 全部成员")).toBeVisible();
+    await expect.poll(() => statsRequests.some((url) => new URL(url).searchParams.get("time") === "30d")).toBe(true);
+    await expect.poll(() => trendRequests.some((url) => new URL(url).searchParams.get("window") === "30d")).toBe(true);
+
+    await page.getByRole("button", { name: "与上一周期比较" }).click();
+    await expect(page.locator(".metric-explanation__comparison").getByText("上一周期比较", { exact: true })).toBeVisible();
+    await expect.poll(() => statsRequests.some((url) => {
+      const params = new URL(url).searchParams;
+      return params.has("since") && params.has("until");
+    })).toBe(true);
+
+    await page.getByRole("button", { name: "导出" }).click();
+    await expect(page.getByRole("dialog", { name: "导出统计" })).toBeVisible();
+    await expect(page.getByText("范围").first()).toBeVisible();
+    await expect(page.getByText("CSV", { exact: true })).toBeVisible();
+    await expectStableSyntheticPage(page);
+  });
+
   test("renders unified workspace scope controls at desktop and narrow widths", async ({ page }) => {
     await setDesktop(page);
     await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");

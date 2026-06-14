@@ -117,4 +117,32 @@ test.describe("privacy mode synthetic browser gate", () => {
     await assertNoForbiddenVisibleText(page);
     privacyGuard.assertNoLeaks();
   });
+
+  test("masks media operations copy and export context in privacy mode", async ({ page }) => {
+    const privacyGuard = installPrivacyLeakGuard(page);
+
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await enablePrivacyMode(page);
+    await page.goto("/media?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const media = page.getByRole("complementary", { name: "媒体与扩展" });
+    await expect(media).toBeVisible();
+    await expect(media.getByText("已隐藏媒体").first()).toBeVisible();
+    await expect(media.getByText("Synthetic media file")).toHaveCount(0);
+    await expect(media.getByText("media_synthetic_image_key")).toHaveCount(0);
+
+    await media.getByRole("button", { name: "复制媒体摘要" }).first().click();
+    await expect(page.getByText("已复制媒体摘要。")).toBeVisible();
+
+    await page.getByRole("button", { name: "导出" }).click();
+    const exportDialog = page.getByRole("dialog", { name: "导出媒体清单" });
+    await expect(exportDialog).toBeVisible();
+    await expect(exportDialog).toContainText("脱敏导出");
+    await expect(exportDialog).not.toContainText("Synthetic media file");
+    await expect(exportDialog).not.toContainText("media_synthetic_image_key");
+
+    await assertNoForbiddenVisibleText(page);
+    privacyGuard.assertNoLeaks();
+  });
 });

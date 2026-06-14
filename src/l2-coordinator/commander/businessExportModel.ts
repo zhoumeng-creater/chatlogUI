@@ -218,6 +218,12 @@ export interface MediaManifestExportInput {
   unredactedConfirmed?: boolean;
   generatedAt: Date;
   scopeSummary: string;
+  filterSummary?: string[];
+  loadedCount?: number;
+  visibleCount?: number;
+  selectedCount?: number;
+  endpointStatusSummary?: string[];
+  warnings?: string[];
   attachments: Array<{
     id: string;
     kind: string;
@@ -225,6 +231,7 @@ export interface MediaManifestExportInput {
     sizeBytes: number;
     time: string;
     available: boolean;
+    source?: string;
   }>;
 }
 
@@ -634,8 +641,19 @@ export function createConversationExportArtifact(input: ConversationExportInput)
 
 export function createMediaManifestExportArtifact(input: MediaManifestExportInput): BusinessExportArtifact {
   const redactContent = shouldRedactExportContent(input);
+  const filterSummary = input.filterSummary ?? ["媒体筛选：无"];
+  const loadedCount = input.loadedCount ?? input.attachments.length;
+  const visibleCount = input.visibleCount ?? input.attachments.length;
+  const selectedCount = input.selectedCount ?? 0;
+  const warnings = Array.from(new Set([
+    "当前只导出已加载媒体记录。",
+    ...(selectedCount > 0 ? ["当前导出已选媒体记录。"] : ["当前导出筛选后可见媒体记录。"]),
+    ...(input.warnings ?? []),
+    ...(input.endpointStatusSummary ?? []),
+  ]));
   const rows = input.attachments.map((attachment) => ({
     kind: attachment.kind,
+    source: attachment.source ?? "",
     fileName: exportFileName(attachment.fileName, redactContent),
     sizeBytes: attachment.sizeBytes,
     time: attachment.time,
@@ -646,19 +664,27 @@ export function createMediaManifestExportArtifact(input: MediaManifestExportInpu
         title: "媒体清单",
         generatedAt: input.generatedAt.toISOString(),
         scope: sanitizeScopeSummary(input.scopeSummary),
+        filters: filterSummary,
+        loadedCount,
+        visibleCount,
+        selectedCount,
+        warnings,
         attachments: rows,
       }, null, 2)
     : input.format === "csv"
       ? toCsv([
-          ["kind", "fileName", "sizeBytes", "time", "available"],
-          ...rows.map((row) => [row.kind, row.fileName, String(row.sizeBytes), row.time, String(row.available)]),
+          ["kind", "source", "fileName", "sizeBytes", "time", "available"],
+          ...rows.map((row) => [row.kind, row.source, row.fileName, String(row.sizeBytes), row.time, String(row.available)]),
         ])
       : [
           "# 媒体清单",
           "",
           `生成时间: ${input.generatedAt.toISOString()}`,
           `范围: ${sanitizeScopeSummary(input.scopeSummary)}`,
-          ...rows.map((row) => `- ${row.time} · ${row.kind} · ${row.fileName} · ${row.sizeBytes} B · ${row.available ? "可用" : "不可用"}`),
+          `筛选: ${filterSummary.join("、")}`,
+          `已加载 ${loadedCount.toLocaleString()} 项，当前可见 ${visibleCount.toLocaleString()} 项，已选 ${selectedCount.toLocaleString()} 项`,
+          warnings.length ? `提示: ${warnings.join("；")}` : "",
+          ...rows.map((row) => `- ${row.time} · ${row.source} · ${row.kind} · ${row.fileName} · ${row.sizeBytes} B · ${row.available ? "可用" : "不可用"}`),
           "",
         ].join("\n");
 
@@ -672,6 +698,7 @@ export function createMediaManifestExportArtifact(input: MediaManifestExportInpu
     scopeSummary: input.scopeSummary,
     rowCount: rows.length,
     content,
+    warnings,
   });
 }
 

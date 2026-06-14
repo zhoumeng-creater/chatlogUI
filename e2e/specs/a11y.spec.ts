@@ -211,6 +211,35 @@ test.describe("accessibility and keyboard gate", () => {
     await expect(postButton).toBeFocused();
   });
 
+  test("keeps media filters actions and original-open prompt keyboard safe", async ({ page }) => {
+    await setNarrow(page);
+    await page.goto("/media?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const media = page.getByRole("complementary", { name: "媒体与扩展" });
+    await expect(media).toBeVisible();
+    await expect(page.getByRole("region", { name: "媒体筛选" })).toBeVisible();
+
+    const imageRow = media.locator(".media-library__row--attachment").filter({ hasText: "图片" }).first();
+    const openButton = imageRow.getByRole("button", { name: "打开原始资源" });
+    await expect(openButton).toBeVisible();
+    await openButton.focus();
+    await page.keyboard.press("Enter");
+
+    const prompt = page.getByRole("dialog", { name: "打开原始资源" });
+    await expect(prompt).toBeVisible();
+    await expect(prompt.getByRole("button", { name: "取消" })).toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect.poll(() =>
+      prompt.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+    await expectNoCriticalA11yViolations(page);
+
+    await page.keyboard.press("Escape");
+    await expect(prompt).toHaveCount(0);
+    await expect(openButton).toBeFocused();
+  });
+
   test("exposes rail toggle and panel splitters with keyboard semantics", async ({ page }) => {
     await setDesktop(page);
     await openSyntheticWorkbench(page);

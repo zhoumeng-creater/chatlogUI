@@ -24,6 +24,12 @@ export interface AdaptedMediaAttachment {
   directUrl?: string;
   redactedEndpointLabel: string;
   source: MediaAttachmentSource;
+  sourceLabel?: string;
+  messageId?: string;
+  localId?: number;
+  timestamp?: number;
+  time?: string;
+  knownSizeBytes?: number;
 }
 
 export interface AdaptedFavoriteItem {
@@ -119,8 +125,14 @@ export function adaptMediaAttachments(
       resourceKey: candidate.key,
       directUrl: candidate.directUrl,
       label: KIND_LABELS[kind],
+      fileName: safeFileName(raw.file_name),
       redactedEndpointLabel: `media:${resourceKind}`,
       source,
+      sourceLabel: sourceLabel(source),
+      messageId: safeMessageId(raw),
+      localId: raw.local_id,
+      timestamp: raw.timestamp,
+      time: raw.time ?? formatTimestamp(raw.timestamp),
     };
   });
 }
@@ -219,6 +231,44 @@ function resourceKindFor(kind: MediaAttachmentKind): MediaResourceKind {
   if (kind === "file") return "file";
   if (kind === "image" || kind === "sticker") return "image";
   return "data";
+}
+
+function sourceLabel(source: MediaAttachmentSource): string {
+  if (source === "favorite") return "收藏";
+  if (source === "new_message") return "增量消息";
+  return "当前会话";
+}
+
+function safeMessageId(raw: RawHistoryMessage): string | undefined {
+  const value = (raw as { id?: string | number }).id ?? raw.seq;
+  if (value === undefined || value === null) return undefined;
+  const text = String(value).trim();
+  return text && !containsUnsafeMediaDisplayText(text) ? text : undefined;
+}
+
+function safeFileName(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed || containsUnsafeMediaDisplayText(trimmed)) return undefined;
+  const fileName = trimmed.split(/[\\/]/).filter(Boolean).pop() ?? trimmed;
+  return containsUnsafeMediaDisplayText(fileName) ? undefined : fileName;
+}
+
+function formatTimestamp(value?: number): string | undefined {
+  if (!value || !Number.isFinite(value)) return undefined;
+  const date = new Date(value > 1_000_000_000_000 ? value : value * 1000);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function containsUnsafeMediaDisplayText(value: string): boolean {
+  return [
+    /[A-Z]:[\\/]+Users[\\/]+/i,
+    /(?:WeChat Files|微信文件|微信 Files)/i,
+    /wxid_[A-Za-z0-9_-]+/i,
+    /\bdata[_-]?key\b/i,
+    /\bapi[_-]?key\b/i,
+    /\btoken\b/i,
+    /\bsecret\b/i,
+  ].some((pattern) => pattern.test(value));
 }
 
 function keysFrom(value?: string | string[]): Array<{ key: string; resourceKind?: MediaResourceKind; directUrl?: string }> {
