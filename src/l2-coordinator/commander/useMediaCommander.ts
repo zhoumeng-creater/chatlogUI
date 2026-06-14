@@ -16,6 +16,8 @@ import {
 } from "@l4/network";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { getActiveChatlogServiceSummary } from "./chatlogRequestContext";
+import { createMediaManifestExportArtifact } from "./businessExportModel";
+import { useBusinessExportCommander } from "./useBusinessExportCommander";
 
 let mediaLoadSequence = 0;
 
@@ -61,6 +63,26 @@ export function useMediaCommander() {
     () => messages.flatMap((message) => message.attachments ?? []),
     [messages],
   );
+  const businessExport = useBusinessExportCommander({
+    source: "media",
+    formats: ["csv", "json", "markdown"],
+    defaultFormat: "csv",
+    disabledReason: getMediaExportDisabledReason(Boolean(currentConversation), store.status, attachments.length),
+    buildArtifact: ({ format, privacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+      createMediaManifestExportArtifact({
+        format,
+        privacyOn,
+        requestedUnredacted,
+        unredactedConfirmed,
+        generatedAt,
+        scopeSummary: "当前会话",
+        attachments: collectMediaManifestRows({
+          attachments,
+          favorites: store.favorites,
+          newMessages: store.newMessages,
+        }),
+      }),
+  });
 
   const loadMediaModule = useCallback(async (chat?: string, isGroup = false) => {
     activeLoadControllerRef.current?.abort();
@@ -157,6 +179,7 @@ export function useMediaCommander() {
   return {
     ...store,
     attachments,
+    businessExport,
     currentConversation,
     serviceLabel: activeService.serviceLabel,
     previewResourceUrl,
@@ -164,6 +187,53 @@ export function useMediaCommander() {
     retry: () => loadMediaModule(currentConversation?.username, currentConversation?.isGroup ?? false),
     previewAttachment: (attachment: MediaAttachment) => useMediaStore.getState().selectAttachment(attachment),
     closePreview: () => useMediaStore.getState().selectAttachment(null),
+  };
+}
+
+function getMediaExportDisabledReason(
+  hasConversation: boolean,
+  status: string,
+  attachmentCount: number,
+): string | null {
+  if (!hasConversation) return "先选择一个会话。";
+  if (status === "loading") return "媒体扩展加载中，完成后可导出。";
+  if (status === "idle" && attachmentCount === 0) return "媒体扩展加载完成后可导出。";
+  if (status === "error" && attachmentCount === 0) return "媒体扩展加载失败，请重试后再导出。";
+  return null;
+}
+
+function collectMediaManifestRows({
+  attachments,
+  favorites,
+  newMessages,
+}: {
+  attachments: MediaAttachment[];
+  favorites: ReturnType<typeof useMediaStore.getState>["favorites"];
+  newMessages: ReturnType<typeof useMediaStore.getState>["newMessages"];
+}) {
+  const rows = [
+    ...attachments.map((attachment) => mediaAttachmentRow(attachment, "")),
+    ...favorites.flatMap((favorite) =>
+      favorite.attachments.map((attachment) => mediaAttachmentRow(attachment, favorite.time))),
+    ...newMessages.flatMap((message) =>
+      message.attachments.map((attachment) => mediaAttachmentRow(attachment, message.time))),
+  ];
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    if (seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
+}
+
+function mediaAttachmentRow(attachment: MediaAttachment, time: string) {
+  return {
+    id: attachment.id,
+    kind: attachment.kind,
+    fileName: attachment.fileName || attachment.label,
+    sizeBytes: 0,
+    time,
+    available: Boolean(attachment.resourceKey || attachment.directUrl),
   };
 }
 

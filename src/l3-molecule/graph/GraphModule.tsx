@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Button, Input, Typography } from "@l4/ui";
+import { ExportActionButton } from "@l3/export";
 import type { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { GraphModuleView } from "./GraphModuleView";
 
@@ -100,6 +101,7 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
               : "图谱摘要"}
           </Typography>
         </div>
+        <ExportActionButton {...graph.businessExport.action} />
         <form
           className="graph-module__filters"
           onSubmit={(event) => {

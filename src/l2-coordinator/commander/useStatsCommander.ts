@@ -2,6 +2,8 @@ import { useCallback } from "react";
 import { useStatsStore } from "@/l2-coordinator/data-clerk/stores/useStatsStore";
 import { fetchStats, fetchDashboardTrend } from "@l4/network";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
+import { createStatsExportArtifact } from "./businessExportModel";
+import { useBusinessExportCommander } from "./useBusinessExportCommander";
 
 let statsRequestSequence = 0;
 
@@ -10,8 +12,29 @@ function nextStatsRequestId(prefix: "stats" | "trend"): string {
   return `${prefix}-${statsRequestSequence}`;
 }
 
-export function useStatsCommander() {
+interface StatsCommanderOptions {
+  scopeSummary?: string;
+}
+
+export function useStatsCommander(options: StatsCommanderOptions = {}) {
   const store = useStatsStore();
+  const businessExport = useBusinessExportCommander({
+    source: "stats",
+    formats: ["csv", "markdown", "json"],
+    defaultFormat: "csv",
+    disabledReason: store.stats ? null : "统计数据加载完成后可导出。",
+    buildArtifact: ({ format, privacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+      createStatsExportArtifact({
+        format,
+        privacyOn,
+        requestedUnredacted,
+        unredactedConfirmed,
+        generatedAt,
+        scopeSummary: options.scopeSummary ?? "当前会话",
+        stats: store.stats,
+        trend: store.trend,
+      }),
+  });
 
   const loadStats = useCallback(async (chat: string) => {
     const requestId = nextStatsRequestId("stats");
@@ -59,6 +82,7 @@ export function useStatsCommander() {
 
   return {
     ...store,
+    businessExport,
     loadStats,
     loadTrend,
     loadAll,

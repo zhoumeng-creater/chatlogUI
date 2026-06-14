@@ -1,13 +1,19 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import {
+  buildWorkspaceScopeModel,
+  type WorkspaceScopeClearAction,
+} from "@l2/commander/workspaceScopeModel";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
 import { useSnsCommander } from "@l2/commander/useSnsCommander";
+import { BusinessExportDialog } from "@l3/export";
 import { SnsModule } from "@l3/sns/SnsModule";
+import { WorkspaceScopeController } from "@l3/workspace/WorkspaceScopeController";
 import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
 import { Typography } from "@l4/ui";
 
 export function SnsView() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const sns = useSnsCommander();
   const { workspaceRouteScope } = useScopedWorkspaceConversation({
     scope: params.get("scope") ?? "all",
@@ -18,6 +24,77 @@ export function SnsView() {
     defaultScope: "all",
   });
   const { loadSnsModule } = sns;
+  const scopeController = buildWorkspaceScopeModel({
+    moduleId: "sns",
+    routeScope: workspaceRouteScope,
+    state: {
+      kind: workspaceRouteScope.scopeKind,
+      sourceRoute: params.get("source"),
+      focusMessage: params.get("focus"),
+      selectedContacts: sns.filters.user
+        ? [{ id: sns.filters.user, label: sns.filters.user }]
+        : [],
+      dateRange: sns.filters.since || sns.filters.until
+        ? { start: sns.filters.since || undefined, end: sns.filters.until || undefined }
+        : null,
+      snsContentType: sns.filters.contentType,
+      snsMediaOnly: sns.filters.mediaOnly,
+      snsIncludeRead: sns.filters.includeRead,
+    },
+    pending: sns.status === "loading" || sns.searchStatus === "loading",
+  });
+
+  const updateScopeParams = useCallback((update: (next: URLSearchParams) => void) => {
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      update(next);
+      return next;
+    }, { replace: true });
+  }, [setParams]);
+
+  const clearScopeChip = useCallback((action: WorkspaceScopeClearAction) => {
+    if (action.field === "selectedContacts") {
+      void sns.loadSnsModule({ user: "" });
+      return;
+    }
+    if (action.field === "dateRange") {
+      void sns.loadSnsModule({ since: "", until: "" });
+      return;
+    }
+    if (action.field === "snsContentType") {
+      sns.updateFilters({ contentType: "all" });
+      return;
+    }
+    if (action.field === "snsMediaOnly") {
+      sns.updateFilters({ mediaOnly: false });
+      return;
+    }
+    if (action.field === "snsReadState") {
+      void sns.loadSnsModule({ includeRead: false });
+      return;
+    }
+    if (action.field !== "focusMessage" && action.field !== "sourceRoute") return;
+    updateScopeParams((next) => {
+      if (action.field === "focusMessage") next.delete("focus");
+      if (action.field === "sourceRoute") next.delete("source");
+    });
+  }, [sns, updateScopeParams]);
+
+  const resetScope = useCallback(() => {
+    sns.updateFilters({ contentType: "all", mediaOnly: false });
+    void sns.loadSnsModule({
+      user: "",
+      since: "",
+      until: "",
+      includeRead: false,
+      contentType: "all",
+      mediaOnly: false,
+    });
+    updateScopeParams((next) => {
+      next.delete("focus");
+      next.delete("source");
+    });
+  }, [sns, updateScopeParams]);
 
   useEffect(() => {
     void loadSnsModule();
@@ -37,6 +114,11 @@ export function SnsView() {
         workspaceRouteScope={workspaceRouteScope}
         items={[snsStatusItem(sns.status, sns.searchStatus, sns.activeTab)]}
       />
+      <WorkspaceScopeController
+        model={scopeController}
+        onClearChip={clearScopeChip}
+        onReset={resetScope}
+      />
       <div className="workspace-page__surface workspace-page__module-surface">
         <SnsModule
           view={sns.view}
@@ -51,6 +133,7 @@ export function SnsView() {
           privacyOn={sns.privacyOn}
           externalOpenPrompt={sns.externalOpenPrompt}
           externalOpenError={sns.externalOpenError}
+          exportAction={sns.businessExport.action}
           onRefresh={sns.refresh}
           onRetry={sns.retry}
           onLoadMore={sns.loadMore}
@@ -65,6 +148,7 @@ export function SnsView() {
           onCancelExternalOpen={sns.cancelExternalOpen}
         />
       </div>
+      {sns.businessExport.isOpen && <BusinessExportDialog {...sns.businessExport.dialog} />}
     </div>
   );
 }

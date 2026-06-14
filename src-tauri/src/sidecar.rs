@@ -345,7 +345,9 @@ mod tests {
     fn normalize_option_trims_empty_values() {
         assert_eq!(normalize_option(Some("  ".to_string())), None);
         assert_eq!(
-            normalize_option(Some("  C:/Synthetic/WeChat Files/wxid_synthetic_xxx  ".to_string())),
+            normalize_option(Some(
+                "  C:/Synthetic/WeChat Files/wxid_synthetic_xxx  ".to_string()
+            )),
             Some("C:/Synthetic/WeChat Files/wxid_synthetic_xxx".to_string()),
         );
     }
@@ -354,7 +356,8 @@ mod tests {
     fn diagnostic_log_export_redacts_sensitive_lines() {
         let payload = LogPayload {
             level: "stderr".into(),
-            message: "data_key=raw-secret C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_a".into(),
+            message: "data_key=raw-secret C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_a"
+                .into(),
         };
 
         let redacted = redact_log_payload(&payload).expect("redaction should complete");

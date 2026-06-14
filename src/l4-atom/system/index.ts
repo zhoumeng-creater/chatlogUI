@@ -9,6 +9,12 @@ export { listenSidecarLogs } from "./listenSidecarLogs";
 export type { SidecarLogPayload } from "./listenSidecarLogs";
 export { exportDiagnosticsReport } from "./exportDiagnostics";
 export type { ExportDiagnosticsPayload, ExportDiagnosticsLine } from "./exportDiagnostics";
+export { exportBusinessFile } from "./exportBusinessFile";
+export type {
+  ExportBusinessFileCompleted,
+  ExportBusinessFileCancelled,
+  ExportBusinessFileResult,
+} from "./exportBusinessFile";
 export { copyTextToClipboard } from "./clipboard";
 export { openExternalUrl } from "./openExternalUrl";
 export type { OpenExternalUrlResult } from "./openExternalUrl";

@@ -34,6 +34,8 @@ import {
 } from "./graphResidualViewModel";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { formatGraphFailureMessage } from "./graphErrorDisplay";
+import { createGraphExportArtifact } from "./businessExportModel";
+import { useBusinessExportCommander } from "./useBusinessExportCommander";
 
 function graphDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
@@ -59,6 +61,32 @@ function nextGraphChildRequestId(prefix: string): string {
 export function useGraphCommander() {
   const store = useGraphStore();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+  const businessExport = useBusinessExportCommander({
+    source: "graph",
+    formats: ["csv", "json", "markdown"],
+    defaultFormat: "csv",
+    disabledReason: getGraphExportDisabledReason(store.loadStatus, store.visualize),
+    buildArtifact: ({ format, privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+      createGraphExportArtifact({
+        format,
+        privacyOn: exportPrivacyOn,
+        requestedUnredacted,
+        unredactedConfirmed,
+        generatedAt,
+        scopeSummary: "图谱当前视图",
+        nodes: store.visualize?.nodes.map((node) => ({
+          id: node.id,
+          label: node.label || node.name,
+          kind: node.kind,
+        })) ?? [],
+        edges: store.visualize?.edges.map((edge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          label: edge.label,
+        })) ?? [],
+      }),
+  });
 
   const loadGraph = useCallback(async (params: VisualizeParams = {}) => {
     const requestId = nextGraphLoadRequestId();
@@ -429,6 +457,7 @@ export function useGraphCommander() {
     advancedConfigStatus: store.advancedConfigStatus,
     ingestStatus: store.ingestStatus,
     qaStatus: store.qaStatus,
+    businessExport,
     activeTab: store.activeTab,
     advancedConfig: store.advancedConfig,
     graphConfigDraft: store.graphConfigDraft,
@@ -530,6 +559,19 @@ export function useGraphCommander() {
     toggleAutoRotate: store.toggleAutoRotate,
     reset: store.reset,
   };
+}
+
+function getGraphExportDisabledReason(
+  loadStatus: string,
+  visualize: GraphVisualizeView | null,
+): string | null {
+  if (loadStatus === "loading") return "图谱加载中，完成后可导出。";
+  if (loadStatus === "idle") return "图谱加载完成后可导出。";
+  if (loadStatus === "error" || loadStatus === "malformed" || loadStatus === "oversized") {
+    return "当前图谱不可导出，请调整筛选或重试。";
+  }
+  if (!visualize) return "图谱加载完成后可导出。";
+  return null;
 }
 
 function usableGraphQADraft(draft?: GraphQADraft): GraphQADraft | null {

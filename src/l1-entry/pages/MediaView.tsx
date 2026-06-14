@@ -1,13 +1,20 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import {
+  buildWorkspaceScopeModel,
+  type WorkspaceScopeClearAction,
+  type WorkspaceScopeKind,
+} from "@l2/commander/workspaceScopeModel";
 import { useMediaCommander } from "@l2/commander/useMediaCommander";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
+import { BusinessExportDialog } from "@l3/export";
 import { MediaLibrary } from "@l3/media/MediaLibrary";
+import { WorkspaceScopeController } from "@l3/workspace/WorkspaceScopeController";
 import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
 import { Typography } from "@l4/ui";
 
 export function MediaView() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const { workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
     scope: params.get("scope"),
     scopedChat: params.get("chat"),
@@ -20,6 +27,47 @@ export function MediaView() {
   const currentConversation = media.currentConversation ?? workspaceRouteScope.currentConversation;
   const currentChat = currentConversation?.username ?? "";
   const isGroup = currentConversation?.isGroup ?? false;
+  const scopeController = buildWorkspaceScopeModel({
+    moduleId: "media",
+    routeScope: workspaceRouteScope,
+    state: {
+      kind: workspaceRouteScope.scopeKind,
+      sourceRoute: params.get("source"),
+      focusMessage: params.get("focus"),
+      mediaType: "all",
+    },
+    pending: media.status === "loading",
+  });
+
+  const updateScopeParams = useCallback((update: (next: URLSearchParams) => void) => {
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      update(next);
+      return next;
+    }, { replace: true });
+  }, [setParams]);
+
+  const selectScope = useCallback((kind: WorkspaceScopeKind) => {
+    if (kind !== "currentConversation" || !currentChat) return;
+    updateScopeParams((next) => {
+      next.set("scope", "currentChat");
+      next.set("chat", currentChat);
+    });
+  }, [currentChat, updateScopeParams]);
+
+  const clearScopeChip = useCallback((action: WorkspaceScopeClearAction) => {
+    if (action.field !== "focusMessage" && action.field !== "sourceRoute") return;
+    updateScopeParams((next) => {
+      if (action.field === "focusMessage") next.delete("focus");
+      if (action.field === "sourceRoute") next.delete("source");
+    });
+  }, [updateScopeParams]);
+  const resetScope = useCallback(() => {
+    updateScopeParams((next) => {
+      next.delete("focus");
+      next.delete("source");
+    });
+  }, [updateScopeParams]);
 
   useEffect(() => {
     if (currentChat) {
@@ -41,6 +89,12 @@ export function MediaView() {
         workspaceRouteScope={workspaceRouteScope}
         items={[mediaStatusItem(media.status, currentChat)]}
       />
+      <WorkspaceScopeController
+        model={scopeController}
+        onSelectScope={selectScope}
+        onClearChip={clearScopeChip}
+        onReset={resetScope}
+      />
       <div className="workspace-page__surface workspace-page__module-surface">
         <MediaLibrary
           currentChat={currentChat}
@@ -56,11 +110,13 @@ export function MediaView() {
           endpointStatus={media.endpointStatus}
           selectedAttachment={media.selectedAttachment}
           previewResourceUrl={media.previewResourceUrl}
+          exportAction={media.businessExport.action}
           onRetry={media.retry}
           onPreviewAttachment={media.previewAttachment}
           onClosePreview={media.closePreview}
         />
       </div>
+      {media.businessExport.isOpen && <BusinessExportDialog {...media.businessExport.dialog} />}
     </div>
   );
 }

@@ -17,6 +17,8 @@ import {
 import { openExternalUrl } from "@l4/system";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { buildSnsModuleView } from "./snsViewModel";
+import { createSnsExportArtifact } from "./businessExportModel";
+import { useBusinessExportCommander } from "./useBusinessExportCommander";
 
 const SNS_CORRELATION_ID = "p4c-sns";
 let snsRequestSequence = 0;
@@ -40,6 +42,49 @@ export function useSnsCommander() {
   const [externalOpenPromptState, setExternalOpenPromptState] = useState<SnsExternalOpenPromptState | null>(null);
   const [externalOpenError, setExternalOpenError] = useState<string | null>(null);
   const view = useMemo(() => buildSnsModuleView(store, privacyOn), [store, privacyOn]);
+  const businessExport = useBusinessExportCommander({
+    source: "sns",
+    formats: ["markdown", "csv", "json"],
+    defaultFormat: "markdown",
+    disabledReason: canExportSnsView(store) ? null : "朋友圈加载完成后可导出当前视图。",
+    buildArtifact: ({ format, privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) => {
+      const posts = store.activeTab === "search" ? store.searchResults : store.activeTab === "timeline" ? store.feed : [];
+      const notifications = store.activeTab === "notifications" ? store.notifications : [];
+      return createSnsExportArtifact({
+        format,
+        privacyOn: exportPrivacyOn,
+        requestedUnredacted,
+        unredactedConfirmed,
+        generatedAt,
+        activeTab: store.activeTab,
+        scopeSummary: "全部会话",
+        filters: {
+          user: store.filters.user,
+          since: store.filters.since,
+          until: store.filters.until,
+          contentType: store.filters.contentType,
+          mediaOnly: store.filters.mediaOnly,
+          includeRead: store.filters.includeRead,
+        },
+        posts: posts.map((post) => ({
+          id: post.id,
+          author: post.author.displayName || post.author.username,
+          content: post.content,
+          time: post.time,
+          contentType: post.contentType,
+          mediaCount: post.mediaCount,
+          articleUrl: post.article?.sensitiveExternalUrl ?? null,
+        })),
+        notifications: notifications.map((notification) => ({
+          id: notification.id,
+          actor: notification.actor.displayName || notification.actor.username,
+          content: notification.content || notification.feedPreview,
+          time: notification.time,
+          type: notification.type,
+        })),
+      });
+    },
+  });
 
   const loadSnsModule = useCallback(async (overrides: Partial<SnsFilters> = {}) => {
     const current = useSnsStore.getState();
@@ -217,6 +262,7 @@ export function useSnsCommander() {
   return {
     ...store,
     view,
+    businessExport,
     privacyOn,
     externalOpenPrompt,
     externalOpenError,
@@ -233,6 +279,16 @@ export function useSnsCommander() {
     confirmExternalOpen,
     cancelExternalOpen,
   };
+}
+
+function canExportSnsView(store: ReturnType<typeof useSnsStore.getState>): boolean {
+  if (store.activeTab === "search") {
+    return store.searchStatus === "ready" || store.searchStatus === "empty";
+  }
+  if (store.activeTab === "notifications") {
+    return store.status === "ready" || store.status === "empty" || store.status === "partial";
+  }
+  return store.status === "ready" || store.status === "empty" || store.status === "partial";
 }
 
 function endpointState<T>(

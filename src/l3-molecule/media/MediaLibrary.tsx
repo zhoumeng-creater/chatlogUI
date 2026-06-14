@@ -1,6 +1,8 @@
 import { Bell, FileText, Image, MessageSquare, RefreshCw, Star, Users } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, DisabledReason, Input, SegmentedControl, Spinner, Typography } from "@l4/ui";
+import type { BusinessExportActionView } from "@l2/commander/useBusinessExportCommander";
+import { ExportActionButton } from "@l3/export";
 import type {
   MediaAttachment,
   MediaEndpointState,
@@ -37,6 +39,7 @@ interface MediaLibraryProps {
   endpointStatus: MediaEndpointStatus;
   selectedAttachment: MediaAttachment | null;
   previewResourceUrl: string;
+  exportAction?: BusinessExportActionView;
   onRetry: () => void;
   onPreviewAttachment: (attachment: MediaAttachment) => void;
   onClosePreview: () => void;
@@ -56,6 +59,7 @@ export function MediaLibrary({
   endpointStatus,
   selectedAttachment,
   previewResourceUrl,
+  exportAction,
   onRetry,
   onPreviewAttachment,
   onClosePreview,
@@ -90,16 +94,19 @@ export function MediaLibrary({
             {currentChat ? `${totalItems.toLocaleString()} 项可查看内容` : "选择会话后加载扩展信息"}
           </Typography>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRetry}
-          disabled={!currentChat || status === "loading"}
-          aria-describedby={refreshDisabledReasonId}
-          aria-label="刷新媒体与扩展"
-        >
-          <RefreshCw size={14} />
-        </Button>
+        <div className="media-library__header-actions">
+          {exportAction && <ExportActionButton {...exportAction} />}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRetry}
+            disabled={!currentChat || status === "loading"}
+            aria-describedby={refreshDisabledReasonId}
+            aria-label="刷新媒体与扩展"
+          >
+            <RefreshCw size={14} />
+          </Button>
+        </div>
       </div>
       {!currentChat && (
         <DisabledReason

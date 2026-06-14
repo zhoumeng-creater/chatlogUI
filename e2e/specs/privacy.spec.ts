@@ -74,4 +74,23 @@ test.describe("privacy mode synthetic browser gate", () => {
     await expectStableSyntheticPage(page);
     privacyGuard.assertNoLeaks();
   });
+
+  test("masks unified scope context labels in privacy mode", async ({ page }) => {
+    const privacyGuard = installPrivacyLeakGuard(page);
+
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await enablePrivacyMode(page);
+    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const controller = page.getByRole("region", { name: "搜索范围", exact: true });
+    await expect(controller).toBeVisible();
+    await expect(controller.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话（已隐藏）");
+    await expect(controller.locator('[data-scope-field="focusMessage"]')).toContainText("定位：上下文定位");
+    await expect(controller).not.toContainText("Synthetic Session Alpha");
+    await expect(controller).not.toContainText("1001");
+
+    await assertNoForbiddenVisibleText(page);
+    privacyGuard.assertNoLeaks();
+  });
 });

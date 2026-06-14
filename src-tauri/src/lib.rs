@@ -1,5 +1,6 @@
 use tauri::Manager;
 
+mod business_export;
 mod commands;
 mod config_store;
 mod health;
@@ -38,6 +39,7 @@ pub fn run() {
             commands::get_system_theme,
             commands::export_logs,
             commands::export_diagnostics_report,
+            commands::export_business_file,
             material::apply_window_material,
             commands::import_data_dir_config,
             commands::save_managed_server_config,

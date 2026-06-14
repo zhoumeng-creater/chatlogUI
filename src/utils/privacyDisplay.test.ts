@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   containsUnsafeDisplayText,
+  formatBusinessExportLocationSummary,
+  formatBusinessExportPathSummary,
   formatConfiguredSecretState,
   formatExportPathSummary,
   formatLocalServiceDisplay,
   formatPrivatePathSummary,
   formatSafeUserFacingError,
+  maskDisplayText,
 } from "./privacyDisplay";
 
 describe("privacyDisplay", () => {
@@ -31,6 +34,22 @@ describe("privacyDisplay", () => {
     );
   });
 
+  it("summarizes business export locations without revealing private directories", () => {
+    expect(formatBusinessExportPathSummary("C:\\Users\\Synthetic\\Desktop\\search.md")).toBe(
+      "search.md",
+    );
+    expect(
+      formatBusinessExportPathSummary("C:\\Users\\Synthetic\\Desktop\\wxid_synthetic_private.json"),
+    ).toBe("已保存到所选位置");
+    expect(
+      formatBusinessExportLocationSummary({
+        fileName: "search.md",
+        extension: "md",
+        bytesWritten: 2048,
+      }),
+    ).toBe("search.md · 2 KB");
+  });
+
   it("shows only loopback service origin and strips path, query, and hash", () => {
     const label = formatLocalServiceDisplay("http://127.0.0.1:6041/api/v1/db?dataKey=synthetic#frag");
 
@@ -45,6 +64,11 @@ describe("privacyDisplay", () => {
     expect(formatConfiguredSecretState("")).toBe("未配置");
     expect(formatConfiguredSecretState(true)).toBe("已配置");
     expect(formatConfiguredSecretState(false)).toBe("未配置");
+  });
+
+  it("masks ordinary display text while preserving spacing for privacy mode", () => {
+    expect(maskDisplayText("Synthetic Sender")).toBe("********* ******");
+    expect(maskDisplayText("")).toBe("******");
   });
 
   it("translates raw errors into ordinary user-facing recovery copy", () => {

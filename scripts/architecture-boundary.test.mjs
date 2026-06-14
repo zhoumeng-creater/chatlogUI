@@ -68,4 +68,18 @@ describe("architecture boundary", () => {
 
     expect(offenders).toEqual([]);
   });
+
+  it("keeps L4 atoms free of runtime L2 imports", async () => {
+    const files = await collectSourceFiles("src/l4-atom");
+    const offenders = [];
+
+    for (const file of files) {
+      const source = await readFile(file, "utf8");
+      if (hasRuntimeL2Import(source)) {
+        offenders.push(file);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
 });

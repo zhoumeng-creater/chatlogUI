@@ -63,6 +63,8 @@ import { buildSemanticDiscoveryView } from "./semanticDiscoveryViewModel";
 import {
   resolveSemanticSearchNavigation,
 } from "./semanticDiscoveryNavigation";
+import { createAiExportArtifact } from "./businessExportModel";
+import { useBusinessExportCommander } from "./useBusinessExportCommander";
 
 type LegacyIndexAction = "rebuild" | "pause" | "resume" | "clear";
 type IndexAction = SemanticIndexCommand | LegacyIndexAction;
@@ -571,6 +573,34 @@ export function useAiCommander() {
   const latestAssistantMessage =
     [...store.qaMessages].reverse().find((message) => message.role === "assistant");
   const latestAssistantAnswer = latestAssistantMessage?.content ?? "";
+  const latestUserQuestion = latestAssistantMessage
+    ? [...store.qaMessages]
+        .filter((message) => message.role === "user" && message.timestamp <= latestAssistantMessage.timestamp)
+        .reverse()[0]?.content ?? ""
+    : "";
+  const businessExport = useBusinessExportCommander({
+    source: "ai",
+    formats: ["markdown"],
+    defaultFormat: "markdown",
+    disabledReason: getAiExportDisabledReason(latestAssistantMessage, store.qaStatus),
+    buildArtifact: ({ privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+      createAiExportArtifact({
+        format: "markdown",
+        privacyOn: exportPrivacyOn,
+        requestedUnredacted,
+        unredactedConfirmed,
+        generatedAt,
+        scopeSummary: currentChat ? "当前会话" : "AI 工作区",
+        question: latestUserQuestion,
+        answer: latestAssistantMessage?.content ?? "",
+        evidence: (latestAssistantMessage?.evidence ?? []).map((item) => ({
+          chat: evidenceText(item, ["talker_name", "chat_name", "chat", "source"], "证据来源"),
+          time: evidenceText(item, ["time", "created_at", "timestamp"], ""),
+          text: evidenceText(item, ["content", "text", "context", "summary"], ""),
+          score: evidenceNumber(item, ["rerank_score", "score"]),
+        })),
+      }),
+  });
   const moduleView = deriveSemanticModuleView({
     phase: store.phase,
     config: store.config,
@@ -637,6 +667,7 @@ export function useAiCommander() {
     qaView,
     compactStatus,
     qaMessages: store.qaMessages,
+    businessExport,
     qaRecentChats,
     qaLoading: store.qaLoading,
     qaStreaming: store.qaStreaming,
@@ -702,6 +733,41 @@ export function useAiCommander() {
     clearQAMessages: store.clearQAMessages,
     reset: store.reset,
   };
+}
+
+function getAiExportDisabledReason(
+  message: ReturnType<typeof useAiStore.getState>["qaMessages"][number] | undefined,
+  qaStatus: string,
+): string | null {
+  if (qaStatus === "connecting" || qaStatus === "streaming" || message?.isStreaming) {
+    return "AI 正在生成，完成后可导出。";
+  }
+  if (!message || (!message.content.trim() && (message.evidence?.length ?? 0) === 0)) {
+    return "生成回答后可导出问答和证据。";
+  }
+  if (message.completionStatus === "failed") return "当前回答失败，请重试后再导出。";
+  return null;
+}
+
+function evidenceText(
+  item: Record<string, unknown>,
+  keys: string[],
+  fallback: string,
+): string {
+  for (const key of keys) {
+    const value = item[key];
+    if (typeof value === "string" && value.trim()) return value;
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return fallback;
+}
+
+function evidenceNumber(item: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = item[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+  return undefined;
 }
 
 function normalizeIndexCommand(action: IndexAction): SemanticIndexCommand {

@@ -1,16 +1,23 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  buildWorkspaceScopeModel,
+  type WorkspaceScopeClearAction,
+  type WorkspaceScopeKind,
+} from "@l2/commander/workspaceScopeModel";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
 import { useStatsCommander } from "@l2/commander/useStatsCommander";
 import { DashboardOverview } from "@l3/stats/DashboardOverview";
+import { BusinessExportDialog, ExportActionButton } from "@l3/export";
 import { TopContactCard } from "@l3/stats/TopContactCard";
 import { TrendChart } from "@l3/stats/TrendChart";
+import { WorkspaceScopeController } from "@l3/workspace/WorkspaceScopeController";
 import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
 import { Button, Typography } from "@l4/ui";
 
 export function AnalyticsView() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const { currentChat, workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
     scope: params.get("scope"),
     scopedChat: params.get("chat"),
@@ -18,8 +25,50 @@ export function AnalyticsView() {
     source: params.get("source"),
     defaultScope: "currentChat",
   });
-  const stats = useStatsCommander();
+  const stats = useStatsCommander({ scopeSummary: "当前会话" });
   const { loadAll } = stats;
+  const scopeController = buildWorkspaceScopeModel({
+    moduleId: "analytics",
+    routeScope: workspaceRouteScope,
+    state: {
+      kind: workspaceRouteScope.scopeKind,
+      sourceRoute: params.get("source"),
+      focusMessage: params.get("focus"),
+      dateRange: { preset: "7d" },
+    },
+    pending: stats.loading,
+  });
+
+  const updateScopeParams = useCallback((update: (next: URLSearchParams) => void) => {
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      update(next);
+      return next;
+    }, { replace: true });
+  }, [setParams]);
+
+  const selectScope = useCallback((kind: WorkspaceScopeKind) => {
+    if (kind !== "currentConversation" || !currentChat) return;
+    updateScopeParams((next) => {
+      next.set("scope", "currentChat");
+      next.set("chat", currentChat);
+    });
+  }, [currentChat, updateScopeParams]);
+
+  const clearScopeChip = useCallback((action: WorkspaceScopeClearAction) => {
+    if (action.field !== "focusMessage" && action.field !== "sourceRoute") return;
+    updateScopeParams((next) => {
+      if (action.field === "focusMessage") next.delete("focus");
+      if (action.field === "sourceRoute") next.delete("source");
+    });
+  }, [updateScopeParams]);
+
+  const resetScope = useCallback(() => {
+    updateScopeParams((next) => {
+      next.delete("focus");
+      next.delete("source");
+    });
+  }, [updateScopeParams]);
 
   useEffect(() => {
     if (currentChat) {
@@ -36,13 +85,22 @@ export function AnalyticsView() {
             查看当前会话的消息量、趋势和活跃对象；全局统计暂未接入本地接口。
           </Typography>
         </div>
-        <Button variant="secondary" onClick={() => navigate(withSmokeQuery("/workbench"))}>
-          返回会话
-        </Button>
+        <div className="workspace-page__header-actions">
+          <ExportActionButton {...stats.businessExport.action} />
+          <Button variant="secondary" onClick={() => navigate(withSmokeQuery("/workbench"))}>
+            返回会话
+          </Button>
+        </div>
       </header>
       <WorkspaceScopeStatus
         workspaceRouteScope={workspaceRouteScope}
         items={[analyticsStatusItem(stats.loading, stats.error, Boolean(stats.stats), currentChat)]}
+      />
+      <WorkspaceScopeController
+        model={scopeController}
+        onSelectScope={selectScope}
+        onClearChip={clearScopeChip}
+        onReset={resetScope}
       />
 
       {!currentChat ? (
@@ -70,6 +128,7 @@ export function AnalyticsView() {
           )}
         </section>
       )}
+      {stats.businessExport.isOpen && <BusinessExportDialog {...stats.businessExport.dialog} />}
     </div>
   );
 }

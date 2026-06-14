@@ -330,7 +330,10 @@ mod tests {
         )
         .expect("camelCase payload should deserialize");
 
-        assert_eq!(cfg.data_dir.as_deref(), Some("E:/Synthetic/WeChat Files/wxid_synthetic_xxx"));
+        assert_eq!(
+            cfg.data_dir.as_deref(),
+            Some("E:/Synthetic/WeChat Files/wxid_synthetic_xxx")
+        );
         let out = serde_json::to_string(&cfg).expect("config should serialize");
         assert!(out.contains("data_dir"));
         assert!(out.contains("full_version"));
@@ -342,7 +345,8 @@ mod tests {
     fn read_data_dir_chatlog_json_errors_do_not_return_local_paths() {
         let temp_dir = std::env::temp_dir().join("chatlogUI-synthetic-missing-chatlog-json");
         let _ = std::fs::create_dir_all(&temp_dir);
-        let error = read_data_dir_chatlog_json(&temp_dir).expect_err("missing chatlog.json should fail");
+        let error =
+            read_data_dir_chatlog_json(&temp_dir).expect_err("missing chatlog.json should fail");
         let path_text = temp_dir.to_string_lossy();
 
         assert!(!error.contains(path_text.as_ref()));

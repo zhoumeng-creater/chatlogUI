@@ -42,6 +42,13 @@ pub async fn export_diagnostics_report(
 }
 
 #[tauri::command]
+pub async fn export_business_file(
+    payload: crate::business_export::BusinessExportPayload,
+) -> Result<crate::business_export::BusinessExportResponse, String> {
+    crate::business_export::export_business_file_command(payload).await
+}
+
+#[tauri::command]
 pub async fn import_data_dir_config(
     data_dir: String,
 ) -> Result<config_store::ConfigSummary, String> {

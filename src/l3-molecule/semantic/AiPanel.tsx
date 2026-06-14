@@ -5,6 +5,7 @@ import { Typography } from '@l4/ui/Typography';
 import { Button } from '@l4/ui/Button';
 import { IconButton } from '@l4/ui/IconButton';
 import { Spinner } from '@l4/ui/Spinner';
+import { ExportActionButton } from '@l3/export';
 import { QAPanel } from './QAPanel';
 import { SemanticSearch } from './SemanticSearch';
 import { TopicView } from './TopicView';
@@ -90,6 +91,7 @@ export function AiPanel({
   return (
     <div className="semantic-panel">
       <div className="semantic-panel__actions">
+        <ExportActionButton {...ai.businessExport.action} />
         <IconButton
           label="AI 设置"
           tooltip="AI 设置"

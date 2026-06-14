@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { Button, Input, SegmentedControl, Select, Spinner, Typography } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
+import type { BusinessExportActionView } from "@l2/commander/useBusinessExportCommander";
+import { ExportActionButton } from "@l3/export";
 import { SnsDetailInspector } from "./SnsDetailInspector";
 import { SnsExternalOpenDialog, type SnsExternalOpenPrompt } from "./SnsExternalOpenDialog";
 import { formatSnsNotificationLabel, formatSnsTime } from "./snsDisplay";
@@ -69,6 +71,7 @@ interface SnsModuleProps {
   privacyOn: boolean;
   externalOpenPrompt: SnsExternalOpenPrompt | null;
   externalOpenError: string | null;
+  exportAction?: BusinessExportActionView;
   onRefresh: () => void;
   onRetry: () => void;
   onLoadMore: () => void;
@@ -106,6 +109,7 @@ export function SnsModule({
   privacyOn,
   externalOpenPrompt,
   externalOpenError,
+  exportAction,
   onRefresh,
   onRetry,
   onLoadMore,
@@ -130,15 +134,18 @@ export function SnsModule({
             {view.subtitle}
           </Typography>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRefresh}
-          disabled={status === "loading"}
-          aria-label="刷新朋友圈"
-        >
-          <RefreshCw size={14} />
-        </Button>
+        <div className="sns-module__header-actions">
+          {exportAction && <ExportActionButton {...exportAction} />}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRefresh}
+            disabled={status === "loading"}
+            aria-label="刷新朋友圈"
+          >
+            <RefreshCw size={14} />
+          </Button>
+        </div>
       </div>
 
       {status === "error" ? (
