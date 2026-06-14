@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
-import { resolveSearchScopeChat } from "./searchWorkspaceContext";
+import { resolveSearchScopeChat, resolveSearchStoreScope } from "./searchWorkspaceContext";
 
 const conversations: Conversation[] = [
   {
@@ -44,5 +44,20 @@ describe("resolveSearchScopeChat", () => {
       conversations,
       selectedConversationId: "conversation-1",
     })).toBeNull();
+  });
+});
+
+describe("resolveSearchStoreScope", () => {
+  it("uses explicit route scope as the source of truth", () => {
+    expect(resolveSearchStoreScope({ routeScope: "currentChat", routeHasScopedChat: false })).toBe("current");
+    expect(resolveSearchStoreScope({ routeScope: "all", routeHasScopedChat: true })).toBe("all");
+  });
+
+  it("keeps a chat deep link constrained even when legacy URLs omit scope", () => {
+    expect(resolveSearchStoreScope({ routeScope: null, routeHasScopedChat: true })).toBe("current");
+  });
+
+  it("defaults ordinary search navigation to all conversations", () => {
+    expect(resolveSearchStoreScope({ routeScope: null, routeHasScopedChat: false })).toBe("all");
   });
 });
