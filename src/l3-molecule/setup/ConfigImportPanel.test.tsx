@@ -23,6 +23,13 @@ describe("ConfigImportPanel", () => {
           hasImgKey: false,
           lastValidatedAt: null,
         }}
+        detectionStatus="idle"
+        candidates={[]}
+        detectionError={null}
+        onUseCandidate={() => undefined}
+        onChooseDirectory={() => undefined}
+        onConnectExternalService={() => undefined}
+        onOpenManualAdvanced={() => undefined}
       />,
     );
 
@@ -30,5 +37,61 @@ describe("ConfigImportPanel", () => {
     expect(html).not.toContain("C:\\Users\\Synthetic");
     expect(html).not.toContain("WeChat Files");
     expect(html).not.toContain("wxid_synthetic_private");
+  });
+
+  it("renders detected candidates as safe summaries with next-step actions", () => {
+    const html = renderToStaticMarkup(
+      <ConfigImportPanel
+        loading={false}
+        error={null}
+        profile={null}
+        detectionStatus="success"
+        candidates={[
+          {
+            id: "candidate-1",
+            title: "微信数据目录候选 1",
+            description: "来自 Windows 文档目录，完整路径已隐藏。",
+            confidenceLabel: "可信度高",
+            disabled: false,
+          },
+        ]}
+        detectionError={null}
+        onUseCandidate={() => undefined}
+        onChooseDirectory={() => undefined}
+        onConnectExternalService={() => undefined}
+        onOpenManualAdvanced={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("微信数据目录候选 1");
+    expect(html).toContain("使用此目录");
+    expect(html).toContain("选择其他目录");
+    expect(html).toContain("连接已有服务");
+    expect(html).toContain("高级配置");
+    expect(html).not.toContain("C:\\Users");
+    expect(html).not.toContain("WeChat Files");
+    expect(html).not.toContain("wxid_");
+  });
+
+  it("shows an actionable empty state when auto detection finds no candidates", () => {
+    const html = renderToStaticMarkup(
+      <ConfigImportPanel
+        loading={false}
+        error={null}
+        profile={null}
+        detectionStatus="empty"
+        candidates={[]}
+        detectionError={null}
+        onUseCandidate={() => undefined}
+        onChooseDirectory={() => undefined}
+        onConnectExternalService={() => undefined}
+        onOpenManualAdvanced={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("未找到可用的默认目录");
+    expect(html).toContain("选择其他目录");
+    expect(html).toContain("连接已有服务");
+    expect(html).toContain("高级配置");
   });
 });

@@ -17,6 +17,7 @@ import {
   validateManagedServerConfig,
   type ServerConfigDraft,
 } from "@l4/system/chatlogConfig";
+import { detectWxPath, type WxPathCandidate } from "@l4/system/detectWxPath";
 import {
   inspectPort,
   startManagedSidecar,
@@ -72,6 +73,10 @@ export interface SetupCommander {
   chooseSetupPath: (path: SetupPathId) => void;
   importDataDirectory: (path: string) => Promise<void>;
   chooseAndImportDataDirectory: () => Promise<string | null>;
+  detectDataDirectories: () => Promise<void>;
+  importDetectedDataDirectory: (candidateId: string) => Promise<void>;
+  chooseManualDataDirectory: () => Promise<string | null>;
+  chooseManualWorkDirectory: () => Promise<string | null>;
   saveManualConfig: (draft: ServerConfigDraft) => Promise<void>;
   inspectServicePort: () => Promise<void>;
   startManagedService: () => Promise<void>;
@@ -92,6 +97,8 @@ export function useSetupCommander(): SetupCommander {
   const setExternalBaseUrlDraft = useSetupStore((s) => s.setExternalBaseUrlDraft);
   const setExternalBaseUrlError = useSetupStore((s) => s.setExternalBaseUrlError);
   const setManualFieldErrors = useSetupStore((s) => s.setManualFieldErrors);
+  const setManualDraft = useSetupStore((s) => s.setManualDraft);
+  const setDetectedPathState = useSetupStore((s) => s.setDetectedPathState);
   const setLoading = useSetupStore((s) => s.setLoading);
   const setError = useSetupStore((s) => s.setError);
 
@@ -155,6 +162,7 @@ export function useSetupCommander(): SetupCommander {
         }
         setExternalBaseUrlError(null);
         setManualFieldErrors({});
+        setDetectedPathState({ detectedPathStatus: "idle", detectedPathError: null });
         setReadiness({ httpReady: false, dbReady: false });
         setCurrentStep("config");
       }
@@ -165,6 +173,7 @@ export function useSetupCommander(): SetupCommander {
       setExternalBaseUrlDraft,
       setExternalBaseUrlError,
       setManualFieldErrors,
+      setDetectedPathState,
       setMode,
       setPortState,
       setProfile,
@@ -188,6 +197,9 @@ export function useSetupCommander(): SetupCommander {
         setProfile(null);
       }
       setExternalBaseUrlError(null);
+      if (path === "recommended-import") {
+        setDetectedPathState({ detectedPathStatus: "idle", detectedPathError: null });
+      }
       setReadiness({ httpReady: false, dbReady: false });
       setCurrentStep("config");
     },
@@ -198,6 +210,7 @@ export function useSetupCommander(): SetupCommander {
       setError,
       setExternalBaseUrlError,
       setManualFieldErrors,
+      setDetectedPathState,
       setMode,
       setProfile,
       setReadiness,
@@ -233,6 +246,73 @@ export function useSetupCommander(): SetupCommander {
     await importDataDirectory(dir);
     return dir;
   }, [importDataDirectory]);
+
+  const detectDataDirectories = useCallback(async () => {
+    const state = useSetupStore.getState();
+    if (state.profile || state.activePath !== "recommended-import") return;
+
+    setDetectedPathState({
+      detectedPathStatus: "loading",
+      detectedPathError: null,
+      detectedPathCandidates: [],
+    });
+
+    try {
+      const candidates = normalizeDetectedCandidates(await detectWxPath());
+      const latestState = useSetupStore.getState();
+      if (latestState.profile || latestState.activePath !== "recommended-import") return;
+      setDetectedPathState({
+        detectedPathCandidates: candidates,
+        detectedPathStatus: candidates.some((candidate) => candidate.exists) ? "success" : "empty",
+        detectedPathError: null,
+      });
+    } catch (err) {
+      const latestState = useSetupStore.getState();
+      if (latestState.profile || latestState.activePath !== "recommended-import") return;
+      setDetectedPathState({
+        detectedPathCandidates: [],
+        detectedPathStatus: "error",
+        detectedPathError: formatSafeUserFacingError(err),
+      });
+    }
+  }, [setDetectedPathState]);
+
+  const importDetectedDataDirectory = useCallback(
+    async (candidateId: string) => {
+      const candidate = useSetupStore.getState().detectedPathCandidates
+        .find((item) => item.id === candidateId);
+      if (!candidate || !candidate.exists) {
+        setError("该候选目录当前不可用，请选择其他目录。");
+        return;
+      }
+      await importDataDirectory(candidate.path);
+    },
+    [importDataDirectory, setError],
+  );
+
+  const chooseManualDirectory = useCallback(
+    async (field: "dataDir" | "workDir") => {
+      const dir = await openDirectoryPicker();
+      if (!dir) return null;
+      setManualDraft({
+        ...useSetupStore.getState().manualDraft,
+        [field]: dir,
+      });
+      setError(null);
+      return dir;
+    },
+    [setError, setManualDraft],
+  );
+
+  const chooseManualDataDirectory = useCallback(
+    () => chooseManualDirectory("dataDir"),
+    [chooseManualDirectory],
+  );
+
+  const chooseManualWorkDirectory = useCallback(
+    () => chooseManualDirectory("workDir"),
+    [chooseManualDirectory],
+  );
 
   const saveManualConfig = useCallback(
     async (draft: ServerConfigDraft) => {
@@ -547,6 +627,10 @@ export function useSetupCommander(): SetupCommander {
     chooseSetupPath,
     importDataDirectory,
     chooseAndImportDataDirectory,
+    detectDataDirectories,
+    importDetectedDataDirectory,
+    chooseManualDataDirectory,
+    chooseManualWorkDirectory,
     saveManualConfig,
     inspectServicePort,
     startManagedService,
@@ -555,4 +639,15 @@ export function useSetupCommander(): SetupCommander {
     stopManagedService,
     openWorkbench,
   };
+}
+
+function normalizeDetectedCandidates(candidates: WxPathCandidate[]) {
+  return candidates.map((candidate, index) => ({
+    id: `candidate-${index + 1}`,
+    path: candidate.path,
+    label: candidate.label,
+    exists: candidate.exists,
+    source: candidate.source,
+    confidence: candidate.confidence,
+  }));
 }

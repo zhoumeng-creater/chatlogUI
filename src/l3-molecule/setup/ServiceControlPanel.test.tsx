@@ -15,6 +15,7 @@ describe("ServiceControlPanel", () => {
         error: null,
         externalBaseUrl: "http://127.0.0.1:6041",
         externalBaseUrlError: "当前版本只支持本机 chatlog 服务地址",
+        latestDiagnosticFamily: "none",
         onExternalBaseUrlChange: () => undefined,
       }),
     );
@@ -37,6 +38,7 @@ describe("ServiceControlPanel", () => {
         error: null,
         externalBaseUrl: "http://127.0.0.1:6041",
         externalBaseUrlError: null,
+        latestDiagnosticFamily: "none",
         onExternalBaseUrlChange: () => undefined,
       }),
     );
@@ -59,6 +61,7 @@ describe("ServiceControlPanel", () => {
         error: "服务已连接，但数据库尚未就绪",
         externalBaseUrl: "http://127.0.0.1:6041",
         externalBaseUrlError: null,
+        latestDiagnosticFamily: "db",
         onExternalBaseUrlChange: () => undefined,
       }),
     );
@@ -66,5 +69,31 @@ describe("ServiceControlPanel", () => {
     expect(html).toContain("数据库尚未就绪");
     expect(html).not.toContain("刷新数据库状态");
     expect(html).not.toContain("打开工作台");
+    expect(html).toContain("最近诊断事件");
+    expect(html).toContain("db");
+    expect(html).toContain("仅连接本机服务，不会停止外部进程");
+  });
+
+  it("explains unknown port owners without exposing process details", () => {
+    const html = renderToStaticMarkup(
+      createElement(ServiceControlPanel, {
+        mode: "managed",
+        portState: "occupied",
+        httpReady: false,
+        dbReady: false,
+        loading: false,
+        error: "5030 端口被其他进程占用。C:\\Users\\Synthetic\\node server.js",
+        externalBaseUrl: "http://127.0.0.1:5030",
+        externalBaseUrlError: null,
+        latestDiagnosticFamily: "health",
+        onExternalBaseUrlChange: () => undefined,
+      }),
+    );
+
+    expect(html).toContain("未知进程占用");
+    expect(html).toContain("应用不会停止未知进程");
+    expect(html).toContain("health");
+    expect(html).not.toContain("C:\\Users");
+    expect(html).not.toContain("node server.js");
   });
 });

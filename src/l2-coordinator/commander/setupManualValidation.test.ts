@@ -24,7 +24,7 @@ describe("setup manual validation", () => {
       dataDir: expect.stringContaining("数据目录"),
       platform: expect.stringContaining("平台"),
       fullVersion: expect.stringContaining("完整版本"),
-      dataKey: expect.stringContaining("Data Key"),
+      dataKey: expect.stringContaining("数据密钥"),
       httpAddr: expect.stringContaining("本机"),
     });
     expect(JSON.stringify(result)).not.toContain("example.com/api");

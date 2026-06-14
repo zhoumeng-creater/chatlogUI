@@ -13,6 +13,8 @@ interface ManualAdvancedConfigPanelProps {
   fieldErrors?: ManualFieldErrors;
   onDraftChange: (draft: ServerConfigDraft) => void;
   onSubmit: () => Promise<void>;
+  onChooseDataDir: () => Promise<string | null | undefined>;
+  onChooseWorkDir: () => Promise<string | null | undefined>;
 }
 
 export function ManualAdvancedConfigPanel({
@@ -22,6 +24,8 @@ export function ManualAdvancedConfigPanel({
   fieldErrors = {},
   onDraftChange,
   onSubmit,
+  onChooseDataDir,
+  onChooseWorkDir,
 }: ManualAdvancedConfigPanelProps) {
   const [showKey, setShowKey] = useState(false);
 
@@ -42,29 +46,39 @@ export function ManualAdvancedConfigPanel({
         <div>
           <Typography variant="h2">高级手动配置</Typography>
           <Typography variant="body" color="var(--text-secondary)">
-            手动填写 chatlog_alpha 服务所需的全部配置字段。
+            适合迁移或排障时使用。普通首次启动建议返回推荐导入。
           </Typography>
         </div>
 
         <div className="form-grid">
-          <Field id="manual-data-dir" label="数据目录 *" error={fieldErrors.dataDir}>
-            <Input
-              id="manual-data-dir"
-              type="text"
-              value={draft.dataDir ?? ""}
-              onChange={(event) => update("dataDir", event.currentTarget.value)}
-              placeholder="选择微信数据目录，完整路径不会在界面中显示"
-            />
-          </Field>
+          <div className="settings-inline">
+            <Field id="manual-data-dir" label="数据目录 *" error={fieldErrors.dataDir}>
+              <Input
+                id="manual-data-dir"
+                type="text"
+                value={draft.dataDir ?? ""}
+                onChange={(event) => update("dataDir", event.currentTarget.value)}
+                placeholder="选择微信数据目录，完整路径不会在摘要中显示"
+              />
+            </Field>
+            <Button type="button" variant="secondary" size="md" onClick={() => void onChooseDataDir()}>
+              选择数据目录
+            </Button>
+          </div>
 
-          <Field id="manual-work-dir" label="工作目录" error={fieldErrors.workDir}>
-            <Input
-              id="manual-work-dir"
-              type="text"
-              value={draft.workDir ?? ""}
-              onChange={(event) => update("workDir", event.currentTarget.value)}
-            />
-          </Field>
+          <div className="settings-inline">
+            <Field id="manual-work-dir" label="工作目录" error={fieldErrors.workDir}>
+              <Input
+                id="manual-work-dir"
+                type="text"
+                value={draft.workDir ?? ""}
+                onChange={(event) => update("workDir", event.currentTarget.value)}
+              />
+            </Field>
+            <Button type="button" variant="secondary" size="md" onClick={() => void onChooseWorkDir()}>
+              选择工作目录
+            </Button>
+          </div>
 
           <div className="form-grid form-grid--two">
             <Field id="manual-platform" label="平台 *" error={fieldErrors.platform}>
@@ -99,7 +113,7 @@ export function ManualAdvancedConfigPanel({
           </Field>
 
           <div className="settings-inline">
-            <Field id="manual-data-key" label="Data Key *" error={fieldErrors.dataKey}>
+            <Field id="manual-data-key" label="数据密钥 *" error={fieldErrors.dataKey}>
               <Input
                 id="manual-data-key"
                 type={showKey ? "text" : "password"}
@@ -114,7 +128,7 @@ export function ManualAdvancedConfigPanel({
             </Button>
           </div>
 
-          <Field id="manual-img-key" label="Image Key" error={fieldErrors.imgKey}>
+          <Field id="manual-img-key" label="媒体密钥" error={fieldErrors.imgKey}>
             <Input
               id="manual-img-key"
               type="password"
@@ -124,7 +138,7 @@ export function ManualAdvancedConfigPanel({
             />
           </Field>
 
-          <Field id="manual-http-addr" label="HTTP 地址" error={fieldErrors.httpAddr}>
+          <Field id="manual-http-addr" label="本机服务地址" error={fieldErrors.httpAddr}>
             <Input
               id="manual-http-addr"
               type="text"

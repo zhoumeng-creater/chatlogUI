@@ -155,6 +155,31 @@ describe("deriveSetupCenterView", () => {
     expect(JSON.stringify(view)).not.toContain("wxid_synthetic_private");
   });
 
+  it("saves manual config instead of starting the old service while the manual panel is active", () => {
+    const view = deriveSetupCenterView({
+      currentStep: "config",
+      mode: "managed",
+      activePath: "manual-advanced",
+      profile: profileSummary({
+        source: "data-dir-chatlog-json",
+        mode: "managed",
+        hasDataKey: true,
+      }),
+      portState: "free",
+      httpReady: false,
+      dbReady: false,
+      loading: false,
+      error: null,
+    });
+
+    expect(view.activePanel).toBe("manual-advanced");
+    expect(view.primaryAction).toMatchObject({
+      id: "save-manual-config",
+      label: "保存并验证配置",
+      variant: "primary",
+    });
+  });
+
   it("shows exactly one primary workbench action only after DB readiness", () => {
     const view = deriveSetupCenterView({
       currentStep: "ready",

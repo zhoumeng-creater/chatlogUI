@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
+import { useDiagnosticEventStore } from "@l2/data-clerk/stores/useDiagnosticEventStore";
+import type { DiagnosticEvent } from "@l4/network/diagnosticEvents";
 import { useSetupCommander } from "./useSetupCommander";
 import { useDiagnosticsCommander } from "./useDiagnosticsCommander";
 import { deriveSetupCenterView, type SetupActionId } from "./setupCenterViewModel";
@@ -10,6 +12,10 @@ export function useSetupCenterCommander() {
     chooseMode,
     chooseSetupPath,
     chooseAndImportDataDirectory,
+    detectDataDirectories,
+    importDetectedDataDirectory,
+    chooseManualDataDirectory,
+    chooseManualWorkDirectory,
     saveManualConfig,
     inspectServicePort,
     startManagedService,
@@ -30,14 +36,26 @@ export function useSetupCenterCommander() {
   const externalBaseUrlError = useSetupStore((state) => state.externalBaseUrlError);
   const manualDraft = useSetupStore((state) => state.manualDraft);
   const manualFieldErrors = useSetupStore((state) => state.manualFieldErrors);
+  const detectedPathCandidates = useSetupStore((state) => state.detectedPathCandidates);
+  const detectedPathStatus = useSetupStore((state) => state.detectedPathStatus);
+  const detectedPathError = useSetupStore((state) => state.detectedPathError);
   const loading = useSetupStore((state) => state.loading);
   const error = useSetupStore((state) => state.error);
+  const latestDiagnosticFamily = useDiagnosticEventStore((state) =>
+    deriveLatestDiagnosticFamily(state.items),
+  );
   const setExternalBaseUrlDraft = useSetupStore((state) => state.setExternalBaseUrlDraft);
   const setManualDraft = useSetupStore((state) => state.setManualDraft);
 
   useEffect(() => {
     void loadExistingProfile();
   }, [loadExistingProfile]);
+
+  useEffect(() => {
+    if (activePath === "recommended-import" && !profile && detectedPathStatus === "idle") {
+      void detectDataDirectories();
+    }
+  }, [activePath, detectDataDirectories, detectedPathStatus, profile]);
 
   const view = useMemo(
     () => deriveSetupCenterView({
@@ -52,6 +70,9 @@ export function useSetupCenterCommander() {
       error,
       externalBaseUrlDraft,
       externalBaseUrlError,
+      detectedPathCandidates,
+      detectedPathStatus,
+      detectedPathError,
     }),
     [
       activePath,
@@ -60,6 +81,9 @@ export function useSetupCenterCommander() {
       error,
       externalBaseUrlDraft,
       externalBaseUrlError,
+      detectedPathCandidates,
+      detectedPathError,
+      detectedPathStatus,
       httpReady,
       loading,
       mode,
@@ -109,14 +133,22 @@ export function useSetupCenterCommander() {
     externalBaseUrlError,
     manualDraft,
     manualFieldErrors,
+    detectedPathCandidates,
+    detectedPathStatus,
+    detectedPathError,
     loading,
     error,
     view,
     diagnostics,
+    latestDiagnosticFamily,
     actions: {
       chooseMode,
       chooseSetupPath,
       chooseAndImportDataDirectory,
+      detectDataDirectories,
+      importDetectedDataDirectory,
+      chooseManualDataDirectory,
+      chooseManualWorkDirectory,
       saveManualConfig,
       inspectServicePort,
       startManagedService,
@@ -130,4 +162,13 @@ export function useSetupCenterCommander() {
     },
     openWorkbench,
   };
+}
+
+function deriveLatestDiagnosticFamily(events: DiagnosticEvent[]): string {
+  const latest = events[events.length - 1];
+  const endpointFamily = latest?.attributes?.endpointFamily;
+  if (typeof endpointFamily === "string" && endpointFamily.trim()) {
+    return endpointFamily;
+  }
+  return latest?.source ?? "none";
 }

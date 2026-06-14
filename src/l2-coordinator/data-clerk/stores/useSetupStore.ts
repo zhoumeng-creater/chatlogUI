@@ -6,6 +6,8 @@ import type {
   SetupProfileSummary,
   PortState,
   SetupStepId,
+  SetupDetectedPathCandidate,
+  SetupDetectedPathStatus,
 } from "@l2/data-clerk/types/setup";
 
 export type ManualConfigFieldErrors = Record<string, string>;
@@ -34,6 +36,9 @@ interface SetupStoreData {
   externalBaseUrlError: string | null;
   manualDraft: ServerConfigDraft;
   manualFieldErrors: ManualConfigFieldErrors;
+  detectedPathCandidates: SetupDetectedPathCandidate[];
+  detectedPathStatus: SetupDetectedPathStatus;
+  detectedPathError: string | null;
   loading: boolean;
   error: string | null;
   diagnostic: string | null;
@@ -50,6 +55,10 @@ interface SetupStoreActions {
   setExternalBaseUrlError: (error: string | null) => void;
   setManualDraft: (draft: ServerConfigDraft) => void;
   setManualFieldErrors: (errors: ManualConfigFieldErrors) => void;
+  setDetectedPathState: (state: Partial<Pick<
+    SetupStoreData,
+    "detectedPathCandidates" | "detectedPathStatus" | "detectedPathError"
+  >>) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setDiagnostic: (diagnostic: string | null) => void;
@@ -70,6 +79,9 @@ const initialState: SetupStoreData = {
   externalBaseUrlError: null,
   manualDraft: { ...defaultManualDraft },
   manualFieldErrors: {},
+  detectedPathCandidates: [],
+  detectedPathStatus: "idle",
+  detectedPathError: null,
   loading: false,
   error: null,
   diagnostic: null,
@@ -92,6 +104,11 @@ export const useSetupStore = create<SetupStore>((set) => ({
   setExternalBaseUrlError: (externalBaseUrlError) => set({ externalBaseUrlError }),
   setManualDraft: (manualDraft) => set({ manualDraft }),
   setManualFieldErrors: (manualFieldErrors) => set({ manualFieldErrors }),
+  setDetectedPathState: (nextState) => set((state) => ({
+    detectedPathCandidates: nextState.detectedPathCandidates ?? state.detectedPathCandidates,
+    detectedPathStatus: nextState.detectedPathStatus ?? state.detectedPathStatus,
+    detectedPathError: nextState.detectedPathError ?? state.detectedPathError,
+  })),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setDiagnostic: (diagnostic) => set({ diagnostic }),

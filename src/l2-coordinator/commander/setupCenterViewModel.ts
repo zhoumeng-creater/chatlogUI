@@ -1,10 +1,16 @@
 import type {
   PortState,
+  SetupDetectedPathCandidate,
+  SetupDetectedPathStatus,
   SetupMode,
   SetupPathId,
   SetupProfileSummary,
   SetupStepId,
 } from "@l2/data-clerk/types/setup";
+import {
+  buildDetectedPathCandidateViews,
+  type SetupDetectedPathCandidateView,
+} from "./setupDetectedPathModel";
 
 export type SetupReadinessStatus =
   | "idle"
@@ -46,6 +52,9 @@ export interface SetupCenterViewInput {
   error?: string | null;
   externalBaseUrlDraft?: string;
   externalBaseUrlError?: string | null;
+  detectedPathCandidates?: SetupDetectedPathCandidate[];
+  detectedPathStatus?: SetupDetectedPathStatus;
+  detectedPathError?: string | null;
 }
 
 export interface SetupPathOption {
@@ -85,6 +94,11 @@ export interface SetupCenterViewModel {
   primaryAction: SetupCenterActionView;
   secondaryActions: SetupCenterActionView[];
   readinessSummary: SetupReadinessSummaryItem[];
+  detectedPath: {
+    status: SetupDetectedPathStatus;
+    candidates: SetupDetectedPathCandidateView[];
+    error: string | null;
+  };
   diagnostics: SetupDiagnosticsView;
   dbStatusLabel: string;
   dbStatusTone: "success" | "warning";
@@ -110,6 +124,7 @@ export function deriveSetupCenterView(input: SetupCenterViewInput): SetupCenterV
     httpReady,
   });
   const primaryAction = derivePrimaryAction({
+    activePanel,
     activePath,
     mode,
     profile,
@@ -122,7 +137,7 @@ export function deriveSetupCenterView(input: SetupCenterViewInput): SetupCenterV
 
   return {
     heading: "连接本地聊天数据服务",
-    description: "选择由应用管理本机服务，或连接已有 chatlog_alpha 服务；数据库检查通过后进入工作台。",
+    description: "选择由应用管理本机聊天服务，或连接已有本机服务；数据库检查通过后进入工作台。",
     activePath,
     activePanel,
     pathOptions: buildPathOptions(activePath),
@@ -146,6 +161,11 @@ export function deriveSetupCenterView(input: SetupCenterViewInput): SetupCenterV
       loading,
       error: input.error ?? input.externalBaseUrlError ?? null,
     }),
+    detectedPath: {
+      status: input.detectedPathStatus ?? "idle",
+      candidates: buildDetectedPathCandidateViews(input.detectedPathCandidates ?? []),
+      error: input.detectedPathError ?? null,
+    },
     diagnostics: {
       defaultOpen: false,
       label: "查看脱敏诊断",
@@ -201,25 +221,26 @@ function buildPathOptions(activePath: SetupPathId): SetupPathOption[] {
     {
       id: "recommended-import",
       label: "推荐自动导入",
-      description: "选择微信数据目录，由应用读取本机配置并管理服务。",
+      description: "优先使用自动探测到的微信数据目录，或手动选择目录。",
       selected: activePath === "recommended-import",
     },
     {
       id: "external-service",
       label: "连接已有服务",
-      description: "连接已经运行的本机 chatlog_alpha 服务。",
+      description: "连接已经运行的本机聊天服务。",
       selected: activePath === "external-service",
     },
     {
       id: "manual-advanced",
       label: "专家手动配置",
-      description: "排障或迁移时手动填写服务配置。",
+      description: "排障或迁移时手动填写高级配置。",
       selected: activePath === "manual-advanced",
     },
   ];
 }
 
 function derivePrimaryAction(input: {
+  activePanel: SetupActivePanel;
   activePath: SetupPathId;
   mode: SetupMode;
   profile: SetupProfileSummary | null;
@@ -257,6 +278,16 @@ function derivePrimaryAction(input: {
       label: "测试连接并保存",
       variant: "primary",
       disabled: input.loading || !hasExternalUrl || Boolean(input.externalBaseUrlError),
+      busy: input.loading,
+    };
+  }
+
+  if (input.activePanel === "manual-advanced") {
+    return {
+      id: "save-manual-config",
+      label: "保存并验证配置",
+      variant: "primary",
+      disabled: input.loading,
       busy: input.loading,
     };
   }
@@ -369,11 +400,11 @@ function deriveReadinessSummary(input: {
       status: serviceStatus(input),
       title: input.httpReady ? "HTTP 服务健康" : input.loading ? "正在检查服务" : serviceTitle(input.portState),
       message: input.httpReady
-        ? "本机 chatlog 服务可以连接。"
+        ? "本机聊天服务可以连接。"
         : input.error
           ? input.error
           : input.loading
-            ? "正在连接或启动本机 chatlog 服务。"
+            ? "正在连接或启动本机聊天服务。"
         : serviceMessage(input),
     },
     {
@@ -392,9 +423,11 @@ function deriveReadinessSummary(input: {
     },
     {
       id: "privacy",
-      status: "success",
-      title: "隐私保护",
-      message: "界面和诊断只显示脱敏摘要，不显示路径、密钥或私聊内容。",
+      status: input.profile ? "success" : "idle",
+      title: input.profile ? "隐私保护已应用" : "隐私保护待验证",
+      message: input.profile
+        ? "界面和诊断只显示脱敏摘要，不显示路径、密钥或私聊内容。"
+        : "导入配置后会用脱敏摘要显示目录、密钥状态和诊断信息。",
     },
   ];
 }
@@ -412,7 +445,7 @@ function configEmptyMessage(activePath: SetupPathId): string {
   if (activePath === "manual-advanced") {
     return "填写必填字段并通过验证后会保存本机服务配置。";
   }
-  return "选择微信数据目录后，应用会读取本机 chatlog 配置摘要。";
+  return "选择微信数据目录后，应用会读取本机配置摘要。";
 }
 
 function serviceStatus(input: {
