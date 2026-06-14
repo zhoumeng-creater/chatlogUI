@@ -1,8 +1,15 @@
 import { expect, type Page } from "@playwright/test";
 
 export async function expectGraphCanvasReady(page: Page) {
+  const moduleSurface = page.getByLabel("知识图谱模块");
+  await expect(moduleSurface).toBeVisible();
+
   const canvas = page.locator(".graph-canvas__stage canvas").first();
   await expect(canvas).toBeVisible();
+
+  const box = await canvas.boundingBox();
+  expect(box?.width ?? 0).toBeGreaterThanOrEqual(320);
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(240);
 
   await expect.poll(async () => canvas.evaluate((node) => {
     const graphCanvas = node as HTMLCanvasElement;
@@ -13,15 +20,12 @@ export async function expectGraphCanvasReady(page: Page) {
     const height = gl.drawingBufferHeight;
     if (width <= 0 || height <= 0) return 0;
 
-    const sampleWidth = Math.min(96, width);
-    const sampleHeight = Math.min(96, height);
-    const x = Math.max(0, Math.floor((width - sampleWidth) / 2));
-    const y = Math.max(0, Math.floor((height - sampleHeight) / 2));
-    const pixels = new Uint8Array(sampleWidth * sampleHeight * 4);
-    gl.readPixels(x, y, sampleWidth, sampleHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    const pixels = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
     let brightPixels = 0;
-    for (let index = 0; index < pixels.length; index += 4) {
+    const pixelStride = Math.max(4, Math.floor((pixels.length / 4) / 8192) * 4);
+    for (let index = 0; index < pixels.length; index += pixelStride) {
       const red = pixels[index] ?? 0;
       const green = pixels[index + 1] ?? 0;
       const blue = pixels[index + 2] ?? 0;
@@ -30,4 +34,9 @@ export async function expectGraphCanvasReady(page: Page) {
     }
     return brightPixels;
   })).toBeGreaterThan(8);
+
+  await expect.poll(async () => moduleSurface.evaluate((node) => {
+    const element = node as HTMLElement;
+    return Math.ceil(element.scrollWidth - element.clientWidth);
+  })).toBeLessThanOrEqual(1);
 }

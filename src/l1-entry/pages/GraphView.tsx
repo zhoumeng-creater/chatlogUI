@@ -1,9 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   buildWorkspaceScopeModel,
   type WorkspaceScopeClearAction,
 } from "@l2/commander/workspaceScopeModel";
+import { buildGraphSourceWorkbenchRoute } from "@l2/commander/graphContextSummaryModel";
 import { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
 import { BusinessExportDialog } from "@l3/export";
@@ -16,6 +17,7 @@ const LazyGraphModule = lazy(() =>
 );
 
 export function GraphView() {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const hasContextFocus = Boolean(params.get("focus"));
   const { currentConversation, workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
@@ -25,7 +27,12 @@ export function GraphView() {
     source: params.get("source"),
     defaultScope: "all",
   });
-  const graph = useGraphCommander();
+  const graph = useGraphCommander({
+    routeSource: params.get("source"),
+    sourceLabel: workspaceRouteScope.sourceLabel,
+    focusLabel: workspaceRouteScope.focusLabel,
+    scopeLabel: workspaceRouteScope.scopeLabel,
+  });
   const { focusOnChat, openGraph } = graph;
   const scopeController = buildWorkspaceScopeModel({
     moduleId: "graph",
@@ -61,6 +68,10 @@ export function GraphView() {
     });
   }, [updateScopeParams]);
 
+  const openSourceInWorkbench = useCallback(() => {
+    navigate(buildGraphSourceWorkbenchRoute(params.get("codex-smoke")));
+  }, [navigate, params]);
+
   useEffect(() => {
     void openGraph().then(() => {
       if (!hasContextFocus || !currentConversation) return;
@@ -89,7 +100,7 @@ export function GraphView() {
       />
       <div className="workspace-page__surface workspace-page__module-surface graph-workspace__surface">
         <Suspense fallback={<div className="panel-loading"><Spinner size={20} label="加载图谱..." /></div>}>
-          <LazyGraphModule graph={graph} privacyOn={privacyOn} />
+          <LazyGraphModule graph={graph} privacyOn={privacyOn} onOpenSource={openSourceInWorkbench} />
         </Suspense>
       </div>
       {graph.businessExport.isOpen && <BusinessExportDialog {...graph.businessExport.dialog} />}

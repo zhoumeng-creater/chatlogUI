@@ -283,8 +283,42 @@ export interface GraphExportInput {
   unredactedConfirmed?: boolean;
   generatedAt: Date;
   scopeSummary: string;
-  nodes: Array<{ id: string; label: string; kind: string }>;
-  edges: Array<{ id: string; source: string; target: string; label: string }>;
+  filterSummary?: string[];
+  sourceSummary?: string;
+  graphGeneratedAt?: string;
+  refreshedAt?: string;
+  freshnessState?: string;
+  partialWarnings?: string[];
+  entities?: Array<{ id: string; label: string; type: string; mentions?: number }>;
+  relations?: Array<{
+    id: string;
+    subject: string;
+    predicate: string;
+    object: string;
+    status: string;
+    evidenceCount?: number;
+  }>;
+  events?: Array<{
+    id: string;
+    label: string;
+    type: string;
+    time: string;
+    source: string;
+    evidenceCount?: number;
+  }>;
+  facts?: Array<{ id: string; label: string; status: string; evidenceCount?: number }>;
+  timelineRows?: Array<{
+    id: string;
+    time: string;
+    type: string;
+    title: string;
+    description: string;
+    source: string;
+  }>;
+  visualNodes?: Array<{ id: string; label: string; kind: string }>;
+  visualEdges?: Array<{ id: string; source: string; target: string; label: string; evidenceCount?: number }>;
+  nodes?: Array<{ id: string; label: string; kind: string }>;
+  edges?: Array<{ id: string; source: string; target: string; label: string; evidenceCount?: number }>;
 }
 
 const SOURCE_LABELS: Record<BusinessExportSourceModule, string> = {
@@ -807,45 +841,147 @@ export function createAiExportArtifact(input: AiExportInput): BusinessExportArti
 
 export function createGraphExportArtifact(input: GraphExportInput): BusinessExportArtifact {
   const redactContent = shouldRedactExportContent(input);
-  const nodes = input.nodes.map((node) => ({
+  const visualNodes = (input.visualNodes ?? input.nodes ?? []).map((node) => ({
     id: node.id,
     label: exportText(node.label, redactContent, "已隐藏实体"),
     kind: node.kind,
   }));
-  const edges = input.edges.map((edge) => ({
+  const visualEdges = (input.visualEdges ?? input.edges ?? []).map((edge) => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
     label: exportText(edge.label, redactContent, "已隐藏关系"),
+    evidenceCount: edge.evidenceCount ?? 0,
   }));
+  const entities = (input.entities ?? []).map((entity) => ({
+    id: entity.id,
+    label: exportText(entity.label, redactContent, "已隐藏实体"),
+    type: entity.type,
+    mentions: entity.mentions ?? 0,
+  }));
+  const relations = (input.relations ?? []).map((relation) => ({
+    id: relation.id,
+    subject: exportText(relation.subject, redactContent, "已隐藏主体"),
+    predicate: exportText(relation.predicate, redactContent, "已隐藏关系"),
+    object: exportText(relation.object, redactContent, "已隐藏客体"),
+    status: relation.status,
+    evidenceCount: relation.evidenceCount ?? 0,
+  }));
+  const events = (input.events ?? []).map((event) => ({
+    id: event.id,
+    label: exportText(event.label, redactContent, "已隐藏事件"),
+    type: event.type,
+    time: event.time,
+    source: exportText(event.source, redactContent, "已隐藏来源"),
+    evidenceCount: event.evidenceCount ?? 0,
+  }));
+  const facts = (input.facts ?? []).map((fact) => ({
+    id: fact.id,
+    label: exportText(fact.label, redactContent, "已隐藏事实"),
+    status: fact.status,
+    evidenceCount: fact.evidenceCount ?? 0,
+  }));
+  const timelineRows = (input.timelineRows ?? []).map((row) => ({
+    id: row.id,
+    time: row.time,
+    type: row.type,
+    title: exportText(row.title, redactContent, "已隐藏时间线标题"),
+    description: exportText(row.description, redactContent, "已隐藏时间线描述"),
+    source: exportText(row.source, redactContent, "已隐藏来源"),
+  }));
+  const filterSummary = input.filterSummary ?? [];
+  const warnings = input.partialWarnings ?? [];
+  const rowCount = entities.length + relations.length + events.length + facts.length + timelineRows.length + visualNodes.length + visualEdges.length;
+  const metadata = {
+    title: "图谱",
+    generatedAt: input.generatedAt.toISOString(),
+    scope: sanitizeScopeSummary(input.scopeSummary),
+    source: input.sourceSummary ?? "来源：图谱当前视图",
+    filters: filterSummary,
+    rowCount,
+  };
+  const freshness = {
+    state: input.freshnessState ?? (rowCount > 0 ? "fresh" : "empty"),
+    graphGeneratedAt: input.graphGeneratedAt ?? "",
+    refreshedAt: input.refreshedAt ?? "",
+    warnings,
+  };
   const content = input.format === "csv"
     ? toCsv([
-        ["kind", "id", "source", "target", "label", "type"],
-        ...nodes.map((node) => ["node", node.id, "", "", node.label, node.kind]),
-        ...edges.map((edge) => ["edge", edge.id, edge.source, edge.target, edge.label, "relation"]),
+        ["kind", "id", "time", "source", "target", "label", "type", "status", "evidence_count"],
+        ...entities.map((entity) => ["entity", entity.id, "", "", "", entity.label, entity.type, "", String(entity.mentions)]),
+        ...relations.map((relation) => [
+          "relation",
+          relation.id,
+          "",
+          relation.subject,
+          relation.object,
+          relation.predicate,
+          "relation",
+          relation.status,
+          String(relation.evidenceCount),
+        ]),
+        ...events.map((event) => ["event", event.id, event.time, event.source, "", event.label, event.type, "", String(event.evidenceCount)]),
+        ...facts.map((fact) => ["fact", fact.id, "", "", "", fact.label, "fact", fact.status, String(fact.evidenceCount)]),
+        ...timelineRows.map((row) => ["timeline", row.id, row.time, row.source, "", row.title, row.type, "", ""]),
+        ...visualNodes.map((node) => ["visual_node", node.id, "", "", "", node.label, node.kind, "", ""]),
+        ...visualEdges.map((edge) => ["visual_edge", edge.id, "", edge.source, edge.target, edge.label, "relation", "", String(edge.evidenceCount)]),
       ])
     : input.format === "markdown"
       ? [
           "# 图谱",
           "",
           `生成时间: ${input.generatedAt.toISOString()}`,
-          `范围: ${sanitizeScopeSummary(input.scopeSummary)}`,
-          `节点: ${nodes.length}`,
-          `关系: ${edges.length}`,
+          `范围: ${metadata.scope}`,
+          `来源: ${metadata.source}`,
+          `筛选: ${filterSummary.length ? filterSummary.join("、") : "无"}`,
+          `图谱生成: ${freshness.graphGeneratedAt || "未生成"}`,
+          `刷新: ${freshness.refreshedAt || "待刷新"}`,
+          `新鲜度: ${freshness.state}`,
+          `节点: ${visualNodes.length}`,
+          `关系: ${visualEdges.length}`,
+          warnings.length ? `提示: ${warnings.join("；")}` : "",
           "",
-          "## 节点",
-          ...nodes.map((node) => `- ${node.kind}: ${node.label}`),
+          "## 实体",
+          ...(entities.length ? entities.map((entity) => `- ${entity.type}: ${entity.label} · 提及 ${entity.mentions}`) : ["- 无"]),
           "",
           "## 关系",
-          ...edges.map((edge) => `- ${edge.source} -> ${edge.target}: ${edge.label}`),
+          ...(relations.length ? relations.map((relation) =>
+            `- ${relation.subject} -> ${relation.object}: ${relation.predicate} · ${relation.status} · 证据 ${relation.evidenceCount}`
+          ) : ["- 无"]),
+          "",
+          "## 事件",
+          ...(events.length ? events.map((event) =>
+            `- ${event.time} · ${event.type}: ${event.label} · ${event.source} · 证据 ${event.evidenceCount}`
+          ) : ["- 无"]),
+          "",
+          "## 事实",
+          ...(facts.length ? facts.map((fact) => `- ${fact.status}: ${fact.label} · 证据 ${fact.evidenceCount}`) : ["- 无"]),
+          "",
+          "## 时间线",
+          ...(timelineRows.length ? timelineRows.map((row) =>
+            `- ${row.time} · ${row.type}: ${row.title} · ${row.description} · ${row.source}`
+          ) : ["- 无"]),
+          "",
+          "## 可视化节点",
+          ...(visualNodes.length ? visualNodes.map((node) => `- ${node.kind}: ${node.label}`) : ["- 无"]),
+          "",
+          "## 可视化关系",
+          ...(visualEdges.length ? visualEdges.map((edge) => `- ${edge.source} -> ${edge.target}: ${edge.label}`) : ["- 无"]),
           "",
         ].join("\n")
       : JSON.stringify({
-          title: "图谱",
-          generatedAt: input.generatedAt.toISOString(),
-          scope: sanitizeScopeSummary(input.scopeSummary),
-          nodes,
-          edges,
+          metadata,
+          freshness,
+          entities,
+          relations,
+          events,
+          facts,
+          timeline: timelineRows,
+          nodes: visualNodes,
+          edges: visualEdges,
+          visualNodes,
+          visualEdges,
         }, null, 2);
 
   return createArtifact({
@@ -856,8 +992,10 @@ export function createGraphExportArtifact(input: GraphExportInput): BusinessExpo
     unredactedConfirmed: input.unredactedConfirmed,
     generatedAt: input.generatedAt,
     scopeSummary: input.scopeSummary,
-    rowCount: nodes.length + edges.length,
+    rowCount,
     content,
+    status: freshness.state === "partial" ? "partial" : "confirming",
+    warnings,
   });
 }
 

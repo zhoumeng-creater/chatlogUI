@@ -323,7 +323,7 @@ function selectedDetailInspector(
       { id: "filter-related", label: "筛选相关项", enabled: true },
       { id: "focus-visualization", label: "聚焦可视化", enabled: true },
       { id: "graph-qa", label: "以此提问", enabled: true },
-      { id: "open-source", label: "打开来源", enabled: false },
+      { id: "open-source", label: "打开来源", enabled: true },
     ],
   };
 }

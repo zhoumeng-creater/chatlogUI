@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { GraphEngine } from "./GraphEngine";
 import { GraphTooltip } from "./GraphTooltip";
@@ -47,7 +48,6 @@ export function GraphCanvas({
   data,
   autoRotate,
   visibleEntityKinds,
-  timeWindow,
   layoutMode,
   timelineVisible,
   highlightedTimelineId,
@@ -60,13 +60,12 @@ export function GraphCanvas({
   onNodeHover,
   onNodeDblClick,
   onEdgeClick,
-  onVisibleKindsChange,
-  onTimeWindowChange,
   onLayoutModeChange,
   onToggleAutoRotate,
   onTimelineVisibleChange,
   onHighlightTimelineEntry,
 }: GraphCanvasProps) {
+  const [viewResetToken, setViewResetToken] = useState(0);
   const shouldRenderCanvas = !loading && !error && data && data.nodes.length > 0;
   const enableCanvasReadback =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("codex-smoke");
@@ -84,17 +83,15 @@ export function GraphCanvas({
   return (
     <div className="graph-canvas" aria-label="知识图谱可视化">
       <GraphControlBar
-        visibleEntityKinds={visibleEntityKinds}
-        timeWindow={timeWindow}
         layoutMode={layoutMode}
         autoRotate={autoRotate}
         timelineVisible={timelineVisible}
-        onVisibleKindsChange={onVisibleKindsChange}
-        onTimeWindowChange={onTimeWindowChange}
         onRefresh={onRefresh}
         onLayoutModeChange={onLayoutModeChange}
         onToggleAutoRotate={onToggleAutoRotate}
         onTimelineVisibleChange={onTimelineVisibleChange}
+        onFitView={() => setViewResetToken((token) => token + 1)}
+        onResetView={() => setViewResetToken((token) => token + 1)}
       />
 
       <div className="graph-canvas__stage">
@@ -136,6 +133,7 @@ export function GraphCanvas({
               hoveredNodeId={hoveredNodeId}
               selectedNodeId={selectedNodeId}
               pulsedNodeId={pulsedNodeId}
+              viewResetToken={viewResetToken}
               privacyOn={privacyOn}
               onNodeHover={onNodeHover}
               onNodeDblClick={onNodeDblClick}
