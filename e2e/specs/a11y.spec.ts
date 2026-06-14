@@ -159,6 +159,58 @@ test.describe("accessibility and keyboard gate", () => {
     await expect(detailsButton).toBeFocused();
   });
 
+  test("keeps SNS filter and detail sheets focus-contained on narrow screens", async ({ page }) => {
+    await setNarrow(page);
+    await openSyntheticWorkbench(page);
+    await openWorkbenchModule(page, "朋友圈");
+
+    const filterButton = page.getByRole("button", { name: "打开筛选" });
+    await expect(filterButton).toBeVisible();
+    await filterButton.focus();
+    await page.keyboard.press("Enter");
+
+    const filterDialog = page.getByRole("dialog", { name: "朋友圈筛选" });
+    await expect(filterDialog).toBeVisible();
+    await expect.poll(() =>
+      filterDialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+
+    const filterBox = await filterDialog.boundingBox();
+    const viewport = page.viewportSize();
+    expect(filterBox).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(filterBox!.width).toBeGreaterThanOrEqual(viewport!.width - 24);
+    expect(filterBox!.y + filterBox!.height).toBeGreaterThanOrEqual(viewport!.height - 2);
+
+    await filterDialog.getByRole("button", { name: "应用筛选" }).focus();
+    await page.keyboard.press("Tab");
+    await expect.poll(() =>
+      filterDialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(filterDialog).toHaveCount(0);
+    await expect(filterButton).toBeFocused();
+
+    const postButton = page.getByRole("button", { name: /Synthetic SNS image post content/ }).first();
+    await expect(postButton).toBeVisible();
+    await postButton.focus();
+    await page.keyboard.press("Enter");
+
+    const detailDialog = page.getByRole("dialog", { name: "朋友圈详情面板" });
+    await expect(detailDialog).toBeVisible();
+    await expect(page.getByRole("button", { name: "关闭朋友圈详情" })).toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect.poll(() =>
+      detailDialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(detailDialog).toHaveCount(0);
+    await expect(postButton).toBeFocused();
+  });
+
   test("exposes rail toggle and panel splitters with keyboard semantics", async ({ page }) => {
     await setDesktop(page);
     await openSyntheticWorkbench(page);

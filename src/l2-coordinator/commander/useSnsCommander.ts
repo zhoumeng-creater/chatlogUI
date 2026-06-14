@@ -6,6 +6,7 @@ import {
   type SnsActiveTab,
   type SnsEndpointState,
   type SnsEndpointStatus,
+  type SnsFilterField,
   type SnsFilters,
 } from "@l2/data-clerk/stores/useSnsStore";
 import {
@@ -13,12 +14,22 @@ import {
   fetchSnsNotifications,
   fetchSnsSearch,
   getSensitiveSnsArticleUrl,
+  type AdaptedSnsPost,
 } from "@l4/network";
 import { openExternalUrl } from "@l4/system";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { buildSnsModuleView } from "./snsViewModel";
 import { createSnsExportArtifact } from "./businessExportModel";
 import { useBusinessExportCommander } from "./useBusinessExportCommander";
+import type { WorkspaceScopeClearAction } from "./workspaceScopeModel";
+import {
+  activeTabLabel,
+  applySnsDraftFilters,
+  buildAppliedFilterSummary,
+  buildSnsExportScopeSummary,
+  clearSnsFilterField,
+  validateSnsDraftFilters,
+} from "./snsFilterModel";
 
 const SNS_CORRELATION_ID = "p4c-sns";
 let snsRequestSequence = 0;
@@ -48,8 +59,10 @@ export function useSnsCommander() {
     defaultFormat: "markdown",
     disabledReason: canExportSnsView(store) ? null : "朋友圈加载完成后可导出当前视图。",
     buildArtifact: ({ format, privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) => {
-      const posts = store.activeTab === "search" ? store.searchResults : store.activeTab === "timeline" ? store.feed : [];
+      const posts = visibleSnsPostsForExport(store);
       const notifications = store.activeTab === "notifications" ? store.notifications : [];
+      const selectedPost = resolveSelectedSnsPostForExport(store);
+      const redactSummary = exportPrivacyOn || !requestedUnredacted || !unredactedConfirmed;
       return createSnsExportArtifact({
         format,
         privacyOn: exportPrivacyOn,
@@ -57,7 +70,19 @@ export function useSnsCommander() {
         unredactedConfirmed,
         generatedAt,
         activeTab: store.activeTab,
-        scopeSummary: "全部会话",
+        activeTabLabel: activeTabLabel(store.activeTab),
+        scopeSummary: buildSnsExportScopeSummary({
+          activeTab: store.activeTab,
+          appliedFilters: store.filters,
+          loadedCount: loadedSnsCount(store),
+          visibleCount: visibleSnsCount(store),
+          searchQuery: store.searchQuery,
+          privacyOn: redactSummary,
+        }),
+        appliedFilterSummary: buildAppliedFilterSummary(store.filters, redactSummary),
+        searchQuery: store.activeTab === "search" ? store.searchQuery : "",
+        loadedCount: loadedSnsCount(store),
+        visibleCount: visibleSnsCount(store),
         filters: {
           user: store.filters.user,
           since: store.filters.since,
@@ -75,6 +100,16 @@ export function useSnsCommander() {
           mediaCount: post.mediaCount,
           articleUrl: post.article?.sensitiveExternalUrl ?? null,
         })),
+        selectedPost: selectedPost
+          ? {
+              id: selectedPost.id,
+              author: selectedPost.author.displayName || selectedPost.author.username,
+              content: selectedPost.content,
+              time: selectedPost.time,
+              contentType: selectedPost.contentType,
+              mediaCount: selectedPost.mediaCount,
+            }
+          : null,
         notifications: notifications.map((notification) => ({
           id: notification.id,
           actor: notification.actor.displayName || notification.actor.username,
@@ -189,6 +224,76 @@ export function useSnsCommander() {
     [],
   );
 
+  const updateDraftFilters = useCallback(
+    (filters: Partial<Omit<SnsFilters, "limit">>) => {
+      useSnsStore.getState().setDraftFilters(filters);
+    },
+    [],
+  );
+
+  const applyFilters = useCallback(() => {
+    const state = useSnsStore.getState();
+    const validation = validateSnsDraftFilters(state.draftFilters);
+    if (!validation.ok) {
+      useSnsStore.getState().setFilterError(validation.message);
+      useSnsStore.getState().setFilterDrawerOpen(true);
+      return;
+    }
+
+    const plan = applySnsDraftFilters(state.draftFilters, state.filters);
+    useSnsStore.getState().applyDraftFilters();
+    clearSelectedPostIfHidden();
+
+    if (plan.shouldReload) {
+      void loadSnsModule(plan.appliedFilters);
+      if (state.activeTab === "search" && state.searchQuery.trim()) {
+        void runSearch(state.searchQuery);
+      }
+    }
+  }, [loadSnsModule, runSearch]);
+
+  const resetFilters = useCallback(() => {
+    useSnsStore.getState().updateFilters({ ...defaultSnsFilters });
+    useSnsStore.getState().setFilterDrawerOpen(false);
+    clearSelectedPostIfHidden();
+    void loadSnsModule({ ...defaultSnsFilters });
+    const state = useSnsStore.getState();
+    if (state.activeTab === "search" && state.searchQuery.trim()) {
+      void runSearch(state.searchQuery);
+    }
+  }, [loadSnsModule, runSearch]);
+
+  const clearAppliedFilter = useCallback((field: SnsFilterField) => {
+    const state = useSnsStore.getState();
+    const nextFilters = clearSnsFilterField(state.filters, field);
+    useSnsStore.getState().clearAppliedFilter(field);
+    clearSelectedPostIfHidden();
+
+    if (isRequestBackedFilterField(field)) {
+      void loadSnsModule(nextFilters);
+      if (state.activeTab === "search" && state.searchQuery.trim()) {
+        void runSearch(state.searchQuery);
+      }
+    }
+  }, [loadSnsModule, runSearch]);
+
+  const clearWorkspaceScopeFilter = useCallback((action: WorkspaceScopeClearAction) => {
+    const state = useSnsStore.getState();
+    const resolution = resolveSnsScopeClearAction(action, state.filters);
+    if (!resolution) return false;
+
+    useSnsStore.getState().updateFilters(resolution.nextFilters);
+    clearSelectedPostIfHidden();
+
+    if (resolution.requestBacked) {
+      void loadSnsModule(resolution.nextFilters);
+      if (state.activeTab === "search" && state.searchQuery.trim()) {
+        void runSearch(state.searchQuery);
+      }
+    }
+    return true;
+  }, [loadSnsModule, runSearch]);
+
   const refresh = useCallback(() => {
     void loadSnsModule();
   }, [loadSnsModule]);
@@ -273,6 +378,13 @@ export function useSnsCommander() {
     runSearch,
     clearSearch,
     updateFilters,
+    updateDraftFilters,
+    applyFilters,
+    resetFilters,
+    clearAppliedFilter,
+    clearWorkspaceScopeFilter,
+    setFilterDrawerOpen: (open: boolean) => useSnsStore.getState().setFilterDrawerOpen(open),
+    setDensity: (density: "compact" | "comfortable") => useSnsStore.getState().setDensity(density),
     selectTab,
     selectPost: (postId: string | null) => useSnsStore.getState().selectPost(postId),
     requestArticleOpen,
@@ -298,4 +410,90 @@ function endpointState<T>(
 ): SnsEndpointState {
   if (result.status === "rejected") return { status: "error", error };
   return { status: itemCount > 0 ? "ready" : "empty", error: null };
+}
+
+type SnsStoreSnapshot = ReturnType<typeof useSnsStore.getState>;
+
+function loadedSnsCount(store: SnsStoreSnapshot): number {
+  if (store.activeTab === "search") return store.searchResults.length;
+  if (store.activeTab === "notifications") return store.notifications.length;
+  return store.feed.length;
+}
+
+function visibleSnsCount(store: SnsStoreSnapshot): number {
+  if (store.activeTab === "search") return filterSnsPosts(store.searchResults, store.filters).length;
+  if (store.activeTab === "notifications") return store.notifications.length;
+  return filterSnsPosts(store.feed, store.filters).length;
+}
+
+function visibleSnsPostsForExport(store: SnsStoreSnapshot): AdaptedSnsPost[] {
+  if (store.activeTab === "search") return filterSnsPosts(store.searchResults, store.filters);
+  if (store.activeTab === "timeline") return filterSnsPosts(store.feed, store.filters);
+  return [];
+}
+
+export function resolveSelectedSnsPostForExport(
+  store: Pick<SnsStoreSnapshot, "selectedPostId" | "feed" | "searchResults" | "filters">,
+): AdaptedSnsPost | null {
+  if (!store.selectedPostId) return null;
+  return (
+    filterSnsPosts(store.feed, store.filters).find((post) => post.id === store.selectedPostId) ??
+    filterSnsPosts(store.searchResults, store.filters).find((post) => post.id === store.selectedPostId) ??
+    null
+  );
+}
+
+export interface SnsScopeClearResolution {
+  fields: SnsFilterField[];
+  nextFilters: SnsFilters;
+  requestBacked: boolean;
+}
+
+export function resolveSnsScopeClearAction(
+  action: WorkspaceScopeClearAction,
+  filters: SnsFilters,
+): SnsScopeClearResolution | null {
+  if (action.type !== "clearField") return null;
+  let fields: SnsFilterField[];
+  if (action.field === "selectedContacts") fields = ["user"];
+  else if (action.field === "dateRange") fields = ["since", "until"];
+  else if (action.field === "snsContentType") fields = ["contentType"];
+  else if (action.field === "snsMediaOnly") fields = ["mediaOnly"];
+  else if (action.field === "snsReadState") fields = ["includeRead"];
+  else return null;
+
+  const nextFilters = fields.reduce<SnsFilters>(
+    (current, field) => clearSnsFilterField(current, field),
+    filters,
+  );
+  return {
+    fields,
+    nextFilters,
+    requestBacked: fields.some(isRequestBackedFilterField),
+  };
+}
+
+function filterSnsPosts(posts: AdaptedSnsPost[], filters: SnsFilters): AdaptedSnsPost[] {
+  return posts.filter((post) => postMatchesFilters(post, filters));
+}
+
+function postMatchesFilters(post: AdaptedSnsPost, filters: SnsFilters): boolean {
+  if (filters.contentType !== "all" && post.contentType !== filters.contentType) return false;
+  if (filters.mediaOnly && post.mediaCount === 0) return false;
+  return true;
+}
+
+function clearSelectedPostIfHidden(): void {
+  const state = useSnsStore.getState();
+  if (!state.selectedPostId) return;
+  const stillVisible = [...state.feed, ...state.searchResults].some(
+    (post) => post.id === state.selectedPostId && postMatchesFilters(post, state.filters),
+  );
+  if (!stillVisible) {
+    useSnsStore.getState().selectPost(null);
+  }
+}
+
+function isRequestBackedFilterField(field: SnsFilterField): boolean {
+  return field === "user" || field === "since" || field === "until" || field === "includeRead";
 }

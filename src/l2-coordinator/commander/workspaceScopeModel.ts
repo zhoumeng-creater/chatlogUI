@@ -448,7 +448,7 @@ function buildActiveChips(
 
 function capabilityForDateRange(moduleId: WorkspaceScopeModuleId): WorkspaceScopeCapability {
   if (moduleId === "sns") return backendApplied("dateRange");
-  if (moduleId === "analytics") return readonly("dateRange", "统计时间窗口当前固定为近 7 天。");
+  if (moduleId === "analytics") return backendApplied("dateRange");
   return disabled("dateRange", "日期范围筛选将在对应模块的生产力任务中启用。");
 }
 

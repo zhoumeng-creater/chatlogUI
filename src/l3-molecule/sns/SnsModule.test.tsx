@@ -52,6 +52,62 @@ describe("SnsModule", () => {
     expect(html).toContain('role="group"');
     expect(html).not.toContain("disabled=\"\"");
   });
+
+  it("keeps filters progressively disclosed and renders a two-pane reading surface", () => {
+    const html = renderToStaticMarkup(
+      <SnsModule
+        {...baseProps()}
+        filtersDirty
+        filterChips={[
+          {
+            id: "contentType",
+            label: "类型",
+            value: "图片",
+            field: "contentType",
+            capability: "local-only",
+            clearable: true,
+            ariaLabel: "类型：图片，本地筛选",
+          },
+        ]}
+        view={{
+          ...viewModel(),
+          timelinePosts: [post("post-1")],
+          selectedPost: post("post-1"),
+          summary: { ...viewModel().summary, feedCount: 1, visibleFeedCount: 1 },
+        }}
+        selectedPostId="post-1"
+      />,
+    );
+
+    expect(html).toContain("打开筛选");
+    expect(html).toContain("筛选未应用");
+    expect(html).toContain("sns-module__detail-panel");
+    expect(html).toContain('role="complementary"');
+    expect(html).not.toContain('role="dialog"');
+    expect(html).not.toContain('aria-modal="true"');
+    expect(html).toContain("朋友圈详情");
+    expect(html).not.toContain("sns-filter-drawer");
+  });
+
+  it("renders a visible search field label instead of relying on placeholder-only copy", () => {
+    const html = renderToStaticMarkup(
+      <SnsModule
+        {...baseProps()}
+        activeTab="search"
+        searchQuery="synthetic"
+        view={{
+          ...viewModel(),
+          searchResults: [post("post-1")],
+          summary: { ...viewModel().summary, searchCount: 1 },
+          emptyCopy: "没有匹配的朋友圈结果",
+        }}
+      />,
+    );
+
+    expect(html).toContain("搜索朋友圈");
+    expect(html).toContain('class="sns-search-panel__label"');
+    expect(html).toContain('placeholder="输入关键词"');
+  });
 });
 
 function baseProps() {
@@ -69,6 +125,19 @@ function baseProps() {
       includeRead: false,
       limit: 50,
     },
+    draftFilters: {
+      user: "",
+      since: "",
+      until: "",
+      contentType: "all" as const,
+      mediaOnly: false,
+      includeRead: false,
+    },
+    filterChips: [],
+    filtersDirty: false,
+    filterDrawerOpen: false,
+    filterError: null,
+    density: "comfortable" as const,
     searchQuery: "",
     error: null,
     searchError: null,
@@ -80,7 +149,12 @@ function baseProps() {
     onRetry: vi.fn(),
     onLoadMore: vi.fn(),
     onTabChange: vi.fn(),
-    onFiltersChange: vi.fn(),
+    onDraftFiltersChange: vi.fn(),
+    onApplyFilters: vi.fn(),
+    onResetFilters: vi.fn(),
+    onClearFilter: vi.fn(),
+    onFilterDrawerOpenChange: vi.fn(),
+    onDensityChange: vi.fn(),
     onSearchQueryChange: vi.fn(),
     onSearch: vi.fn(),
     onClearSearch: vi.fn(),
@@ -100,6 +174,14 @@ function viewModel(): SnsModuleViewModel {
     notifications: [],
     notificationTargetIds: [],
     selectedPost: null,
+    filterView: {
+      chips: [],
+      dirty: false,
+      summary: "当前显示全部朋友圈动态",
+      exportScopeSummary: "朋友圈 · 动态 · 已加载 0 条 · 当前可见 0 条",
+      applyLabel: "筛选已应用",
+      resetLabel: "无筛选可重置",
+    },
     summary: {
       feedCount: 0,
       visibleFeedCount: 0,

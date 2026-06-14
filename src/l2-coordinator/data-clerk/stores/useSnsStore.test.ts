@@ -49,6 +49,11 @@ describe("useSnsStore", () => {
         mediaOnly: true,
         limit: 100,
       },
+      draftFilters: {
+        user: "synthetic-author",
+        contentType: "image",
+        mediaOnly: true,
+      },
     });
 
     useSnsStore.getState().reset();
@@ -58,6 +63,69 @@ describe("useSnsStore", () => {
       selectedPostId: null,
       searchQuery: "",
       filters: { contentType: "all", mediaOnly: false, limit: 50 },
+      draftFilters: { user: "", since: "", until: "", contentType: "all", mediaOnly: false, includeRead: false },
+      filterDrawerOpen: false,
+    });
+  });
+
+  it("separates draft SNS filters from applied filters until apply is requested", () => {
+    useSnsStore.getState().setDraftFilters({
+      user: "synthetic-author",
+      contentType: "article",
+      mediaOnly: true,
+    });
+
+    expect(useSnsStore.getState()).toMatchObject({
+      filters: { user: "", contentType: "all", mediaOnly: false },
+      draftFilters: {
+        user: "synthetic-author",
+        contentType: "article",
+        mediaOnly: true,
+      },
+      filtersDirty: true,
+    });
+
+    const changed = useSnsStore.getState().applyDraftFilters();
+
+    expect(changed).toBe(true);
+    expect(useSnsStore.getState()).toMatchObject({
+      filters: {
+        user: "synthetic-author",
+        contentType: "article",
+        mediaOnly: true,
+        limit: 50,
+      },
+      filtersDirty: false,
+    });
+  });
+
+  it("clears applied SNS chips and keeps draft filters synchronized", () => {
+    useSnsStore.getState().updateFilters({
+      user: "synthetic-author",
+      contentType: "image",
+      mediaOnly: true,
+      includeRead: true,
+      limit: 150,
+    });
+
+    useSnsStore.getState().clearAppliedFilter("contentType");
+    useSnsStore.getState().clearAppliedFilter("includeRead");
+
+    expect(useSnsStore.getState()).toMatchObject({
+      filters: {
+        user: "synthetic-author",
+        contentType: "all",
+        mediaOnly: true,
+        includeRead: false,
+        limit: 150,
+      },
+      draftFilters: {
+        user: "synthetic-author",
+        contentType: "all",
+        mediaOnly: true,
+        includeRead: false,
+      },
+      filtersDirty: false,
     });
   });
 

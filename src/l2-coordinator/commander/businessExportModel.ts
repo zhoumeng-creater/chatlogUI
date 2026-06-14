@@ -118,6 +118,21 @@ export interface StatsExportInput {
   unredactedConfirmed?: boolean;
   generatedAt: Date;
   scopeSummary: string;
+  visibleRangeLabel?: string;
+  controlSummary?: string;
+  metricDefinitions?: Array<{ key: string; label: string; description: string }>;
+  comparison?: {
+    mode: "off" | "previousPeriod";
+    unavailableReason: string | null;
+    rows: Array<{
+      key: string;
+      label: string;
+      current: number;
+      previous: number;
+      deltaPercent: number | null;
+    }>;
+  };
+  warnings?: string[];
   stats: {
     total: number;
     sentCount: number;
@@ -137,7 +152,12 @@ export interface SnsExportInput {
   unredactedConfirmed?: boolean;
   generatedAt: Date;
   activeTab: "timeline" | "search" | "notifications";
+  activeTabLabel?: string;
   scopeSummary: string;
+  appliedFilterSummary?: string[];
+  searchQuery?: string;
+  visibleCount?: number;
+  loadedCount?: number;
   filters: {
     user: string;
     since: string;
@@ -155,6 +175,14 @@ export interface SnsExportInput {
     mediaCount: number;
     articleUrl?: string | null;
   }>;
+  selectedPost?: {
+    id: string;
+    author: string;
+    content: string;
+    time: string;
+    contentType: string;
+    mediaCount: number;
+  } | null;
   notifications: Array<{
     id: string;
     actor: string;
@@ -162,6 +190,7 @@ export interface SnsExportInput {
     time: string;
     type: string;
   }>;
+  warnings?: string[];
 }
 
 export interface ConversationExportInput {
@@ -340,13 +369,24 @@ export function createStatsExportArtifact(input: StatsExportInput): BusinessExpo
   const stats = input.stats;
   const topSenders = stats?.topSenders ?? [];
   const redactContent = shouldRedactExportContent(input);
+  const controlSummary = input.controlSummary ?? input.visibleRangeLabel ?? stats?.queryRangeLabel ?? "当前范围";
+  const metricDefinitions = input.metricDefinitions ?? [];
+  const comparisonRows = input.comparison?.rows ?? [];
   const rows = [
+    ["metadata", "control", controlSummary],
+    ["metadata", "visible_range", input.visibleRangeLabel ?? stats?.queryRangeLabel ?? "当前范围"],
     ["overview", "total", String(stats?.total ?? 0)],
     ["overview", "sent", String(stats?.sentCount ?? 0)],
     ["overview", "received", String(stats?.receivedCount ?? 0)],
     ["overview", "active_senders", String(stats?.activeSenders ?? 0)],
     ["overview", "active_days", String(stats?.activeDays ?? 0)],
     ["overview", "range", stats?.queryRangeLabel ?? "当前范围"],
+    ...metricDefinitions.map((definition) => ["definition", definition.label, definition.description]),
+    ...comparisonRows.map((row) => ["comparison", row.label, formatExportDelta(row.deltaPercent)]),
+    ...(input.comparison?.unavailableReason
+      ? [["comparison", "unavailable", input.comparison.unavailableReason]]
+      : []),
+    ...(input.warnings ?? []).map((warning) => ["warning", "note", warning]),
     ...input.trend.map((point) => ["trend", point.date, String(point.count)]),
     ...topSenders.map((sender) => [
       "top_sender",
@@ -359,6 +399,11 @@ export function createStatsExportArtifact(input: StatsExportInput): BusinessExpo
         title: "统计",
         generatedAt: input.generatedAt.toISOString(),
         scope: sanitizeScopeSummary(input.scopeSummary),
+        visibleRangeLabel: input.visibleRangeLabel,
+        controlSummary,
+        metricDefinitions,
+        comparison: input.comparison,
+        warnings: input.warnings ?? [],
         stats: {
           ...stats,
           topSenders: topSenders.map((sender) => ({
@@ -375,9 +420,19 @@ export function createStatsExportArtifact(input: StatsExportInput): BusinessExpo
           "",
           `生成时间: ${input.generatedAt.toISOString()}`,
           `范围: ${sanitizeScopeSummary(input.scopeSummary)}`,
+          `控制: ${controlSummary}`,
+          `可见时间: ${input.visibleRangeLabel ?? stats?.queryRangeLabel ?? "当前范围"}`,
           `总消息: ${stats?.total ?? 0}`,
           `发送: ${stats?.sentCount ?? 0}`,
           `接收: ${stats?.receivedCount ?? 0}`,
+          "",
+          "## 指标说明",
+          ...metricDefinitions.map((definition) => `- ${definition.label}: ${definition.description}`),
+          "",
+          "## 上一周期比较",
+          ...(input.comparison?.unavailableReason
+            ? [`- ${input.comparison.unavailableReason}`]
+            : comparisonRows.map((row) => `- ${row.label}: ${formatExportDelta(row.deltaPercent)}`)),
           "",
           "## 趋势",
           ...input.trend.map((point) => `- ${point.date}: ${point.count}`),
@@ -399,24 +454,53 @@ export function createStatsExportArtifact(input: StatsExportInput): BusinessExpo
     scopeSummary: input.scopeSummary,
     rowCount: rows.length,
     content,
+    warnings: input.warnings ?? [],
   });
 }
 
 export function createSnsExportArtifact(input: SnsExportInput): BusinessExportArtifact {
   const redactContent = shouldRedactExportContent(input);
-  const activeLabel = input.activeTab === "timeline"
+  const activeLabel = input.activeTabLabel ?? (input.activeTab === "timeline"
     ? "动态"
     : input.activeTab === "search"
       ? "搜索"
-      : "通知";
+      : "通知");
+  const appliedFilterSummary = input.appliedFilterSummary ?? [];
+  const loadedCount = input.loadedCount ?? input.posts.length + input.notifications.length;
+  const visibleCount = input.visibleCount ?? input.posts.length + input.notifications.length;
+  const hasExternalArticleUrl = input.posts.some((post) => Boolean(post.articleUrl));
+  const selectedDetailRedacted = Boolean(input.selectedPost && redactContent);
+  const warnings = Array.from(new Set([
+    ...(input.warnings ?? []),
+    "当前只导出已加载的朋友圈记录。",
+    ...(input.filters.contentType !== "all" || input.filters.mediaOnly
+      ? ["类型和仅媒体筛选只作用于已加载记录。"]
+      : []),
+    ...(selectedDetailRedacted
+      ? ["选中动态详情已脱敏；关闭隐私模式并确认未脱敏导出后才会包含原文。"]
+      : []),
+    ...(hasExternalArticleUrl
+      ? ["文章外链不会导出原始 URL。"]
+      : []),
+  ]));
   const posts = input.posts.map((post) => ({
     time: post.time,
     author: exportText(post.author, redactContent, "已隐藏作者"),
     contentType: post.contentType,
     mediaCount: post.mediaCount,
     content: exportText(post.content, redactContent, "已隐藏朋友圈内容"),
-    articleUrl: redactContent ? "" : (post.articleUrl ?? ""),
+    articleUrl: "",
   }));
+  const selectedPost = input.selectedPost
+    ? {
+        id: input.selectedPost.id,
+        time: input.selectedPost.time,
+        author: exportText(input.selectedPost.author, redactContent, "已隐藏作者"),
+        contentType: input.selectedPost.contentType,
+        mediaCount: input.selectedPost.mediaCount,
+        content: exportText(input.selectedPost.content, redactContent, "已隐藏朋友圈内容"),
+      }
+    : null;
   const notifications = input.notifications.map((item) => ({
     time: item.time,
     actor: exportText(item.actor, redactContent, "已隐藏互动者"),
@@ -430,11 +514,21 @@ export function createSnsExportArtifact(input: SnsExportInput): BusinessExportAr
       `生成时间: ${input.generatedAt.toISOString()}`,
       `范围: ${sanitizeScopeSummary(input.scopeSummary)}`,
       `当前视图: ${activeLabel}`,
+      `已加载 ${loadedCount.toLocaleString()} 条`,
+      `当前可见 ${visibleCount.toLocaleString()} 条`,
+      `查询: ${input.searchQuery?.trim() ? exportText(input.searchQuery.trim(), redactContent, "已隐藏查询") : "无"}`,
+      `筛选: ${appliedFilterSummary.length ? appliedFilterSummary.join("、") : "无"}`,
       `作者: ${exportText(input.filters.user || "全部", redactContent, input.filters.user ? "已隐藏作者筛选" : "全部")}`,
       `日期: ${input.filters.since || "不限"} 至 ${input.filters.until || "不限"}`,
       `类型: ${input.filters.contentType}`,
       `仅媒体: ${input.filters.mediaOnly ? "是" : "否"}`,
       `包含已读通知: ${input.filters.includeRead ? "是" : "否"}`,
+      warnings.length ? `提示: ${warnings.join("；")}` : "",
+      "",
+      "## 选中动态",
+      selectedPost
+        ? `- ${selectedPost.time} · ${selectedPost.author} · ${selectedPost.contentType} · 媒体 ${selectedPost.mediaCount} · ${selectedPost.content}`
+        : "- 未选中动态",
       "",
       "## 动态",
       ...posts.map((post) => `- ${post.time} · ${post.author} · ${post.contentType} · 媒体 ${post.mediaCount} · ${post.content}`),
@@ -445,6 +539,15 @@ export function createSnsExportArtifact(input: SnsExportInput): BusinessExportAr
     ].join("\n"),
     csv: () => toCsv([
       ["kind", "time", "actor", "type", "content", "mediaCount"],
+      ["metadata", input.generatedAt.toISOString(), activeLabel, "loaded", String(loadedCount), String(visibleCount)],
+      ...(input.searchQuery?.trim()
+        ? [["metadata", "", exportText(input.searchQuery.trim(), redactContent, "已隐藏查询"), "query", "", ""]]
+        : []),
+      ...appliedFilterSummary.map((item) => ["filter", "", item, "", "", ""]),
+      ...warnings.map((warning) => ["warning", "", warning, "", "", ""]),
+      ...(selectedPost
+        ? [["selected_post", selectedPost.time, selectedPost.author, selectedPost.contentType, selectedPost.content, String(selectedPost.mediaCount)]]
+        : []),
       ...posts.map((post) => ["post", post.time, post.author, post.contentType, post.content, String(post.mediaCount)]),
       ...notifications.map((item) => ["notification", item.time, item.actor, item.type, item.content, "0"]),
     ]),
@@ -452,10 +555,17 @@ export function createSnsExportArtifact(input: SnsExportInput): BusinessExportAr
       title: "朋友圈当前视图",
       generatedAt: input.generatedAt.toISOString(),
       activeTab: input.activeTab,
+      activeTabLabel: activeLabel,
+      loadedCount,
+      visibleCount,
+      searchQuery: exportText(input.searchQuery ?? "", redactContent, input.searchQuery ? "已隐藏查询" : ""),
+      appliedFilterSummary,
+      warnings,
       filters: {
         ...input.filters,
         user: exportText(input.filters.user, redactContent, input.filters.user ? "已隐藏作者筛选" : ""),
       },
+      selectedPost,
       posts,
       notifications,
     }, null, 2),
@@ -471,6 +581,7 @@ export function createSnsExportArtifact(input: SnsExportInput): BusinessExportAr
     scopeSummary: input.scopeSummary,
     rowCount: posts.length + notifications.length,
     content,
+    warnings,
   });
 }
 
@@ -803,6 +914,12 @@ function formatMessageTime(message: SearchExportMessage): string {
   const timestamp = message.timestamp ?? 0;
   const date = new Date(timestamp > 1_000_000_000_000 ? timestamp : timestamp * 1000);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function formatExportDelta(deltaPercent: number | null): string {
+  if (deltaPercent === null || !Number.isFinite(deltaPercent)) return "无法计算";
+  const rounded = Math.round(deltaPercent);
+  return `${rounded > 0 ? "+" : ""}${rounded}%`;
 }
 
 function measureUtf8Bytes(value: string): number {

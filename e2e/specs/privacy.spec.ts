@@ -93,4 +93,28 @@ test.describe("privacy mode synthetic browser gate", () => {
     await assertNoForbiddenVisibleText(page);
     privacyGuard.assertNoLeaks();
   });
+
+  test("masks analytics scope and export context in privacy mode", async ({ page }) => {
+    const privacyGuard = installPrivacyLeakGuard(page);
+
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await enablePrivacyMode(page);
+    await page.goto("/analytics?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const scopeController = page.getByRole("region", { name: "统计范围", exact: true });
+    await expect(scopeController).toBeVisible();
+    await expect(scopeController.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话（已隐藏）");
+    await expect(scopeController).not.toContainText("Synthetic Session Alpha");
+    await expect(page.getByText("Synthetic Contact Alpha")).toHaveCount(0);
+    await expect(page.getByText("指标说明")).toBeVisible();
+
+    await page.getByRole("button", { name: "导出" }).click();
+    await expect(page.getByRole("dialog", { name: "导出统计" })).toBeVisible();
+    await expect(page.getByText("脱敏导出")).toBeVisible();
+    await expect(page.getByText("Synthetic Session Alpha")).toHaveCount(0);
+
+    await assertNoForbiddenVisibleText(page);
+    privacyGuard.assertNoLeaks();
+  });
 });

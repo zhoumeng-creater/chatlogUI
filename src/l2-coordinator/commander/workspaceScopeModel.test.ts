@@ -75,7 +75,7 @@ describe("workspaceScopeModel", () => {
     expect(visibleCopy).not.toContain("private query text");
   });
 
-  it("marks unsupported analytics global/date scope with plain disabled reasons", () => {
+  it("marks unsupported analytics global scope while keeping supported date presets actionable", () => {
     const routeScope = buildWorkspaceRouteScopeView({
       scope: "all",
       scopedChat: null,
@@ -107,12 +107,13 @@ describe("workspaceScopeModel", () => {
           id: "dateRange",
           label: "时间",
           value: "近 7 天",
-          capability: expect.objectContaining({ status: "readonly" }),
-          clearable: false,
+          capability: expect.objectContaining({ status: "backend-applied" }),
+          clearable: true,
         }),
       ]),
     );
     expect(model.disabledReasons).toContain("统计暂不支持全部会话；请从会话工作台选择一个会话查看统计。");
+    expect(model.disabledReasons).not.toContain("统计时间窗口当前固定为近 7 天。");
     expect(model.messageTypeOptions).toEqual([]);
   });
 

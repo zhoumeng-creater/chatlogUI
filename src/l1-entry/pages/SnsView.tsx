@@ -53,43 +53,18 @@ export function SnsView() {
   }, [setParams]);
 
   const clearScopeChip = useCallback((action: WorkspaceScopeClearAction) => {
-    if (action.field === "selectedContacts") {
-      void sns.loadSnsModule({ user: "" });
+    if (action.field === "focusMessage" || action.field === "sourceRoute") {
+      updateScopeParams((next) => {
+        if (action.field === "focusMessage") next.delete("focus");
+        if (action.field === "sourceRoute") next.delete("source");
+      });
       return;
     }
-    if (action.field === "dateRange") {
-      void sns.loadSnsModule({ since: "", until: "" });
-      return;
-    }
-    if (action.field === "snsContentType") {
-      sns.updateFilters({ contentType: "all" });
-      return;
-    }
-    if (action.field === "snsMediaOnly") {
-      sns.updateFilters({ mediaOnly: false });
-      return;
-    }
-    if (action.field === "snsReadState") {
-      void sns.loadSnsModule({ includeRead: false });
-      return;
-    }
-    if (action.field !== "focusMessage" && action.field !== "sourceRoute") return;
-    updateScopeParams((next) => {
-      if (action.field === "focusMessage") next.delete("focus");
-      if (action.field === "sourceRoute") next.delete("source");
-    });
+    sns.clearWorkspaceScopeFilter(action);
   }, [sns, updateScopeParams]);
 
   const resetScope = useCallback(() => {
-    sns.updateFilters({ contentType: "all", mediaOnly: false });
-    void sns.loadSnsModule({
-      user: "",
-      since: "",
-      until: "",
-      includeRead: false,
-      contentType: "all",
-      mediaOnly: false,
-    });
+    sns.resetFilters();
     updateScopeParams((next) => {
       next.delete("focus");
       next.delete("source");
@@ -126,6 +101,12 @@ export function SnsView() {
           searchStatus={sns.searchStatus}
           activeTab={sns.activeTab}
           filters={sns.filters}
+          draftFilters={sns.draftFilters}
+          filterChips={sns.view.filterView.chips}
+          filtersDirty={sns.filtersDirty}
+          filterDrawerOpen={sns.filterDrawerOpen}
+          filterError={sns.filterError}
+          density={sns.density}
           searchQuery={sns.searchQuery}
           error={sns.error}
           searchError={sns.searchError}
@@ -138,7 +119,12 @@ export function SnsView() {
           onRetry={sns.retry}
           onLoadMore={sns.loadMore}
           onTabChange={sns.selectTab}
-          onFiltersChange={sns.updateFilters}
+          onDraftFiltersChange={sns.updateDraftFilters}
+          onApplyFilters={sns.applyFilters}
+          onResetFilters={sns.resetFilters}
+          onClearFilter={sns.clearAppliedFilter}
+          onFilterDrawerOpenChange={sns.setFilterDrawerOpen}
+          onDensityChange={sns.setDensity}
           onSearchQueryChange={sns.setSearchQuery}
           onSearch={sns.runSearch}
           onClearSearch={sns.clearSearch}

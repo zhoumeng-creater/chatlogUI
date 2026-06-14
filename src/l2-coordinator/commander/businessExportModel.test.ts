@@ -134,11 +134,28 @@ describe("businessExportModel", () => {
         ],
       },
       trend: [{ date: "2026-01-02", count: 6 }],
+      visibleRangeLabel: "近 7 天",
+      controlSummary: "近 7 天 · 按日 · 全部成员",
+      metricDefinitions: [
+        { key: "total", label: "消息总数", description: "当前统计范围内的消息数量。" },
+      ],
+      comparison: {
+        mode: "previousPeriod",
+        unavailableReason: null,
+        rows: [
+          { key: "total", label: "消息总数", current: 42, previous: 21, deltaPercent: 100 },
+        ],
+      },
+      warnings: ["趋势按当前返回数据本地汇总。"],
     });
 
     expect(stats.content.split("\n")[0]).toBe("section,label,value");
     expect(stats.content).toContain("overview,total,42");
     expect(stats.content).toContain("trend,2026-01-02,6");
+    expect(stats.content).toContain("metadata,control,近 7 天 · 按日 · 全部成员");
+    expect(stats.content).toContain("definition,消息总数,当前统计范围内的消息数量。");
+    expect(stats.content).toContain("comparison,消息总数,+100%");
+    expect(stats.warnings).toContain("趋势按当前返回数据本地汇总。");
     expect(stats.content).toContain("top_sender,已隐藏对象,24");
     expect(stats.content).not.toContain("Synthetic Sender");
 
@@ -147,7 +164,12 @@ describe("businessExportModel", () => {
       privacyOn: true,
       generatedAt,
       activeTab: "timeline",
+      activeTabLabel: "动态",
       scopeSummary: "全部会话",
+      appliedFilterSummary: ["类型 文章", "只看含媒体"],
+      searchQuery: "private query",
+      visibleCount: 1,
+      loadedCount: 2,
       filters: {
         user: "wxid_synthetic_private",
         since: "2026-01-01",
@@ -168,15 +190,111 @@ describe("businessExportModel", () => {
         },
       ],
       notifications: [],
+      selectedPost: {
+        id: "sns-1",
+        author: "Synthetic Author",
+        content: "朋友圈私密正文",
+        time: "2026-01-02 08:00",
+        contentType: "article",
+        mediaCount: 1,
+      },
+      warnings: ["文章外链不会导出原始 URL。"],
     });
 
     expect(sns.content).toContain("朋友圈当前视图");
     expect(sns.content).toContain("当前视图: 动态");
+    expect(sns.content).toContain("已加载 2 条");
+    expect(sns.content).toContain("当前可见 1 条");
+    expect(sns.content).toContain("筛选: 类型 文章、只看含媒体");
+    expect(sns.content).toContain("已隐藏查询");
+    expect(sns.content).toContain("## 选中动态");
+    expect(sns.warnings).toContain("文章外链不会导出原始 URL。");
+    expect(sns.warnings).toContain("选中动态详情已脱敏；关闭隐私模式并确认未脱敏导出后才会包含原文。");
+    expect(sns.content).toContain("选中动态详情已脱敏");
     expect(sns.content).toContain("类型: article");
     expect(sns.content).toContain("已隐藏作者");
     expect(sns.content).not.toContain("Synthetic Author");
     expect(sns.content).not.toContain("朋友圈私密正文");
     expect(sns.content).not.toContain("example.invalid/private");
+  });
+
+  it("warns SNS exports about loaded-only and local-only filter scope across formats", () => {
+    for (const format of BUSINESS_EXPORT_FORMATS) {
+      const artifact = createSnsExportArtifact({
+        format,
+        privacyOn: false,
+        requestedUnredacted: true,
+        unredactedConfirmed: true,
+        generatedAt,
+        activeTab: "timeline",
+        activeTabLabel: "动态",
+        scopeSummary: "朋友圈",
+        appliedFilterSummary: ["类型 图片", "只看含媒体"],
+        visibleCount: 1,
+        loadedCount: 2,
+        filters: {
+          user: "",
+          since: "",
+          until: "",
+          contentType: "image",
+          mediaOnly: true,
+          includeRead: false,
+        },
+        posts: [
+          {
+            id: "sns-1",
+            author: "Synthetic Author",
+            content: "Synthetic post",
+            time: "2026-01-02 08:00",
+            contentType: "image",
+            mediaCount: 1,
+          },
+        ],
+        notifications: [],
+      });
+
+      expect(artifact.warnings).toContain("当前只导出已加载的朋友圈记录。");
+      expect(artifact.warnings).toContain("类型和仅媒体筛选只作用于已加载记录。");
+      expect(artifact.content).toContain("当前只导出已加载的朋友圈记录。");
+      expect(artifact.content).toContain("类型和仅媒体筛选只作用于已加载记录。");
+    }
+  });
+
+  it("does not warn selected SNS detail redaction after explicit unredacted confirmation", () => {
+    const artifact = createSnsExportArtifact({
+      format: "json",
+      privacyOn: false,
+      requestedUnredacted: true,
+      unredactedConfirmed: true,
+      generatedAt,
+      activeTab: "timeline",
+      activeTabLabel: "动态",
+      scopeSummary: "朋友圈",
+      appliedFilterSummary: [],
+      visibleCount: 1,
+      loadedCount: 1,
+      filters: {
+        user: "",
+        since: "",
+        until: "",
+        contentType: "all",
+        mediaOnly: false,
+        includeRead: false,
+      },
+      posts: [],
+      notifications: [],
+      selectedPost: {
+        id: "sns-1",
+        author: "Synthetic Author",
+        content: "Synthetic post",
+        time: "2026-01-02 08:00",
+        contentType: "text",
+        mediaCount: 0,
+      },
+    });
+
+    expect(artifact.warnings).not.toContain("选中动态详情已脱敏；关闭隐私模式并确认未脱敏导出后才会包含原文。");
+    expect(artifact.content).toContain("Synthetic post");
   });
 
   it("covers conversation, media manifest, AI evidence, and graph serializers without leaking raw private fields", () => {

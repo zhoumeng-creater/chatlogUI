@@ -5,9 +5,12 @@ import type {
 import type {
   SnsActiveTab,
   SnsContentTypeFilter,
+  SnsDensity,
+  SnsDraftFilters,
   SnsFilters,
   SnsLoadStatus,
 } from "@l2/data-clerk/stores/useSnsStore";
+import { buildSnsFilterViewModel, type SnsFilterViewModel } from "./snsFilterModel";
 
 export interface SnsStoreSnapshot {
   status: SnsLoadStatus;
@@ -20,7 +23,12 @@ export interface SnsStoreSnapshot {
   searchQuery: string;
   error: string | null;
   searchError: string | null;
+  filterError?: string | null;
   filters: SnsFilters;
+  draftFilters?: SnsDraftFilters;
+  filtersDirty?: boolean;
+  filterDrawerOpen?: boolean;
+  density?: SnsDensity;
 }
 
 export interface SnsSummary {
@@ -44,6 +52,7 @@ export interface SnsModuleView {
   notifications: AdaptedSnsNotification[];
   notificationTargetIds: string[];
   selectedPost: AdaptedSnsPost | null;
+  filterView: SnsFilterViewModel;
   summary: SnsSummary;
   loadMore: SnsLoadMoreView;
   emptyCopy: string;
@@ -55,14 +64,42 @@ export function buildSnsModuleView(
   privacyOn: boolean,
 ): SnsModuleView {
   const timelinePosts = filterTimelinePosts(state.feed, state.filters);
-  const selectedPost = findSelectedPost(state);
+  const searchResults = filterTimelinePosts(state.searchResults, state.filters);
+  const selectedPost = findSelectedPost(state, timelinePosts, searchResults);
+  const loadedCount = state.activeTab === "search"
+    ? state.searchResults.length
+    : state.activeTab === "notifications"
+      ? state.notifications.length
+      : state.feed.length;
+  const visibleCount = state.activeTab === "search"
+    ? searchResults.length
+    : state.activeTab === "notifications"
+      ? state.notifications.length
+      : timelinePosts.length;
   const summary = {
     feedCount: state.feed.length,
     visibleFeedCount: timelinePosts.length,
     notificationCount: state.notifications.length,
-    searchCount: state.searchResults.length,
+    searchCount: searchResults.length,
     mediaCount: timelinePosts.reduce((sum, post) => sum + post.mediaCount, 0),
   };
+  const filterView = buildSnsFilterViewModel({
+    appliedFilters: state.filters,
+    draftFilters: state.draftFilters ?? {
+      user: state.filters.user,
+      since: state.filters.since,
+      until: state.filters.until,
+      contentType: state.filters.contentType,
+      mediaOnly: state.filters.mediaOnly,
+      includeRead: state.filters.includeRead,
+    },
+    dirty: Boolean(state.filtersDirty),
+    privacyOn,
+    activeTab: state.activeTab,
+    loadedCount,
+    visibleCount,
+    searchQuery: state.searchQuery,
+  });
 
   return {
     title: "朋友圈",
@@ -70,10 +107,11 @@ export function buildSnsModuleView(
       ? `已隐藏朋友圈内容 · ${state.feed.length.toLocaleString()} 条`
       : `${state.feed.length.toLocaleString()} 条动态 · ${state.notifications.length.toLocaleString()} 条通知`,
     timelinePosts: privacyOn ? timelinePosts.map(maskPost) : timelinePosts,
-    searchResults: privacyOn ? state.searchResults.map(maskPost) : state.searchResults,
+    searchResults: privacyOn ? searchResults.map(maskPost) : searchResults,
     notifications: privacyOn ? state.notifications.map(maskNotification) : state.notifications,
     notificationTargetIds: notificationTargetIds(state),
     selectedPost: privacyOn && selectedPost ? maskPost(selectedPost) : selectedPost,
+    filterView,
     summary,
     loadMore: {
       nextLimit: state.filters.limit + 50,
@@ -106,11 +144,15 @@ function filterTimelinePosts(posts: AdaptedSnsPost[], filters: SnsFilters): Adap
   });
 }
 
-function findSelectedPost(state: SnsStoreSnapshot): AdaptedSnsPost | null {
+function findSelectedPost(
+  state: SnsStoreSnapshot,
+  visibleFeed: AdaptedSnsPost[],
+  visibleSearchResults: AdaptedSnsPost[],
+): AdaptedSnsPost | null {
   if (!state.selectedPostId) return null;
   return (
-    state.feed.find((post) => post.id === state.selectedPostId) ??
-    state.searchResults.find((post) => post.id === state.selectedPostId) ??
+    visibleFeed.find((post) => post.id === state.selectedPostId) ??
+    visibleSearchResults.find((post) => post.id === state.selectedPostId) ??
     null
   );
 }
