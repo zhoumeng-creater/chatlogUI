@@ -7,6 +7,10 @@ import { ChatlogHttpError, fetchSearch } from "@l4/network";
 import { debounce } from "@/l2-coordinator/diplomat/debounce";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 import {
+  mapSearchAdvancedFiltersToRequest,
+  type SearchAdvancedFiltersState,
+} from "./searchAdvancedFilters";
+import {
   canMergeSearchPage,
   createSearchRequest,
   createSearchRequestSnapshot,
@@ -39,6 +43,7 @@ function getCurrentRequestState(scopedChat?: string | null) {
     activeFilter: state.activeFilter,
     scope: state.scope,
     scopeChat: getScopedChat(scopedChat),
+    advancedFilters: state.advancedFilters,
   };
 }
 
@@ -71,7 +76,11 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
     controller?.abort();
   }, []);
 
-  const executeSearchFn = useCallback(async (keyword: string, filter = useSearchStore.getState().activeFilter) => {
+  const executeSearchFn = useCallback(async (
+    keyword: string,
+    filter = useSearchStore.getState().activeFilter,
+    advancedFilters = useSearchStore.getState().advancedFilters,
+  ) => {
     if (getSearchInputStatus(keyword) === "invalid") {
       cancelActiveRequest();
       useSearchStore.getState().setInvalid();
@@ -89,6 +98,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
       filter,
       scope,
       scopeChat,
+      advancedFilters,
       limit: SEARCH_PAGE_SIZE,
       offset: 0,
     });
@@ -105,6 +115,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
           limit: SEARCH_PAGE_SIZE,
           offset: 0,
           scopeChat: scopeChat ?? undefined,
+          advancedFilters,
         }),
         {
           ...createDiagnosticHttpOptions({
@@ -182,13 +193,31 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
     }
   }, [cancelActiveRequest, executeSearchFn]);
 
+  const changeAdvancedFilters = useCallback((advancedFilters: SearchAdvancedFiltersState) => {
+    const { query, activeFilter, advancedFilters: previousAdvancedFilters } = useSearchStore.getState();
+    const backendFiltersChanged = getBackendFilterKey(previousAdvancedFilters) !== getBackendFilterKey(advancedFilters);
+    debouncedSearchRef.current.cancel();
+    cancelActiveRequest();
+    useSearchStore.getState().setAdvancedFilters(advancedFilters);
+    if (query.trim() && backendFiltersChanged) {
+      executeSearchFn(query, activeFilter, advancedFilters);
+    }
+  }, [cancelActiveRequest, executeSearchFn]);
+
+  const cancelSearch = useCallback(() => {
+    const controller = activeControllerRef.current;
+    activeControllerRef.current = null;
+    controller?.abort();
+    useSearchStore.getState().setCancelled();
+  }, []);
+
   const clearSearch = useCallback(() => {
     cancelActiveRequest();
     clearSearchSession(debouncedSearchRef.current, useSearchStore.getState().clear);
   }, [cancelActiveRequest]);
 
   const loadMoreResults = useCallback(async () => {
-    const { query, activeFilter, results, loading, scope } = useSearchStore.getState();
+    const { query, activeFilter, advancedFilters, results, loading, scope } = useSearchStore.getState();
     if (loading || !results || results.messages.length >= results.totalCount) return;
 
     const nextOffset = getNextSearchOffset(results);
@@ -202,6 +231,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
       filter: activeFilter,
       scope,
       scopeChat,
+      advancedFilters,
       offset: nextOffset,
       limit: SEARCH_PAGE_SIZE,
     });
@@ -218,6 +248,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
           limit: SEARCH_PAGE_SIZE,
           offset: nextOffset,
           scopeChat: scopeChat ?? undefined,
+          advancedFilters,
         }),
         {
           ...createDiagnosticHttpOptions({
@@ -236,6 +267,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
             activeFilter: state.activeFilter,
             scope: state.scope,
             scopeChat: getScopedChat(scopedChat),
+            advancedFilters: state.advancedFilters,
             results: state.results,
           },
           newResult as unknown as SearchResults,
@@ -285,7 +317,13 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
     executeSearch,
     changeFilter,
     changeScope,
+    changeAdvancedFilters,
+    cancelSearch,
     clearSearch,
     loadMoreResults,
   };
+}
+
+function getBackendFilterKey(filters: SearchAdvancedFiltersState): string {
+  return JSON.stringify(mapSearchAdvancedFiltersToRequest(filters));
 }

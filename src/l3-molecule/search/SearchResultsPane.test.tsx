@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { SearchResults } from "@l2/data-clerk/stores/useSearchStore";
+import type { SearchResultsPaneViewModel } from "./SearchResultsPane";
 import { SearchResultsPane } from "./SearchResultsPane";
 
 const baseProps = {
@@ -15,11 +16,16 @@ const baseProps = {
   onLoadMore: vi.fn(),
   onRetry: vi.fn(),
   onClear: vi.fn(),
+  onCancelSearch: vi.fn(),
+  onSetActiveResultId: vi.fn(),
+  onMoveHit: vi.fn(),
+  viewModel: null,
+  activeFilterChips: [],
 };
 
 const results: SearchResults = {
-  totalCount: 1,
-  count: 1,
+  totalCount: 2,
+  count: 2,
   limit: 20,
   offset: 0,
   messages: [
@@ -32,8 +38,75 @@ const results: SearchResults = {
       sender: "Synthetic Sender",
       username: "session_synthetic_001",
       chat: "Synthetic Session",
+      type: "text",
+    },
+    {
+      id: "session_synthetic_001-1002",
+      localId: 1002,
+      timestamp: 1_767_254_500,
+      time: "2026-01-01 08:01",
+      content: "Another Synthetic search result",
+      sender: "Synthetic Sender",
+      username: "session_synthetic_001",
+      chat: "Synthetic Session",
+      type: "text",
     },
   ],
+};
+
+const groupedViewModel: SearchResultsPaneViewModel = {
+  sortLabel: "时间从新到旧",
+  groupLabel: "按会话分组",
+  navigator: {
+    label: "第 2 / 2 条",
+    hasPrevious: true,
+    hasNext: false,
+  },
+  groups: [{
+    key: "Synthetic Session",
+    label: "Synthetic Session",
+    items: [
+      {
+        message: results.messages[1],
+        senderLabel: "Synthetic Sender",
+        snippetSegments: [
+          { text: "Another ", highlight: false },
+          { text: "Synthetic", highlight: true },
+          { text: " search result", highlight: false },
+        ],
+        active: false,
+      },
+      {
+        message: results.messages[0],
+        senderLabel: "Synthetic Sender",
+        snippetSegments: [
+          { text: "Synthetic", highlight: true },
+          { text: " search result", highlight: false },
+        ],
+        active: true,
+      },
+    ],
+  }],
+};
+
+const privacyViewModel: SearchResultsPaneViewModel = {
+  sortLabel: "时间从新到旧",
+  groupLabel: "不分组",
+  navigator: {
+    label: "第 1 / 2 条",
+    hasPrevious: false,
+    hasNext: true,
+  },
+  groups: [{
+    key: "flat",
+    label: null,
+    items: results.messages.map((message, index) => ({
+      message,
+      senderLabel: "********* ******",
+      snippetSegments: [{ text: "********* ****** ******", highlight: false }],
+      active: index === 0,
+    })),
+  }],
 };
 
 describe("SearchResultsPane", () => {
@@ -57,5 +130,83 @@ describe("SearchResultsPane", () => {
     expect(html).toContain('role="listitem"');
     expect(html).toContain("<button");
     expect(html).not.toContain('<button type="button" role="listitem"');
+  });
+
+  it("renders snippets, highlight segments, sorting, grouping, and hit navigation", () => {
+    const html = renderToStaticMarkup(
+      <SearchResultsPane
+        {...baseProps}
+        query="Synthetic"
+        results={results}
+        status="ready"
+        activeResultId="session_synthetic_001-1001"
+        viewModel={groupedViewModel}
+        activeFilterChips={[
+          { id: "dateRange", label: "时间", value: "2026-01-01 之后", clearAction: "dateRange" },
+        ]}
+      />,
+    );
+
+    expect(html).toContain("排序：时间从新到旧");
+    expect(html).toContain("分组：按会话分组");
+    expect(html).toContain("时间：2026-01-01 之后");
+    expect(html).toContain("Synthetic Session");
+    expect(html).toContain("<mark");
+    expect(html).toContain("Synthetic");
+    expect(html).toContain("搜索命中导航");
+    expect(html).toContain("下一条命中");
+    expect(html).toContain('tabindex="0"');
+  });
+
+  it("keeps privacy mode snippets masked while preserving counts and result structure", () => {
+    const html = renderToStaticMarkup(
+      <SearchResultsPane
+        {...baseProps}
+        query="Synthetic"
+        results={results}
+        status="ready"
+        privacyOn
+        viewModel={privacyViewModel}
+      />,
+    );
+
+    expect(html).toContain("已加载 2 / 共 2");
+    expect(html).toContain("********* ****** ******");
+    expect(html).not.toContain("Synthetic search result");
+    expect(html).not.toContain("Synthetic Sender");
+  });
+
+  it("shows a visible cancellable loading state without clearing stable results", () => {
+    const html = renderToStaticMarkup(
+      <SearchResultsPane
+        {...baseProps}
+        query="Synthetic"
+        results={results}
+        status="loading"
+        loading
+        viewModel={groupedViewModel}
+      />,
+    );
+
+    expect(html).toContain("正在搜索");
+    expect(html).toContain("取消搜索");
+    expect(html).toContain("<mark>Synthetic</mark>");
+    expect(html).toContain("search result");
+  });
+
+  it("keeps loaded results visible after cancelling an in-progress search", () => {
+    const html = renderToStaticMarkup(
+      <SearchResultsPane
+        {...baseProps}
+        query="Synthetic"
+        results={results}
+        status="cancelled"
+        viewModel={groupedViewModel}
+      />,
+    );
+
+    expect(html).toContain("搜索已取消");
+    expect(html).toContain("已保留 2 / 共 2");
+    expect(html).toContain("search result");
   });
 });

@@ -1,5 +1,10 @@
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 import type { FetchSearchOptions } from "@l4/network/fetchSearch";
+import {
+  createDefaultSearchAdvancedFilters,
+  mapSearchAdvancedFiltersToRequest,
+  type SearchAdvancedFiltersState,
+} from "./searchAdvancedFilters";
 
 type SearchRequestScope = "all" | "current";
 export type SearchRequestKind = "search" | "loadMore" | "retry";
@@ -10,6 +15,7 @@ interface CreateSearchRequestInput {
   limit: number;
   offset: number;
   scopeChat?: string;
+  advancedFilters?: SearchAdvancedFiltersState;
 }
 
 const FILTER_TO_MSG_TYPE: Record<string, string | undefined> = {
@@ -30,11 +36,17 @@ export function createSearchRequest({
   limit,
   offset,
   scopeChat,
+  advancedFilters,
 }: CreateSearchRequestInput): FetchSearchOptions {
+  const advancedRequest = advancedFilters
+    ? mapSearchAdvancedFiltersToRequest(advancedFilters)
+    : {};
+  const chats = mergeSearchChats(scopeChat, advancedRequest.chats);
   const params: FetchSearchOptions = {
     keyword: keyword.trim(),
     limit,
     offset,
+    ...advancedRequest,
   };
 
   const msgType = toSearchMessageType(filter);
@@ -42,8 +54,8 @@ export function createSearchRequest({
     params.msgType = msgType;
   }
 
-  if (scopeChat) {
-    params.chats = [scopeChat];
+  if (chats.length > 0) {
+    params.chats = chats;
   }
 
   return params;
@@ -78,6 +90,7 @@ export interface SearchRequestSnapshot {
   filter: SearchFilterType;
   scope: SearchRequestScope;
   scopeChat: string | null;
+  advancedFilterKey: string;
   offset: number;
   limit: number;
 }
@@ -89,6 +102,7 @@ interface CreateSearchRequestSnapshotInput {
   filter: SearchFilterType;
   scope: SearchRequestScope;
   scopeChat?: string | null;
+  advancedFilters?: SearchAdvancedFiltersState;
   offset: number;
   limit: number;
 }
@@ -98,6 +112,7 @@ interface SearchRequestCurrentState {
   activeFilter: SearchFilterType;
   scope: SearchRequestScope;
   scopeChat?: string | null;
+  advancedFilters?: SearchAdvancedFiltersState;
 }
 
 interface SearchPageMergeState extends SearchRequestCurrentState {
@@ -113,6 +128,20 @@ function normalizeScopeChat(scopeChat: string | null | undefined): string | null
   return normalized ? normalized : null;
 }
 
+export function createSearchRequestContextKey(
+  advancedFilters: SearchAdvancedFiltersState | undefined,
+): string {
+  const filters = advancedFilters ?? createDefaultSearchAdvancedFilters();
+  const request = mapSearchAdvancedFiltersToRequest(filters);
+  return JSON.stringify({
+    chats: request.chats ?? [],
+    since: request.since ?? null,
+    until: request.until ?? null,
+    sortMode: filters.sortMode,
+    groupMode: filters.groupMode,
+  });
+}
+
 export function createSearchRequestSnapshot({
   requestId,
   kind,
@@ -120,6 +149,7 @@ export function createSearchRequestSnapshot({
   filter,
   scope,
   scopeChat,
+  advancedFilters,
   offset,
   limit,
 }: CreateSearchRequestSnapshotInput): SearchRequestSnapshot {
@@ -130,6 +160,7 @@ export function createSearchRequestSnapshot({
     filter,
     scope,
     scopeChat: normalizeScopeChat(scopeChat),
+    advancedFilterKey: createSearchRequestContextKey(advancedFilters),
     offset,
     limit,
   };
@@ -145,7 +176,8 @@ export function isSearchSnapshotCurrent(
     normalizeQuery(current.query) === snapshot.query &&
     current.activeFilter === snapshot.filter &&
     current.scope === snapshot.scope &&
-    normalizeScopeChat(current.scopeChat) === snapshot.scopeChat
+    normalizeScopeChat(current.scopeChat) === snapshot.scopeChat &&
+    createSearchRequestContextKey(current.advancedFilters) === snapshot.advancedFilterKey
   );
 }
 
@@ -162,6 +194,16 @@ export function canMergeSearchPage(
     snapshot.offset === current.results.messages.length &&
     next.offset === snapshot.offset
   );
+}
+
+function mergeSearchChats(scopeChat: string | undefined, advancedChats: string[] | undefined): string[] {
+  const merged: string[] = [];
+  for (const chat of [scopeChat, ...(advancedChats ?? [])]) {
+    const normalized = chat?.trim();
+    if (!normalized || merged.includes(normalized)) continue;
+    merged.push(normalized);
+  }
+  return merged;
 }
 
 export function getNextSearchOffset(results: SearchResults): number {

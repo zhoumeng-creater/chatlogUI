@@ -1,5 +1,10 @@
 import type { SearchResults as SearchResultsData, SearchStatus } from "@l2/data-clerk/stores/useSearchStore";
-import { SearchResultsPane } from "./SearchResultsPane";
+import type { BusinessExportActionView } from "@l2/commander/useBusinessExportCommander";
+import type {
+  SearchActiveFilterChip,
+  SearchAdvancedFilterField,
+} from "@l2/commander/searchAdvancedFilters";
+import { SearchResultsPane, type SearchResultsPaneViewModel } from "./SearchResultsPane";
 
 interface SearchResultsProps {
   query: string;
@@ -9,11 +14,17 @@ interface SearchResultsProps {
   error: string | null;
   activeResultId: string | null;
   privacyOn: boolean;
+  viewModel: SearchResultsPaneViewModel | null;
+  activeFilterChips: SearchActiveFilterChip[];
+  exportAction?: BusinessExportActionView;
   onSetActiveResultId: (id: string | null) => void;
+  onMoveHit: (direction: "previous" | "next" | "first" | "last") => void;
+  onClearAdvancedFilter: (field: SearchAdvancedFilterField) => void;
   onOpenResult: (message: SearchResultsData["messages"][number]) => void;
   onLoadMoreResults: () => void;
   onExecuteSearch: (query: string) => void;
   onClearSearch: () => void;
+  onCancelSearch: () => void;
 }
 
 export function SearchResults({
@@ -24,11 +35,17 @@ export function SearchResults({
   error,
   activeResultId,
   privacyOn,
+  viewModel,
+  activeFilterChips,
+  exportAction,
   onSetActiveResultId,
+  onMoveHit,
+  onClearAdvancedFilter,
   onOpenResult,
   onLoadMoreResults,
   onExecuteSearch,
   onClearSearch,
+  onCancelSearch,
 }: SearchResultsProps) {
   return (
     <SearchResultsPane
@@ -39,6 +56,12 @@ export function SearchResults({
       error={error}
       activeResultId={activeResultId}
       privacyOn={privacyOn}
+      viewModel={viewModel}
+      activeFilterChips={activeFilterChips}
+      exportAction={exportAction}
+      onSetActiveResultId={onSetActiveResultId}
+      onMoveHit={onMoveHit}
+      onClearAdvancedFilter={onClearAdvancedFilter}
       onOpenResult={(message) => {
         onSetActiveResultId(message.id);
         onOpenResult(message);
@@ -46,6 +69,7 @@ export function SearchResults({
       onLoadMore={onLoadMoreResults}
       onRetry={() => onExecuteSearch(query)}
       onClear={onClearSearch}
+      onCancelSearch={onCancelSearch}
     />
   );
 }

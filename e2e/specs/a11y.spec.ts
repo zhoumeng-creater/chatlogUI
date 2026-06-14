@@ -94,6 +94,24 @@ test.describe("accessibility and keyboard gate", () => {
     privacyGuard.assertNoLeaks();
   });
 
+  test("keeps unified scope menu keyboard reachable and axe-clean", async ({ page }) => {
+    await setNarrow(page);
+    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const controller = page.getByRole("region", { name: "搜索范围", exact: true });
+    const trigger = controller.getByRole("button", { name: "打开范围设置" });
+    await expect(trigger).toBeVisible();
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeVisible();
+    await expectNoCriticalA11yViolations(page);
+
+    await page.keyboard.press("Escape");
+    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
   test("keeps semantic QA evidence reachable and dismissible by keyboard", async ({ page }) => {
     await setDesktop(page);
     await openSyntheticWorkbench(page);
@@ -139,6 +157,26 @@ test.describe("accessibility and keyboard gate", () => {
     await page.keyboard.press("Escape");
     await expect(drawer).toHaveCount(0);
     await expect(detailsButton).toBeFocused();
+  });
+
+  test("exposes rail toggle and panel splitters with keyboard semantics", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    const toggle = page.getByRole("button", { name: "收起导航栏" });
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "展开导航栏" })).toHaveAttribute("aria-expanded", "false");
+
+    const splitter = page.getByRole("separator", { name: "调整会话详情宽度" });
+    await expect(splitter).toHaveAttribute("aria-valuemin", /\d+/);
+    const before = await splitter.getAttribute("aria-valuenow");
+    await splitter.focus();
+    await page.keyboard.press("ArrowLeft");
+    const after = await splitter.getAttribute("aria-valuenow");
+    expect(Number(after)).toBeGreaterThan(Number(before));
+    await expectNoCriticalA11yViolations(page);
   });
 
   test("keeps desktop shell window controls keyboard reachable", async ({ page }) => {

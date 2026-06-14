@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { startMockChatlogServer } from "../mock-chatlog-server/server.mjs";
 import { assertNoForbiddenVisibleText } from "../utils/privacy-scan";
 import { setDesktop, setNarrow } from "../utils/viewport";
@@ -15,17 +15,20 @@ import {
 } from "../utils/workbench";
 
 test.describe("core synthetic routes", () => {
+  const setupPathButton = (page: Page, name: RegExp) =>
+    page.locator(".setup-choice-card").filter({ hasText: name });
+
   test("renders setup center with collapsed local diagnostics", async ({ page }) => {
     await setDesktop(page);
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: "连接本地聊天数据服务" })).toBeVisible();
-    await expect(page.getByText("选择由应用管理本机服务，或连接已有")).toBeVisible();
-    await expect(page.getByRole("button", { name: /推荐自动导入/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /连接已有服务/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /专家手动配置/ })).toBeVisible();
-    await expect(page.getByText("隐私保护")).toBeVisible();
-    await expect(page.getByText("诊断信息")).toBeVisible();
+    await expect(page.getByText("选择由应用管理本机聊天服务，或连接已有")).toBeVisible();
+    await expect(setupPathButton(page, /推荐自动导入/)).toBeVisible();
+    await expect(setupPathButton(page, /连接已有服务/)).toBeVisible();
+    await expect(setupPathButton(page, /专家手动配置/)).toBeVisible();
+    await expect(page.getByText(/隐私保护(待验证|已应用)/)).toBeVisible();
+    await expect(page.getByText("默认只显示状态摘要；需要排查时再展开脱敏诊断。")).toBeVisible();
     await expect(page.getByRole("button", { name: "查看脱敏诊断" })).toBeVisible();
     await expect(page.getByText("Export manifest version")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "打开工作台" })).toHaveCount(0);
@@ -36,9 +39,9 @@ test.describe("core synthetic routes", () => {
     await setNarrow(page);
     await page.goto("/");
 
-    await expect(page.getByRole("button", { name: /推荐自动导入/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /连接已有服务/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /专家手动配置/ })).toBeVisible();
+    await expect(setupPathButton(page, /推荐自动导入/)).toBeVisible();
+    await expect(setupPathButton(page, /连接已有服务/)).toBeVisible();
+    await expect(setupPathButton(page, /专家手动配置/)).toBeVisible();
     await expect(page.getByText("状态摘要", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "查看脱敏诊断" })).toBeVisible();
     await expect(page.getByRole("button", { name: "打开工作台" })).toHaveCount(0);
@@ -72,7 +75,7 @@ test.describe("core synthetic routes", () => {
     try {
       await setDesktop(page);
       await page.goto("/");
-      await page.getByRole("button", { name: /连接已有服务/ }).click();
+      await setupPathButton(page, /连接已有服务/).click();
       await page.getByRole("textbox", { name: /外部服务地址/ }).fill(server.baseUrl);
       await page.getByRole("button", { name: "测试连接并保存" }).click();
 
@@ -89,7 +92,7 @@ test.describe("core synthetic routes", () => {
     await installTauriSetupConfigMock(page);
     await setDesktop(page);
     await page.goto("/");
-    await page.getByRole("button", { name: /连接已有服务/ }).click();
+    await setupPathButton(page, /连接已有服务/).click();
     await page.getByRole("textbox", { name: /外部服务地址/ }).fill("http://example.com:5030");
     await page.getByRole("button", { name: "测试连接并保存" }).click();
 
@@ -107,12 +110,46 @@ test.describe("core synthetic routes", () => {
     await openSyntheticWorkbench(page);
 
     await expect(page.getByLabel("一级工作区导航")).toBeVisible();
+    await expect(page.getByRole("button", { name: "收起导航栏" })).toHaveAttribute("aria-expanded", "true");
     for (const label of ["会话", "搜索", "媒体", "朋友圈", "统计", "AI", "图谱"]) {
       await expect(page.getByRole("button", { name: `打开${label}` })).toBeVisible();
     }
     await expectDeveloperEntryHidden(page);
     await expect(page.locator(".workbench-frame__module-tabs")).toHaveCount(0);
     await expectStableSyntheticPage(page);
+  });
+
+  test("persists rail collapse and supports desktop panel splitters", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    const rail = page.getByLabel("一级工作区导航");
+    const expandedBox = await rail.boundingBox();
+    expect(expandedBox?.width ?? 0).toBeGreaterThan(150);
+
+    await page.getByRole("button", { name: "收起导航栏" }).click();
+    await expect(page.getByRole("button", { name: "展开导航栏" })).toHaveAttribute("aria-expanded", "false");
+    const collapsedBox = await rail.boundingBox();
+    expect(collapsedBox?.width ?? 0).toBeLessThan(96);
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: "展开导航栏" })).toBeVisible();
+    const restoredBox = await rail.boundingBox();
+    expect(restoredBox?.width ?? 0).toBeLessThan(96);
+
+    const list = page.getByLabel("会话列表").first();
+    const listWidthBefore = (await list.boundingBox())?.width ?? 0;
+    const listSplitter = page.getByRole("separator", { name: "调整会话列表宽度" });
+    await expect(listSplitter).toBeVisible();
+    await expect(listSplitter).toHaveAttribute("aria-orientation", "vertical");
+    await listSplitter.focus();
+    await page.keyboard.press("ArrowRight");
+    const listWidthAfter = (await list.boundingBox())?.width ?? 0;
+    expect(listWidthAfter).toBeGreaterThan(listWidthBefore);
+
+    await listSplitter.dblclick();
+    const resetWidth = (await list.boundingBox())?.width ?? 0;
+    expect(Math.abs(resetWidth - 320)).toBeLessThanOrEqual(4);
   });
 
   test("renders workbench ready shell at narrow width", async ({ page }) => {
@@ -160,12 +197,55 @@ test.describe("core synthetic routes", () => {
     }
   });
 
+  test("renders unified workspace scope controls at desktop and narrow widths", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const controller = page.getByRole("region", { name: "搜索范围", exact: true });
+    await expect(controller).toBeVisible();
+    await expect(controller.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话：Synthetic Session Alpha");
+    await expect(controller.locator('[data-scope-field="sourceRoute"]')).toContainText("来源：来自搜索结果");
+    await expect(controller.locator('[data-scope-field="focusMessage"]')).toContainText("定位：上下文定位");
+    await expect(controller).not.toContainText("focus=1001");
+
+    await controller.getByRole("button", { name: "打开范围设置" }).click();
+    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeHidden();
+
+    await setNarrow(page);
+    await expect(controller).toBeVisible();
+    await expect(controller.getByRole("button", { name: "打开范围设置" })).toBeVisible();
+    await expectStableSyntheticPage(page);
+  });
+
   test("opens a search result at its chat hit and returns to the result list", async ({ page }) => {
     await setDesktop(page);
     await expectSearchClosedLoop(page);
 
     await setNarrow(page);
     await expectSearchClosedLoop(page);
+  });
+
+  test("promotes current conversation actions through CommandBar overflow and keeps inspector concise", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    await page.getByRole("button", { name: /Synthetic Session Alpha/ }).first().click();
+
+    await expect(page.getByRole("button", { name: "搜索此会话" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "更多当前会话操作" })).toBeVisible();
+    await page.getByRole("button", { name: "更多当前会话操作" }).click();
+    await expect(page.getByRole("menuitem", { name: "导出当前会话" })).toBeDisabled();
+    await expect(page.getByRole("menuitem", { name: "跳转日期" })).toBeDisabled();
+
+    const inspector = page.locator(".conversation-inspector");
+    await expect(inspector).toContainText("建议下一步");
+    await expect(inspector).toContainText("查看完整统计");
+    await expect(inspector).not.toContainText("搜索此会话");
+    await expect(inspector).not.toContainText("打开媒体库");
+    await expect(inspector).not.toContainText("问这个会话");
+    await expect(inspector).not.toContainText("在图谱中查看");
   });
 
   test("keeps scoped current-chat search constrained before conversations finish loading", async ({ page }) => {
@@ -367,6 +447,7 @@ async function expectSearchClosedLoop(page: import("@playwright/test").Page) {
   await result.click();
 
   await expect(page).toHaveURL(/\/workbench/);
+  await expect(page.getByText("来自搜索结果")).toBeVisible();
   await expect(page.getByText("已定位搜索命中")).toBeVisible();
   await expect(page.locator(".message-row--search-hit")).toBeVisible();
   await expect(page.locator("[data-local-id='1001']")).toBeVisible();

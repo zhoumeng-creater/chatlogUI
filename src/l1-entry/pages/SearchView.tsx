@@ -1,11 +1,34 @@
 import { useSearchWorkspaceCommander } from "@l2/commander/useSearchWorkspaceCommander";
-import { FilterBar } from "@l3/search/FilterBar";
+import { BusinessExportDialog } from "@l3/export";
 import { GlobalSearch } from "@l3/search/GlobalSearch";
+import { SearchAdvancedFilters } from "@l3/search/SearchAdvancedFilters";
 import { SearchResults } from "@l3/search/SearchResults";
+import { WorkspaceScopeController } from "@l3/workspace/WorkspaceScopeController";
 import { Typography } from "@l4/ui";
 
 export function SearchView() {
-  const { currentConversation, openResult, privacyOn, search } = useSearchWorkspaceCommander();
+  const {
+    clearScopeChip,
+    currentConversation,
+    openResult,
+    privacyOn,
+    resetScope,
+    scopeController,
+    search,
+    selectMessageType,
+    selectScope,
+    recentQueries,
+    activeFilterChips,
+    changeAdvancedFilters,
+    clearAdvancedFilter,
+    executeSearch,
+    useRecentQuery,
+    deleteRecentQuery,
+    clearRecentQueries,
+    moveHit,
+    searchResultsView,
+    businessExport,
+  } = useSearchWorkspaceCommander();
 
   return (
     <div className="workspace-page search-workspace">
@@ -19,6 +42,13 @@ export function SearchView() {
       </header>
 
       <section className="workspace-page__surface search-workspace__surface" aria-label="搜索工作区">
+        <WorkspaceScopeController
+          model={scopeController}
+          onSelectScope={selectScope}
+          onSelectMessageType={selectMessageType}
+          onClearChip={clearScopeChip}
+          onReset={resetScope}
+        />
         <GlobalSearch
           query={search.query}
           results={search.results}
@@ -27,11 +57,19 @@ export function SearchView() {
           currentConversation={currentConversation ?? undefined}
           privacyOn={privacyOn}
           onSearch={search.search}
-          onExecuteSearch={search.executeSearch}
+          onExecuteSearch={executeSearch}
           onClearSearch={search.clearSearch}
           onChangeScope={search.changeScope}
+          recentQueries={recentQueries}
+          onUseRecentQuery={useRecentQuery}
+          onDeleteRecentQuery={deleteRecentQuery}
+          onClearRecentQueries={clearRecentQueries}
+          showScopeMenu={false}
         />
-        <FilterBar activeFilter={search.activeFilter} onFilterChange={search.changeFilter} />
+        <SearchAdvancedFilters
+          filters={search.advancedFilters}
+          onChange={changeAdvancedFilters}
+        />
         <div className="search-workspace__results">
           <SearchResults
             query={search.query}
@@ -41,13 +79,20 @@ export function SearchView() {
             error={search.error}
             activeResultId={search.activeResultId}
             privacyOn={privacyOn}
+            viewModel={searchResultsView}
+            activeFilterChips={activeFilterChips}
+            exportAction={businessExport.action}
             onSetActiveResultId={search.setActiveResultId}
+            onMoveHit={moveHit}
+            onClearAdvancedFilter={clearAdvancedFilter}
             onOpenResult={(message) => void openResult(message)}
             onLoadMoreResults={() => void search.loadMoreResults()}
-            onExecuteSearch={search.executeSearch}
+            onExecuteSearch={executeSearch}
             onClearSearch={search.clearSearch}
+            onCancelSearch={search.cancelSearch}
           />
         </div>
+        {businessExport.isOpen && <BusinessExportDialog {...businessExport.dialog} />}
       </section>
     </div>
   );

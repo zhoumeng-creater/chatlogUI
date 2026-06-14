@@ -8,6 +8,7 @@ const activeRequest: SearchActiveRequest = {
   filter: "all",
   scope: "all",
   scopeChat: null,
+  advancedFilterKey: "{\"chats\":[],\"since\":null,\"until\":null,\"sortMode\":\"time-desc\",\"groupMode\":\"flat\"}",
   offset: 0,
   limit: 20,
 };
@@ -48,7 +49,23 @@ describe("useSearchStore", () => {
     });
   });
 
-  it("clears active requests and selected results when cancelled", () => {
+  it("keeps stable results when an in-progress search is cancelled", () => {
+    useSearchStore.getState().setResults({
+      totalCount: 40,
+      count: 20,
+      limit: 20,
+      offset: 0,
+      messages: [
+        {
+          id: "message-1",
+          timestamp: 1,
+          content: "Synthetic result",
+          sender: "Synthetic Sender",
+          username: "session_synthetic_001",
+          chat: "Synthetic Session",
+        },
+      ],
+    });
     useSearchStore.getState().setActiveRequest(activeRequest);
     useSearchStore.getState().setActiveResultId("message-1");
     useSearchStore.getState().setLoading(true);
@@ -57,12 +74,12 @@ describe("useSearchStore", () => {
 
     expect(useSearchStore.getState()).toMatchObject({
       activeRequest: null,
-      activeResultId: null,
-      results: null,
+      activeResultId: "message-1",
       status: "cancelled",
       loading: false,
       error: null,
     });
+    expect(useSearchStore.getState().results?.messages).toHaveLength(1);
   });
 
   it("settles discarded active requests without clearing current results", () => {
