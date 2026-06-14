@@ -2,6 +2,43 @@ import { describe, expect, it } from "vitest";
 import { sanitizeSettingsForStorage, validateSettingsPatch } from "./settingsValidation";
 
 describe("settings validation", () => {
+  it("accepts valid Settings-owned preferences", () => {
+    const result = validateSettingsPatch({
+      theme: "dark",
+      fontSize: "large",
+      reduceAnimations: true,
+      windowMaterial: "acrylic",
+      privacyOn: true,
+      developerMode: true,
+    });
+
+    expect(result).toEqual({ valid: true, errors: [] });
+  });
+
+  it("rejects invalid values for every Settings-owned preference with user-facing copy", () => {
+    const result = validateSettingsPatch({
+      theme: "sepia",
+      fontSize: "huge",
+      reduceAnimations: "yes",
+      windowMaterial: "glass",
+      privacyOn: "true",
+      developerMode: "false",
+    } as never);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual([
+      "主题只能选择跟随系统、浅色或深色。",
+      "字体大小只能选择小、中或大。",
+      "动画偏好只能保存为开启或减少。",
+      "窗口材质只能选择 macOS 视觉融合、Windows 云母、Windows 亚克力或不透明。",
+      "隐私模式只能保存为开启或关闭。",
+      "开发者工具入口只能保存为显示或隐藏。",
+    ]);
+    expect(result.errors.join(" ")).not.toContain("theme");
+    expect(result.errors.join(" ")).not.toContain("fontSize");
+    expect(result.errors.join(" ")).not.toContain("windowMaterial");
+  });
+
   it("strips UI-stored credentials and resets credential state", () => {
     const sanitized = sanitizeSettingsForStorage({
       aiProvider: "glm",
@@ -61,5 +98,20 @@ describe("settings validation", () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
+  });
+
+  it("does not persist invalid known preference values while sanitizing legacy objects", () => {
+    const sanitized = sanitizeSettingsForStorage({
+      theme: "sepia",
+      fontSize: "giant",
+      reduceAnimations: "yes",
+      windowMaterial: "glass",
+      privacyOn: "true",
+      developerMode: "false",
+      aiApiKey: "sk-synthetic-redaction-token",
+      sidecarPort: 5030,
+    });
+
+    expect(sanitized).toEqual({});
   });
 });

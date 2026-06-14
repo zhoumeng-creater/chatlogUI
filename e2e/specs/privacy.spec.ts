@@ -37,7 +37,6 @@ test.describe("privacy mode synthetic browser gate", () => {
     await page.getByRole("button", { name: "关闭", exact: true }).click();
     await page.getByRole("button", { name: "预览" }).click();
     await expect(page.getByText("已隐藏对象").first()).toBeVisible();
-    await page.getByRole("button", { name: "问答" }).click();
     const qaTextarea = page.locator(".qa-input__textarea");
     await expect(qaTextarea).toBeDisabled();
     await expect(qaTextarea).toHaveValue("");

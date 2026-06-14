@@ -362,7 +362,7 @@ test.describe("core synthetic routes", () => {
     await expect(page.getByRole("button", { name: "搜索此会话" })).toBeVisible();
     await expect(page.getByRole("button", { name: "更多当前会话操作" })).toBeVisible();
     await page.getByRole("button", { name: "更多当前会话操作" }).click();
-    await expect(page.getByRole("menuitem", { name: "导出当前会话" })).toBeDisabled();
+    await expect(page.getByRole("menuitem", { name: "导出当前会话" })).toBeEnabled();
     await expect(page.getByRole("menuitem", { name: "跳转日期" })).toBeDisabled();
 
     const inspector = page.locator(".conversation-inspector");

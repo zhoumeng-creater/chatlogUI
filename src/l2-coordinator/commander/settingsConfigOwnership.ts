@@ -1,8 +1,9 @@
 import type { SettingsState } from "@/l2-coordinator/api-docs/settings";
-import type { SetupMode } from "@/l2-coordinator/data-clerk/types/setup";
+import type { ConfigSource, SetupMode } from "@/l2-coordinator/data-clerk/types/setup";
 import type { IndexStatusResponse } from "@/l2-coordinator/api-docs/semantic";
 import type { SemanticModuleKind } from "./semanticViewModel";
 import { formatPrivatePathSummary } from "@/utils/privacyDisplay";
+import { settingsMessagesZhCN } from "./messages.zh-CN";
 
 export interface LegacySettingsAiFields {
   aiProvider?: unknown;
@@ -21,6 +22,7 @@ export interface SettingsAiSemanticSummary {
     label: string;
     target: string;
   };
+  legacyIgnoredLabel: string;
   legacyIgnored: boolean;
 }
 
@@ -47,44 +49,56 @@ export function deriveSettingsAiSemanticSummary(input: {
   const status = aiStatus(input.moduleKind);
 
   return {
-    title: "AI 与语义",
+    title: settingsMessagesZhCN.settings.ai.title,
     statusLabel: status.statusLabel,
     statusTone: status.statusTone,
-    description: "语义搜索、问答、模型连接测试、API Key 和索引参数由 AI 工作台负责。Settings 只显示状态和入口。",
+    description: settingsMessagesZhCN.settings.ai.description,
     indexLabel: indexSummary(input.indexStatus, input.privacyOn),
     primaryAction: {
-      label: "前往 AI 工作台配置",
+      label: settingsMessagesZhCN.settings.ai.primaryAction,
       target: "/ai?source=settings&panel=semantic",
     },
+    legacyIgnoredLabel: settingsMessagesZhCN.settings.ai.legacyIgnored,
     legacyIgnored: hasLegacyAiFields(input.legacySettings),
   };
 }
 
 export function deriveSettingsDataServiceSummary(input: {
-  wxDataPath: SettingsState["wxDataPath"];
+  dataDir: string | null | undefined;
+  legacyWxDataPath?: SettingsState["wxDataPath"];
+  hasDataKey: boolean;
   serviceLabel: string;
   mode: SetupMode;
+  source?: ConfigSource;
+  profileConfigured?: boolean;
   httpReady: boolean;
   dbReady: boolean;
   privacyOn: boolean;
 }): SettingsDataServiceSummary {
+  const profileConfigured = input.profileConfigured ?? (input.source ? input.source !== "none" : true);
+
   return {
-    title: "数据与服务",
-    pathSummary: formatPrivatePathSummary(input.wxDataPath, "data-dir"),
-    serviceLabel: serviceSummaryLabel(input.mode),
+    title: settingsMessagesZhCN.settings.data.title,
+    pathSummary: input.dataDir
+      ? formatPrivatePathSummary(input.dataDir, "data-dir")
+      : settingsMessagesZhCN.settings.data.dataDirectoryUnset,
+    serviceLabel: serviceSummaryLabel(input.mode, profileConfigured),
     serviceStatusLabel: serviceStatus(input.httpReady, input.dbReady),
     serviceStatusTone: input.dbReady ? "success" : input.httpReady ? "warning" : "neutral",
-    decryptionKeyLabel: "请在设置中心配置",
+    decryptionKeyLabel: input.hasDataKey
+      ? settingsMessagesZhCN.settings.data.keyConfiguredPlaceholder
+      : settingsMessagesZhCN.settings.data.keyMissingPlaceholder,
     primaryAction: {
-      label: "前往设置中心修改",
+      label: settingsMessagesZhCN.settings.data.primaryAction,
       target: "/",
     },
     showIndependentBaseUrlForm: false,
   };
 }
 
-function serviceSummaryLabel(mode: SetupMode): string {
-  return mode === "external" ? "已连接外部本机服务" : "应用管理的本机服务";
+function serviceSummaryLabel(mode: SetupMode, profileConfigured: boolean): string {
+  if (!profileConfigured) return "本机聊天服务未配置";
+  return mode === "external" ? "已连接外部本机聊天服务" : "应用管理的本机聊天服务";
 }
 
 function aiStatus(kind: SemanticModuleKind): Pick<SettingsAiSemanticSummary, "statusLabel" | "statusTone"> {

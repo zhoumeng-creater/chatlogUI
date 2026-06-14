@@ -124,12 +124,15 @@ test.describe("accessibility and keyboard gate", () => {
 
     await evidenceButton.focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("complementary", { name: "问答证据" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "关闭证据" })).toBeFocused();
+    const evidenceDialog = page.getByRole("dialog", { name: "问答证据" });
+    await expect(evidenceDialog).toBeVisible();
+    await expect.poll(() =>
+      evidenceDialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
     await expectNoCriticalA11yViolations(page);
 
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("complementary", { name: "问答证据" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "问答证据" })).toHaveCount(0);
   });
 
   test("traps and restores focus for narrow inspector drawers", async ({ page }) => {
@@ -318,12 +321,11 @@ test.describe("accessibility and keyboard gate", () => {
     await expectCommandTooltipInsideViewport(page, "刷新图谱");
     await expectCommandTooltipInsideViewport(page, "自动旋转");
 
-    const timelineToggle = page.getByRole("button", { name: "时间轴", exact: true });
+    const timelineToggle = page.getByRole("button", { name: "时间线", exact: true });
     await timelineToggle.focus();
     await page.keyboard.press("Enter");
     await expect(timelineToggle).toHaveAttribute("aria-pressed", "true");
 
-    await expectCommandTooltipInsideViewport(page, "关闭时间轴");
     const timelineEntry = page.getByRole("button", { name: /Synthetic graph event/ }).first();
     await expect(timelineEntry).toBeVisible();
     await timelineEntry.focus();

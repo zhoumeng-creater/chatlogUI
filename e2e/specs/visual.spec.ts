@@ -26,7 +26,7 @@ test.describe("visual regression synthetic states", () => {
     });
 
     await openWorkbenchModule(page, "AI");
-    await expect(page.getByLabel("语义索引中心")).toBeVisible();
+    await expect(page.getByRole("region", { name: "AI 主任务" })).toBeVisible();
     await expect(page).toHaveScreenshot("semantic-index-center-desktop.png", {
       fullPage: true,
     });
@@ -40,7 +40,7 @@ test.describe("visual regression synthetic states", () => {
     await page.getByRole("button", { name: /发送/ }).click();
     await expect(page.getByText("Synthetic answer with evidence")).toBeVisible();
     await page.getByRole("button", { name: "证据" }).click();
-    await expect(page.getByRole("complementary", { name: "问答证据" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "问答证据" })).toBeVisible();
     await expect(page).toHaveScreenshot("semantic-qa-evidence-desktop.png", {
       fullPage: true,
     });

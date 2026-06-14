@@ -8,6 +8,7 @@ import { useSettingsCommander } from "./useSettingsCommander";
 import { useUpdateCommander } from "./useUpdateCommander";
 import { useDiagnosticsCommander } from "./useDiagnosticsCommander";
 import { getActiveChatlogServiceSummary } from "./chatlogRequestContext";
+import { settingsMessagesZhCN } from "./messages.zh-CN";
 import {
   deriveSettingsAiSemanticSummary,
   deriveSettingsDataServiceSummary,
@@ -74,19 +75,22 @@ export function useSettingsPageCommander() {
   }, [ai, settings.loaded]);
 
   const checkForUpdates = useCallback(async () => {
-    setUpdateStatusText("正在检查更新...");
+    setUpdateStatusText(settingsMessagesZhCN.settings.about.updateChecking);
     const hasUpdate = await update.checkUpdate();
     if (!hasUpdate) {
-      setUpdateStatusText("已是最新版本");
+      setUpdateStatusText(settingsMessagesZhCN.settings.about.updateCurrent);
       window.setTimeout(() => setUpdateStatusText(""), 3000);
     }
   }, [update]);
 
   const dataServiceView = useMemo(
     () => deriveSettingsDataServiceSummary({
-      wxDataPath: settings.settings.wxDataPath,
+      dataDir: setupProfile?.dataDir ?? null,
+      hasDataKey: setupProfile?.hasDataKey ?? false,
       serviceLabel: activeService.serviceLabel,
       mode: activeService.mode,
+      source: setupProfile?.source ?? "none",
+      profileConfigured: setupProfile !== null,
       httpReady,
       dbReady,
       privacyOn: settings.settings.privacyOn,
@@ -96,8 +100,8 @@ export function useSettingsPageCommander() {
       activeService.serviceLabel,
       dbReady,
       httpReady,
+      setupProfile,
       settings.settings.privacyOn,
-      settings.settings.wxDataPath,
     ],
   );
 
@@ -112,6 +116,7 @@ export function useSettingsPageCommander() {
 
   return {
     ...settings,
+    copy: settingsMessagesZhCN.settings,
     sidecarStatus,
     serviceLabel: dataServiceView.serviceLabel,
     indexStatus: ai.indexStatus,
