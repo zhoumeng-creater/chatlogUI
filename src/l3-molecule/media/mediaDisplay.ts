@@ -27,15 +27,15 @@ export function formatAttachmentLabel(
 }
 
 export function summarizeMediaCounts(attachments: MediaAttachment[]): MediaCountSummary[] {
-  const counts = new Map<string, MediaCountSummary>();
+  const counts = new Map<MediaAttachment["kind"], MediaCountSummary>();
 
   for (const attachment of attachments) {
-    const label = formatAttachmentLabel(attachment, false);
-    const current = counts.get(label);
+    const label = FALLBACK_ATTACHMENT_LABELS[attachment.kind] || "媒体";
+    const current = counts.get(attachment.kind);
     if (current) {
       current.count += 1;
     } else {
-      counts.set(label, { label, count: 1 });
+      counts.set(attachment.kind, { label, count: 1 });
     }
   }
 
@@ -63,4 +63,8 @@ export function formatMemberDisplayName(member: MediaMember, privacyOn: boolean)
 
 export function formatMediaEmptyCopy(tabLabel: string): string {
   return `暂无${tabLabel}数据`;
+}
+
+export function formatMediaAvailability(attachment: Pick<MediaAttachment, "resourceKey" | "directUrl">): string {
+  return attachment.resourceKey || attachment.directUrl ? "可预览" : "资源缺失";
 }

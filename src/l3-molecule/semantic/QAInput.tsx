@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { Send, Square, X } from 'lucide-react';
 import { Button, DisabledReason, IconButton } from '@l4/ui';
 
@@ -35,7 +35,7 @@ export interface QARecentChatOption {
   label: string;
 }
 
-export function QAInput({
+export const QAInput = forwardRef<HTMLTextAreaElement, QAInputProps>(function QAInput({
   onSend,
   onStop,
   disabled,
@@ -44,7 +44,7 @@ export function QAInput({
   recentChats = [],
   entityOverride,
   onClearEntityOverride,
-}: QAInputProps) {
+}, questionInputRef) {
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<'contact' | 'selected' | 'all'>(currentContact ? 'contact' : 'all');
   const [window, setWindow] = useState('7d');
@@ -285,6 +285,8 @@ export function QAInput({
 
       <div className="qa-input__row">
         <textarea
+          id="semantic-qa-input"
+          ref={questionInputRef}
           className="qa-input__textarea"
           placeholder={textareaPlaceholder}
           value={privacyOn ? '' : query}
@@ -331,7 +333,7 @@ export function QAInput({
       </div>
     </div>
   );
-}
+});
 
 function getSendDisabledReason({
   privacyOn,

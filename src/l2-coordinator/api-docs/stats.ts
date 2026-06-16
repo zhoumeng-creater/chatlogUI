@@ -6,6 +6,7 @@ export interface StatsCountByType {
 export interface StatsCountBySender {
   sender: string;
   count: number;
+  display?: string;
 }
 
 export interface StatsCountByHour {
@@ -23,10 +24,10 @@ export interface StatsResponse {
   receivedCount: number;
   activeSenders: number;
   activeDays: number;
-  firstMessageTime: string;
-  lastMessageTime: string;
-  querySince: string;
-  queryUntil: string;
+  firstMessageTime: number;
+  lastMessageTime: number;
+  querySince?: number;
+  queryUntil?: number;
   queryRangeLabel: string;
   byType: StatsCountByType[];
   topSenders: StatsCountBySender[];
@@ -35,8 +36,9 @@ export interface StatsResponse {
 
 export interface StatsQueryParams {
   chat: string;
-  timeStart?: string;
-  timeEnd?: string;
+  time?: string;
+  since?: number;
+  until?: number;
 }
 
 export interface TrendDataPoint {
@@ -48,6 +50,15 @@ export interface TrendDataPoint {
 
 export interface TrendResponse {
   chat: string;
-  username: string;
-  points: TrendDataPoint[];
+  window: string;
+  windowLabel: string;
+  from: number;
+  to: number;
+  count: number;
+  truncated: boolean;
+  summary: string;
+  summaryError?: string;
+  source: string;
+  daily: Array<{ date: string; count: number }>;
+  points?: TrendDataPoint[];
 }

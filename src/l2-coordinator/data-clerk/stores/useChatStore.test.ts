@@ -14,6 +14,10 @@ function message(id: number): ChatMessage {
     username: "room123@chatroom",
     isGroup: true,
     chatType: "group",
+    talker: "room123@chatroom",
+    talkerName: "Synthetic Work Group",
+    senderName: "Alice",
+    isSelf: false,
     direction: "unknown",
   };
 }
@@ -36,6 +40,65 @@ describe("useChatStore history pagination state", () => {
     expect(useChatStore.getState().messages).toHaveLength(50);
     expect(useChatStore.getState().messagesHasMore).toBe(false);
     expect(useChatStore.getState().messagesStatus).toBe("ready");
+  });
+
+  it("records scroll intent for latest, anchor, and preserve flows", () => {
+    const firstPage = [message(1), message(2)];
+
+    useChatStore.getState().setMessages(firstPage, 2, 0, false, "latest");
+    expect(useChatStore.getState()).toMatchObject({
+      scrollIntent: "latest",
+      scrollAnchorMessageId: "2",
+      scrollAnchorLocalId: 2,
+    });
+
+    useChatStore.getState().setMessages(firstPage, 2, 0, false, "anchor");
+    expect(useChatStore.getState()).toMatchObject({
+      scrollIntent: "anchor",
+      scrollAnchorMessageId: null,
+      scrollAnchorLocalId: null,
+    });
+
+    useChatStore.getState().appendMessages([message(0)], 50, false);
+    expect(useChatStore.getState()).toMatchObject({
+      scrollIntent: "preserve",
+      scrollAnchorMessageId: "1",
+      scrollAnchorLocalId: 1,
+    });
+
+    useChatStore.getState().clearScrollIntent();
+    expect(useChatStore.getState()).toMatchObject({
+      scrollIntent: "none",
+      scrollAnchorMessageId: null,
+      scrollAnchorLocalId: null,
+    });
+  });
+
+  it("tracks unread availability separately from conversation data", () => {
+    useChatStore.getState().setConversations([
+      {
+        id: "a",
+        username: "a",
+        displayName: "A",
+        chatType: "private",
+        isGroup: false,
+        summary: "",
+        timestamp: 0,
+        timeLabel: "",
+        unread: 0,
+        lastSender: "",
+        source: "session",
+      },
+    ], {}, {});
+
+    expect(useChatStore.getState().unreadStatus).toBe("idle");
+    useChatStore.getState().setUnreadLoading();
+    expect(useChatStore.getState().unreadStatus).toBe("loading");
+    useChatStore.getState().mergeConversationUnread({ a: 4 });
+    expect(useChatStore.getState().unreadStatus).toBe("ready");
+    expect(useChatStore.getState().conversations[0].unread).toBe(4);
+    useChatStore.getState().setUnreadUnavailable();
+    expect(useChatStore.getState().unreadStatus).toBe("unavailable");
   });
 
   it("tracks search anchor loading, hit, and missing states", () => {
@@ -108,6 +171,29 @@ describe("useChatStore history pagination state", () => {
       activeAnchor: null,
       highlightedMessageId: null,
       returnToSearch: null,
+    });
+  });
+
+  it("tracks message selection state and clears stale selections on conversation changes", () => {
+    useChatStore.getState().enterSelectionMode();
+    useChatStore.getState().toggleMessageSelection("1");
+    useChatStore.getState().toggleMessageSelection("2");
+
+    expect(useChatStore.getState()).toMatchObject({
+      selectionMode: true,
+      selectedMessageIds: ["1", "2"],
+      lastSelectedMessageId: "2",
+    });
+
+    useChatStore.getState().setSelectionStatus("已复制 2 条消息");
+    expect(useChatStore.getState().selectionStatus).toBe("已复制 2 条消息");
+
+    useChatStore.getState().selectConversation("conversation-2");
+    expect(useChatStore.getState()).toMatchObject({
+      selectionMode: false,
+      selectedMessageIds: [],
+      lastSelectedMessageId: null,
+      selectionStatus: null,
     });
   });
 });

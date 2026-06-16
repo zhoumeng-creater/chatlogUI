@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from "react";
+import { Suspense, useRef, useMemo, useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -126,6 +126,7 @@ interface GraphEngineProps {
   hoveredNodeId: string | null;
   selectedNodeId: string | null;
   pulsedNodeId: string | null;
+  viewResetToken: number;
   privacyOn: boolean;
   onNodeHover: (nodeId: string | null, coord?: { x: number; y: number }) => void;
   onNodeDblClick: (nodeId: string) => void;
@@ -140,6 +141,7 @@ export function GraphEngine({
   hoveredNodeId,
   selectedNodeId,
   pulsedNodeId,
+  viewResetToken,
   privacyOn,
   onNodeHover,
   onNodeDblClick,
@@ -151,6 +153,12 @@ export function GraphEngine({
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
   );
+
+  useEffect(() => {
+    camera.position.set(0, 0, 8);
+    camera.lookAt(0, 0, 0);
+    controlsRef.current?.reset();
+  }, [camera, viewResetToken]);
 
   const filteredNodes = useMemo(() => {
     if (!data) return [];
@@ -262,7 +270,9 @@ export function GraphEngine({
         })}
       </group>
 
-      <GraphLabels nodes={filteredNodes} positions={nodePositions} privacyOn={privacyOn} />
+      <Suspense fallback={null}>
+        <GraphLabels nodes={filteredNodes} positions={nodePositions} privacyOn={privacyOn} />
+      </Suspense>
     </>
   );
 }

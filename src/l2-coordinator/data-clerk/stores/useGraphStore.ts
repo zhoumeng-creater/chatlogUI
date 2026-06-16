@@ -19,8 +19,9 @@ import type {
   GraphQAResponseView,
 } from "@l4/network";
 import type { GraphResidualLoadStatus } from "@/l2-coordinator/commander/graphResidualViewModel";
+import type { GraphAppliedRequest } from "@/l2-coordinator/commander/graphContextSummaryModel";
 
-export type GraphAdvancedConfirmation = "business" | "event" | "qa" | "reset";
+export type GraphAdvancedConfirmation = "business" | "event" | "qa" | "reset" | "rebuild";
 
 interface GraphFilterPatch {
   keyword?: string;
@@ -47,6 +48,11 @@ interface GraphState {
   activeAdvancedConfigRequestId: string | null;
   activeIngestRequestId: string | null;
   activeQARequestId: string | null;
+  appliedGraphRequest: GraphAppliedRequest | null;
+  lastLoadedAt: string | null;
+  lastRefreshedAt: string | null;
+  lastGeneratedAt: string | null;
+  lastSummaryReason: string | null;
   activeTab: GraphWorkbenchTabId;
   visualizationRequested: boolean;
   loading: boolean;
@@ -101,6 +107,10 @@ interface GraphActions {
     query: GraphQueryView;
     visualize: GraphVisualizeView;
     timeline: GraphTimelineView;
+    appliedRequest?: GraphAppliedRequest;
+    loadedAt?: string;
+    refreshedAt?: string;
+    summaryReason?: string;
   }) => boolean;
   failGraphLoadRequest: (requestId: string, error: string) => boolean;
   cancelGraphLoadRequest: () => void;
@@ -176,6 +186,11 @@ const initialState: GraphState = {
   activeAdvancedConfigRequestId: null,
   activeIngestRequestId: null,
   activeQARequestId: null,
+  appliedGraphRequest: null,
+  lastLoadedAt: null,
+  lastRefreshedAt: null,
+  lastGeneratedAt: null,
+  lastSummaryReason: null,
   activeTab: "overview",
   visualizationRequested: false,
   loading: false,
@@ -277,6 +292,11 @@ export const useGraphStore = create<GraphStore>((set) => ({
         statusSummary: payload.statusSummary,
         query: payload.query,
         timeline: payload.timeline,
+        appliedGraphRequest: payload.appliedRequest ?? state.appliedGraphRequest,
+        lastLoadedAt: payload.loadedAt ?? new Date().toISOString(),
+        lastRefreshedAt: payload.refreshedAt ?? payload.loadedAt ?? new Date().toISOString(),
+        lastGeneratedAt: formatGraphGeneratedAt(payload.visualize),
+        lastSummaryReason: payload.summaryReason ?? "refresh",
         ...graphVisualizePatch(payload.visualize),
         loading: false,
         error: null,
@@ -602,4 +622,10 @@ function graphVisualizePatch(visualize: GraphVisualizeView | null): Pick<GraphSt
           }
         : null,
   };
+}
+
+function formatGraphGeneratedAt(visualize: GraphVisualizeView | null): string | null {
+  if (!visualize?.generatedAt) return null;
+  const date = new Date(visualize.generatedAt * 1000);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }

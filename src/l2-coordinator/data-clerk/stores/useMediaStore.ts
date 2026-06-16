@@ -14,6 +14,36 @@ export type MediaNewMessage = AdaptedNewMessage;
 export type MediaUnreadResponse = AdaptedUnreadResponse;
 export type MediaLoadStatus = "idle" | "loading" | "ready" | "empty" | "partial" | "error" | "cancelled";
 export type MediaEndpointKey = "favorites" | "members" | "unread" | "newMessages";
+export type MediaTypeFilter = "all" | "image" | "video" | "voice" | "file";
+export type MediaSourceFilter = "all" | "history" | "favorite" | "new_message";
+export type MediaAvailabilityFilter = "all" | "available" | "missing";
+export type MediaFilterField = "type" | "source" | "availability" | "dateRange";
+export type MediaResourceLoadStatus = "idle" | "loading" | "ready" | "error" | "missing";
+
+export interface MediaFilters {
+  type: MediaTypeFilter;
+  source: MediaSourceFilter;
+  availability: MediaAvailabilityFilter;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+}
+
+export interface MediaActionPrompt {
+  attachmentId: string;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  url: string;
+  redactedUrlLabel: string;
+}
+
+export interface MediaActionResult {
+  status: "idle" | "success" | "error";
+  message: string;
+}
 
 export interface MediaLoadScope {
   chat: string;
@@ -37,6 +67,11 @@ interface MediaState {
   error: string | null;
   endpointStatus: MediaEndpointStatus;
   selectedAttachment: MediaAttachment | null;
+  selectedAttachmentIds: string[];
+  filters: MediaFilters;
+  actionPrompt: MediaActionPrompt | null;
+  lastActionResult: MediaActionResult;
+  resourceStatusByAttachmentId: Record<string, MediaResourceLoadStatus>;
   activeLoadRequestId: string | null;
   activeLoadScope: MediaLoadScope | null;
 }
@@ -62,6 +97,15 @@ interface MediaActions {
   }, endpointStatus?: MediaEndpointStatus) => void;
   setError: (error: string) => void;
   selectAttachment: (attachment: MediaAttachment | null) => void;
+  setFilters: (filters: MediaFilters) => void;
+  clearFilter: (field: MediaFilterField) => void;
+  resetFilters: () => void;
+  toggleSelectedAttachment: (attachmentId: string) => void;
+  clearSelectedAttachments: () => void;
+  reconcileVisibleAttachments: (visibleAttachmentIds: string[]) => void;
+  setActionPrompt: (prompt: MediaActionPrompt | null) => void;
+  setLastActionResult: (result: MediaActionResult) => void;
+  setResourceStatus: (attachmentId: string, status: MediaResourceLoadStatus) => void;
   clear: () => void;
 }
 
@@ -73,6 +117,18 @@ const emptyUnread: AdaptedUnreadResponse = {
 };
 
 const endpointKeys: MediaEndpointKey[] = ["favorites", "members", "unread", "newMessages"];
+
+const defaultMediaFilters: MediaFilters = {
+  type: "all",
+  source: "all",
+  availability: "all",
+  dateRange: { start: "", end: "" },
+};
+
+const defaultActionResult: MediaActionResult = {
+  status: "idle",
+  message: "",
+};
 
 function endpointStatus(status: MediaLoadStatus, error: string | null = null): MediaEndpointState {
   return { status, error };
@@ -98,6 +154,11 @@ function createInitialState(): MediaState {
     error: null,
     endpointStatus: createEndpointStatus("idle"),
     selectedAttachment: null,
+    selectedAttachmentIds: [],
+    filters: defaultMediaFilters,
+    actionPrompt: null,
+    lastActionResult: defaultActionResult,
+    resourceStatusByAttachmentId: {},
     activeLoadRequestId: null,
     activeLoadScope: null,
   };
@@ -114,6 +175,10 @@ export const useMediaStore = create<MediaStore>((set) => ({
       error: null,
       endpointStatus: createEndpointStatus("loading"),
       selectedAttachment: null,
+      selectedAttachmentIds: [],
+      actionPrompt: null,
+      lastActionResult: defaultActionResult,
+      resourceStatusByAttachmentId: {},
       memberTotal: 0,
     }),
 
@@ -164,6 +229,10 @@ export const useMediaStore = create<MediaStore>((set) => ({
       activeLoadRequestId: null,
       activeLoadScope: null,
       selectedAttachment: null,
+      selectedAttachmentIds: [],
+      actionPrompt: null,
+      lastActionResult: defaultActionResult,
+      resourceStatusByAttachmentId: {},
       memberTotal: 0,
     }),
   setData: ({ favorites, members, memberTotal, unread, newMessages }, endpointStatusMap) =>
@@ -187,6 +256,49 @@ export const useMediaStore = create<MediaStore>((set) => ({
       activeLoadScope: null,
     }),
   selectAttachment: (attachment) => set({ selectedAttachment: attachment }),
+  setFilters: (filters) => set({ filters }),
+  clearFilter: (field) =>
+    set((state) => {
+      if (field === "dateRange") {
+        return { filters: { ...state.filters, dateRange: defaultMediaFilters.dateRange } };
+      }
+      return { filters: { ...state.filters, [field]: defaultMediaFilters[field] } };
+    }),
+  resetFilters: () => set({ filters: defaultMediaFilters }),
+  toggleSelectedAttachment: (attachmentId) =>
+    set((state) => {
+      const selected = new Set(state.selectedAttachmentIds);
+      if (selected.has(attachmentId)) {
+        selected.delete(attachmentId);
+      } else {
+        selected.add(attachmentId);
+      }
+      return { selectedAttachmentIds: Array.from(selected) };
+    }),
+  clearSelectedAttachments: () => set({ selectedAttachmentIds: [] }),
+  reconcileVisibleAttachments: (visibleAttachmentIds) =>
+    set((state) => {
+      const visible = new Set(visibleAttachmentIds);
+      const selectedAttachmentIds = state.selectedAttachmentIds.filter((id) => visible.has(id));
+      const selectedAttachment = state.selectedAttachment && visible.has(state.selectedAttachment.id)
+        ? state.selectedAttachment
+        : null;
+      const selectionUnchanged = selectedAttachmentIds.length === state.selectedAttachmentIds.length &&
+        selectedAttachmentIds.every((id, index) => id === state.selectedAttachmentIds[index]);
+      if (selectionUnchanged && selectedAttachment === state.selectedAttachment) {
+        return state;
+      }
+      return { selectedAttachmentIds, selectedAttachment };
+    }),
+  setActionPrompt: (actionPrompt) => set({ actionPrompt }),
+  setLastActionResult: (lastActionResult) => set({ lastActionResult }),
+  setResourceStatus: (attachmentId, status) =>
+    set((state) => ({
+      resourceStatusByAttachmentId: {
+        ...state.resourceStatusByAttachmentId,
+        [attachmentId]: status,
+      },
+    })),
   clear: () => set(createInitialState()),
 }));
 

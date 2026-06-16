@@ -2,8 +2,12 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
   if (!text) return false;
 
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return true;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Browser clipboard permissions can be denied even when the API exists.
+    }
   }
 
   if (typeof document === "undefined") return false;

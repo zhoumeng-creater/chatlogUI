@@ -46,7 +46,7 @@ export function deriveManualConfigValidationView(
   }
 
   if (!draft.dataKey?.trim()) {
-    fieldErrors.dataKey = "Data Key 必填。";
+    fieldErrors.dataKey = "数据密钥必填。";
   }
 
   const httpAddr = draft.httpAddr?.trim();

@@ -23,6 +23,8 @@ describe("ManualAdvancedConfigPanel", () => {
         draft={draft}
         onDraftChange={vi.fn()}
         onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
       />,
     );
 
@@ -40,6 +42,8 @@ describe("ManualAdvancedConfigPanel", () => {
         draft={draft}
         onDraftChange={vi.fn()}
         onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
       />,
     );
 
@@ -54,20 +58,46 @@ describe("ManualAdvancedConfigPanel", () => {
         draft={draft}
         fieldErrors={{
           dataDir: "请选择微信数据目录。",
-          dataKey: "Data Key 必填。",
+          dataKey: "数据密钥必填。",
           httpAddr: "服务地址只支持本机 HTTP origin。",
         }}
         onDraftChange={vi.fn()}
         onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
       />,
     );
 
     expect(html).toContain("请选择微信数据目录");
-    expect(html).toContain("Data Key 必填");
+    expect(html).toContain("数据密钥必填");
     expect(html).toContain("manual-data-dir-error");
     expect(html).toContain("manual-data-key-error");
     expect(html).toContain("aria-errormessage");
     expect(html).not.toContain("C:\\Users\\Synthetic");
     expect(html).not.toContain("sk-synthetic");
+  });
+
+  it("keeps manual config advanced while exposing directory picker actions", () => {
+    const html = renderToStaticMarkup(
+      <ManualAdvancedConfigPanel
+        loading={false}
+        error={null}
+        draft={draft}
+        onDraftChange={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
+      />,
+    );
+
+    expect(html).toContain("高级手动配置");
+    expect(html).toContain("适合迁移或排障");
+    expect(html).toContain("选择数据目录");
+    expect(html).toContain("选择工作目录");
+    expect(html).toContain("数据密钥");
+    expect(html).toContain("媒体密钥");
+    expect(html).not.toContain("chatlog_alpha 服务所需");
+    expect(html).not.toContain("Data Key");
+    expect(html).not.toContain("Image Key");
   });
 });

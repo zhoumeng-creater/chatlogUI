@@ -4,6 +4,7 @@ import {
   getMessageAttachmentSummary,
   formatMessageClock,
   getMessageKindLabel,
+  getMessageSenderDisplay,
   getTranscriptTone,
   groupMessagesByDate,
   shouldShowSender,
@@ -16,6 +17,10 @@ function message(overrides: Partial<ChatMessage>): ChatMessage {
     timestamp: overrides.timestamp ?? 1_700_000_000,
     time: overrides.time ?? "2026-05-29 10:00",
     sender: overrides.sender ?? "wxid_synthetic_sender",
+    senderName: overrides.senderName,
+    talker: overrides.talker,
+    talkerName: overrides.talkerName,
+    isSelf: overrides.isSelf ?? false,
     type: overrides.type ?? "text",
     content: overrides.content ?? "hello",
     chat: overrides.chat ?? "wxid_synthetic_chat",
@@ -74,6 +79,17 @@ describe("transcriptDisplay", () => {
     expect(shouldShowSender(message({ isGroup: true, direction: "unknown" }))).toBe(true);
     expect(shouldShowSender(message({ isGroup: true, direction: "self" }))).toBe(false);
     expect(shouldShowSender(message({ isGroup: false, direction: "other" }))).toBe(false);
+  });
+
+  it("uses sender display names supplied by L2/L4 for group metadata", () => {
+    expect(getMessageSenderDisplay(message({
+      sender: "wxid_synthetic_member",
+      senderName: "Synthetic Member",
+    }))).toBe("Synthetic Member");
+    expect(getMessageSenderDisplay(message({
+      sender: "wxid_synthetic_member",
+      senderName: "",
+    }))).toBe("wxid_synthetic_member");
   });
 
   it("groups messages by calendar date", () => {

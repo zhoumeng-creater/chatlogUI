@@ -12,6 +12,7 @@ import { buildDiagnosticsReport } from "./diagnostics";
 import { buildRuntimeDiagnosticsManifest } from "./diagnosticsManifest";
 import { createDeferredSubscription } from "./deferredSubscription";
 import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
+import { recordErrorRecoveryKpiEvent } from "./uxKpiEvents";
 import {
   buildDiagnosticEventViewModel,
   summarizeDiagnosticEventsForReport,
@@ -31,6 +32,11 @@ export function useDevConsoleCommander() {
   });
 
   const exportLogs = useCallback(async (): Promise<string | null> => {
+    recordErrorRecoveryKpiEvent({
+      sourceModule: "diagnostics",
+      recoveryAction: "copy-diagnostics",
+      outcome: "success",
+    });
     try {
       const { logs } = useDevConsoleStore.getState();
       const { items } = useDiagnosticEventStore.getState();

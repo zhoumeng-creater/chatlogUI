@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { startMockChatlogServer } from "../mock-chatlog-server/server.mjs";
 import { assertNoForbiddenVisibleText } from "../utils/privacy-scan";
 import { setDesktop, setNarrow } from "../utils/viewport";
@@ -15,17 +15,20 @@ import {
 } from "../utils/workbench";
 
 test.describe("core synthetic routes", () => {
+  const setupPathButton = (page: Page, name: RegExp) =>
+    page.locator(".setup-choice-card").filter({ hasText: name });
+
   test("renders setup center with collapsed local diagnostics", async ({ page }) => {
     await setDesktop(page);
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: "连接本地聊天数据服务" })).toBeVisible();
-    await expect(page.getByText("选择由应用管理本机服务，或连接已有")).toBeVisible();
-    await expect(page.getByRole("button", { name: /推荐自动导入/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /连接已有服务/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /专家手动配置/ })).toBeVisible();
-    await expect(page.getByText("隐私保护")).toBeVisible();
-    await expect(page.getByText("诊断信息")).toBeVisible();
+    await expect(page.getByText("选择由应用管理本机聊天服务，或连接已有")).toBeVisible();
+    await expect(setupPathButton(page, /推荐自动导入/)).toBeVisible();
+    await expect(setupPathButton(page, /连接已有服务/)).toBeVisible();
+    await expect(setupPathButton(page, /专家手动配置/)).toBeVisible();
+    await expect(page.getByText(/隐私保护(待验证|已应用)/)).toBeVisible();
+    await expect(page.getByText("默认只显示状态摘要；需要排查时再展开脱敏诊断。")).toBeVisible();
     await expect(page.getByRole("button", { name: "查看脱敏诊断" })).toBeVisible();
     await expect(page.getByText("Export manifest version")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "打开工作台" })).toHaveCount(0);
@@ -36,9 +39,9 @@ test.describe("core synthetic routes", () => {
     await setNarrow(page);
     await page.goto("/");
 
-    await expect(page.getByRole("button", { name: /推荐自动导入/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /连接已有服务/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /专家手动配置/ })).toBeVisible();
+    await expect(setupPathButton(page, /推荐自动导入/)).toBeVisible();
+    await expect(setupPathButton(page, /连接已有服务/)).toBeVisible();
+    await expect(setupPathButton(page, /专家手动配置/)).toBeVisible();
     await expect(page.getByText("状态摘要", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "查看脱敏诊断" })).toBeVisible();
     await expect(page.getByRole("button", { name: "打开工作台" })).toHaveCount(0);
@@ -72,7 +75,7 @@ test.describe("core synthetic routes", () => {
     try {
       await setDesktop(page);
       await page.goto("/");
-      await page.getByRole("button", { name: /连接已有服务/ }).click();
+      await setupPathButton(page, /连接已有服务/).click();
       await page.getByRole("textbox", { name: /外部服务地址/ }).fill(server.baseUrl);
       await page.getByRole("button", { name: "测试连接并保存" }).click();
 
@@ -89,7 +92,7 @@ test.describe("core synthetic routes", () => {
     await installTauriSetupConfigMock(page);
     await setDesktop(page);
     await page.goto("/");
-    await page.getByRole("button", { name: /连接已有服务/ }).click();
+    await setupPathButton(page, /连接已有服务/).click();
     await page.getByRole("textbox", { name: /外部服务地址/ }).fill("http://example.com:5030");
     await page.getByRole("button", { name: "测试连接并保存" }).click();
 
@@ -107,12 +110,98 @@ test.describe("core synthetic routes", () => {
     await openSyntheticWorkbench(page);
 
     await expect(page.getByLabel("一级工作区导航")).toBeVisible();
+    await expect(page.getByRole("button", { name: "收起导航栏" })).toHaveAttribute("aria-expanded", "true");
     for (const label of ["会话", "搜索", "媒体", "朋友圈", "统计", "AI", "图谱"]) {
       await expect(page.getByRole("button", { name: `打开${label}` })).toBeVisible();
     }
     await expectDeveloperEntryHidden(page);
     await expect(page.locator(".workbench-frame__module-tabs")).toHaveCount(0);
     await expectStableSyntheticPage(page);
+  });
+
+  test("opens contextual shortcut help by button and keyboard shortcuts", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    const helpButton = page.getByRole("button", { name: "快捷键帮助" });
+    await helpButton.focus();
+    await helpButton.click();
+
+    const workbenchDialog = page.getByRole("dialog", { name: "会话阅读快捷键" });
+    await expect(workbenchDialog).toBeVisible();
+    await expect(workbenchDialog).toContainText("关闭浮层");
+    await expect(workbenchDialog).toContainText("回到最新消息");
+
+    await page.keyboard.press("Escape");
+    await expect(workbenchDialog).toHaveCount(0);
+    await expect(helpButton).toBeFocused();
+
+    await page.keyboard.press("Shift+/");
+    await expect(workbenchDialog).toBeVisible();
+    await workbenchDialog.getByRole("button", { name: "关闭快捷键帮助" }).click();
+    await expect(workbenchDialog).toHaveCount(0);
+
+    await page.goto("/ai?codex-smoke=workbench-ready");
+    await page.keyboard.press("Control+/");
+    const aiDialog = page.getByRole("dialog", { name: "AI快捷键" });
+    await expect(aiDialog).toBeVisible();
+    await expect(aiDialog).toContainText("聚焦问题输入");
+    await expect(aiDialog).not.toContainText("Synthetic Session Alpha");
+  });
+
+  test("persists coach mark dismissal and keeps empty state actions valid", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/");
+    await page.evaluate(() => {
+      window.localStorage.removeItem("chatlog_alpha_workspace_preferences");
+    });
+    await page.goto("/search?codex-smoke=workbench-ready");
+
+    const emptyState = page.locator('[data-empty-state="search-not-started"]');
+    await expect(emptyState).toBeVisible();
+    await expect(emptyState).toContainText("输入关键词开始搜索");
+    await expect(emptyState).not.toContainText("搜索当前会话");
+
+    const coachMark = page.locator('[data-coach-mark="search-scope"]');
+    await expect(coachMark).toBeVisible();
+    await coachMark.getByRole("button", { name: "知道了" }).click();
+    await expect(coachMark).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.locator('[data-coach-mark="search-scope"]')).toHaveCount(0);
+  });
+
+  test("persists rail collapse and supports desktop panel splitters", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    const rail = page.getByLabel("一级工作区导航");
+    const expandedBox = await rail.boundingBox();
+    expect(expandedBox?.width ?? 0).toBeGreaterThan(150);
+
+    await page.getByRole("button", { name: "收起导航栏" }).click();
+    await expect(page.getByRole("button", { name: "展开导航栏" })).toHaveAttribute("aria-expanded", "false");
+    const collapsedBox = await rail.boundingBox();
+    expect(collapsedBox?.width ?? 0).toBeLessThan(96);
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: "展开导航栏" })).toBeVisible();
+    const restoredBox = await rail.boundingBox();
+    expect(restoredBox?.width ?? 0).toBeLessThan(96);
+
+    const list = page.getByLabel("会话列表").first();
+    const listWidthBefore = (await list.boundingBox())?.width ?? 0;
+    const listSplitter = page.getByRole("separator", { name: "调整会话列表宽度" });
+    await expect(listSplitter).toBeVisible();
+    await expect(listSplitter).toHaveAttribute("aria-orientation", "vertical");
+    await listSplitter.focus();
+    await page.keyboard.press("ArrowRight");
+    const listWidthAfter = (await list.boundingBox())?.width ?? 0;
+    expect(listWidthAfter).toBeGreaterThan(listWidthBefore);
+
+    await listSplitter.dblclick();
+    const resetWidth = (await list.boundingBox())?.width ?? 0;
+    expect(Math.abs(resetWidth - 320)).toBeLessThanOrEqual(4);
   });
 
   test("renders workbench ready shell at narrow width", async ({ page }) => {
@@ -160,12 +249,181 @@ test.describe("core synthetic routes", () => {
     }
   });
 
+  test("media operation loop filters previews copies cancels open locates and exports manifest", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/media?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const media = page.getByRole("complementary", { name: "媒体与扩展" });
+    await expect(media).toBeVisible();
+    await expect(page.getByRole("region", { name: "媒体筛选" })).toBeVisible();
+    await expect(media.getByText("图片 4")).toBeVisible();
+    await expect(media.getByText("视频 1")).toBeVisible();
+    await expect(media.getByText("语音 1")).toBeVisible();
+    await expect(media.getByText("文件 1")).toBeVisible();
+
+    await page.getByRole("combobox", { name: "媒体状态" }).selectOption("missing");
+    await expect(media.locator(".media-library__row--attachment").filter({ hasText: "资源缺失" })).toBeVisible();
+    await page.getByRole("combobox", { name: "媒体状态" }).selectOption("all");
+
+    await page.getByRole("combobox", { name: "媒体类型" }).selectOption("video");
+    const videoRow = media.locator(".media-library__row--attachment").filter({ hasText: "视频" });
+    await expect(videoRow).toBeVisible();
+    await videoRow.getByRole("button", { name: "预览媒体" }).click();
+    await expect(page.getByRole("dialog", { name: /视频/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: /视频/ })).toHaveCount(0);
+
+    await page.getByRole("combobox", { name: "媒体类型" }).selectOption("image");
+    const imageRow = media.locator(".media-library__row--attachment").filter({ hasText: "图片" }).first();
+    await expect(imageRow).toBeVisible();
+    const copySummaryButton = imageRow.getByRole("button", { name: "复制媒体摘要" });
+    await copySummaryButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("已复制媒体摘要。")).toBeVisible();
+
+    const openOriginalButton = imageRow.getByRole("button", { name: "打开原始资源" });
+    await openOriginalButton.focus();
+    await page.keyboard.press("Enter");
+    const prompt = page.getByRole("dialog", { name: "打开原始资源" });
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText("本机媒体资源");
+    await expect(prompt).not.toContainText("media_synthetic_image_key");
+    await expect(prompt.getByRole("button", { name: "取消" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(prompt).toHaveCount(0);
+
+    await page.getByRole("button", { name: "导出" }).click();
+    const exportDialog = page.getByRole("dialog", { name: "导出媒体清单" });
+    await expect(exportDialog).toBeVisible();
+    await expect(exportDialog).toContainText("当前只导出已加载媒体记录");
+    await expect(exportDialog).toContainText("当前导出筛选后可见媒体记录");
+    await expect(exportDialog).toContainText("CSV");
+    await expect(exportDialog).not.toContainText("media_synthetic_image_key");
+    await exportDialog.getByRole("button", { name: "关闭" }).click();
+
+    const locateSourceButton = imageRow.getByRole("button", { name: "定位来源消息" });
+    await locateSourceButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/workbench/);
+    await expect(page.getByText("来自媒体库")).toBeVisible();
+    await expect(page.getByRole("button", { name: "返回媒体库" })).toBeVisible();
+  });
+
+  test("keeps loaded media usable when an extension endpoint is partial", async ({ page }) => {
+    await setDesktop(page);
+    await page.route("**/api/v1/favorites**", async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "synthetic favorites unavailable",
+        }),
+      });
+    });
+
+    await page.goto("/media?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const media = page.getByRole("complementary", { name: "媒体与扩展" });
+    await expect(page.getByText("部分媒体扩展加载失败")).toBeVisible();
+    await expect(page.getByText(/收藏加载失败/)).toBeVisible();
+    await expect(media.getByText("图片 3")).toBeVisible();
+    await expect(media.getByRole("button", { name: "预览媒体" }).first()).toBeEnabled();
+  });
+
+  test("loads analytics controls, comparison, explanations, and export metadata", async ({ page }) => {
+    await setDesktop(page);
+    const statsRequests: string[] = [];
+    const trendRequests: string[] = [];
+
+    await page.route("**/api/v1/stats**", async (route) => {
+      statsRequests.push(route.request().url());
+      await route.continue();
+    });
+    await page.route("**/api/v1/dashboard/trend**", async (route) => {
+      trendRequests.push(route.request().url());
+      await route.continue();
+    });
+
+    await page.goto("/analytics?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const scopeController = page.getByRole("region", { name: "统计范围", exact: true });
+    await expect(scopeController).toBeVisible();
+    await expect(scopeController.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话：Synthetic Session Alpha");
+    await expect(scopeController.locator('[data-scope-field="dateRange"]')).toContainText("时间：近 7 天");
+    await expect(page.getByRole("region", { name: "统计控制" })).toBeVisible();
+    await expect(page.getByText("当前导出范围：近 7 天 · 按日 · 全部成员")).toBeVisible();
+    await expect(page.getByText("消息总数").first()).toBeVisible();
+    await expect(page.getByText("指标说明")).toBeVisible();
+    await expect(page.getByText("统计值来自当前范围")).toBeVisible();
+
+    await page.getByRole("button", { name: "近 30 天" }).click();
+    await expect(page.getByText("当前导出范围：近 30 天 · 按日 · 全部成员")).toBeVisible();
+    await expect.poll(() => statsRequests.some((url) => new URL(url).searchParams.get("time") === "30d")).toBe(true);
+    await expect.poll(() => trendRequests.some((url) => new URL(url).searchParams.get("window") === "30d")).toBe(true);
+
+    await page.getByRole("button", { name: "与上一周期比较" }).click();
+    await expect(page.locator(".metric-explanation__comparison").getByText("上一周期比较", { exact: true })).toBeVisible();
+    await expect.poll(() => statsRequests.some((url) => {
+      const params = new URL(url).searchParams;
+      return params.has("since") && params.has("until");
+    })).toBe(true);
+
+    await page.getByRole("button", { name: "导出" }).click();
+    await expect(page.getByRole("dialog", { name: "导出统计" })).toBeVisible();
+    await expect(page.getByText("范围").first()).toBeVisible();
+    await expect(page.getByText("CSV", { exact: true })).toBeVisible();
+    await expectStableSyntheticPage(page);
+  });
+
+  test("renders unified workspace scope controls at desktop and narrow widths", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const controller = page.getByRole("region", { name: "搜索范围", exact: true });
+    await expect(controller).toBeVisible();
+    await expect(controller.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话：Synthetic Session Alpha");
+    await expect(controller.locator('[data-scope-field="sourceRoute"]')).toContainText("来源：来自搜索结果");
+    await expect(controller.locator('[data-scope-field="focusMessage"]')).toContainText("定位：上下文定位");
+    await expect(controller).not.toContainText("focus=1001");
+
+    await controller.getByRole("button", { name: "打开范围设置" }).click();
+    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeHidden();
+
+    await setNarrow(page);
+    await expect(controller).toBeVisible();
+    await expect(controller.getByRole("button", { name: "打开范围设置" })).toBeVisible();
+    await expectStableSyntheticPage(page);
+  });
+
   test("opens a search result at its chat hit and returns to the result list", async ({ page }) => {
     await setDesktop(page);
     await expectSearchClosedLoop(page);
 
     await setNarrow(page);
     await expectSearchClosedLoop(page);
+  });
+
+  test("promotes current conversation actions through CommandBar overflow and keeps inspector concise", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    await page.getByRole("button", { name: /Synthetic Session Alpha/ }).first().click();
+
+    await expect(page.getByRole("button", { name: "搜索此会话" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "更多当前会话操作" })).toBeVisible();
+    await page.getByRole("button", { name: "更多当前会话操作" }).click();
+    await expect(page.getByRole("menuitem", { name: "导出当前会话" })).toBeEnabled();
+    await expect(page.getByRole("menuitem", { name: "跳转日期" })).toBeDisabled();
+
+    const inspector = page.locator(".conversation-inspector");
+    await expect(inspector).toContainText("建议下一步");
+    await expect(inspector).toContainText("查看完整统计");
+    await expect(inspector).not.toContainText("搜索此会话");
+    await expect(inspector).not.toContainText("打开媒体库");
+    await expect(inspector).not.toContainText("问这个会话");
+    await expect(inspector).not.toContainText("在图谱中查看");
   });
 
   test("keeps scoped current-chat search constrained before conversations finish loading", async ({ page }) => {
@@ -367,6 +625,7 @@ async function expectSearchClosedLoop(page: import("@playwright/test").Page) {
   await result.click();
 
   await expect(page).toHaveURL(/\/workbench/);
+  await expect(page.getByText("来自搜索结果")).toBeVisible();
   await expect(page.getByText("已定位搜索命中")).toBeVisible();
   await expect(page.locator(".message-row--search-hit")).toBeVisible();
   await expect(page.locator("[data-local-id='1001']")).toBeVisible();

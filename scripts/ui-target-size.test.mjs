@@ -4,12 +4,16 @@ import { describe, expect, it } from "vitest";
 const cssPath = "src/styles/layout.css";
 
 function findRule(css, selector) {
-  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = css.match(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`, "m"));
-  if (!match) {
-    throw new Error(`Missing CSS rule for ${selector}`);
+  const rulePattern = /([^{}]+)\{([^}]*)\}/g;
+
+  for (const match of css.matchAll(rulePattern)) {
+    const selectors = match[1].split(",").map((entry) => entry.trim());
+    if (selectors.includes(selector)) {
+      return match[2];
+    }
   }
-  return match[1];
+
+  throw new Error(`Missing CSS rule for ${selector}`);
 }
 
 function readPxDeclaration(rule, property) {
@@ -55,5 +59,30 @@ describe("UI target-size tokens", () => {
     expect(readPxDeclaration(findRule(css, ".ui-control--sm"), "min-height")).toBeGreaterThanOrEqual(32);
     expect(readPxDeclaration(findRule(css, ".ui-control--md"), "min-height")).toBeGreaterThanOrEqual(40);
     expect(readPxDeclaration(findRule(css, ".ui-segmented__item"), "min-height")).toBeGreaterThanOrEqual(32);
+  });
+
+  it("keeps high-frequency workspace controls above the project minimum", async () => {
+    const css = await readLayoutCss();
+
+    expect(readPxDeclaration(findRule(css, ".workspace-command-bar__menu-item"), "min-height")).toBeGreaterThanOrEqual(36);
+    expect(readPxDeclaration(findRule(css, ".workspace-scope-controller__chip"), "min-height")).toBeGreaterThanOrEqual(32);
+    expect(readPxDeclaration(findRule(css, ".business-export-dialog__format-option"), "min-height")).toBeGreaterThanOrEqual(40);
+  });
+
+  it("keeps dense CSS labels at 12px or larger", async () => {
+    const files = [
+      "src/styles/layout.css",
+      "src/styles/workbench-content.css",
+    ];
+    const offenders = [];
+
+    for (const file of files) {
+      const css = await readFile(file, "utf8");
+      if (css.includes("font-size: 11px")) {
+        offenders.push(file);
+      }
+    }
+
+    expect(offenders).toEqual([]);
   });
 });

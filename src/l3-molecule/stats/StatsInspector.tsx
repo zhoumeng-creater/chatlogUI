@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Typography } from "@l4/ui";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
 import type { AdaptedStats, TrendDataPoint } from "@l2/data-clerk/stores/useStatsStore";
 import { DashboardOverview } from "./DashboardOverview";
 import { TrendChart } from "./TrendChart";
@@ -11,8 +13,10 @@ interface StatsInspectorProps {
   trend: TrendDataPoint[];
   loading: boolean;
   error: string | null;
+  emptyState: ActionableEmptyStateView;
   privacyOn: boolean;
   onRetry: () => void;
+  onEmptyAction?: (actionId: EmptyStateActionId) => void;
   onShowAi: () => void;
   onOpenGraph: () => void;
 }
@@ -23,13 +27,22 @@ export function StatsInspector({
   trend,
   loading,
   error,
+  emptyState,
   privacyOn,
   onRetry,
+  onEmptyAction,
   onShowAi,
   onOpenGraph,
 }: StatsInspectorProps) {
   const inspectorRef = useRef<HTMLElement | null>(null);
   const [inspectorWidth, setInspectorWidth] = useState(320);
+  const handleEmptyAction = (actionId: EmptyStateActionId) => {
+    if (actionId === "refresh") {
+      onRetry();
+      return;
+    }
+    onEmptyAction?.(actionId);
+  };
 
   useEffect(() => {
     const node = inspectorRef.current;
@@ -63,14 +76,11 @@ export function StatsInspector({
       </div>
 
       {!currentChat ? (
-        <div className="workbench-empty-state">
-          <Typography variant="label" weight={700}>
-            选择会话
-          </Typography>
-          <Typography variant="body" color="var(--text-secondary)">
-            打开会话后显示消息总量、趋势和活跃发送者。
-          </Typography>
-        </div>
+        <ActionableEmptyState
+          className="workbench-empty-state"
+          model={emptyState}
+          onAction={handleEmptyAction}
+        />
       ) : error ? (
         <div className="workbench-error-state" role="alert">
           <Typography variant="label" weight={700}>

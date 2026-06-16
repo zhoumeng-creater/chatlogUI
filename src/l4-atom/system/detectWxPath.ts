@@ -9,9 +9,5 @@ export interface WxPathCandidate {
 }
 
 export async function detectWxPath(): Promise<WxPathCandidate[]> {
-  try {
-    return await invoke<WxPathCandidate[]>("detect_wechat_data_dirs");
-  } catch {
-    return [];
-  }
+  return invoke<WxPathCandidate[]>("detect_wechat_data_dirs");
 }

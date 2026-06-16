@@ -7,6 +7,10 @@ import { ChatlogHttpError, fetchSearch } from "@l4/network";
 import { debounce } from "@/l2-coordinator/diplomat/debounce";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 import {
+  mapSearchAdvancedFiltersToRequest,
+  type SearchAdvancedFiltersState,
+} from "./searchAdvancedFilters";
+import {
   canMergeSearchPage,
   createSearchRequest,
   createSearchRequestSnapshot,
@@ -18,6 +22,12 @@ import {
 import { clearSearchSession } from "./searchSession";
 import { resolveSearchScopeChat } from "./searchWorkspaceContext";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
+import {
+  createUxKpiTimer,
+  recordSearchExecutedKpiEvent,
+  recordSearchFilterChangedKpiEvent,
+  type UxKpiScopeKind,
+} from "./uxKpiEvents";
 
 const SEARCH_PAGE_SIZE = 20;
 
@@ -39,6 +49,7 @@ function getCurrentRequestState(scopedChat?: string | null) {
     activeFilter: state.activeFilter,
     scope: state.scope,
     scopeChat: getScopedChat(scopedChat),
+    advancedFilters: state.advancedFilters,
   };
 }
 
@@ -71,7 +82,11 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
     controller?.abort();
   }, []);
 
-  const executeSearchFn = useCallback(async (keyword: string, filter = useSearchStore.getState().activeFilter) => {
+  const executeSearchFn = useCallback(async (
+    keyword: string,
+    filter = useSearchStore.getState().activeFilter,
+    advancedFilters = useSearchStore.getState().advancedFilters,
+  ) => {
     if (getSearchInputStatus(keyword) === "invalid") {
       cancelActiveRequest();
       useSearchStore.getState().setInvalid();
@@ -89,6 +104,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
       filter,
       scope,
       scopeChat,
+      advancedFilters,
       limit: SEARCH_PAGE_SIZE,
       offset: 0,
     });
@@ -96,6 +112,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
     activeControllerRef.current = controller;
     useSearchStore.getState().setActiveRequest(snapshot);
     useSearchStore.getState().setLoading(true);
+    const timer = createUxKpiTimer();
 
     try {
       const result = await fetchSearch(
@@ -105,6 +122,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
           limit: SEARCH_PAGE_SIZE,
           offset: 0,
           scopeChat: scopeChat ?? undefined,
+          advancedFilters,
         }),
         {
           ...createDiagnosticHttpOptions({
@@ -118,16 +136,54 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
       if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(scopedChat), useSearchStore.getState().activeRequest?.requestId)) {
         return;
       }
-      useSearchStore.getState().setResults(result as unknown as SearchResults);
+      const searchResult = result as unknown as SearchResults;
+      useSearchStore.getState().setResults(searchResult);
+      recordSearchExecutedKpiEvent({
+        resultCount: searchResult.totalCount,
+        filterCount: countSearchFilters({
+          filter,
+          advancedFilters,
+          scope,
+          scopeChat,
+        }),
+        scopeKind: toSearchKpiScopeKind(scope),
+        durationMs: timer.durationMs(),
+        outcome: "success",
+      });
     } catch (error) {
       if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(scopedChat), useSearchStore.getState().activeRequest?.requestId)) {
         return;
       }
       if (isCancelledSearchError(error)) {
         useSearchStore.getState().setCancelled();
+        recordSearchExecutedKpiEvent({
+          resultCount: 0,
+          filterCount: countSearchFilters({
+            filter,
+            advancedFilters,
+            scope,
+            scopeChat,
+          }),
+          scopeKind: toSearchKpiScopeKind(scope),
+          durationMs: timer.durationMs(),
+          outcome: "cancelled",
+        });
         return;
       }
       useSearchStore.getState().setError("搜索失败，请检查网络连接");
+      recordSearchExecutedKpiEvent({
+        resultCount: 0,
+        filterCount: countSearchFilters({
+          filter,
+          advancedFilters,
+          scope,
+          scopeChat,
+        }),
+        scopeKind: toSearchKpiScopeKind(scope),
+        durationMs: timer.durationMs(),
+        outcome: "failed",
+        errorKind: toSearchKpiErrorKind(error),
+      });
     } finally {
       if (activeControllerRef.current === controller) {
         activeControllerRef.current = null;
@@ -167,20 +223,65 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
     debouncedSearchRef.current.cancel();
     cancelActiveRequest();
     useSearchStore.getState().setFilter(filter);
+    recordSearchFilterChangedKpiEvent({
+      filterCount: countSearchFilters({
+        filter,
+        advancedFilters: useSearchStore.getState().advancedFilters,
+        scope: useSearchStore.getState().scope,
+        scopeChat: getScopedChat(scopedChat),
+      }),
+      scopeKind: toSearchKpiScopeKind(useSearchStore.getState().scope),
+    });
     if (query.trim()) {
       executeSearchFn(query, filter);
     }
-  }, [cancelActiveRequest, executeSearchFn]);
+  }, [cancelActiveRequest, executeSearchFn, scopedChat]);
 
   const changeScope = useCallback((scope: SearchScope) => {
     const { query } = useSearchStore.getState();
     debouncedSearchRef.current.cancel();
     cancelActiveRequest();
     useSearchStore.getState().setScope(scope);
+    recordSearchFilterChangedKpiEvent({
+      filterCount: countSearchFilters({
+        filter: useSearchStore.getState().activeFilter,
+        advancedFilters: useSearchStore.getState().advancedFilters,
+        scope,
+        scopeChat: getScopedChat(scopedChat),
+      }),
+      scopeKind: toSearchKpiScopeKind(scope),
+    });
     if (query.trim()) {
       executeSearchFn(query);
     }
-  }, [cancelActiveRequest, executeSearchFn]);
+  }, [cancelActiveRequest, executeSearchFn, scopedChat]);
+
+  const changeAdvancedFilters = useCallback((advancedFilters: SearchAdvancedFiltersState) => {
+    const { query, activeFilter, advancedFilters: previousAdvancedFilters } = useSearchStore.getState();
+    const backendFiltersChanged = getBackendFilterKey(previousAdvancedFilters) !== getBackendFilterKey(advancedFilters);
+    debouncedSearchRef.current.cancel();
+    cancelActiveRequest();
+    useSearchStore.getState().setAdvancedFilters(advancedFilters);
+    recordSearchFilterChangedKpiEvent({
+      filterCount: countSearchFilters({
+        filter: activeFilter,
+        advancedFilters,
+        scope: useSearchStore.getState().scope,
+        scopeChat: getScopedChat(scopedChat),
+      }),
+      scopeKind: toSearchKpiScopeKind(useSearchStore.getState().scope),
+    });
+    if (query.trim() && backendFiltersChanged) {
+      executeSearchFn(query, activeFilter, advancedFilters);
+    }
+  }, [cancelActiveRequest, executeSearchFn, scopedChat]);
+
+  const cancelSearch = useCallback(() => {
+    const controller = activeControllerRef.current;
+    activeControllerRef.current = null;
+    controller?.abort();
+    useSearchStore.getState().setCancelled();
+  }, []);
 
   const clearSearch = useCallback(() => {
     cancelActiveRequest();
@@ -188,7 +289,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
   }, [cancelActiveRequest]);
 
   const loadMoreResults = useCallback(async () => {
-    const { query, activeFilter, results, loading, scope } = useSearchStore.getState();
+    const { query, activeFilter, advancedFilters, results, loading, scope } = useSearchStore.getState();
     if (loading || !results || results.messages.length >= results.totalCount) return;
 
     const nextOffset = getNextSearchOffset(results);
@@ -202,6 +303,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
       filter: activeFilter,
       scope,
       scopeChat,
+      advancedFilters,
       offset: nextOffset,
       limit: SEARCH_PAGE_SIZE,
     });
@@ -218,6 +320,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
           limit: SEARCH_PAGE_SIZE,
           offset: nextOffset,
           scopeChat: scopeChat ?? undefined,
+          advancedFilters,
         }),
         {
           ...createDiagnosticHttpOptions({
@@ -236,6 +339,7 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
             activeFilter: state.activeFilter,
             scope: state.scope,
             scopeChat: getScopedChat(scopedChat),
+            advancedFilters: state.advancedFilters,
             results: state.results,
           },
           newResult as unknown as SearchResults,
@@ -285,7 +389,46 @@ export function useSearchCommander(options: SearchCommanderOptions = {}) {
     executeSearch,
     changeFilter,
     changeScope,
+    changeAdvancedFilters,
+    cancelSearch,
     clearSearch,
     loadMoreResults,
   };
+}
+
+function getBackendFilterKey(filters: SearchAdvancedFiltersState): string {
+  return JSON.stringify(mapSearchAdvancedFiltersToRequest(filters));
+}
+
+function toSearchKpiScopeKind(scope: SearchScope): UxKpiScopeKind {
+  return scope === "current" ? "current" : "all";
+}
+
+function countSearchFilters(input: {
+  filter: SearchFilterType;
+  advancedFilters: SearchAdvancedFiltersState;
+  scope: SearchScope;
+  scopeChat: string | null;
+}): number {
+  let count = 0;
+  if (input.scope === "current" && input.scopeChat) count += 1;
+  if (input.filter !== "all") count += 1;
+  if (input.advancedFilters.dateRange?.start || input.advancedFilters.dateRange?.end) {
+    count += 1;
+  }
+  count += input.advancedFilters.selectedChats.length;
+  if (input.advancedFilters.sender.trim()) count += 1;
+  if (input.advancedFilters.favoriteOnly) count += 1;
+  if (input.advancedFilters.attachmentOnly) count += 1;
+  if (input.advancedFilters.sortMode !== "time-desc") count += 1;
+  if (input.advancedFilters.groupMode !== "flat") count += 1;
+  return count;
+}
+
+function toSearchKpiErrorKind(error: unknown): string {
+  if (error instanceof ChatlogHttpError) {
+    if (error.status === null) return "network";
+    return error.status >= 500 ? "server" : "client";
+  }
+  return "unknown";
 }

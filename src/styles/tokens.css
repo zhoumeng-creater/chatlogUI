@@ -46,10 +46,13 @@
   --statusbar-height: 32px;
   --sidebar-expanded: 192px;
   --sidebar-collapsed: 64px;
+  --sidebar-peek: 88px;
   --conversation-list-width: 288px;
   --conversation-list-width-compact: 248px;
   --inspector-width: 320px;
   --inspector-width-compact: 284px;
+  --workbench-splitter-width: 8px;
+  --workbench-main-min-width: 420px;
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;

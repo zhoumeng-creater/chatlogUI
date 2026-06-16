@@ -2,7 +2,15 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { expectNoCriticalA11yViolations } from "../utils/a11y";
 import { expectGraphCanvasReady } from "../utils/graph";
 import { assertNoForbiddenVisibleText, installPrivacyLeakGuard } from "../utils/privacy-scan";
-import { setDesktop, setNarrow } from "../utils/viewport";
+import {
+  COMPACT_VIEWPORT,
+  hasPageHorizontalOverflow,
+  setCompact,
+  setDesktop,
+  setNarrow,
+  setRootTextScale,
+  setZoomEquivalent400,
+} from "../utils/viewport";
 import {
   expectWindowControlsKeyboardReachable,
   expectWindowControlsVisible,
@@ -43,6 +51,101 @@ async function expectCommandTooltipInsideViewport(page: Page, buttonName: string
   expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height);
 }
 
+async function installTask14LongContentFixture(page: Page) {
+  await page.locator("#app-main").evaluate((main) => {
+    main.querySelector(".task14-long-content-fixture")?.remove();
+
+    const section = document.createElement("section");
+    section.className = "task14-long-content-fixture workspace-scope-controller";
+    section.setAttribute("role", "region");
+    section.setAttribute("aria-label", "Task 14 长内容响应式样例");
+    section.setAttribute("data-text-scale-fixture", "true");
+    section.innerHTML = `
+      <div class="workspace-scope-controller__summary">
+        <div class="workspace-scope-controller__copy">
+          <div class="workspace-scope-controller__chips" aria-label="长内容样例">
+            <span class="workspace-scope-controller__chip" data-testid="task14-long-group" data-task14-control="group">
+              <span>群聊：超长中文群聊名称用于验证紧凑响应式不会溢出或遮挡主要操作</span>
+            </span>
+            <span class="workspace-scope-controller__chip" data-testid="task14-long-url" data-task14-control="url">
+              <span>https://example.invalid/task-14/responsive/very-long-english-url-without-natural-breaks/emoji-😀/code-snippet-const-value-equals-chatlogUI</span>
+            </span>
+          </div>
+          <p class="search-result-row__content" data-testid="task14-long-copy" data-task14-control="copy">
+            emoji 😀 · code-snippet const syntheticValue = "超长中文消息与 URL 混排"; · https://example.invalid/task-14/responsive/long-copy
+          </p>
+        </div>
+        <div class="workspace-scope-controller__actions">
+          <button type="button" class="ui-button ui-button--secondary ui-button--md" data-testid="task14-long-action" data-task14-control="action">
+            检查焦点
+          </button>
+        </div>
+      </div>
+    `;
+
+    main.prepend(section);
+  });
+}
+
+async function focusTask14FixtureActionWithKeyboard(page: Page) {
+  const action = page.getByTestId("task14-long-action");
+  for (let index = 0; index < 80; index += 1) {
+    if (await action.evaluate((element) => element === document.activeElement)) return;
+    await page.keyboard.press("Tab");
+  }
+  throw new Error("Task 14 long-content action was not reachable by keyboard");
+}
+
+async function expectFocusedElementInsideViewport(page: Page) {
+  const focusState = await page.evaluate(() => {
+    const element = document.activeElement as HTMLElement | null;
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      boxShadow: style.boxShadow,
+      outlineStyle: style.outlineStyle,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(focusState).not.toBeNull();
+  expect(focusState!.x).toBeGreaterThanOrEqual(0);
+  expect(focusState!.y).toBeGreaterThanOrEqual(0);
+  expect(focusState!.x + focusState!.width).toBeLessThanOrEqual(focusState!.viewportWidth + 1);
+  expect(focusState!.y + focusState!.height).toBeLessThanOrEqual(focusState!.viewportHeight + 1);
+  expect(focusState!.boxShadow !== "none" || focusState!.outlineStyle !== "none").toBe(true);
+}
+
+async function expectNoFixtureOverlap(page: Page) {
+  const boxes = await page.locator("[data-task14-control]").evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        id: element.getAttribute("data-task14-control") ?? "",
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+      };
+    }),
+  );
+
+  for (let first = 0; first < boxes.length; first += 1) {
+    for (let second = first + 1; second < boxes.length; second += 1) {
+      const a = boxes[first];
+      const b = boxes[second];
+      const overlaps = a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      expect(overlaps, `${a.id} overlaps ${b.id}`).toBe(false);
+    }
+  }
+}
+
 test.describe("accessibility and keyboard gate", () => {
   test("passes axe critical/serious checks on representative routes", async ({ page }) => {
     await setDesktop(page);
@@ -63,6 +166,8 @@ test.describe("accessibility and keyboard gate", () => {
     await openSyntheticWorkbench(page);
 
     await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: "跳到主内容" })).toBeFocused();
+    await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: "开启隐私模式" })).toBeFocused();
 
     await page.getByRole("button", { name: "打开图谱" }).focus();
@@ -82,6 +187,31 @@ test.describe("accessibility and keyboard gate", () => {
     await expect(page.getByRole("region", { name: "图谱问答面板" })).toBeVisible();
   });
 
+  test("keeps shortcut help overlay focus-contained and axe-clean", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    const helpButton = page.getByRole("button", { name: "快捷键帮助" });
+    await helpButton.focus();
+    await page.keyboard.press("Enter");
+
+    const dialog = page.getByRole("dialog", { name: "会话阅读快捷键" });
+    await expect(dialog).toBeVisible();
+    await expect.poll(() =>
+      dialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+    await expectNoCriticalA11yViolations(page);
+
+    await page.keyboard.press("Tab");
+    await expect.poll(() =>
+      dialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(helpButton).toBeFocused();
+  });
+
   test("does not expose forbidden accessible names in narrow privacy mode", async ({ page }) => {
     const privacyGuard = installPrivacyLeakGuard(page);
 
@@ -92,6 +222,43 @@ test.describe("accessibility and keyboard gate", () => {
 
     await assertNoForbiddenVisibleText(page);
     privacyGuard.assertNoLeaks();
+  });
+
+  test("keeps 320px text-scale and zoom-equivalent long-content fixtures reflowed", async ({ page }) => {
+    await setCompact(page);
+    await setZoomEquivalent400(page);
+    expect(page.viewportSize()).toEqual(COMPACT_VIEWPORT);
+    await openSyntheticWorkbench(page);
+    await setRootTextScale(page, 2);
+    await installTask14LongContentFixture(page);
+
+    const fixture = page.getByRole("region", { name: "Task 14 长内容响应式样例" });
+    await expect(fixture).toBeVisible();
+    await expect.poll(() => hasPageHorizontalOverflow(page)).toBe(false);
+    await expectNoFixtureOverlap(page);
+
+    await focusTask14FixtureActionWithKeyboard(page);
+    await expect(page.getByTestId("task14-long-action")).toBeFocused();
+    await expectFocusedElementInsideViewport(page);
+    await expect.poll(() => hasPageHorizontalOverflow(page)).toBe(false);
+  });
+
+  test("keeps unified scope menu keyboard reachable and axe-clean", async ({ page }) => {
+    await setNarrow(page);
+    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const controller = page.getByRole("region", { name: "搜索范围", exact: true });
+    const trigger = controller.getByRole("button", { name: "打开范围设置" });
+    await expect(trigger).toBeVisible();
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeVisible();
+    await expectNoCriticalA11yViolations(page);
+
+    await page.keyboard.press("Escape");
+    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeHidden();
+    await expect(trigger).toBeFocused();
   });
 
   test("keeps semantic QA evidence reachable and dismissible by keyboard", async ({ page }) => {
@@ -106,12 +273,15 @@ test.describe("accessibility and keyboard gate", () => {
 
     await evidenceButton.focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("complementary", { name: "问答证据" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "关闭证据" })).toBeFocused();
+    const evidenceDialog = page.getByRole("dialog", { name: "问答证据" });
+    await expect(evidenceDialog).toBeVisible();
+    await expect.poll(() =>
+      evidenceDialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
     await expectNoCriticalA11yViolations(page);
 
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("complementary", { name: "问答证据" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "问答证据" })).toHaveCount(0);
   });
 
   test("traps and restores focus for narrow inspector drawers", async ({ page }) => {
@@ -139,6 +309,107 @@ test.describe("accessibility and keyboard gate", () => {
     await page.keyboard.press("Escape");
     await expect(drawer).toHaveCount(0);
     await expect(detailsButton).toBeFocused();
+  });
+
+  test("keeps SNS filter and detail sheets focus-contained on narrow screens", async ({ page }) => {
+    await setNarrow(page);
+    await openSyntheticWorkbench(page);
+    await openWorkbenchModule(page, "朋友圈");
+
+    const filterButton = page.getByRole("button", { name: "打开筛选" });
+    await expect(filterButton).toBeVisible();
+    await filterButton.focus();
+    await page.keyboard.press("Enter");
+
+    const filterDialog = page.getByRole("dialog", { name: "朋友圈筛选" });
+    await expect(filterDialog).toBeVisible();
+    await expect.poll(() =>
+      filterDialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+
+    const filterBox = await filterDialog.boundingBox();
+    const viewport = page.viewportSize();
+    expect(filterBox).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(filterBox!.width).toBeGreaterThanOrEqual(viewport!.width - 24);
+    expect(filterBox!.y + filterBox!.height).toBeGreaterThanOrEqual(viewport!.height - 2);
+
+    await filterDialog.getByRole("button", { name: "应用筛选" }).focus();
+    await page.keyboard.press("Tab");
+    await expect.poll(() =>
+      filterDialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(filterDialog).toHaveCount(0);
+    await expect(filterButton).toBeFocused();
+
+    const postButton = page.getByRole("button", { name: /Synthetic SNS image post content/ }).first();
+    await expect(postButton).toBeVisible();
+    await postButton.focus();
+    await page.keyboard.press("Enter");
+
+    const detailDialog = page.getByRole("dialog", { name: "朋友圈详情面板" });
+    await expect(detailDialog).toBeVisible();
+    await expect(page.getByRole("button", { name: "关闭朋友圈详情" })).toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect.poll(() =>
+      detailDialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(detailDialog).toHaveCount(0);
+    await expect(postButton).toBeFocused();
+  });
+
+  test("keeps media filters actions and original-open prompt keyboard safe", async ({ page }) => {
+    await setNarrow(page);
+    await page.goto("/media?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const media = page.getByRole("complementary", { name: "媒体与扩展" });
+    await expect(media).toBeVisible();
+    await expect(page.getByRole("region", { name: "媒体筛选" })).toBeVisible();
+
+    const imageRow = media.locator(".media-library__row--attachment").filter({ hasText: "图片" }).first();
+    const openButton = imageRow.getByRole("button", { name: "打开原始资源" });
+    await expect(openButton).toBeVisible();
+    await openButton.focus();
+    await page.keyboard.press("Enter");
+
+    const prompt = page.getByRole("dialog", { name: "打开原始资源" });
+    await expect(prompt).toBeVisible();
+    await expect(prompt.getByRole("button", { name: "取消" })).toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect.poll(() =>
+      prompt.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+    await expectNoCriticalA11yViolations(page);
+
+    await page.keyboard.press("Escape");
+    await expect(prompt).toHaveCount(0);
+    await expect(openButton).toBeFocused();
+  });
+
+  test("exposes rail toggle and panel splitters with keyboard semantics", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    const toggle = page.getByRole("button", { name: "收起导航栏" });
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "展开导航栏" })).toHaveAttribute("aria-expanded", "false");
+
+    const splitter = page.getByRole("separator", { name: "调整会话详情宽度" });
+    await expect(splitter).toHaveAttribute("aria-valuemin", /\d+/);
+    const before = await splitter.getAttribute("aria-valuenow");
+    await splitter.focus();
+    await page.keyboard.press("ArrowLeft");
+    const after = await splitter.getAttribute("aria-valuenow");
+    expect(Number(after)).toBeGreaterThan(Number(before));
+    await expectNoCriticalA11yViolations(page);
   });
 
   test("keeps desktop shell window controls keyboard reachable", async ({ page }) => {
@@ -199,12 +470,11 @@ test.describe("accessibility and keyboard gate", () => {
     await expectCommandTooltipInsideViewport(page, "刷新图谱");
     await expectCommandTooltipInsideViewport(page, "自动旋转");
 
-    const timelineToggle = page.getByRole("button", { name: "时间轴", exact: true });
+    const timelineToggle = page.getByRole("button", { name: "时间线", exact: true });
     await timelineToggle.focus();
     await page.keyboard.press("Enter");
     await expect(timelineToggle).toHaveAttribute("aria-pressed", "true");
 
-    await expectCommandTooltipInsideViewport(page, "关闭时间轴");
     const timelineEntry = page.getByRole("button", { name: /Synthetic graph event/ }).first();
     await expect(timelineEntry).toBeVisible();
     await timelineEntry.focus();

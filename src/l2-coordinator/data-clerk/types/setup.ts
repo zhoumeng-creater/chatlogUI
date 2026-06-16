@@ -13,6 +13,17 @@ export type PortState = "unknown" | "free" | "owned" | "external-chatlog" | "occ
 
 export type SetupStepId = "mode" | "config" | "service" | "database" | "ready";
 
+export type SetupDetectedPathStatus = "idle" | "loading" | "empty" | "success" | "error";
+
+export interface SetupDetectedPathCandidate {
+  id: string;
+  path: string;
+  label: string;
+  exists: boolean;
+  source: string;
+  confidence: string;
+}
+
 export interface SetupStateSnapshot {
   mode: SetupMode;
   source: ConfigSource;

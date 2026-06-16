@@ -52,6 +52,8 @@ export interface VisualizeParams {
   limit?: number;
   start?: string;
   end?: string;
+  entity?: string;
+  relation?: string;
 }
 
 export interface QueryResult {

@@ -4,7 +4,7 @@ import { Typography } from "@l4/ui/Typography";
 import { Button } from "@l4/ui/Button";
 import { formatExportPathSummary } from "@/utils/privacyDisplay";
 
-type DiagnosticSourceFilter = "all" | "http" | "sidecar" | "tauri" | "ui" | "updater" | "release";
+type DiagnosticSourceFilter = "all" | "http" | "sidecar" | "tauri" | "ui" | "ux" | "updater" | "release";
 type DiagnosticLevelFilter = "all" | "debug" | "info" | "warn" | "error";
 type DiagnosticPrivacyFilter = "all" | "safe" | "redacted" | "blocked";
 type DiagnosticTimeRangeFilter = "all" | "last15m" | "last1h" | "session";
@@ -44,6 +44,7 @@ interface DevConsoleView {
     total: number;
     sidecarLogs: number;
     diagnosticEvents: number;
+    uxKpiEvents: number;
     warningsOrErrors: number;
     redactedOrBlocked: number;
   };
@@ -133,10 +134,18 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
       <div className="dev-console__summary" aria-label="诊断事件摘要">
         <span>Sidecar {view.counts.sidecarLogs}</span>
         <span>诊断 {view.counts.diagnosticEvents}</span>
+        <span>UX KPI {view.counts.uxKpiEvents}</span>
         <span>警告/错误 {view.counts.warningsOrErrors}</span>
         <span>脱敏/阻止 {view.counts.redactedOrBlocked}</span>
         {view.hasActiveFilters && <span>筛选中 {view.rows.length}</span>}
       </div>
+      <Typography
+        className="dev-console__notice"
+        variant="caption"
+        color="var(--text-muted)"
+      >
+        {getDevConsolePrivacyNotice()}
+      </Typography>
       <div className="dev-console__filters" aria-label="诊断事件筛选">
         <label>
           来源
@@ -151,6 +160,7 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
             <option value="http">HTTP</option>
             <option value="tauri">Tauri</option>
             <option value="ui">UI</option>
+            <option value="ux">UX KPI</option>
             <option value="updater">更新</option>
             <option value="release">发布</option>
           </select>
@@ -242,7 +252,7 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
           >
             <span className="dev-console__time">{formatTimestamp(row.timestamp)}</span>
             <span className={`dev-console__source dev-console__source--${row.source}`}>
-              {getSourceLabel(row.source)}
+              {getDevConsoleSourceLabel(row.source)}
             </span>
             <span className={`dev-console__level dev-console__level--${row.level}`}>
               {getLevelLabel(row.level)}
@@ -293,13 +303,18 @@ export function formatDevConsoleExportStatus(path: string | null): string {
   return summary === "诊断已导出" ? summary : `诊断已导出：${summary}`;
 }
 
-function getSourceLabel(source: string): string {
+export function getDevConsoleSourceLabel(source: string): string {
   if (source === "sidecar") return "Sidecar";
   if (source === "http") return "HTTP";
   if (source === "tauri") return "Tauri";
+  if (source === "ux") return "UX KPI";
   if (source === "updater") return "Update";
   if (source === "release") return "Release";
   return "UI";
+}
+
+export function getDevConsolePrivacyNotice(): string {
+  return "UX KPI 仅记录在本机内存；诊断导出继续受脱敏检查保护。";
 }
 
 function getLevelLabel(level: string): string {

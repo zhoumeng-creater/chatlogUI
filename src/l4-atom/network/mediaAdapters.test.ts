@@ -32,6 +32,7 @@ describe("mediaAdapters", () => {
       resourceKind: "image",
       resourceKey: "image-secret-key",
       source: "history",
+      sourceLabel: "当前会话",
       label: "图片",
       redactedEndpointLabel: "media:image",
     });
@@ -76,8 +77,32 @@ describe("mediaAdapters", () => {
     expect(result.items[0].attachments[0]).toMatchObject({
       kind: "image",
       resourceKey: "favorite-secret-key",
+      sourceLabel: "收藏",
+      time: "2026-06-02 10:00",
     });
     expect(JSON.stringify(result)).not.toContain("private_chat");
+  });
+
+  it("keeps safe message anchors while stripping unsafe file names from attachments", () => {
+    const [attachment] = adaptMediaAttachments({
+      local_id: 42,
+      seq: 7,
+      timestamp: 1_780_000_000,
+      time: "2026-06-02 10:00",
+      media_type: "image",
+      media_key: "image-secret-key",
+      file_name: "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_private\\image.jpg",
+    });
+
+    expect(attachment).toMatchObject({
+      localId: 42,
+      messageId: "7",
+      timestamp: 1_780_000_000,
+      time: "2026-06-02 10:00",
+    });
+    expect(attachment.fileName).toBeUndefined();
+    expect(JSON.stringify(attachment)).not.toContain("C:\\Users");
+    expect(JSON.stringify(attachment)).not.toContain("wxid_synthetic_private");
   });
 
   it("adapts members, unread counts, and incremental messages", () => {

@@ -9,6 +9,7 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import type { RawGraphVisualizeResponse } from "./chatlogRawTypes";
 import { adaptGraphVisualize, type GraphVisualizeView } from "./graphAdapters";
 
 interface GraphVisualizeParams {
@@ -32,7 +33,7 @@ export async function fetchGraphVisualize(
   if (start) url.searchParams.set("start", start);
   if (end) url.searchParams.set("end", end);
 
-  const data = await requestJson(url.toString(), {
+  const data = await requestJson<RawGraphVisualizeResponse>(url.toString(), {
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "graph",

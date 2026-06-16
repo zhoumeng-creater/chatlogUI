@@ -37,9 +37,40 @@ export function formatExportPathSummary(value?: string | null): string {
   return fileName;
 }
 
+export interface BusinessExportLocationInput {
+  fileName?: string | null;
+  extension?: string | null;
+  bytesWritten?: number | null;
+}
+
+export function formatBusinessExportPathSummary(value?: string | null): string {
+  if (!value?.trim()) return "已保存到所选位置";
+
+  const fileName = value.split(/[\\/]/).filter(Boolean).pop();
+  if (!fileName || containsUnsafeDisplayText(fileName)) {
+    return "已保存到所选位置";
+  }
+
+  return fileName;
+}
+
+export function formatBusinessExportLocationSummary({
+  fileName,
+  bytesWritten,
+}: BusinessExportLocationInput): string {
+  const safeName = formatBusinessExportPathSummary(fileName);
+  const size = formatByteSummary(bytesWritten);
+  return size ? `${safeName} · ${size}` : safeName;
+}
+
 export function formatConfiguredSecretState(value: string | boolean | null | undefined): string {
   if (typeof value === "boolean") return value ? "已配置" : "未配置";
   return value?.trim() ? "已配置" : "未配置";
+}
+
+export function maskDisplayText(value: string | null | undefined): string {
+  const text = value?.trim() || "******";
+  return text.replace(/[^\s]/g, "*");
 }
 
 export function formatLocalServiceDisplay(value?: string | null): string {
@@ -91,4 +122,20 @@ export function formatSafeUserFacingError(error: unknown): string {
 export function containsUnsafeDisplayText(value: string | null | undefined): boolean {
   if (!value) return false;
   return UNSAFE_DISPLAY_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+function formatByteSummary(value: number | null | undefined): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  if (value < 1024) return `${Math.round(value)} B`;
+
+  const kib = value / 1024;
+  if (kib < 1024) {
+    return Number.isInteger(kib) ? `${kib} KB` : `${kib.toFixed(1)} KB`;
+  }
+
+  const mib = kib / 1024;
+  return Number.isInteger(mib) ? `${mib} MB` : `${mib.toFixed(1)} MB`;
 }

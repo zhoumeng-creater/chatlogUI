@@ -36,6 +36,7 @@ export interface DiagnosticConsoleCounts {
   total: number;
   sidecarLogs: number;
   diagnosticEvents: number;
+  uxKpiEvents: number;
   warningsOrErrors: number;
   redactedOrBlocked: number;
 }
@@ -60,11 +61,14 @@ export interface DiagnosticReportEventSummary {
   total: number;
   warningsOrErrors: number;
   redactedOrBlocked: number;
+  uxKpiEvents: number;
+  uxKpiFailuresOrCancellations: number;
   sources: string;
   levels: string;
   privacyStates: string;
   endpointFamilies: string;
   latestSummary: string;
+  latestUxSummary: string;
 }
 
 export function buildDiagnosticEventViewModel(input: {
@@ -85,6 +89,7 @@ export function buildDiagnosticEventViewModel(input: {
       total: input.logs.length + input.events.length,
       sidecarLogs: input.logs.length,
       diagnosticEvents: input.events.length,
+      uxKpiEvents: input.events.filter((event) => event.source === "ux").length,
       warningsOrErrors: allRows.filter((row) =>
         row.level === "warn" || row.level === "error"
       ).length,
@@ -111,6 +116,8 @@ export function summarizeDiagnosticEventsForReport(
 ): DiagnosticReportEventSummary {
   const sources = Array.from(new Set(events.map((event) => event.source)));
   const latest = events[events.length - 1];
+  const uxEvents = events.filter((event) => event.source === "ux");
+  const latestUxEvent = uxEvents[uxEvents.length - 1];
 
   return {
     total: events.length,
@@ -120,13 +127,18 @@ export function summarizeDiagnosticEventsForReport(
     redactedOrBlocked: events.filter((event) =>
       event.privacy === "redacted" || event.privacy === "blocked"
     ).length,
+    uxKpiEvents: uxEvents.length,
+    uxKpiFailuresOrCancellations: uxEvents.filter((event) =>
+      event.level === "warn" ||
+      event.level === "error" ||
+      ["failed", "cancelled", "stopped"].includes(readStringAttribute(event, "outcome") ?? "")
+    ).length,
     sources: sources.length > 0 ? sources.join(", ") : "-",
     levels: summarizeCounts(events.map((event) => event.level)),
     privacyStates: summarizeCounts(events.map((event) => event.privacy)),
-    endpointFamilies: summarizeCounts(events.map((event) =>
-      readStringAttribute(event, "endpointFamily") ?? event.source
-    )),
+    endpointFamilies: summarizeCounts(events.map(readEndpointFamily)),
     latestSummary: latest?.summary ?? "-",
+    latestUxSummary: latestUxEvent?.summary ?? "-",
   };
 }
 
@@ -153,7 +165,7 @@ function toSidecarRow(log: LogEntry): DiagnosticConsoleRow {
 }
 
 function toEventRow(event: DiagnosticEvent): DiagnosticConsoleRow {
-  const endpointFamily = readStringAttribute(event, "endpointFamily") ?? event.source;
+  const endpointFamily = readEndpointFamily(event);
   const status = readNumberAttribute(event, "status");
   const durationMs = readNumberAttribute(event, "durationMs");
   const isFailed =
@@ -288,6 +300,13 @@ function readNumberAttribute(
 ): number | undefined {
   const value = event.attributes?.[key];
   return typeof value === "number" ? value : undefined;
+}
+
+function readEndpointFamily(event: DiagnosticEvent): string {
+  if (event.source === "ux") {
+    return readStringAttribute(event, "module") ?? "ux";
+  }
+  return readStringAttribute(event, "endpointFamily") ?? event.source;
 }
 
 function getRecoveryLabel(hint: DiagnosticRecoveryHint | undefined): string {

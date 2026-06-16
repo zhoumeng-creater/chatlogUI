@@ -38,4 +38,18 @@ describe("status bar display", () => {
     expect(html).toContain("本机服务未配置");
     expect(html).not.toContain("端口 5030");
   });
+
+  it("uses user-facing service and database labels instead of HTTP or DB diagnostics", () => {
+    const html = renderToStaticMarkup(createElement(StatusBar, {
+      status: "running",
+      dbStatus: "ready",
+      httpReady: true,
+      dbReady: true,
+    }));
+
+    expect(html).toContain("本机服务就绪");
+    expect(html).toContain("数据库就绪");
+    expect(html).not.toContain("HTTP");
+    expect(html).not.toContain("DB");
+  });
 });

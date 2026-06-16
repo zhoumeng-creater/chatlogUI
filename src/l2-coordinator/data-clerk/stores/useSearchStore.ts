@@ -1,5 +1,11 @@
 import { create } from "zustand";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
+import {
+  createDefaultSearchAdvancedFilters,
+  type SearchAdvancedFiltersState,
+  type SearchGroupMode,
+  type SearchSortMode,
+} from "@/l2-coordinator/commander/searchAdvancedFilters";
 
 export type SearchScope = "all" | "current";
 export type SearchStatus = "idle" | "invalid" | "loading" | "ready" | "empty" | "error" | "cancelled";
@@ -12,6 +18,7 @@ export interface SearchActiveRequest {
   filter: SearchFilterType;
   scope: SearchScope;
   scopeChat: string | null;
+  advancedFilterKey: string;
   offset: number;
   limit: number;
 }
@@ -39,6 +46,7 @@ interface SearchState {
   query: string;
   activeFilter: SearchFilterType;
   scope: SearchScope;
+  advancedFilters: SearchAdvancedFiltersState;
   activeResultId: string | null;
   activeRequest: SearchActiveRequest | null;
   results: SearchResults | null;
@@ -48,6 +56,9 @@ interface SearchState {
   setQuery: (query: string) => void;
   setFilter: (filter: SearchFilterType) => void;
   setScope: (scope: SearchScope) => void;
+  setAdvancedFilters: (filters: SearchAdvancedFiltersState) => void;
+  setSearchSortMode: (sortMode: SearchSortMode) => void;
+  setSearchGroupMode: (groupMode: SearchGroupMode) => void;
   setActiveResultId: (id: string | null) => void;
   setActiveRequest: (request: SearchActiveRequest) => void;
   clearActiveRequest: (requestId?: string | null) => void;
@@ -64,6 +75,7 @@ export const useSearchStore = create<SearchState>((set) => ({
   query: "",
   activeFilter: "all",
   scope: "all",
+  advancedFilters: createDefaultSearchAdvancedFilters(),
   activeResultId: null,
   activeRequest: null,
   results: null,
@@ -73,6 +85,13 @@ export const useSearchStore = create<SearchState>((set) => ({
   setQuery: (query) => set({ query }),
   setFilter: (activeFilter) => set({ activeFilter }),
   setScope: (scope) => set({ scope }),
+  setAdvancedFilters: (advancedFilters) => set({ advancedFilters }),
+  setSearchSortMode: (sortMode) => set((state) => ({
+    advancedFilters: { ...state.advancedFilters, sortMode },
+  })),
+  setSearchGroupMode: (groupMode) => set((state) => ({
+    advancedFilters: { ...state.advancedFilters, groupMode },
+  })),
   setActiveResultId: (activeResultId) => set({ activeResultId }),
   setActiveRequest: (activeRequest) => set({ activeRequest }),
   clearActiveRequest: (requestId) => set((state) => {
@@ -111,14 +130,13 @@ export const useSearchStore = create<SearchState>((set) => ({
     error: null,
     status: "invalid",
   }),
-  setCancelled: () => set({
-    results: null,
-    activeResultId: null,
+  setCancelled: () => set((state) => ({
+    activeResultId: state.results ? state.activeResultId : null,
     activeRequest: null,
     loading: false,
     error: null,
     status: "cancelled",
-  }),
+  })),
   clear: () => set({
     query: "",
     results: null,

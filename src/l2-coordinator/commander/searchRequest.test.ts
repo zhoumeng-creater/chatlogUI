@@ -4,12 +4,14 @@ import {
   canMergeSearchPage,
   createSearchRequestSnapshot,
   createSearchRequest,
+  createSearchRequestContextKey,
   getNextSearchOffset,
   getSearchInputStatus,
   isSearchSnapshotCurrent,
   mergeSearchResults,
   toSearchMessageType,
 } from "./searchRequest";
+import { createDefaultSearchAdvancedFilters } from "./searchAdvancedFilters";
 
 function createMessage(seq: number): SearchResults["messages"][number] {
   return {
@@ -105,6 +107,33 @@ describe("search request helpers", () => {
     });
   });
 
+  it("maps supported advanced filters to backend request params without sending unsupported filters", () => {
+    const advancedFilters = {
+      ...createDefaultSearchAdvancedFilters(),
+      dateRange: { start: "2026-01-02", end: "2026-01-03" },
+      selectedChats: [{ id: "room_synthetic_001@chatroom", label: "Synthetic Group" }],
+      sender: "unsupported sender",
+      favoriteOnly: true,
+      attachmentOnly: true,
+    };
+
+    expect(createSearchRequest({
+      keyword: "合同",
+      filter: "all",
+      limit: 20,
+      offset: 0,
+      scopeChat: "wxid_synthetic_a",
+      advancedFilters,
+    })).toEqual({
+      keyword: "合同",
+      limit: 20,
+      offset: 0,
+      chats: ["wxid_synthetic_a", "room_synthetic_001@chatroom"],
+      since: 1767312000,
+      until: 1767484799,
+    });
+  });
+
   it("classifies blank search input as invalid", () => {
     expect(getSearchInputStatus("  ")).toBe("invalid");
     expect(getSearchInputStatus("合同")).toBe("ready");
@@ -118,6 +147,10 @@ describe("search request helpers", () => {
       filter: "text",
       scope: "current",
       scopeChat: "wxid_synthetic_a",
+      advancedFilters: {
+        ...createDefaultSearchAdvancedFilters(),
+        dateRange: { start: "2026-01-02" },
+      },
       offset: 0,
       limit: 20,
     })).toEqual({
@@ -127,6 +160,10 @@ describe("search request helpers", () => {
       filter: "text",
       scope: "current",
       scopeChat: "wxid_synthetic_a",
+      advancedFilterKey: createSearchRequestContextKey({
+        ...createDefaultSearchAdvancedFilters(),
+        dateRange: { start: "2026-01-02" },
+      }),
       offset: 0,
       limit: 20,
     });
@@ -140,6 +177,7 @@ describe("search request helpers", () => {
       filter: "text",
       scope: "current",
       scopeChat: "wxid_synthetic_a",
+      advancedFilters: createDefaultSearchAdvancedFilters(),
       offset: 0,
       limit: 20,
     });
@@ -148,6 +186,7 @@ describe("search request helpers", () => {
       activeFilter: "text" as const,
       scope: "current" as const,
       scopeChat: "wxid_synthetic_a",
+      advancedFilters: createDefaultSearchAdvancedFilters(),
     };
 
     expect(isSearchSnapshotCurrent(snapshot, current, "search-1")).toBe(true);
@@ -155,6 +194,13 @@ describe("search request helpers", () => {
     expect(isSearchSnapshotCurrent(snapshot, { ...current, activeFilter: "image" }, "search-1")).toBe(false);
     expect(isSearchSnapshotCurrent(snapshot, { ...current, scope: "all", scopeChat: null }, "search-1")).toBe(false);
     expect(isSearchSnapshotCurrent(snapshot, { ...current, scopeChat: "wxid_synthetic_b" }, "search-1")).toBe(false);
+    expect(isSearchSnapshotCurrent(snapshot, {
+      ...current,
+      advancedFilters: {
+        ...createDefaultSearchAdvancedFilters(),
+        dateRange: { start: "2026-01-02" },
+      },
+    }, "search-1")).toBe(false);
     expect(isSearchSnapshotCurrent(snapshot, current, "search-2")).toBe(false);
   });
 
@@ -180,6 +226,7 @@ describe("search request helpers", () => {
       filter: "all",
       scope: "all",
       scopeChat: null,
+      advancedFilters: createDefaultSearchAdvancedFilters(),
       offset: 20,
       limit: 20,
     });
@@ -188,6 +235,7 @@ describe("search request helpers", () => {
       activeFilter: "all" as const,
       scope: "all" as const,
       scopeChat: null,
+      advancedFilters: createDefaultSearchAdvancedFilters(),
       results: existing,
     };
 

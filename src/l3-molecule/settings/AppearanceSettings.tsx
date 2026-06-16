@@ -1,71 +1,79 @@
 import { Field, SegmentedControl, StatusIndicator, Surface, Typography } from "@l4/ui";
 import type { FontSize, SettingsState, ThemeMode, WindowMaterial } from "@/l2-coordinator/api-docs/settings";
 import type { SettingsSaveStatus } from "@l2/data-clerk/stores/useSettingsStore";
-
-const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
-  { value: "system", label: "跟随系统" },
-  { value: "light", label: "浅色" },
-  { value: "dark", label: "深色" },
-];
-
-const FONT_OPTIONS: { value: FontSize; label: string }[] = [
-  { value: "small", label: "小" },
-  { value: "medium", label: "中" },
-  { value: "large", label: "大" },
-];
-
-const MATERIAL_OPTIONS: { value: WindowMaterial; label: string }[] = [
-  { value: "mica", label: "亚克力材质" },
-  { value: "none", label: "不透明" },
-];
+import type { SettingsMessages } from "@/l2-coordinator/commander/messages.zh-CN";
 
 interface AppearanceSettingsProps {
+  copy: SettingsMessages["settings"]["appearance"];
   settings: SettingsState;
   saveStatus: SettingsSaveStatus;
   saveMessage: string | null;
   onChange: (partial: Partial<SettingsState>) => void;
 }
 
-export function AppearanceSettings({ settings, saveStatus, saveMessage, onChange }: AppearanceSettingsProps) {
+export function AppearanceSettings({
+  copy,
+  settings,
+  saveStatus,
+  saveMessage,
+  onChange,
+}: AppearanceSettingsProps) {
+  const themeOptions: { value: ThemeMode; label: string }[] = [
+    { value: "system", label: copy.theme.system },
+    { value: "light", label: copy.theme.light },
+    { value: "dark", label: copy.theme.dark },
+  ];
+  const fontOptions: { value: FontSize; label: string }[] = [
+    { value: "small", label: copy.fontSize.small },
+    { value: "medium", label: copy.fontSize.medium },
+    { value: "large", label: copy.fontSize.large },
+  ];
+  const materialOptions: { value: WindowMaterial; label: string }[] = [
+    { value: "vibrancy", label: copy.material.vibrancy },
+    { value: "mica", label: copy.material.mica },
+    { value: "acrylic", label: copy.material.acrylic },
+    { value: "none", label: copy.material.none },
+  ];
+
   return (
     <div className="settings-stack">
-      <Typography variant="h2">外观</Typography>
+      <Typography variant="h2">{copy.title}</Typography>
 
       <Surface variant="base" className="settings-section">
-        <Field id="settings-theme" label="主题">
+        <Field id="settings-theme" label={copy.theme.label}>
           <SegmentedControl
-            label="主题"
+            label={copy.theme.label}
             value={settings.theme}
-            options={THEME_OPTIONS}
+            options={themeOptions}
             onChange={(theme) => onChange({ theme })}
           />
         </Field>
 
-        <Field id="settings-font-size" label="字体大小">
+        <Field id="settings-font-size" label={copy.fontSize.label}>
           <SegmentedControl
-            label="字体大小"
+            label={copy.fontSize.label}
             value={settings.fontSize}
-            options={FONT_OPTIONS}
+            options={fontOptions}
             onChange={(fontSize) => onChange({ fontSize })}
           />
         </Field>
 
-        <Field id="settings-window-material" label="窗口材质">
+        <Field id="settings-window-material" label={copy.material.label}>
           <SegmentedControl
-            label="窗口材质"
+            label={copy.material.label}
             value={settings.windowMaterial}
-            options={MATERIAL_OPTIONS}
+            options={materialOptions}
             onChange={(windowMaterial) => onChange({ windowMaterial })}
           />
         </Field>
 
-        <Field id="settings-reduce-motion" label="动画效果">
+        <Field id="settings-reduce-motion" label={copy.motion.label}>
           <SegmentedControl
-            label="动画效果"
+            label={copy.motion.label}
             value={settings.reduceAnimations ? "reduced" : "full"}
             options={[
-              { value: "full", label: "标准" },
-              { value: "reduced", label: "减少" },
+              { value: "full", label: copy.motion.full },
+              { value: "reduced", label: copy.motion.reduced },
             ]}
             onChange={(value) => onChange({ reduceAnimations: value === "reduced" })}
           />

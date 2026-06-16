@@ -15,6 +15,8 @@ import { deriveAppShellView } from "./appShellViewModel";
 import { deriveDeveloperEntryPolicy } from "./developerEntryViewModel";
 import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
 import { buildSettingsRoute } from "./settingsNavigation";
+import { useCoachMarkCommander } from "./useCoachMarkCommander";
+import { useShortcutHelpCommander } from "./useShortcutHelpCommander";
 
 export function useAppShellCommander(title: string) {
   const navigate = useNavigate();
@@ -25,6 +27,15 @@ export function useAppShellCommander(title: string) {
   const togglePrivacy = useSettingsStore((state) => state.togglePrivacy);
   const toggleConsole = useDevConsoleStore((state) => state.toggle);
   const [isMaximized, setIsMaximized] = useState(false);
+  const shortcutHelp = useShortcutHelpCommander({
+    privacyOn,
+    canReturn: Boolean(new URLSearchParams(location.search).get("source")),
+    onTogglePrivacy: togglePrivacy,
+  });
+  const coachMark = useCoachMarkCommander({
+    privacyOn,
+    overlayOpen: shortcutHelp.view.open,
+  });
   const developerPolicy = deriveDeveloperEntryPolicy({
     developerMode,
     developerEntryOverride: import.meta.env.VITE_ENABLE_DEVELOPER_ENTRY === "true",
@@ -93,15 +104,23 @@ export function useAppShellCommander(title: string) {
   }, [refreshMaximizedState]);
 
   return {
-    view: deriveAppShellView({
-      title,
-      privacyOn,
-      windowMaterial,
-      isMaximized,
-      developerConsoleVisible: developerPolicy.visible,
-    }),
+    view: {
+      ...deriveAppShellView({
+        title,
+        privacyOn,
+        windowMaterial,
+        isMaximized,
+        developerConsoleVisible: developerPolicy.visible,
+      }),
+      shortcutHelp: shortcutHelp.view,
+      coachMark: coachMark.view,
+    },
     actions: {
       togglePrivacy,
+      openShortcutHelp: shortcutHelp.actions.openHelp,
+      closeShortcutHelp: shortcutHelp.actions.closeHelp,
+      dismissCoachMark: coachMark.actions.dismiss,
+      skipCoachMarksForNow: coachMark.actions.skipAllForNow,
       toggleConsole: developerPolicy.visible ? toggleConsole : undefined,
       openSettings: () => navigate(buildSettingsRoute({
         source: "app-shell",

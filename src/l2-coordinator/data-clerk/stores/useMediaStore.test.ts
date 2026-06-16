@@ -96,6 +96,57 @@ describe("useMediaStore", () => {
       status: "ready",
     });
   });
+
+  it("tracks media filters, selected rows, prompts, and resource status", () => {
+    const store = useMediaStore.getState();
+
+    store.setFilters({
+      type: "image",
+      source: "history",
+      availability: "available",
+      dateRange: { start: "2026-06-01", end: "2026-06-30" },
+    });
+    store.toggleSelectedAttachment("media-a");
+    store.toggleSelectedAttachment("media-b");
+    store.reconcileVisibleAttachments(["media-a"]);
+    store.setResourceStatus("media-a", "error");
+    store.setActionPrompt({
+      attachmentId: "media-a",
+      title: "打开原始资源",
+      message: "本机媒体资源",
+      confirmLabel: "打开",
+      cancelLabel: "取消",
+      url: "http://127.0.0.1:5030/image/media-a",
+      redactedUrlLabel: "本机媒体资源",
+    });
+    store.setLastActionResult({ status: "success", message: "已复制媒体摘要。" });
+
+    expect(useMediaStore.getState()).toMatchObject({
+      filters: {
+        type: "image",
+        source: "history",
+        availability: "available",
+        dateRange: { start: "2026-06-01", end: "2026-06-30" },
+      },
+      selectedAttachmentIds: ["media-a"],
+      resourceStatusByAttachmentId: { "media-a": "error" },
+      actionPrompt: { attachmentId: "media-a", redactedUrlLabel: "本机媒体资源" },
+      lastActionResult: { status: "success", message: "已复制媒体摘要。" },
+    });
+
+    store.clearFilter("dateRange");
+    expect(useMediaStore.getState().filters.dateRange).toEqual({ start: "", end: "" });
+  });
+
+  it("does not rewrite media selection state when visible attachment reconciliation is unchanged", () => {
+    const store = useMediaStore.getState();
+
+    store.toggleSelectedAttachment("media-a");
+    const before = useMediaStore.getState();
+    store.reconcileVisibleAttachments(["media-a", "media-b"]);
+
+    expect(useMediaStore.getState()).toBe(before);
+  });
 });
 
 function mediaData(label: "stale" | "fresh" | "cancelled") {

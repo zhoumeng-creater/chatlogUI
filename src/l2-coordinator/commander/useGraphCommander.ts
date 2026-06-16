@@ -34,6 +34,23 @@ import {
 } from "./graphResidualViewModel";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 import { formatGraphFailureMessage } from "./graphErrorDisplay";
+import { createGraphExportArtifact } from "./businessExportModel";
+import { useBusinessExportCommander } from "./useBusinessExportCommander";
+import { buildGraphControlModel } from "./graphControlModel";
+import {
+  buildGraphCommanderContext,
+  buildGraphContextSummary,
+  type GraphAppliedRequest,
+  type GraphCommanderContextInput,
+} from "./graphContextSummaryModel";
+import {
+  createUxKpiTimer,
+  recordGraphVisualizationKpiEvent,
+} from "./uxKpiEvents";
+import {
+  bindActionableEmptyStateActions,
+  buildActionableEmptyState,
+} from "./actionableEmptyStateModel";
 
 function graphDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
@@ -56,9 +73,112 @@ function nextGraphChildRequestId(prefix: string): string {
   return `${prefix}-${graphChildSequence}`;
 }
 
-export function useGraphCommander() {
+export function useGraphCommander(routeContext?: Omit<GraphCommanderContextInput, "privacyOn">) {
   const store = useGraphStore();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+  const draftGraphRequest = graphDraftRequest(store);
+  const commanderContext = buildGraphCommanderContext({
+    routeSource: routeContext?.routeSource,
+    sourceLabel: routeContext?.sourceLabel,
+    focusLabel: routeContext?.focusLabel,
+    scopeLabel: routeContext?.scopeLabel,
+    privacyOn,
+  });
+  const contextSummary = buildGraphContextSummary({
+    loadStatus: store.loadStatus,
+    statusSummary: store.statusSummary,
+    query: store.query,
+    visualize: store.visualize,
+    timeline: store.timeline,
+    appliedRequest: store.appliedGraphRequest,
+    draftRequest: draftGraphRequest,
+    source: commanderContext.source,
+    lastLoadedAt: store.lastLoadedAt,
+    lastRefreshedAt: store.lastRefreshedAt,
+    privacyOn,
+  });
+  const exportDisabledReason = getGraphExportDisabledReason(
+    store.loadStatus,
+    store.query,
+    store.timeline,
+    store.visualize,
+  );
+  const businessExport = useBusinessExportCommander({
+    source: "graph",
+    formats: ["csv", "json", "markdown"],
+    defaultFormat: "csv",
+    disabledReason: exportDisabledReason,
+    buildArtifact: ({ format, privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+      createGraphExportArtifact({
+        format,
+        privacyOn: exportPrivacyOn,
+        requestedUnredacted,
+        unredactedConfirmed,
+        generatedAt,
+        scopeSummary: commanderContext.scopeSummary,
+        filterSummary: contextSummary.filterChips,
+        sourceSummary: contextSummary.sourceLabel,
+        graphGeneratedAt: store.lastGeneratedAt ?? "",
+        refreshedAt: store.lastRefreshedAt ?? "",
+        freshnessState: contextSummary.freshnessState,
+        partialWarnings: contextSummary.warnings,
+        entities: store.query?.entities.map((entity) => ({
+          id: entity.id,
+          label: entity.label,
+          type: entity.type,
+          mentions: entity.mentions,
+        })) ?? [],
+        relations: store.query?.relations.map((relation) => ({
+          id: relation.id,
+          subject: relation.subject,
+          predicate: relation.predicate,
+          object: relation.object,
+          status: relation.status,
+          evidenceCount: relation.evidenceCount,
+        })) ?? [],
+        events: store.query?.events.map((event) => ({
+          id: event.id,
+          label: event.label,
+          type: event.type,
+          time: event.timeLabel,
+          source: event.sourceLabel,
+          evidenceCount: numberDetail(event.detailRows, "证据数量"),
+        })) ?? [],
+        facts: store.query?.facts.map((fact) => ({
+          id: fact.id,
+          label: fact.label,
+          status: fact.status,
+          evidenceCount: fact.evidenceCount,
+        })) ?? [],
+        timelineRows: store.timeline?.rows.map((row, index) => ({
+          id: `timeline-${index}`,
+          time: formatGraphTimelineTime(row.time),
+          type: row.type,
+          title: row.title,
+          description: row.description,
+          source: row.source,
+        })) ?? store.visualize?.timelineRows.map((row, index) => ({
+          id: `timeline-${index}`,
+          time: formatGraphTimelineTime(row.time),
+          type: row.type,
+          title: row.title,
+          description: row.description,
+          source: row.source,
+        })) ?? [],
+        visualNodes: store.visualize?.nodes.map((node) => ({
+          id: node.id,
+          label: node.label || node.name,
+          kind: node.kind,
+        })) ?? [],
+        visualEdges: store.visualize?.edges.map((edge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          label: edge.label,
+          evidenceCount: edge.evidence_count,
+        })) ?? [],
+      }),
+  });
 
   const loadGraph = useCallback(async (params: VisualizeParams = {}) => {
     const requestId = nextGraphLoadRequestId();
@@ -111,11 +231,16 @@ export function useGraphCommander() {
         fetchGraphVisualize(requestParams, graphDiagnostics()),
         fetchGraphTimeline(requestParams, graphDiagnostics()),
       ]);
+      const refreshedAt = new Date().toISOString();
       useGraphStore.getState().completeGraphSummaryRequest(requestId, {
         statusSummary: status as unknown as GraphStatusView | null,
         query: query as unknown as GraphQueryView,
         visualize: visualize as unknown as GraphVisualizeView,
         timeline,
+        appliedRequest: requestParams,
+        loadedAt: refreshedAt,
+        refreshedAt,
+        summaryReason: "manual-refresh",
       });
     } catch (error) {
       useGraphStore.getState().failGraphLoadRequest(
@@ -126,10 +251,33 @@ export function useGraphCommander() {
   }, []);
 
   const loadVisualization = useCallback(async () => {
+    const timer = createUxKpiTimer();
     const graphStore = useGraphStore.getState();
     graphStore.setVisualizationRequested(true);
-    if (graphStore.visualize?.state === "loaded") return;
+    if (graphStore.visualize?.state === "loaded") {
+      recordGraphVisualizationKpiEvent({
+        nodeCount: graphStore.visualize.nodes.length,
+        edgeCount: graphStore.visualize.edges.length,
+        durationMs: timer.durationMs(),
+        layout: graphStore.layoutMode,
+        graphType: "3d",
+        cached: true,
+        outcome: "success",
+      });
+      return;
+    }
     await loadGraph(graphRequestParams());
+    const nextGraphStore = useGraphStore.getState();
+    const visualize = nextGraphStore.visualize;
+    recordGraphVisualizationKpiEvent({
+      nodeCount: visualize?.state === "loaded" ? visualize.nodes.length : 0,
+      edgeCount: visualize?.state === "loaded" ? visualize.edges.length : 0,
+      durationMs: timer.durationMs(),
+      layout: nextGraphStore.layoutMode,
+      graphType: "3d",
+      cached: false,
+      outcome: visualize?.state === "loaded" ? "success" : "failed",
+    });
   }, [loadGraph]);
 
   const cancelGraphLoad = useCallback(() => {
@@ -146,7 +294,7 @@ export function useGraphCommander() {
     try {
       const result = await manageGraph(action, graphDiagnostics("POST"));
       const applied = useGraphStore.getState().completeGraphActionRequest(requestId, result);
-      if (applied && action === "reset-rebuild") {
+      if (applied && (action === "reset-rebuild" || action === "rebuild")) {
         useGraphStore.getState().cancelAdvancedConfirmation();
       }
       if (applied) {
@@ -166,6 +314,14 @@ export function useGraphCommander() {
       return;
     }
     await runGraphAction("reset-rebuild");
+  }, [runGraphAction]);
+
+  const rebuildGraph = useCallback(async () => {
+    if (useGraphStore.getState().advancedConfirmationPending !== "rebuild") {
+      useGraphStore.getState().requestAdvancedConfirmation("rebuild");
+      return;
+    }
+    await runGraphAction("rebuild");
   }, [runGraphAction]);
 
   const loadGraphConfig = useCallback(async () => {
@@ -429,6 +585,40 @@ export function useGraphCommander() {
     advancedConfigStatus: store.advancedConfigStatus,
     ingestStatus: store.ingestStatus,
     qaStatus: store.qaStatus,
+    businessExport,
+    emptyStates: {
+      graphEmpty: bindActionableEmptyStateActions(buildActionableEmptyState({
+        variant: "graph-empty",
+        readiness: {
+          serviceConfigured: true,
+          httpReady: true,
+          dbReady: true,
+          hasCurrentConversation: true,
+        },
+        privacyOn,
+      }), ["refresh"]),
+    },
+    controlModel: buildGraphControlModel({
+      keyword: store.keyword,
+      timeWindow: store.timeWindow,
+      entityFilter: store.entityFilter,
+      relationFilter: store.relationFilter,
+      limit: store.limit,
+      start: store.start,
+      end: store.end,
+      loading: store.loading,
+      canExport: exportDisabledReason === null,
+      canVisualize: store.visualize?.state === "loaded",
+      canvasMounted: store.visualizationRequested,
+      autoRotate: store.autoRotate,
+      timelineVisible: store.timelineVisible,
+      layoutMode: store.layoutMode,
+    }),
+    contextSummary,
+    appliedGraphRequest: store.appliedGraphRequest,
+    lastLoadedAt: store.lastLoadedAt,
+    lastRefreshedAt: store.lastRefreshedAt,
+    lastGeneratedAt: store.lastGeneratedAt,
     activeTab: store.activeTab,
     advancedConfig: store.advancedConfig,
     graphConfigDraft: store.graphConfigDraft,
@@ -495,7 +685,7 @@ export function useGraphCommander() {
     loadVisualization,
     cancelGraphLoad,
     retryGraphLoad,
-    rebuildGraph: () => runGraphAction("rebuild"),
+    rebuildGraph,
     resetRebuildGraph,
     pauseGraph: () => runGraphAction("pause"),
     resumeGraph: () => runGraphAction("resume"),
@@ -532,6 +722,21 @@ export function useGraphCommander() {
   };
 }
 
+function getGraphExportDisabledReason(
+  loadStatus: string,
+  query: GraphQueryView | null,
+  timeline: { rows: unknown[] } | null,
+  visualize: GraphVisualizeView | null,
+): string | null {
+  if (loadStatus === "loading") return "图谱加载中，完成后可导出。";
+  const hasRows =
+    Boolean(query && (query.entities.length || query.relations.length || query.events.length || query.facts.length)) ||
+    Boolean(timeline?.rows.length) ||
+    Boolean(visualize && (visualize.nodes.length || visualize.edges.length || visualize.timelineRows.length || visualize.state === "empty"));
+  if (!hasRows) return "图谱摘要加载完成后可导出。";
+  return null;
+}
+
 function usableGraphQADraft(draft?: GraphQADraft): GraphQADraft | null {
   return draft && typeof draft.query === "string" ? draft : null;
 }
@@ -544,7 +749,38 @@ function graphRequestParams(overrides: VisualizeParams = {}) {
     start: overrides.start ?? (state.start || undefined),
     end: overrides.end ?? (state.end || undefined),
     limit: overrides.limit ?? state.limit,
+    entity: overrides.entity ?? (state.entityFilter || undefined),
+    relation: overrides.relation ?? (state.relationFilter || undefined),
+  };
+}
+
+function graphDraftRequest(state: {
+  keyword: string;
+  timeWindow: string;
+  entityFilter: string;
+  relationFilter: string;
+  limit: number;
+  start: string;
+  end: string;
+}): GraphAppliedRequest {
+  return {
+    keyword: state.keyword || undefined,
+    window: state.timeWindow || undefined,
     entity: state.entityFilter || undefined,
     relation: state.relationFilter || undefined,
+    limit: state.limit,
+    start: state.start || undefined,
+    end: state.end || undefined,
   };
+}
+
+function formatGraphTimelineTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "";
+  return new Date(seconds * 1000).toISOString();
+}
+
+function numberDetail(rows: Array<{ label: string; value: string }>, label: string): number {
+  const row = rows.find((item) => item.label === label);
+  const value = Number(row?.value);
+  return Number.isFinite(value) ? value : 0;
 }

@@ -5,6 +5,7 @@ import {
   formatConversationA11yLabel,
   getConversationBadge,
   getConversationEmptyMessage,
+  shouldShowUnreadBadge,
   maskDisplayText,
 } from "./conversationDisplay";
 
@@ -56,6 +57,32 @@ describe("conversationDisplay", () => {
     expect(filterConversations(list, "", "private").map((item) => item.id)).toEqual(["private"]);
   });
 
+  it("filters official/service and enterprise/system account groups", () => {
+    const list = [
+      conversation({ id: "official", chatType: "official_account" }),
+      conversation({ id: "service", chatType: "service_account" }),
+      conversation({ id: "subscription", chatType: "subscription_account" }),
+      conversation({ id: "enterprise", chatType: "enterprise_contact" }),
+      conversation({ id: "system", chatType: "system" }),
+      conversation({ id: "folded", chatType: "folded" }),
+      conversation({ id: "unknown", chatType: "unknown" }),
+    ];
+
+    expect(filterConversations(list, "", "official_service").map((item) => item.id)).toEqual([
+      "official",
+      "service",
+      "subscription",
+    ]);
+    expect(filterConversations(list, "", "enterprise_system").map((item) => item.id)).toEqual([
+      "enterprise",
+      "system",
+    ]);
+    expect(filterConversations(list, "", "folded_unknown").map((item) => item.id)).toEqual([
+      "folded",
+      "unknown",
+    ]);
+  });
+
   it("returns stable badges for source and kind", () => {
     expect(getConversationBadge(conversation({ source: "session", isGroup: false }))).toEqual({
       label: "最近",
@@ -69,6 +96,22 @@ describe("conversationDisplay", () => {
       label: "群聊",
       tone: "success",
     });
+    expect(getConversationBadge(conversation({ chatType: "official_account", source: "session" }))).toEqual({
+      label: "公众号",
+      tone: "info",
+    });
+    expect(getConversationBadge(conversation({ chatType: "service_account", source: "session" }))).toEqual({
+      label: "服务号",
+      tone: "info",
+    });
+    expect(getConversationBadge(conversation({ chatType: "enterprise_contact", source: "session" }))).toEqual({
+      label: "企业微信",
+      tone: "success",
+    });
+    expect(getConversationBadge(conversation({ chatType: "system", source: "session" }))).toEqual({
+      label: "系统",
+      tone: "neutral",
+    });
   });
 
   it("builds an aria label with unread and time context", () => {
@@ -76,12 +119,12 @@ describe("conversationDisplay", () => {
       displayName: "项目群",
       unread: 3,
       timeLabel: "昨天",
-    }))).toBe("项目群，昨天，3 条未读");
+    }), false, "ready")).toBe("项目群，昨天，3 条未读");
     expect(formatConversationA11yLabel(conversation({
       displayName: "李四",
       unread: 0,
       timeLabel: "",
-    }))).toBe("李四");
+    }), false, "ready")).toBe("李四");
   });
 
   it("masks private names in aria labels when privacy is enabled", () => {
@@ -89,7 +132,16 @@ describe("conversationDisplay", () => {
       displayName: "Alice Private",
       unread: 2,
       timeLabel: "10:30",
-    }), true)).toBe("***** *******，10:30，2 条未读");
+    }), true, "ready")).toBe("***** *******，10:30，2 条未读");
+  });
+
+  it("hides unread copy until unread data is ready", () => {
+    const item = conversation({ displayName: "项目群", unread: 2, timeLabel: "昨天" });
+
+    expect(shouldShowUnreadBadge(item, "idle")).toBe(false);
+    expect(shouldShowUnreadBadge(item, "error")).toBe(false);
+    expect(shouldShowUnreadBadge(item, "ready")).toBe(true);
+    expect(formatConversationA11yLabel(item, false, "idle")).toBe("项目群，昨天");
   });
 
   it("keeps spaces while masking private text", () => {
@@ -100,6 +152,8 @@ describe("conversationDisplay", () => {
     expect(getConversationEmptyMessage("ready", "", "recent")).toBe("数据库已连接，但没有返回最近会话。");
     expect(getConversationEmptyMessage("ready", "abc", "recent")).toBe("没有匹配的会话。");
     expect(getConversationEmptyMessage("ready", "", "private")).toBe("没有私聊会话。");
+    expect(getConversationEmptyMessage("ready", "", "official_service")).toBe("没有公众号或服务号会话。");
+    expect(getConversationEmptyMessage("ready", "", "enterprise_system")).toBe("没有企业微信或系统会话。");
     expect(getConversationEmptyMessage("error", "", "group")).toBe("会话列表加载失败。");
   });
 });

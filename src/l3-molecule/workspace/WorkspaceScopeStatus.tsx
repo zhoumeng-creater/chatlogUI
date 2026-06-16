@@ -26,10 +26,10 @@ export function WorkspaceScopeStatus({
   ].filter((item): item is string => Boolean(item));
 
   return (
-    <section className="workspace-page__status-strip" aria-label="页面范围和状态">
+    <section className="workspace-page__status-strip" aria-label="页面范围状态摘要">
       <div className="workspace-page__status-copy">
         <Typography variant="label" weight={700}>
-          {workspaceRouteScope.scopeLabel}
+          只读范围摘要：{workspaceRouteScope.scopeLabel}
         </Typography>
         <Typography variant="caption" color="var(--text-secondary)">
           {workspaceRouteScope.scopeDescription}

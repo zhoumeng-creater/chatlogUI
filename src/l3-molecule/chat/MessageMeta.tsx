@@ -3,6 +3,7 @@ import { maskDisplayText } from "./conversationDisplay";
 import {
   formatMessageClock,
   getMessageKindLabel,
+  getMessageSenderDisplay,
   shouldShowSender,
 } from "./transcriptDisplay";
 
@@ -12,7 +13,8 @@ interface MessageMetaProps {
 }
 
 export function MessageMeta({ message, privacyOn }: MessageMetaProps) {
-  const sender = privacyOn ? maskDisplayText(message.sender) : message.sender;
+  const senderDisplay = getMessageSenderDisplay(message);
+  const sender = privacyOn ? maskDisplayText(senderDisplay) : senderDisplay;
   const kindLabel = getMessageKindLabel(message);
   const time = formatMessageClock(message.time);
   const showSender = shouldShowSender(message);

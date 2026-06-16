@@ -3,6 +3,7 @@ import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
 import {
   buildTranscriptRows,
   estimateTranscriptRowHeight,
+  findLastTranscriptMessageRowIndex,
   findTranscriptMessageRowIndex,
 } from "./transcriptRows";
 
@@ -58,5 +59,16 @@ describe("transcriptRows", () => {
     expect(findTranscriptMessageRowIndex(rows, { messageId: "m3", localId: null })).toBe(4);
     expect(findTranscriptMessageRowIndex(rows, { messageId: "", localId: 2 })).toBe(2);
     expect(findTranscriptMessageRowIndex(rows, { messageId: "missing", localId: null })).toBeNull();
+  });
+
+  it("finds the latest message row without date rows confusing scroll targets", () => {
+    const rows = buildTranscriptRows([
+      message("m1", "2026-05-29"),
+      message("m2", "2026-05-29"),
+      message("m3", "2026-05-30"),
+    ]);
+
+    expect(findLastTranscriptMessageRowIndex(rows)).toBe(4);
+    expect(findLastTranscriptMessageRowIndex([])).toBeNull();
   });
 });

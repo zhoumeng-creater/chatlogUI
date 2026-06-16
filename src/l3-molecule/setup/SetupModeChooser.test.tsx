@@ -17,7 +17,7 @@ describe("SetupModeChooser", () => {
           {
             id: "external-service",
             label: "连接已有服务",
-            description: "连接已经运行的本机 chatlog_alpha 服务。",
+            description: "连接已经运行的本机聊天服务。",
             selected: false,
           },
           {

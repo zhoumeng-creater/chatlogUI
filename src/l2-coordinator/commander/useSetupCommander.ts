@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import type {
@@ -17,6 +17,7 @@ import {
   validateManagedServerConfig,
   type ServerConfigDraft,
 } from "@l4/system/chatlogConfig";
+import { detectWxPath, type WxPathCandidate } from "@l4/system/detectWxPath";
 import {
   inspectPort,
   startManagedSidecar,
@@ -41,6 +42,11 @@ import {
   deriveManualConfigValidationView,
   mapConfigValidationErrorsToManualFields,
 } from "./setupManualValidation";
+import { settingsMessagesZhCN } from "./messages.zh-CN";
+import {
+  createUxKpiTimer,
+  recordSetupCompletedKpiEvent,
+} from "./uxKpiEvents";
 
 function isProfileConfigValid(profile: ReturnType<typeof useSetupStore.getState>["profile"]): boolean {
   if (profile?.mode === "external" || profile?.source === "external-service") {
@@ -72,6 +78,10 @@ export interface SetupCommander {
   chooseSetupPath: (path: SetupPathId) => void;
   importDataDirectory: (path: string) => Promise<void>;
   chooseAndImportDataDirectory: () => Promise<string | null>;
+  detectDataDirectories: () => Promise<void>;
+  importDetectedDataDirectory: (candidateId: string) => Promise<void>;
+  chooseManualDataDirectory: () => Promise<string | null>;
+  chooseManualWorkDirectory: () => Promise<string | null>;
   saveManualConfig: (draft: ServerConfigDraft) => Promise<void>;
   inspectServicePort: () => Promise<void>;
   startManagedService: () => Promise<void>;
@@ -83,6 +93,7 @@ export interface SetupCommander {
 
 export function useSetupCommander(): SetupCommander {
   const navigate = useNavigate();
+  const setupKpiCompletionKeyRef = useRef<string | null>(null);
   const setMode = useSetupStore((s) => s.setMode);
   const setActivePath = useSetupStore((s) => s.setActivePath);
   const setCurrentStep = useSetupStore((s) => s.setCurrentStep);
@@ -92,6 +103,8 @@ export function useSetupCommander(): SetupCommander {
   const setExternalBaseUrlDraft = useSetupStore((s) => s.setExternalBaseUrlDraft);
   const setExternalBaseUrlError = useSetupStore((s) => s.setExternalBaseUrlError);
   const setManualFieldErrors = useSetupStore((s) => s.setManualFieldErrors);
+  const setManualDraft = useSetupStore((s) => s.setManualDraft);
+  const setDetectedPathState = useSetupStore((s) => s.setDetectedPathState);
   const setLoading = useSetupStore((s) => s.setLoading);
   const setError = useSetupStore((s) => s.setError);
 
@@ -108,6 +121,30 @@ export function useSetupCommander(): SetupCommander {
     };
     setCurrentStep(deriveSetupStep(snapshot));
   }, [setCurrentStep]);
+
+  const recordSetupCompletedIfReady = useCallback((durationMs: number) => {
+    const state = useSetupStore.getState();
+    if (!isProfileConfigValid(state.profile) || !state.httpReady || !state.dbReady) {
+      return;
+    }
+
+    const mode = state.mode === "external" || state.profile?.mode === "external"
+      ? "external"
+      : state.mode === "managed" || state.profile?.mode === "managed"
+        ? "managed"
+        : "unknown";
+    const key = `${mode}:${state.profile?.source ?? "unknown"}:${state.profile?.httpAddr ?? "unknown"}`;
+    if (setupKpiCompletionKeyRef.current === key) return;
+
+    setupKpiCompletionKeyRef.current = key;
+    recordSetupCompletedKpiEvent({
+      mode,
+      httpReady: state.httpReady,
+      dbReady: state.dbReady,
+      durationMs,
+      outcome: "success",
+    });
+  }, []);
 
   const loadExistingProfile = useCallback(async () => {
     setLoading(true);
@@ -155,6 +192,7 @@ export function useSetupCommander(): SetupCommander {
         }
         setExternalBaseUrlError(null);
         setManualFieldErrors({});
+        setDetectedPathState({ detectedPathStatus: "idle", detectedPathError: null });
         setReadiness({ httpReady: false, dbReady: false });
         setCurrentStep("config");
       }
@@ -165,6 +203,7 @@ export function useSetupCommander(): SetupCommander {
       setExternalBaseUrlDraft,
       setExternalBaseUrlError,
       setManualFieldErrors,
+      setDetectedPathState,
       setMode,
       setPortState,
       setProfile,
@@ -188,6 +227,9 @@ export function useSetupCommander(): SetupCommander {
         setProfile(null);
       }
       setExternalBaseUrlError(null);
+      if (path === "recommended-import") {
+        setDetectedPathState({ detectedPathStatus: "idle", detectedPathError: null });
+      }
       setReadiness({ httpReady: false, dbReady: false });
       setCurrentStep("config");
     },
@@ -198,6 +240,7 @@ export function useSetupCommander(): SetupCommander {
       setError,
       setExternalBaseUrlError,
       setManualFieldErrors,
+      setDetectedPathState,
       setMode,
       setProfile,
       setReadiness,
@@ -233,6 +276,73 @@ export function useSetupCommander(): SetupCommander {
     await importDataDirectory(dir);
     return dir;
   }, [importDataDirectory]);
+
+  const detectDataDirectories = useCallback(async () => {
+    const state = useSetupStore.getState();
+    if (state.profile || state.activePath !== "recommended-import") return;
+
+    setDetectedPathState({
+      detectedPathStatus: "loading",
+      detectedPathError: null,
+      detectedPathCandidates: [],
+    });
+
+    try {
+      const candidates = normalizeDetectedCandidates(await detectWxPath());
+      const latestState = useSetupStore.getState();
+      if (latestState.profile || latestState.activePath !== "recommended-import") return;
+      setDetectedPathState({
+        detectedPathCandidates: candidates,
+        detectedPathStatus: candidates.some((candidate) => candidate.exists) ? "success" : "empty",
+        detectedPathError: null,
+      });
+    } catch (err) {
+      const latestState = useSetupStore.getState();
+      if (latestState.profile || latestState.activePath !== "recommended-import") return;
+      setDetectedPathState({
+        detectedPathCandidates: [],
+        detectedPathStatus: "error",
+        detectedPathError: formatSafeUserFacingError(err),
+      });
+    }
+  }, [setDetectedPathState]);
+
+  const importDetectedDataDirectory = useCallback(
+    async (candidateId: string) => {
+      const candidate = useSetupStore.getState().detectedPathCandidates
+        .find((item) => item.id === candidateId);
+      if (!candidate || !candidate.exists) {
+        setError("该候选目录当前不可用，请选择其他目录。");
+        return;
+      }
+      await importDataDirectory(candidate.path);
+    },
+    [importDataDirectory, setError],
+  );
+
+  const chooseManualDirectory = useCallback(
+    async (field: "dataDir" | "workDir") => {
+      const dir = await openDirectoryPicker();
+      if (!dir) return null;
+      setManualDraft({
+        ...useSetupStore.getState().manualDraft,
+        [field]: dir,
+      });
+      setError(null);
+      return dir;
+    },
+    [setError, setManualDraft],
+  );
+
+  const chooseManualDataDirectory = useCallback(
+    () => chooseManualDirectory("dataDir"),
+    [chooseManualDirectory],
+  );
+
+  const chooseManualWorkDirectory = useCallback(
+    () => chooseManualDirectory("workDir"),
+    [chooseManualDirectory],
+  );
 
   const saveManualConfig = useCallback(
     async (draft: ServerConfigDraft) => {
@@ -306,6 +416,7 @@ export function useSetupCommander(): SetupCommander {
   }, [setError, setExternalBaseUrlError, setLoading, setPortState, syncStep]);
 
   const startManagedService = useCallback(async () => {
+    const timer = createUxKpiTimer();
     setLoading(true);
     setError(null);
     try {
@@ -318,12 +429,12 @@ export function useSetupCommander(): SetupCommander {
       const inspectedPortState = toPortState(inspection);
       setPortState(inspectedPortState);
       if (inspectedPortState === "external-chatlog") {
-        setError("5030 端口已有外部 chatlog_alpha 服务。请切换到外部服务模式连接，或手动停止该服务后再启动托管服务。");
+        setError(settingsMessagesZhCN.setup.service.externalServiceOccupied);
         syncStep();
         return;
       }
       if (inspectedPortState === "occupied") {
-        setError("5030 端口被其他进程占用。请关闭该进程或修改服务端口后再启动。");
+        setError(settingsMessagesZhCN.setup.service.portOccupied);
         syncStep();
         return;
       }
@@ -352,6 +463,7 @@ export function useSetupCommander(): SetupCommander {
           setReadiness({ dbReady: dbResult.ready });
         }
         syncStep();
+        recordSetupCompletedIfReady(timer.durationMs());
         return;
       }
       await startManagedSidecar({
@@ -386,15 +498,17 @@ export function useSetupCommander(): SetupCommander {
         setReadiness({ dbReady: dbResult.ready });
       }
       syncStep();
+      recordSetupCompletedIfReady(timer.durationMs());
     } catch (err) {
       setError(formatSafeUserFacingError(err));
     } finally {
       setLoading(false);
     }
-  }, [setError, setLoading, setPortState, setReadiness, syncStep]);
+  }, [recordSetupCompletedIfReady, setError, setLoading, setPortState, setReadiness, syncStep]);
 
   const connectExternalService = useCallback(
     async (baseUrl: string) => {
+      const timer = createUxKpiTimer();
       setLoading(true);
       setError(null);
       setExternalBaseUrlError(null);
@@ -446,6 +560,7 @@ export function useSetupCommander(): SetupCommander {
           setError(dbResult.message || "服务已连接，但数据库尚未就绪");
         }
         syncStep();
+        recordSetupCompletedIfReady(timer.durationMs());
       } catch (err) {
         const message = formatReadinessFailureMessage(err, "service");
         setError(message);
@@ -464,11 +579,13 @@ export function useSetupCommander(): SetupCommander {
       setPortState,
       setProfile,
       setReadiness,
+      recordSetupCompletedIfReady,
       syncStep,
     ],
   );
 
   const checkReadiness = useCallback(async () => {
+    const timer = createUxKpiTimer();
     const state = useSetupStore.getState();
     setError(null);
     try {
@@ -515,12 +632,13 @@ export function useSetupCommander(): SetupCommander {
         setReadiness({ dbReady: dbResult.ready });
       }
       syncStep();
+      recordSetupCompletedIfReady(timer.durationMs());
     } catch {
       setReadiness({ httpReady: false, dbReady: false });
       setError("无法刷新服务状态，请检查服务地址或稍后重试。");
       syncStep();
     }
-  }, [setError, setExternalBaseUrlError, setReadiness, syncStep]);
+  }, [recordSetupCompletedIfReady, setError, setExternalBaseUrlError, setReadiness, syncStep]);
 
   const stopManagedService = useCallback(async () => {
     try {
@@ -547,6 +665,10 @@ export function useSetupCommander(): SetupCommander {
     chooseSetupPath,
     importDataDirectory,
     chooseAndImportDataDirectory,
+    detectDataDirectories,
+    importDetectedDataDirectory,
+    chooseManualDataDirectory,
+    chooseManualWorkDirectory,
     saveManualConfig,
     inspectServicePort,
     startManagedService,
@@ -555,4 +677,15 @@ export function useSetupCommander(): SetupCommander {
     stopManagedService,
     openWorkbench,
   };
+}
+
+function normalizeDetectedCandidates(candidates: WxPathCandidate[]) {
+  return candidates.map((candidate, index) => ({
+    id: `candidate-${index + 1}`,
+    path: candidate.path,
+    label: candidate.label,
+    exists: candidate.exists,
+    source: candidate.source,
+    confidence: candidate.confidence,
+  }));
 }

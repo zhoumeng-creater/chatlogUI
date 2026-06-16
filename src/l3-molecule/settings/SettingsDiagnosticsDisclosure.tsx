@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
+import type { SettingsMessages } from "@/l2-coordinator/commander/messages.zh-CN";
 import { Button, StatusIndicator, Surface, Typography } from "@l4/ui";
 import { DiagnosticsPanel } from "@l3/diagnostics/DiagnosticsPanel";
 
 interface SettingsDiagnosticsDisclosureProps {
+  copy: SettingsMessages["settings"]["diagnostics"];
   report: DiagnosticsReport;
   copyText: string;
   onExport: () => Promise<string>;
 }
 
 export function SettingsDiagnosticsDisclosure({
+  copy,
   report,
   copyText,
   onExport,
@@ -22,14 +25,14 @@ export function SettingsDiagnosticsDisclosure({
       <div className="settings-disclosure-header">
         <div>
           <Typography variant="label" weight={700}>
-            脱敏诊断
+            {copy.title}
           </Typography>
           <Typography variant="body" color="var(--text-secondary)">
-            默认只显示安全摘要；需要排查问题时再展开复制或导出脱敏诊断。
+            {copy.description}
           </Typography>
         </div>
         <StatusIndicator
-          label={report.redactionOk ? "可导出" : "已阻止导出"}
+          label={report.redactionOk ? copy.exportReady : copy.exportBlocked}
           tone={report.redactionOk ? "success" : "danger"}
         />
       </div>
@@ -51,7 +54,9 @@ export function SettingsDiagnosticsDisclosure({
           aria-hidden="true"
           className={open ? "settings-disclosure-button__chevron--open" : undefined}
         />
-        {open ? "收起脱敏诊断" : "查看脱敏诊断"}
+        {open
+          ? copy.collapse
+          : copy.expand}
       </Button>
       {open && (
         <DiagnosticsPanel

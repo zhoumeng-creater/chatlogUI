@@ -1,7 +1,8 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, type RefObject } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@l4/ui/Button';
 import { DisabledReason } from '@l4/ui/DisabledReason';
+import { StatusAnnouncer } from '../common/StatusAnnouncer';
 import { QAMessage } from './QAMessage';
 import { QAInput, type QAComposerDraft, type QAEntityOverride, type QARecentChatOption } from './QAInput';
 import { SemanticQAEvidenceDrawer } from './SemanticQAEvidenceDrawer';
@@ -32,8 +33,11 @@ interface QAPanelProps {
   onStopQAStream: () => void;
   onRetryQAMessage: (messageId: string) => void;
   onCopyQAMessageAnswer: (messageId: string) => Promise<boolean>;
+  onExportQAMessage?: (messageId: string) => void;
+  getQAMessageExportDisabledReason?: (messageId: string) => string | null;
   onClearQAMessages: () => void;
   onSelectEvidenceSource?: (chat: string, label: string, localId?: number) => void;
+  questionInputRef?: RefObject<HTMLTextAreaElement>;
 }
 
 export function QAPanel({
@@ -48,14 +52,19 @@ export function QAPanel({
   onStopQAStream,
   onRetryQAMessage,
   onCopyQAMessageAnswer,
+  onExportQAMessage,
+  getQAMessageExportDisabledReason,
   onClearQAMessages,
   onSelectEvidenceSource,
+  questionInputRef,
 }: QAPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [evidenceMessageId, setEvidenceMessageId] = useState<string | null>(null);
   const [entityOverride, setEntityOverride] = useState<QAEntityOverride | null>(null);
   const evidenceMessage = qaMessages.find((message) => message.id === evidenceMessageId);
   const hasMessages = qaMessages.length > 0;
+  const statusAnnouncement = getQAStatusAnnouncement(qaStatus);
+  const failedMessage = privacyOn ? "生成失败，请复制脱敏诊断或重试。" : qaError || "生成失败";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -77,6 +86,12 @@ export function QAPanel({
 
   return (
     <div className="qa-panel">
+      <StatusAnnouncer
+        privacyOn={privacyOn}
+        politeness={qaStatus === "failed" ? "assertive" : "polite"}
+        message={statusAnnouncement}
+        privacySafeMessage={statusAnnouncement}
+      />
       {hasMessages && (
         <div className="qa-panel__toolbar">
           {qaStreaming ? (
@@ -95,16 +110,24 @@ export function QAPanel({
             onOpenEvidence={setEvidenceMessageId}
             onRetry={onRetryQAMessage}
             onCopy={onCopyQAMessageAnswer}
+            onExport={onExportQAMessage}
+            exportDisabledReason={getQAMessageExportDisabledReason?.(msg.id) ?? null}
           />
         ))}
         {qaStatus === "stopped" && (
-          <div className="qa-panel__status qa-panel__status--stopped">已停止生成</div>
+          <div className="qa-panel__status qa-panel__status--stopped">
+            已停止，保留当前回答
+          </div>
         )}
         {qaStatus === "empty" && (
-          <div className="qa-panel__status qa-panel__status--empty">未返回可显示答案</div>
+          <div className="qa-panel__status qa-panel__status--empty">
+            未返回可显示答案
+          </div>
         )}
         {qaStatus === "failed" && (
-          <div className="qa-panel__status qa-panel__status--failed">{qaError || "生成失败"}</div>
+          <div role="alert" className="qa-panel__status qa-panel__status--failed">
+            {failedMessage}
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -121,10 +144,13 @@ export function QAPanel({
             });
           }}
           onOpenSource={onSelectEvidenceSource}
+          onExportEvidence={onExportQAMessage ? () => onExportQAMessage(evidenceMessage.id) : undefined}
+          exportDisabledReason={getQAMessageExportDisabledReason?.(evidenceMessage.id) ?? null}
         />
       )}
 
       <QAInput
+        ref={questionInputRef}
         onSend={onAskQuestion}
         onStop={onStopQAStream}
         disabled={qaStreaming}
@@ -136,4 +162,23 @@ export function QAPanel({
       />
     </div>
   );
+}
+
+function getQAStatusAnnouncement(status: QAPanelProps["qaStatus"]): string {
+  switch (status) {
+    case "connecting":
+      return "正在连接 AI 回答";
+    case "streaming":
+      return "正在生成回答";
+    case "completed":
+      return "回答已完成";
+    case "stopped":
+      return "已停止，保留当前回答";
+    case "failed":
+      return "生成失败";
+    case "empty":
+      return "未返回可显示答案";
+    case "idle":
+      return "";
+  }
 }

@@ -1,14 +1,15 @@
 import { SkeletonLoader, Surface } from "@l4/ui";
-import type { AdaptedStats } from "@l2/data-clerk/stores/useStatsStore";
+import type { AdaptedStats, StatsComparisonState } from "@l2/data-clerk/stores/useStatsStore";
 import { MetricRow } from "./MetricRow";
 import { buildMetricRows } from "./statsDisplay";
 
 interface DashboardOverviewProps {
   stats: AdaptedStats | null;
   loading: boolean;
+  comparison?: StatsComparisonState;
 }
 
-export function DashboardOverview({ stats, loading }: DashboardOverviewProps) {
+export function DashboardOverview({ stats, loading, comparison }: DashboardOverviewProps) {
   if (loading) {
     return (
       <Surface variant="base" style={{ padding: 12 }}>
@@ -21,9 +22,12 @@ export function DashboardOverview({ stats, loading }: DashboardOverviewProps) {
 
   return (
     <Surface variant="base" style={{ padding: 12 }}>
-      {buildMetricRows(stats).map((row) => (
+      {buildMetricRows(stats, comparison).map((row) => (
         <MetricRow key={row.label} row={row} />
       ))}
+      {comparison?.mode === "previousPeriod" && comparison.unavailableReason && (
+        <p className="stats-card__note">{comparison.unavailableReason}</p>
+      )}
     </Surface>
   );
 }

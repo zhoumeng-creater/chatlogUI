@@ -3,6 +3,11 @@ import type { IndexStatusResponse } from "@/l2-coordinator/api-docs/semantic";
 import type { CompactSemanticStatus } from "@/l2-coordinator/commander/semanticViewModel";
 import { StatusIndicator, Typography, type StatusTone } from "@l4/ui";
 
+export interface StatusBarCopy {
+  service: Record<SidecarStatus | "ready" | "notReady" | "connected" | "unconfigured", string>;
+  database: Record<DbStatus | "initializing", string>;
+}
+
 interface StatusBarProps {
   status: SidecarStatus;
   error?: string;
@@ -13,13 +18,28 @@ interface StatusBarProps {
   portStatus?: string;
   serviceLabel?: string;
   semanticStatus?: CompactSemanticStatus | null;
+  copy?: StatusBarCopy;
 }
 
-const STATUS_LABELS: Record<SidecarStatus, string> = {
-  stopped: "引擎已停止",
-  starting: "引擎启动中",
-  running: "引擎运行中",
-  error: "引擎异常",
+const DEFAULT_STATUS_COPY: StatusBarCopy = {
+  service: {
+    stopped: "本机服务已停止",
+    starting: "本机服务启动中",
+    running: "本机服务运行中",
+    error: "本机服务异常",
+    ready: "本机服务就绪",
+    notReady: "本机服务未就绪",
+    connected: "本机服务已连接",
+    unconfigured: "本机服务未配置",
+  },
+  database: {
+    disconnected: "数据库未连接",
+    connecting: "数据库连接中",
+    decrypting: "数据库解密中",
+    ready: "数据库就绪",
+    error: "数据库异常",
+    initializing: "数据库初始化中",
+  },
 };
 
 const STATUS_TONES: Record<SidecarStatus, StatusTone> = {
@@ -27,14 +47,6 @@ const STATUS_TONES: Record<SidecarStatus, StatusTone> = {
   starting: "info",
   running: "success",
   error: "danger",
-};
-
-const DB_STATUS_LABELS: Record<DbStatus, string> = {
-  disconnected: "DB未连接",
-  connecting: "DB连接中",
-  decrypting: "DB解密中",
-  ready: "DB就绪",
-  error: "DB异常",
 };
 
 const DB_STATUS_TONES: Record<DbStatus, StatusTone> = {
@@ -45,23 +57,23 @@ const DB_STATUS_TONES: Record<DbStatus, StatusTone> = {
   error: "danger",
 };
 
-export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbReady, portStatus, serviceLabel, semanticStatus }: StatusBarProps) {
+export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbReady, portStatus, serviceLabel, semanticStatus, copy = DEFAULT_STATUS_COPY }: StatusBarProps) {
   const isStarting = status === "starting";
   const isDbBusy = dbStatus === "connecting" || dbStatus === "decrypting";
   const indexIndicator = semanticStatus ?? getIndexIndicator(indexStatus);
-  const visibleServiceLabel = formatVisibleServiceLabel(serviceLabel);
+  const visibleServiceLabel = formatVisibleServiceLabel(serviceLabel, copy);
 
   return (
     <footer className="app-statusbar">
       <div className="app-statusbar__cluster">
         <StatusIndicator
-          label={STATUS_LABELS[status]}
+          label={copy.service[status]}
           tone={STATUS_TONES[status]}
           busy={isStarting}
         />
         {dbStatus && (
           <StatusIndicator
-            label={DB_STATUS_LABELS[dbStatus]}
+            label={copy.database[dbStatus]}
             tone={DB_STATUS_TONES[dbStatus]}
             busy={isDbBusy}
           />
@@ -82,13 +94,13 @@ export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbR
         )}
         {httpReady !== undefined && (
           <StatusIndicator
-            label={httpReady ? "HTTP 就绪" : "HTTP 未就绪"}
+            label={httpReady ? copy.service.ready : copy.service.notReady}
             tone={httpReady ? "success" : "neutral"}
           />
         )}
         {dbReady !== undefined && (
           <StatusIndicator
-            label={dbReady ? "DB 就绪" : "DB 初始化中"}
+            label={dbReady ? copy.database.ready : copy.database.initializing}
             tone={dbReady ? "success" : "warning"}
           />
         )}
@@ -105,10 +117,10 @@ export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbR
   );
 }
 
-function formatVisibleServiceLabel(label: string | undefined): string {
-  if (!label) return "本机服务未配置";
+function formatVisibleServiceLabel(label: string | undefined, copy: StatusBarCopy): string {
+  if (!label) return copy.service.unconfigured;
   if (/(?:https?:\/\/)?(?:127\.0\.0\.1|localhost|\[?::1\]?):\d{1,5}/i.test(label)) {
-    return "本机服务已连接";
+    return copy.service.connected;
   }
   return label;
 }

@@ -1,24 +1,19 @@
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
-import { Button, Input, Typography } from "@l4/ui";
+import { Typography } from "@l4/ui";
 import type { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { GraphModuleView } from "./GraphModuleView";
-
-const TIME_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: "全部", value: "" },
-  { label: "近7天", value: "7d" },
-  { label: "近30天", value: "30d" },
-  { label: "近90天", value: "90d" },
-];
+import { GraphAdvancedFilterDrawer } from "./GraphAdvancedFilterDrawer";
+import { GraphPrimaryControls } from "./GraphPrimaryControls";
 
 type GraphCommander = ReturnType<typeof useGraphCommander>;
 
 interface GraphModuleProps {
   graph: GraphCommander;
   privacyOn: boolean;
+  onOpenSource: () => void;
 }
 
-export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
+export function GraphModule({ graph, privacyOn, onOpenSource }: GraphModuleProps) {
   const { loadGraphConfig, openGraphModule } = graph;
   const [keywordDraft, setKeywordDraft] = useState(graph.keyword);
   const [entityDraft, setEntityDraft] = useState(graph.entityFilter);
@@ -26,6 +21,7 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
   const [limitDraft, setLimitDraft] = useState(String(graph.limit));
   const [startDraft, setStartDraft] = useState(graph.start);
   const [endDraft, setEndDraft] = useState(graph.end);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
 
   useEffect(() => {
     void openGraphModule();
@@ -58,10 +54,13 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
     void graph.loadGraphSummary({
       keyword: keywordDraft || undefined,
       window: graph.timeWindow || undefined,
+      entity: entityDraft || undefined,
+      relation: relationDraft || undefined,
       limit,
       start: startDraft || undefined,
       end: endDraft || undefined,
     });
+    setAdvancedFiltersOpen(false);
   };
 
   const setWindow = (window: string) => {
@@ -69,6 +68,8 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
     void graph.loadGraphSummary({
       keyword: keywordDraft || undefined,
       window: window || undefined,
+      entity: entityDraft || undefined,
+      relation: relationDraft || undefined,
       limit: graph.limit,
       start: startDraft || undefined,
       end: endDraft || undefined,
@@ -81,15 +82,37 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
     void graph.loadGraphSummary({
       keyword,
       window: graph.timeWindow || undefined,
+      entity: entityDraft || undefined,
+      relation: relationDraft || undefined,
       limit: graph.limit,
       start: startDraft || undefined,
       end: endDraft || undefined,
     });
   };
 
+  const resetAdvancedFilters = () => {
+    graph.clearGraphFilters();
+    setKeywordDraft("");
+    setEntityDraft("");
+    setRelationDraft("");
+    setLimitDraft("80");
+    setStartDraft("");
+    setEndDraft("");
+    setAdvancedFiltersOpen(false);
+    void graph.loadGraphSummary({ limit: 80 });
+  };
+
+  const hasUnappliedChanges =
+    graph.keyword !== keywordDraft ||
+    graph.entityFilter !== entityDraft ||
+    graph.relationFilter !== relationDraft ||
+    String(graph.limit) !== limitDraft ||
+    graph.start !== startDraft ||
+    graph.end !== endDraft;
+
   return (
     <section className="graph-module" aria-label="知识图谱模块">
-      <div className="graph-module__header">
+      <div className="graph-module__header" data-coach-anchor="graph-evidence">
         <div>
           <Typography variant="label" weight={700}>
             知识图谱
@@ -97,98 +120,38 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
           <Typography variant="caption" color="var(--text-secondary)">
             {graph.visualize
               ? `${graph.visualize.summary.nodeCount} 实体 · ${graph.visualize.summary.edgeCount} 关系`
-              : "图谱摘要"}
+            : "图谱摘要"}
           </Typography>
         </div>
-        <form
-          className="graph-module__filters"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submitFilter();
-          }}
-        >
-          <Input
-            variant="search"
-            controlSize="sm"
-            value={keywordDraft}
-            onChange={(event) => setKeywordDraft(event.currentTarget.value)}
-            placeholder="筛选实体或关系"
-            aria-label="筛选图谱"
-          />
-          <Input
-            controlSize="sm"
-            value={entityDraft}
-            onChange={(event) => setEntityDraft(event.currentTarget.value)}
-            placeholder="实体"
-            aria-label="图谱实体筛选"
-          />
-          <Input
-            controlSize="sm"
-            value={relationDraft}
-            onChange={(event) => setRelationDraft(event.currentTarget.value)}
-            placeholder="关系"
-            aria-label="图谱关系筛选"
-          />
-          <Input
-            controlSize="sm"
-            type="number"
-            min={1}
-            max={300}
-            value={limitDraft}
-            onChange={(event) => setLimitDraft(event.currentTarget.value)}
-            aria-label="图谱数量上限"
-          />
-          <Input
-            controlSize="sm"
-            type="date"
-            value={startDraft}
-            onChange={(event) => setStartDraft(event.currentTarget.value)}
-            aria-label="图谱开始日期"
-          />
-          <Input
-            controlSize="sm"
-            type="date"
-            value={endDraft}
-            onChange={(event) => setEndDraft(event.currentTarget.value)}
-            aria-label="图谱结束日期"
-          />
-          <Button variant="secondary" size="sm" type="submit" loading={graph.loading}>
-            <Search size={14} />
-            筛选
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            onClick={() => {
-              graph.clearGraphFilters();
-              setKeywordDraft("");
-              setEntityDraft("");
-              setRelationDraft("");
-              setLimitDraft("80");
-              setStartDraft("");
-              setEndDraft("");
-              void graph.loadGraphSummary({ limit: 80 });
-            }}
-          >
-            清空
-          </Button>
-          <div className="graph-module__time-tabs" role="tablist" aria-label="图谱时间范围">
-            {TIME_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                variant={graph.timeWindow === option.value ? "primary" : "ghost"}
-                size="sm"
-                onClick={() => setWindow(option.value)}
-                role="tab"
-                aria-selected={graph.timeWindow === option.value}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-        </form>
       </div>
+      <GraphPrimaryControls
+        model={graph.controlModel}
+        keywordDraft={keywordDraft}
+        onKeywordDraftChange={setKeywordDraft}
+        onSubmit={submitFilter}
+        onTimeWindowChange={setWindow}
+        onRefresh={graph.refreshGraph}
+        onOpenAdvancedFilters={() => setAdvancedFiltersOpen(true)}
+        exportAction={graph.businessExport.action}
+      />
+      <GraphAdvancedFilterDrawer
+        open={advancedFiltersOpen}
+        model={graph.controlModel}
+        entityDraft={entityDraft}
+        relationDraft={relationDraft}
+        limitDraft={limitDraft}
+        startDraft={startDraft}
+        endDraft={endDraft}
+        hasUnappliedChanges={hasUnappliedChanges}
+        onEntityDraftChange={setEntityDraft}
+        onRelationDraftChange={setRelationDraft}
+        onLimitDraftChange={setLimitDraft}
+        onStartDraftChange={setStartDraft}
+        onEndDraftChange={setEndDraft}
+        onApply={submitFilter}
+        onReset={resetAdvancedFilters}
+        onClose={() => setAdvancedFiltersOpen(false)}
+      />
       <GraphModuleView
         moduleView={graph.moduleView}
         statusSummary={graph.statusSummary}
@@ -218,6 +181,7 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
           selectedNodeId: graph.selectedNodeId,
           pulsedNodeId: graph.pulsedNodeId,
           tooltipCoord: graph.tooltipCoord,
+          emptyState: graph.emptyStates.graphEmpty,
           privacyOn,
           onRefresh: graph.refreshGraph,
           onNodeHover: graph.hoverNode,
@@ -240,6 +204,7 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
         onActiveTabChange={graph.setActiveTab}
         onSelectGraphItem={graph.selectGraphItem}
         onUseInspectorFilter={useInspectorFilter}
+        onOpenSource={onOpenSource}
         onLoadVisualization={graph.loadVisualization}
         onLoadGraphConfig={graph.loadGraphConfig}
         onSaveGraphConfig={() => graph.saveGraphAdvancedConfig()}
@@ -252,6 +217,7 @@ export function GraphModule({ graph, privacyOn }: GraphModuleProps) {
         onGraphQA={() => graph.runGraphQA()}
         onCancelAdvancedConfirmation={graph.cancelAdvancedConfirmation}
         selectedGraphItemId={graph.selectedGraphItemId}
+        contextSummary={graph.contextSummary}
       />
     </section>
   );

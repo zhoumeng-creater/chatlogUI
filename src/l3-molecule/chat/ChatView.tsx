@@ -1,9 +1,20 @@
 import type {
   ChatMessage,
   ChatMessageAnchor,
+  ChatAnchorStatus,
   Conversation,
   LoadStatus,
+  TranscriptScrollIntent,
 } from "@l2/data-clerk/stores/useChatStore";
+import type { MessageActionId } from "@l2/commander/messageActionModel";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
+import type { MessageActionModel, SafeRawFieldRow } from "@l2/commander/messageActionModel";
+import type {
+  TranscriptPositionModel,
+  TranscriptPositionRow,
+} from "@l2/commander/transcriptPositionModel";
+import type { ApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
+import type { ChatReadingState } from "@/l2-coordinator/commander/chatReadingState";
 import { MessageList } from "./MessageList";
 import { TranscriptHeader } from "./TranscriptHeader";
 
@@ -13,13 +24,45 @@ interface ChatViewProps {
   messagesLoading: boolean;
   messagesHasMore: boolean;
   messagesStatus: LoadStatus;
-  messagesError: string | null;
+  messagesError: string | ApiErrorModel | null;
+  readingState: ChatReadingState;
+  emptyStates: {
+    noConversation: ActionableEmptyStateView;
+    conversationEmpty: ActionableEmptyStateView;
+  };
   messagesTotalCount: number;
+  scrollIntent: TranscriptScrollIntent;
+  scrollAnchorMessageId: string | null;
+  scrollAnchorLocalId: number | null;
   activeAnchor: ChatMessageAnchor | null;
+  anchorStatus: ChatAnchorStatus;
   highlightedMessageId: string | null;
+  selectionMode: boolean;
+  selectedMessageIds: string[];
+  selectionSummary: string;
+  selectionStatus: string | null;
   privacyOn: boolean;
   onLoadHistory: (chat: string) => void;
   onLoadMoreHistory: (chat: string) => void;
+  onEmptyAction?: (actionId: EmptyStateActionId) => void;
+  onScrollIntentHandled: () => void;
+  onEnterSelectionMode: () => void;
+  onExitSelectionMode: () => void;
+  onToggleMessageSelection: (messageId: string, range?: boolean) => void;
+  onSelectVisibleMessages: (messageIds: string[]) => void;
+  onCopySelectedMarkdown: () => void;
+  onExportSelected: () => void;
+  onMessageAction: (message: ChatMessage, actionId: MessageActionId) => void;
+  onDeriveTranscriptPosition: (input: {
+    rows: TranscriptPositionRow[];
+    visibleIndexes: number[];
+    messagesHasMore: boolean;
+    nearLatest: boolean;
+    activeAnchor: ChatMessageAnchor | null;
+    anchorStatus: ChatAnchorStatus;
+  }) => TranscriptPositionModel;
+  getMessageActionModel: (message: ChatMessage) => MessageActionModel;
+  getMessageSafeRawFieldRows: (message: ChatMessage) => SafeRawFieldRow[];
 }
 
 export function ChatView({
@@ -29,12 +72,34 @@ export function ChatView({
   messagesHasMore,
   messagesStatus,
   messagesError,
+  readingState,
+  emptyStates,
   messagesTotalCount,
+  scrollIntent,
+  scrollAnchorMessageId,
+  scrollAnchorLocalId,
   activeAnchor,
+  anchorStatus,
   highlightedMessageId,
+  selectionMode,
+  selectedMessageIds,
+  selectionSummary,
+  selectionStatus,
   privacyOn,
   onLoadHistory,
   onLoadMoreHistory,
+  onEmptyAction,
+  onScrollIntentHandled,
+  onEnterSelectionMode,
+  onExitSelectionMode,
+  onToggleMessageSelection,
+  onSelectVisibleMessages,
+  onCopySelectedMarkdown,
+  onExportSelected,
+  onMessageAction,
+  onDeriveTranscriptPosition,
+  getMessageActionModel,
+  getMessageSafeRawFieldRows,
 }: ChatViewProps) {
   return (
     <div className="transcript">
@@ -52,11 +117,33 @@ export function ChatView({
         messagesHasMore={messagesHasMore}
         messagesStatus={messagesStatus}
         messagesError={messagesError}
+        readingState={readingState}
+        emptyStates={emptyStates}
+        scrollIntent={scrollIntent}
+        scrollAnchorMessageId={scrollAnchorMessageId}
+        scrollAnchorLocalId={scrollAnchorLocalId}
         activeAnchor={activeAnchor}
+        anchorStatus={anchorStatus}
         highlightedMessageId={highlightedMessageId}
+        selectionMode={selectionMode}
+        selectedMessageIds={selectedMessageIds}
+        selectionSummary={selectionSummary}
+        selectionStatus={selectionStatus}
         privacyOn={privacyOn}
         onLoadHistory={onLoadHistory}
         onLoadMoreHistory={onLoadMoreHistory}
+        onEmptyAction={onEmptyAction}
+        onScrollIntentHandled={onScrollIntentHandled}
+        onEnterSelectionMode={onEnterSelectionMode}
+        onExitSelectionMode={onExitSelectionMode}
+        onToggleMessageSelection={onToggleMessageSelection}
+        onSelectVisibleMessages={onSelectVisibleMessages}
+        onCopySelectedMarkdown={onCopySelectedMarkdown}
+        onExportSelected={onExportSelected}
+        onMessageAction={onMessageAction}
+        onDeriveTranscriptPosition={onDeriveTranscriptPosition}
+        getMessageActionModel={getMessageActionModel}
+        getMessageSafeRawFieldRows={getMessageSafeRawFieldRows}
       />
     </div>
   );

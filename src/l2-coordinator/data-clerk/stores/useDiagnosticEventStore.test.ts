@@ -44,11 +44,11 @@ describe("useDiagnosticEventStore", () => {
   });
 
   it("updates filters without dropping existing filter fields", () => {
-    useDiagnosticEventStore.getState().setFilters({ source: "http" });
+    useDiagnosticEventStore.getState().setFilters({ source: "ux" });
     useDiagnosticEventStore.getState().setFilters({ level: "warn" });
 
     expect(useDiagnosticEventStore.getState().filters).toEqual({
-      source: "http",
+      source: "ux",
       level: "warn",
       privacy: "all",
       endpointFamily: "all",

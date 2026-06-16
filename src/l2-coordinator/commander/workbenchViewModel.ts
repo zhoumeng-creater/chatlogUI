@@ -2,6 +2,8 @@ import type { SetupProfileSummary } from "@l2/data-clerk/types/setup";
 import type { GraphModuleView } from "./graphViewModel";
 import type { WorkbenchLayout, WorkbenchMode } from "./workbenchLayout";
 import type { CompactSemanticStatus } from "./semanticViewModel";
+import { buildActionableEmptyState, type ActionableEmptyStateView } from "./actionableEmptyStateModel";
+import { settingsMessagesZhCN } from "./messages.zh-CN";
 
 export type WorkbenchModule = "chat" | "stats" | "media" | "sns" | "ai" | "graph";
 export type SinglePaneView = "list" | "detail";
@@ -33,6 +35,7 @@ export interface WorkbenchShellViewModel {
   title: string;
   message: string;
   setupLinkLabel: string;
+  readinessEmptyState: ActionableEmptyStateView;
 }
 
 export interface WorkbenchConversationTitleInput {
@@ -128,22 +131,61 @@ export function deriveWorkbenchShellView(input: WorkbenchShellViewInput): Workbe
   const effectiveHttpReady = input.httpReady || input.devSmokeReady === true;
   const effectiveDbReady = input.dbReady || input.devSmokeReady === true;
   const externalMode = input.profile?.mode === "external";
+  const gateCopy = settingsMessagesZhCN.workbench.gate;
+  const title = input.profile ? gateCopy.notReadyTitle : gateCopy.notConfiguredTitle;
+  const message = !input.profile
+    ? gateCopy.notConfigured
+    : !effectiveHttpReady
+      ? externalMode
+        ? gateCopy.externalServiceUnavailable
+        : gateCopy.managedServiceNotStarted
+      : gateCopy.databaseNotReady;
+  const statusText = effectiveHttpReady ? gateCopy.serviceDbPendingStatus : gateCopy.serviceNotStartedStatus;
 
   return {
     renderWorkbench,
     effectiveHttpReady,
     effectiveDbReady,
-    statusText: effectiveHttpReady ? "服务运行中，数据库未就绪" : "服务未启动",
+    statusText,
     statusTone: effectiveHttpReady ? "warning" : "neutral",
-    title: input.profile ? "服务尚未完全就绪" : "尚未配置",
-    message: !input.profile
-      ? "请先完成设置中心的基本配置后再进入工作台。"
-      : !effectiveHttpReady
-        ? externalMode
-          ? "无法连接已配置的本机 chatlog 服务，请在设置中心检查服务地址或服务进程。"
-          : "chatlog_alpha 服务尚未启动，请在设置中心启动服务。"
-        : "服务已启动但数据库尚未就绪，请稍候。",
-    setupLinkLabel: "前往设置中心",
+    title,
+    message,
+    setupLinkLabel: gateCopy.setupLink,
+    readinessEmptyState: {
+      ...buildActionableEmptyState({
+        variant: !input.profile
+          ? "service-not-configured"
+          : !effectiveHttpReady
+            ? "service-not-ready"
+            : "db-not-ready",
+        readiness: {
+          serviceConfigured: Boolean(input.profile),
+          httpReady: effectiveHttpReady,
+          dbReady: effectiveDbReady,
+          hasCurrentConversation: false,
+        },
+        privacyOn: true,
+      }),
+      title,
+      reason: statusText,
+      description: message,
+      actions: [
+        {
+          id: "configure-service",
+          label: gateCopy.setupLink,
+          variant: "primary",
+          disabled: false,
+          disabledReason: null,
+        },
+        {
+          id: "open-diagnostics",
+          label: "查看设置诊断",
+          variant: "ghost",
+          disabled: false,
+          disabledReason: null,
+        },
+      ],
+    },
   };
 }
 

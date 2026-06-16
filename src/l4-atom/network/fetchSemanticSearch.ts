@@ -9,6 +9,7 @@ import {
   adaptSemanticSearch,
   type SemanticSearchResultSet,
 } from "./semanticAdapters";
+import type { RawSemanticSearchResponse } from "./chatlogRawTypes";
 
 export interface SemanticSearchRequestInput {
   query: string;
@@ -46,7 +47,7 @@ export async function fetchSemanticSearch(
   if (sourceLimit !== undefined) url.searchParams.set('source_limit', String(sourceLimit));
   if (rerank !== undefined) url.searchParams.set('rerank', String(rerank));
 
-  const data = await requestJson(url.toString(), {
+  const data = await requestJson<RawSemanticSearchResponse>(url.toString(), {
     timeoutMs: 30000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "semantic",

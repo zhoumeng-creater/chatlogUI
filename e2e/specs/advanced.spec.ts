@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { setDesktop } from "../utils/viewport";
+import { setDesktop, setNarrow } from "../utils/viewport";
 import { expectGraphCanvasReady } from "../utils/graph";
 import {
   enableDeveloperEntryForTest,
@@ -130,6 +130,51 @@ test.describe("advanced synthetic modules", () => {
     await page.getByRole("button", { name: "确认提问" }).click();
     await expect(page.getByText("Synthetic graph answer for redaction tests only")).toBeVisible();
     await expect(page.getByText("2 条证据已隐藏")).toBeVisible();
+  });
+
+  test("shows graph control hierarchy, context summary, export, and canvas readiness", async ({ page }) => {
+    await openWorkbenchModule(page, "图谱");
+    await expect(page.getByLabel("知识图谱模块")).toBeVisible();
+    await expect(page.getByLabel("图谱主控制")).toBeVisible();
+    await expect(page.getByLabel("当前图谱说明")).toBeVisible();
+    await expect(page.getByLabel("图谱列表")).toBeVisible();
+
+    await page.getByRole("button", { name: "更多筛选" }).click();
+    const filterDialog = page.getByRole("dialog", { name: "图谱高级筛选" });
+    await expect(filterDialog).toBeVisible();
+    await expect(page.getByLabel("实体类型")).toBeVisible();
+    await filterDialog.getByRole("button", { name: "关闭", exact: true }).click();
+
+    await page.getByRole("button", { name: "导出", exact: true }).click();
+    const exportDialog = page.getByRole("dialog", { name: "导出图谱" });
+    await expect(exportDialog).toBeVisible();
+    await expect(page.getByText("业务导出")).toBeVisible();
+    await exportDialog.getByRole("button", { name: "关闭", exact: true }).click();
+
+    await page.getByRole("tab", { name: "可视化" }).click();
+    await expect(page.getByRole("button", { name: "打开可视化" })).toBeEnabled();
+    await page.getByRole("button", { name: "打开可视化" }).click();
+    await expect(page.getByLabel("知识图谱可视化")).toBeVisible();
+    await expect(page.getByLabel("图谱画布控制")).toBeVisible();
+    await expectGraphCanvasReady(page);
+    await expectStableSyntheticPage(page);
+  });
+
+  test("keeps graph controls usable at narrow width", async ({ page }) => {
+    await setNarrow(page);
+    await openWorkbenchModule(page, "图谱");
+    await expect(page.getByLabel("知识图谱模块")).toBeVisible();
+    await expect(page.getByLabel("图谱主控制")).toBeVisible();
+    await expect(page.getByLabel("当前图谱说明")).toBeVisible();
+
+    await page.getByRole("button", { name: "更多筛选" }).click();
+    const filterDialog = page.getByRole("dialog", { name: "图谱高级筛选" });
+    await expect(filterDialog).toBeVisible();
+    await expect(filterDialog.getByLabel("实体类型")).toBeVisible();
+    await expect(filterDialog.getByLabel("关系类型")).toBeVisible();
+    await filterDialog.getByRole("button", { name: "关闭", exact: true }).click();
+
+    await expectStableSyntheticPage(page);
   });
 
   test("streams semantic QA with selected conversations, evidence, retry, and empty/failure states", async ({ page }) => {

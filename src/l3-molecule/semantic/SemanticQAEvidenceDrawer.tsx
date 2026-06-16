@@ -1,7 +1,16 @@
-import { ExternalLink, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Download, ExternalLink, X } from 'lucide-react';
 import { Button } from '@l4/ui/Button';
+import { DisabledReason } from '@l4/ui/DisabledReason';
 import { IconButton } from '@l4/ui/IconButton';
 import { Typography } from '@l4/ui/Typography';
+import {
+  focusInitialOverlayTarget,
+  getOverlayDialogProps,
+  restoreFocusTarget,
+  shouldCloseOverlayOnKey,
+  type FocusTarget,
+} from '@l4/ui';
 import {
   getSemanticEntityCandidateRows,
   getSemanticEvidenceRows,
@@ -24,6 +33,8 @@ interface SemanticQAEvidenceDrawerProps {
   onClose: () => void;
   onUseEntityCandidate: (candidate: SemanticEntityCandidateDisplayRow) => void;
   onOpenSource?: (chat: string, label: string, localId?: number) => void;
+  onExportEvidence?: () => void;
+  exportDisabledReason?: string | null;
 }
 
 export function SemanticQAEvidenceDrawer({
@@ -32,7 +43,11 @@ export function SemanticQAEvidenceDrawer({
   onClose,
   onUseEntityCandidate,
   onOpenSource,
+  onExportEvidence,
+  exportDisabledReason,
 }: SemanticQAEvidenceDrawerProps) {
+  const panelRef = useRef<HTMLElement | null>(null);
+  const restoreTargetRef = useRef<FocusTarget | null>(null);
   const metadata = {
     ...(message.metadata ?? {}),
     sourceCount: message.sourceCount ?? message.metadata?.sourceCount,
@@ -41,13 +56,23 @@ export function SemanticQAEvidenceDrawer({
   const rows = getSemanticEvidenceRows(message.evidence, privacyOn);
   const candidates = getSemanticEntityCandidateRows(metadata, privacyOn);
 
+  useEffect(() => {
+    restoreTargetRef.current = document.activeElement as FocusTarget | null;
+    focusInitialOverlayTarget(panelRef.current);
+    return () => {
+      restoreFocusTarget(restoreTargetRef.current);
+    };
+  }, []);
+
   return (
     <aside
+      ref={panelRef}
+      {...getOverlayDialogProps({ label: "问答证据", modal: false })}
       className="qa-evidence"
-      aria-label="问答证据"
-      tabIndex={-1}
       onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
+        if (!shouldCloseOverlayOnKey(event.key, { dismissible: true })) return;
+        event.preventDefault();
+        onClose();
       }}
     >
       <div className="qa-evidence__header">
@@ -61,14 +86,39 @@ export function SemanticQAEvidenceDrawer({
             </div>
           )}
         </div>
-        <IconButton
-          icon={<X size={15} />}
-          label="关闭证据"
-          tooltip="关闭证据"
-          size="sm"
-          autoFocus
-          onClick={onClose}
-        />
+        <div className="qa-evidence__header-actions">
+          {onExportEvidence && (
+            exportDisabledReason ? (
+              <DisabledReason reason={exportDisabledReason} variant="compact">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="qa-evidence__export"
+                  disabled
+                >
+                  <Download size={14} />导出证据
+                </Button>
+              </DisabledReason>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="qa-evidence__export"
+                onClick={onExportEvidence}
+              >
+                <Download size={14} />导出证据
+              </Button>
+            )
+          )}
+          <IconButton
+            icon={<X size={15} />}
+            label="关闭证据"
+            tooltip="关闭证据"
+            size="sm"
+            autoFocus
+            onClick={onClose}
+          />
+        </div>
       </div>
 
       {message.reason && (

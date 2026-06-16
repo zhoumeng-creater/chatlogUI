@@ -28,7 +28,7 @@ export function AIModelSettings({ view, onOpenSemanticSettings }: AIModelSetting
         </div>
         {view.legacyIgnored && (
           <Typography variant="caption" color="var(--text-secondary)">
-            已忽略旧版 Settings AI 字段；真实语义配置以 AI 工作台为准。
+            {view.legacyIgnoredLabel}
           </Typography>
         )}
       </Surface>

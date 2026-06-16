@@ -21,6 +21,7 @@ import type {
   GraphVisualizeViewState,
 } from "./graphTypes";
 import type { GraphModuleView as GraphModuleViewModel, GraphWorkbenchTabId } from "@l2/commander/graphViewModel";
+import type { GraphContextSummaryView } from "@l2/commander/graphContextSummaryModel";
 
 interface GraphModuleViewProps {
   moduleView: GraphModuleViewModel;
@@ -38,6 +39,7 @@ interface GraphModuleViewProps {
   privacyOn: boolean;
   canvasProps: GraphCanvasProps;
   selectedGraphItemId: string | null;
+  contextSummary: GraphContextSummaryView;
   onRefresh: () => void;
   onRetry: () => void;
   onCancel: () => void;
@@ -48,6 +50,7 @@ interface GraphModuleViewProps {
   onActiveTabChange: (tab: GraphWorkbenchTabId) => void;
   onSelectGraphItem: (id: string) => void;
   onUseInspectorFilter: (keyword: string) => void;
+  onOpenSource: () => void;
   onLoadVisualization: () => void;
   onLoadGraphConfig: () => void;
   onSaveGraphConfig: () => void;
@@ -77,6 +80,7 @@ export function GraphModuleView({
   privacyOn,
   canvasProps,
   selectedGraphItemId,
+  contextSummary,
   onRefresh,
   onRetry,
   onCancel,
@@ -87,6 +91,7 @@ export function GraphModuleView({
   onActiveTabChange,
   onSelectGraphItem,
   onUseInspectorFilter,
+  onOpenSource,
   onLoadVisualization,
   onLoadGraphConfig,
   onSaveGraphConfig,
@@ -118,6 +123,11 @@ export function GraphModuleView({
     if (actionId === "graph-qa") {
       onQADraftChange({ query: `请基于知识图谱解释：${inspector.title}` });
       onActiveTabChange("qa");
+      return;
+    }
+
+    if (actionId === "open-source") {
+      onOpenSource();
     }
   };
 
@@ -145,8 +155,10 @@ export function GraphModuleView({
         loadStatus={loadStatus}
         loading={loading}
         actionStatus={actionStatus}
+        rebuildCopy={advancedView.rebuildCopy}
         resetRebuildCopy={advancedView.resetRebuildCopy}
         confirmationCopy={advancedView.confirmationCopy}
+        contextSummary={contextSummary}
         onRefresh={onRefresh}
         onRebuild={onRebuild}
         onResetRebuild={onResetRebuild}

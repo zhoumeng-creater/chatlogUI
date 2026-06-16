@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useEffect, type MutableRefObject } from "react";
+import { useCallback, useMemo, useRef, useEffect, useState, type MutableRefObject } from "react";
 import { useAiStore } from "@/l2-coordinator/data-clerk/stores/useAiStore";
 import { useChatCommander } from "@/l2-coordinator/commander/useChatCommander";
 import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
@@ -26,7 +26,7 @@ import {
   INDEX_BUILD_TIMEOUT_MS,
   SEMANTIC_SEARCH_DEBOUNCE_MS,
 } from "@/utils/constants";
-import type { QARequest, SemanticSearchRequest } from "@/l2-coordinator/api-docs/semantic";
+import type { QAMessage, QARequest, SemanticSearchRequest } from "@/l2-coordinator/api-docs/semantic";
 import {
   deriveCompactSemanticStatus,
   deriveSemanticModuleView,
@@ -61,11 +61,27 @@ import {
 } from "./semanticDiscoveryRequestModel";
 import { buildSemanticDiscoveryView } from "./semanticDiscoveryViewModel";
 import {
+  buildAiEvidenceNavigationTarget,
   resolveSemanticSearchNavigation,
 } from "./semanticDiscoveryNavigation";
+import { buildSemanticPrimaryTaskView } from "./semanticPrimaryTaskModel";
+import { createSemanticQaExportArtifact } from "./semanticQaExportModel";
+import { useBusinessExportCommander } from "./useBusinessExportCommander";
+import {
+  answerLengthBucket,
+  createUxKpiTimer,
+  recordQaKpiEvent,
+  type UxKpiScopeKind,
+  type UxKpiTimer,
+} from "./uxKpiEvents";
+import {
+  bindActionableEmptyStateActions,
+  buildActionableEmptyState,
+} from "./actionableEmptyStateModel";
 
 type LegacyIndexAction = "rebuild" | "pause" | "resume" | "clear";
 type IndexAction = SemanticIndexCommand | LegacyIndexAction;
+const LATEST_AI_EXPORT_TARGET = "__latest__";
 
 function semanticDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
@@ -78,14 +94,22 @@ function semanticDiagnostics(method: "GET" | "POST" = "GET") {
 export function useAiCommander() {
   const store = useAiStore();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
-  const { selectedConversationId, selectAndLoad, selectAndLoadAtAnchor } = useChatCommander();
+  const { selectedConversationId, selectAndLoadAtAnchor } = useChatCommander();
   const conversations = useChatStore((s) => s.conversations);
   const sseAbortRef = useRef<AbortController | null>(null);
-  const activeQARef = useRef<{ streamId: string; aiMsgId: string } | null>(null);
+  const activeQARef = useRef<{
+    streamId: string;
+    aiMsgId: string;
+    timer: UxKpiTimer;
+    scopeKind: UxKpiScopeKind;
+  } | null>(null);
   const indexPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const semanticSearchRequestCounterRef = useRef(0);
   const semanticAnalysisRequestCounterRef = useRef(0);
   const semanticPreviewRequestCounterRef = useRef(0);
+  const aiExportTargetIdRef = useRef<string | null>(null);
+  const [aiExportTargetId, setAiExportTargetId] = useState<string | null>(null);
+  const [pendingAiExportOpenId, setPendingAiExportOpenId] = useState<string | null>(null);
   const currentConv = conversations.find(c => c.id === selectedConversationId);
   const currentChat = currentConv?.username;
 
@@ -203,6 +227,7 @@ export function useAiCommander() {
         const activeQA = activeQARef.current;
         if (activeQA) {
           useAiStore.getState().stopQAStream(activeQA.streamId, activeQA.aiMsgId);
+          recordQaStopKpi(activeQA);
           activeQARef.current = null;
         }
       }
@@ -213,6 +238,7 @@ export function useAiCommander() {
     const activeQA = activeQARef.current;
     if (activeQA) {
       useAiStore.getState().stopQAStream(activeQA.streamId, activeQA.aiMsgId);
+      recordQaStopKpi(activeQA);
       activeQARef.current = null;
     }
     sseAbortRef.current?.abort();
@@ -237,6 +263,7 @@ export function useAiCommander() {
     const previousQA = activeQARef.current;
     if (previousQA) {
       useAiStore.getState().stopQAStream(previousQA.streamId, previousQA.aiMsgId);
+      recordQaStopKpi(previousQA);
       activeQARef.current = null;
     }
     sseAbortRef.current?.abort();
@@ -263,7 +290,12 @@ export function useAiCommander() {
       completionStatus: "streaming",
       requestSnapshot: envelope.snapshot,
     });
-    activeQARef.current = { streamId, aiMsgId };
+    activeQARef.current = {
+      streamId,
+      aiMsgId,
+      timer: createUxKpiTimer(),
+      scopeKind: toSemanticKpiScopeKind(envelope.snapshot.scope, currentChat),
+    };
 
     store.setQAError(null);
     store.setQAStatus("connecting");
@@ -300,6 +332,15 @@ export function useAiCommander() {
             sourceCount: sourceCountFromDonePayload(event.payload),
             metadata: event.payload.metadata,
           });
+          const activeQA = activeQARef.current;
+          recordQaKpiEvent({
+            evidenceCount: event.payload.evidence.length,
+            sourceCount: sourceCountFromDonePayload(event.payload),
+            durationMs: activeQA?.timer.durationMs() ?? 0,
+            scopeKind: activeQA?.scopeKind ?? toSemanticKpiScopeKind(envelope.snapshot.scope, currentChat),
+            answerLengthBucket: answerLengthBucket(answer),
+            outcome: "success",
+          });
           activeQARef.current = null;
           if (sseAbortRef.current === abortController) sseAbortRef.current = null;
         } else if (event.type === "error") {
@@ -309,6 +350,16 @@ export function useAiCommander() {
           if (!useAiStore.getState().isActiveQAStream(streamId)) return;
           const message = translateError(event.error || "ESEMANTIC_SSE_ERROR");
           useAiStore.getState().failQAStream(streamId, aiMsgId, message);
+          const activeQA = activeQARef.current;
+          recordQaKpiEvent({
+            evidenceCount: 0,
+            sourceCount: 0,
+            durationMs: activeQA?.timer.durationMs() ?? 0,
+            scopeKind: activeQA?.scopeKind ?? toSemanticKpiScopeKind(envelope.snapshot.scope, currentChat),
+            answerLengthBucket: answerLengthBucket(getAiMessageContent(aiMsgId)),
+            outcome: "failed",
+            errorKind: "sse",
+          });
           activeQARef.current = null;
           if (sseAbortRef.current === abortController) sseAbortRef.current = null;
         }
@@ -318,6 +369,16 @@ export function useAiCommander() {
         if (error.name === "AbortError") return;
         const message = translateError(error.message || "ESEMANTIC_SSE_ERROR");
         useAiStore.getState().failQAStream(streamId, aiMsgId, message);
+        const activeQA = activeQARef.current;
+        recordQaKpiEvent({
+          evidenceCount: 0,
+          sourceCount: 0,
+          durationMs: activeQA?.timer.durationMs() ?? 0,
+          scopeKind: activeQA?.scopeKind ?? toSemanticKpiScopeKind(envelope.snapshot.scope, currentChat),
+          answerLengthBucket: answerLengthBucket(getAiMessageContent(aiMsgId)),
+          outcome: "failed",
+          errorKind: "network",
+        });
         activeQARef.current = null;
         if (sseAbortRef.current === abortController) sseAbortRef.current = null;
       },
@@ -366,36 +427,18 @@ export function useAiCommander() {
       privacyOn,
     });
     if (target.status !== "ready") return target;
-    if (target.localId && target.localId > 0) {
-      void selectAndLoadAtAnchor({
-        conversationId: target.conversationId,
-        chat: target.chat,
-        anchor: {
-          source: "ai",
-          chat: target.chat,
-          messageId: "",
-          localId: target.localId,
-          timestamp: null,
-          time: null,
-        },
-        returnToSearch: {
-          returnRoute: "/ai",
-          activeResultId: `semantic-${target.localId}`,
-          querySnapshot: {
-            query: store.searchQuery,
-            filter: "all",
-            scope: "current",
-            scopeChat: target.chat,
-          },
-          sourceConversationId: target.conversationId,
-        },
-      });
-      return target;
-    }
-
-    void selectAndLoad(target.conversationId, target.chat);
+    void selectAndLoadAtAnchor(buildAiEvidenceNavigationTarget({
+      conversationId: target.conversationId,
+      chat: target.chat,
+      localId: target.localId,
+      returnRoute: "/ai",
+      activeResultId: target.localId && target.localId > 0
+        ? `semantic-${target.localId}`
+        : `semantic-${target.conversationId}`,
+      query: store.searchQuery,
+    }));
     return target;
-  }, [conversations, privacyOn, selectAndLoad, selectAndLoadAtAnchor, store.searchQuery]);
+  }, [conversations, privacyOn, selectAndLoadAtAnchor, store.searchQuery]);
 
   const recentDiscoveryChats = useMemo(() => conversations
     .filter((conversation) => conversation.username)
@@ -571,6 +614,116 @@ export function useAiCommander() {
   const latestAssistantMessage =
     [...store.qaMessages].reverse().find((message) => message.role === "assistant");
   const latestAssistantAnswer = latestAssistantMessage?.content ?? "";
+  const exportTargetMessage = useMemo(() => {
+    const targetId = aiExportTargetId ?? aiExportTargetIdRef.current;
+    if (!targetId) return latestAssistantMessage;
+    return store.qaMessages.find((message) =>
+      message.id === targetId && message.role === "assistant"
+    ) ?? latestAssistantMessage;
+  }, [aiExportTargetId, latestAssistantMessage, store.qaMessages]);
+  const exportTargetQuestion = exportTargetMessage
+    ? questionForAssistant(exportTargetMessage, store.qaMessages)
+    : "";
+  const aiExportDisabledReason = getAiExportDisabledReason(
+    exportTargetMessage,
+    store.qaStatus,
+    { respectGlobalStatus: !aiExportTargetId },
+  );
+  const businessExport = useBusinessExportCommander({
+    source: "ai",
+    formats: ["markdown"],
+    defaultFormat: "markdown",
+    disabledReason: aiExportDisabledReason,
+    buildArtifact: ({ privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+      createSemanticQaExportArtifact({
+        format: "markdown",
+        privacyOn: exportPrivacyOn,
+        requestedUnredacted,
+        unredactedConfirmed,
+        generatedAt,
+        scopeSummary: currentChat ? "当前会话" : "AI 工作区",
+        question: exportTargetQuestion,
+        answer: exportTargetMessage?.content ?? "",
+        requestSnapshot: exportTargetMessage?.requestSnapshot,
+        reason: exportTargetMessage?.reason,
+        metadata: exportTargetMessage?.metadata,
+        evidence: exportTargetMessage?.evidence ?? [],
+      }),
+  });
+
+  useEffect(() => {
+    if (!pendingAiExportOpenId) return;
+    const aiStore = useAiStore.getState();
+    const targetMessage = pendingAiExportOpenId === LATEST_AI_EXPORT_TARGET
+      ? [...aiStore.qaMessages].reverse().find((message) => message.role === "assistant")
+      : aiStore.qaMessages.find((message) =>
+          message.id === pendingAiExportOpenId && message.role === "assistant"
+        );
+    const disabledReason = getAiExportDisabledReason(targetMessage, aiStore.qaStatus, {
+      respectGlobalStatus: pendingAiExportOpenId === LATEST_AI_EXPORT_TARGET,
+    });
+    if (disabledReason) {
+      setPendingAiExportOpenId(null);
+      return;
+    }
+    if (businessExport.action.disabled) return;
+    businessExport.action.onClick();
+    setPendingAiExportOpenId(null);
+  }, [businessExport.action, pendingAiExportOpenId]);
+
+  const resetAiExportTarget = useCallback(() => {
+    aiExportTargetIdRef.current = null;
+    setAiExportTargetId(null);
+  }, []);
+
+  const openLatestAiExport = useCallback(() => {
+    aiExportTargetIdRef.current = null;
+    setAiExportTargetId(null);
+    setPendingAiExportOpenId(LATEST_AI_EXPORT_TARGET);
+  }, []);
+
+  const exportQAMessage = useCallback((messageId: string) => {
+    const aiStore = useAiStore.getState();
+    const message = aiStore.qaMessages.find((item) =>
+      item.id === messageId && item.role === "assistant"
+    );
+    const disabledReason = getAiExportDisabledReason(message, aiStore.qaStatus, {
+      respectGlobalStatus: false,
+    });
+    if (disabledReason) return;
+    aiExportTargetIdRef.current = messageId;
+    setAiExportTargetId(messageId);
+    setPendingAiExportOpenId(messageId);
+  }, []);
+
+  const getQAMessageExportDisabledReason = useCallback((messageId: string): string | null => {
+    const aiStore = useAiStore.getState();
+    const message = aiStore.qaMessages.find((item) =>
+      item.id === messageId && item.role === "assistant"
+    );
+    return getAiExportDisabledReason(message, aiStore.qaStatus, {
+      respectGlobalStatus: false,
+    });
+  }, []);
+
+  const aiBusinessExport = useMemo(() => ({
+    ...businessExport,
+    action: {
+      ...businessExport.action,
+      onClick: openLatestAiExport,
+    },
+    dialog: {
+      ...businessExport.dialog,
+      onCancel: () => {
+        businessExport.dialog.onCancel();
+        resetAiExportTarget();
+      },
+      onClose: () => {
+        businessExport.dialog.onClose();
+        resetAiExportTarget();
+      },
+    },
+  }), [businessExport, openLatestAiExport, resetAiExportTarget]);
   const moduleView = deriveSemanticModuleView({
     phase: store.phase,
     config: store.config,
@@ -619,6 +772,13 @@ export function useAiCommander() {
   const setupDraft = createSemanticSetupDraft(store.config);
   const setupView = deriveSemanticSetupView(setupDraft, store.config, privacyOn, store.indexStatus);
   const indexCenterView = deriveSemanticIndexCenterView(store.indexStatus);
+  const primaryTaskView = buildSemanticPrimaryTaskView({
+    moduleView,
+    scopeLabel: currentChat ? "当前会话" : "全部会话",
+    qaStatus: store.qaStatus,
+    qaHasMessages: store.qaMessages.length > 0,
+    indexStatusItems: indexCenterView.metrics.map((metric) => `${metric.label}: ${metric.value}`),
+  });
   const qaRecentChats = useMemo(() => conversations
     .filter((conversation) => conversation.username)
     .slice(0, 8)
@@ -634,9 +794,23 @@ export function useAiCommander() {
     config: store.config,
     indexStatus: store.indexStatus,
     moduleView,
+    primaryTaskView,
+    emptyStates: {
+      analysisNoConversation: bindActionableEmptyStateActions(buildActionableEmptyState({
+        variant: "no-conversation-selected",
+        readiness: {
+          serviceConfigured: true,
+          httpReady: true,
+          dbReady: true,
+          hasCurrentConversation: false,
+        },
+        privacyOn,
+      }), []),
+    },
     qaView,
     compactStatus,
     qaMessages: store.qaMessages,
+    businessExport: aiBusinessExport,
     qaRecentChats,
     qaLoading: store.qaLoading,
     qaStreaming: store.qaStreaming,
@@ -682,6 +856,8 @@ export function useAiCommander() {
     askQuestion,
     retryQAMessage,
     copyQAMessageAnswer,
+    exportQAMessage,
+    getQAMessageExportDisabledReason,
     openSemanticSearchResult,
     stopQAStream,
     debouncedSearch,
@@ -702,6 +878,31 @@ export function useAiCommander() {
     clearQAMessages: store.clearQAMessages,
     reset: store.reset,
   };
+}
+
+function getAiExportDisabledReason(
+  message: QAMessage | undefined,
+  qaStatus: string,
+  options: { respectGlobalStatus?: boolean } = {},
+): string | null {
+  if (
+    options.respectGlobalStatus !== false
+    && (qaStatus === "connecting" || qaStatus === "streaming")
+  ) {
+    return "AI 正在生成，完成后可导出。";
+  }
+  if (message?.isStreaming) return "AI 正在生成，完成后可导出。";
+  if (!message || (!message.content.trim() && (message.evidence?.length ?? 0) === 0)) {
+    return "生成回答后可导出问答和证据。";
+  }
+  if (message.completionStatus === "failed") return "当前回答失败，请重试后再导出。";
+  return null;
+}
+
+function questionForAssistant(message: QAMessage, messages: QAMessage[]): string {
+  return [...messages]
+    .filter((item) => item.role === "user" && item.timestamp <= message.timestamp)
+    .reverse()[0]?.content ?? "";
 }
 
 function normalizeIndexCommand(action: IndexAction): SemanticIndexCommand {
@@ -757,6 +958,36 @@ function sourceCountFromDonePayload(payload: { evidence: Array<Record<string, un
   const metadataSourceCount = numberMetadata(payload.metadata, "sourceCount")
     ?? numberMetadata(payload.metadata, "source_count");
   return metadataSourceCount ?? payload.evidence.length;
+}
+
+function recordQaStopKpi(activeQA: {
+  aiMsgId: string;
+  timer: UxKpiTimer;
+  scopeKind: UxKpiScopeKind;
+}): void {
+  const message = useAiStore.getState().qaMessages.find((item) => item.id === activeQA.aiMsgId);
+  recordQaKpiEvent({
+    evidenceCount: message?.evidence?.length ?? 0,
+    sourceCount: message?.sourceCount ?? message?.evidence?.length ?? 0,
+    durationMs: activeQA.timer.durationMs(),
+    scopeKind: activeQA.scopeKind,
+    answerLengthBucket: answerLengthBucket(message?.content ?? ""),
+    outcome: "stopped",
+  });
+}
+
+function toSemanticKpiScopeKind(
+  scope: "contact" | "selected" | "all" | undefined,
+  currentChat: string | undefined,
+): UxKpiScopeKind {
+  if (scope === "all") return "all";
+  if (scope === "selected") return "selected";
+  if (scope === "contact") return "contact";
+  return currentChat ? "current" : "all";
+}
+
+function getAiMessageContent(messageId: string): string {
+  return useAiStore.getState().qaMessages.find((item) => item.id === messageId)?.content ?? "";
 }
 
 function numberMetadata(metadata: Record<string, unknown>, key: string): number | null {

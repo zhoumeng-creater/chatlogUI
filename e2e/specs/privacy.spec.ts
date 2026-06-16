@@ -37,7 +37,6 @@ test.describe("privacy mode synthetic browser gate", () => {
     await page.getByRole("button", { name: "关闭", exact: true }).click();
     await page.getByRole("button", { name: "预览" }).click();
     await expect(page.getByText("已隐藏对象").first()).toBeVisible();
-    await page.getByRole("button", { name: "问答" }).click();
     const qaTextarea = page.locator(".qa-input__textarea");
     await expect(qaTextarea).toBeDisabled();
     await expect(qaTextarea).toHaveValue("");
@@ -72,6 +71,103 @@ test.describe("privacy mode synthetic browser gate", () => {
       await expect(page.getByRole("button", { name: `打开${label}` })).toBeVisible();
     }
     await expectStableSyntheticPage(page);
+    privacyGuard.assertNoLeaks();
+  });
+
+  test("masks unified scope context labels in privacy mode", async ({ page }) => {
+    const privacyGuard = installPrivacyLeakGuard(page);
+
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await enablePrivacyMode(page);
+    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const controller = page.getByRole("region", { name: "搜索范围", exact: true });
+    await expect(controller).toBeVisible();
+    await expect(controller.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话（已隐藏）");
+    await expect(controller.locator('[data-scope-field="focusMessage"]')).toContainText("定位：上下文定位");
+    await expect(controller).not.toContainText("Synthetic Session Alpha");
+    await expect(controller).not.toContainText("1001");
+
+    await assertNoForbiddenVisibleText(page);
+    privacyGuard.assertNoLeaks();
+  });
+
+  test("keeps shortcut help coach marks and empty states privacy-safe", async ({ page }) => {
+    const privacyGuard = installPrivacyLeakGuard(page);
+
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await enablePrivacyMode(page);
+    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const emptyState = page.locator('[data-empty-state="search-not-started"]');
+    await expect(emptyState).toBeVisible();
+    await expect(emptyState).toContainText("输入关键词开始搜索");
+    await expect(emptyState).not.toContainText("Synthetic Session Alpha");
+
+    await page.getByRole("button", { name: "快捷键帮助" }).click();
+    const dialog = page.getByRole("dialog", { name: "搜索快捷键" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("搜索");
+    await expect(dialog).not.toContainText("Synthetic Session Alpha");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+
+    await expect(page.locator("[data-coach-mark]").first()).toBeVisible();
+    await assertNoForbiddenVisibleText(page);
+    privacyGuard.assertNoLeaks();
+  });
+
+  test("masks analytics scope and export context in privacy mode", async ({ page }) => {
+    const privacyGuard = installPrivacyLeakGuard(page);
+
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await enablePrivacyMode(page);
+    await page.goto("/analytics?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+
+    const scopeController = page.getByRole("region", { name: "统计范围", exact: true });
+    await expect(scopeController).toBeVisible();
+    await expect(scopeController.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话（已隐藏）");
+    await expect(scopeController).not.toContainText("Synthetic Session Alpha");
+    await expect(page.getByText("Synthetic Contact Alpha")).toHaveCount(0);
+    await expect(page.getByText("指标说明")).toBeVisible();
+
+    await page.getByRole("button", { name: "导出" }).click();
+    await expect(page.getByRole("dialog", { name: "导出统计" })).toBeVisible();
+    await expect(page.getByText("脱敏导出")).toBeVisible();
+    await expect(page.getByText("Synthetic Session Alpha")).toHaveCount(0);
+
+    await assertNoForbiddenVisibleText(page);
+    privacyGuard.assertNoLeaks();
+  });
+
+  test("masks media operations copy and export context in privacy mode", async ({ page }) => {
+    const privacyGuard = installPrivacyLeakGuard(page);
+
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await enablePrivacyMode(page);
+    await page.goto("/media?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const media = page.getByRole("complementary", { name: "媒体与扩展" });
+    await expect(media).toBeVisible();
+    await expect(media.getByText("已隐藏媒体").first()).toBeVisible();
+    await expect(media.getByText("Synthetic media file")).toHaveCount(0);
+    await expect(media.getByText("media_synthetic_image_key")).toHaveCount(0);
+
+    await media.getByRole("button", { name: "复制媒体摘要" }).first().click();
+    await expect(page.getByText("已复制媒体摘要。")).toBeVisible();
+
+    await page.getByRole("button", { name: "导出" }).click();
+    const exportDialog = page.getByRole("dialog", { name: "导出媒体清单" });
+    await expect(exportDialog).toBeVisible();
+    await expect(exportDialog).toContainText("脱敏导出");
+    await expect(exportDialog).not.toContainText("Synthetic media file");
+    await expect(exportDialog).not.toContainText("media_synthetic_image_key");
+
+    await assertNoForbiddenVisibleText(page);
     privacyGuard.assertNoLeaks();
   });
 });

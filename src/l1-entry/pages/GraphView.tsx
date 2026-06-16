@@ -1,8 +1,15 @@
-import { lazy, Suspense, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { lazy, Suspense, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  buildWorkspaceScopeModel,
+  type WorkspaceScopeClearAction,
+} from "@l2/commander/workspaceScopeModel";
+import { buildGraphSourceWorkbenchRoute } from "@l2/commander/graphContextSummaryModel";
 import { useGraphCommander } from "@l2/commander/useGraphCommander";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
+import { BusinessExportDialog } from "@l3/export";
 import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
+import { WorkspaceScopeController } from "@l3/workspace/WorkspaceScopeController";
 import { Spinner, Typography } from "@l4/ui";
 
 const LazyGraphModule = lazy(() =>
@@ -10,7 +17,8 @@ const LazyGraphModule = lazy(() =>
 );
 
 export function GraphView() {
-  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const hasContextFocus = Boolean(params.get("focus"));
   const { currentConversation, workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
     scope: params.get("scope") ?? "all",
@@ -19,8 +27,50 @@ export function GraphView() {
     source: params.get("source"),
     defaultScope: "all",
   });
-  const graph = useGraphCommander();
+  const graph = useGraphCommander({
+    routeSource: params.get("source"),
+    sourceLabel: workspaceRouteScope.sourceLabel,
+    focusLabel: workspaceRouteScope.focusLabel,
+    scopeLabel: workspaceRouteScope.scopeLabel,
+  });
   const { focusOnChat, openGraph } = graph;
+  const scopeController = buildWorkspaceScopeModel({
+    moduleId: "graph",
+    routeScope: workspaceRouteScope,
+    state: {
+      kind: workspaceRouteScope.scopeKind,
+      sourceRoute: params.get("source"),
+      focusMessage: params.get("focus"),
+    },
+    pending: graph.loading || graph.loadStatus === "loading",
+  });
+
+  const updateScopeParams = useCallback((update: (next: URLSearchParams) => void) => {
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      update(next);
+      return next;
+    }, { replace: true });
+  }, [setParams]);
+
+  const clearScopeChip = useCallback((action: WorkspaceScopeClearAction) => {
+    if (action.field !== "focusMessage" && action.field !== "sourceRoute") return;
+    updateScopeParams((next) => {
+      if (action.field === "focusMessage") next.delete("focus");
+      if (action.field === "sourceRoute") next.delete("source");
+    });
+  }, [updateScopeParams]);
+
+  const resetScope = useCallback(() => {
+    updateScopeParams((next) => {
+      next.delete("focus");
+      next.delete("source");
+    });
+  }, [updateScopeParams]);
+
+  const openSourceInWorkbench = useCallback(() => {
+    navigate(buildGraphSourceWorkbenchRoute(params.get("codex-smoke")));
+  }, [navigate, params]);
 
   useEffect(() => {
     void openGraph().then(() => {
@@ -43,11 +93,17 @@ export function GraphView() {
         workspaceRouteScope={workspaceRouteScope}
         items={[graphStatusItem(graph.loading, graph.error, graph.loadStatus)]}
       />
+      <WorkspaceScopeController
+        model={scopeController}
+        onClearChip={clearScopeChip}
+        onReset={resetScope}
+      />
       <div className="workspace-page__surface workspace-page__module-surface graph-workspace__surface">
         <Suspense fallback={<div className="panel-loading"><Spinner size={20} label="加载图谱..." /></div>}>
-          <LazyGraphModule graph={graph} privacyOn={privacyOn} />
+          <LazyGraphModule graph={graph} privacyOn={privacyOn} onOpenSource={openSourceInWorkbench} />
         </Suspense>
       </div>
+      {graph.businessExport.isOpen && <BusinessExportDialog {...graph.businessExport.dialog} />}
     </div>
   );
 }

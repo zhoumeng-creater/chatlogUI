@@ -4,6 +4,7 @@ import type {
   ThemeMode,
   WindowMaterial,
 } from "@/l2-coordinator/api-docs/settings";
+import { settingsMessagesZhCN } from "./messages.zh-CN";
 
 export interface SettingsValidationResult {
   valid: boolean;
@@ -30,10 +31,27 @@ export function sanitizeSettingsForStorage(input: Record<string, unknown>): Part
   return sanitized;
 }
 
-export function validateSettingsPatch(patch: Partial<SettingsState>): SettingsValidationResult {
+export function validateSettingsPatch(patch: UnsafeSettingsInput): SettingsValidationResult {
   const errors: string[] = [];
 
-  void patch;
+  if ("theme" in patch && !isThemeMode(patch.theme)) {
+    errors.push(settingsMessagesZhCN.settings.validation.theme);
+  }
+  if ("fontSize" in patch && !isFontSize(patch.fontSize)) {
+    errors.push(settingsMessagesZhCN.settings.validation.fontSize);
+  }
+  if ("reduceAnimations" in patch && typeof patch.reduceAnimations !== "boolean") {
+    errors.push(settingsMessagesZhCN.settings.validation.reduceAnimations);
+  }
+  if ("windowMaterial" in patch && !isWindowMaterial(patch.windowMaterial)) {
+    errors.push(settingsMessagesZhCN.settings.validation.windowMaterial);
+  }
+  if ("privacyOn" in patch && typeof patch.privacyOn !== "boolean") {
+    errors.push(settingsMessagesZhCN.settings.validation.privacyOn);
+  }
+  if ("developerMode" in patch && typeof patch.developerMode !== "boolean") {
+    errors.push(settingsMessagesZhCN.settings.validation.developerMode);
+  }
 
   return {
     valid: errors.length === 0,

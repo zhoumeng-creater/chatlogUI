@@ -1,7 +1,15 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  buildWorkspaceScopeModel,
+  type WorkspaceScopeClearAction,
+  type WorkspaceScopeKind,
+} from "@l2/commander/workspaceScopeModel";
+import { buildAiEvidenceNavigationTarget } from "@l2/commander/semanticDiscoveryNavigation";
 import { useAiCommander } from "@l2/commander/useAiCommander";
 import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
+import { BusinessExportDialog } from "@l3/export";
+import { WorkspaceScopeController } from "@l3/workspace/WorkspaceScopeController";
 import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
 import { Spinner, Typography } from "@l4/ui";
 
@@ -11,7 +19,7 @@ const LazyAiPanel = lazy(() =>
 
 export function AiWorkspaceView() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const { chat, currentConversation, workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
     scope: params.get("scope"),
     scopedChat: params.get("chat"),
@@ -20,6 +28,48 @@ export function AiWorkspaceView() {
     defaultScope: "currentChat",
   });
   const ai = useAiCommander();
+  const currentChat = currentConversation?.username ?? "";
+  const scopeController = buildWorkspaceScopeModel({
+    moduleId: "ai",
+    routeScope: workspaceRouteScope,
+    state: {
+      kind: workspaceRouteScope.scopeKind,
+      sourceRoute: params.get("source"),
+      focusMessage: params.get("focus"),
+    },
+    pending: ai.qaStatus === "connecting" || ai.qaStatus === "streaming",
+  });
+
+  const updateScopeParams = useCallback((update: (next: URLSearchParams) => void) => {
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      update(next);
+      return next;
+    }, { replace: true });
+  }, [setParams]);
+
+  const selectScope = useCallback((kind: WorkspaceScopeKind) => {
+    if (kind !== "currentConversation" || !currentChat) return;
+    updateScopeParams((next) => {
+      next.set("scope", "currentChat");
+      next.set("chat", currentChat);
+    });
+  }, [currentChat, updateScopeParams]);
+
+  const clearScopeChip = useCallback((action: WorkspaceScopeClearAction) => {
+    if (action.field !== "focusMessage" && action.field !== "sourceRoute") return;
+    updateScopeParams((next) => {
+      if (action.field === "focusMessage") next.delete("focus");
+      if (action.field === "sourceRoute") next.delete("source");
+    });
+  }, [updateScopeParams]);
+
+  const resetScope = useCallback(() => {
+    updateScopeParams((next) => {
+      next.delete("focus");
+      next.delete("source");
+    });
+  }, [updateScopeParams]);
 
   return (
     <div className="workspace-page ai-workspace">
@@ -35,12 +85,18 @@ export function AiWorkspaceView() {
         workspaceRouteScope={workspaceRouteScope}
         items={[aiStatusItem(ai.moduleView.kind, ai.qaStatus)]}
       />
+      <WorkspaceScopeController
+        model={scopeController}
+        onSelectScope={selectScope}
+        onClearChip={clearScopeChip}
+        onReset={resetScope}
+      />
       <div className="workspace-page__surface workspace-page__module-surface">
         <Suspense fallback={<div className="panel-loading"><Spinner size={20} label="加载 AI 工作台..." /></div>}>
           <LazyAiPanel
             ai={ai}
             openSetupOnMount={params.get("panel") === "semantic"}
-            currentChat={currentConversation?.username ?? ""}
+            currentChat={currentChat}
             currentContact={currentConversation?.displayName ?? ""}
             privacyOn={privacyOn}
             onSelectEvidenceSource={(sourceChat, _label, localId) => {
@@ -49,38 +105,19 @@ export function AiWorkspaceView() {
               );
               if (!conversation) return;
 
-              if (localId && localId > 0) {
-                void chat.selectAndLoadAtAnchor({
-                  conversationId: conversation.id,
-                  chat: conversation.username,
-                  anchor: {
-                    source: "ai",
-                    chat: conversation.username,
-                    messageId: "",
-                    localId,
-                    timestamp: null,
-                    time: null,
-                  },
-                  returnToSearch: {
-                    returnRoute: withSmokeQuery("/ai"),
-                    activeResultId: `ai-evidence-${localId}`,
-                    querySnapshot: {
-                      query: "AI 证据",
-                      filter: "all",
-                      scope: "current",
-                      scopeChat: conversation.username,
-                    },
-                    sourceConversationId: conversation.id,
-                  },
-                }).then(() => navigate(withSmokeQuery("/workbench")));
-                return;
-              }
-
-              void chat.selectAndLoad(conversation.id, conversation.username).then(() => navigate(withSmokeQuery("/workbench")));
+              void chat.selectAndLoadAtAnchor(buildAiEvidenceNavigationTarget({
+                conversationId: conversation.id,
+                chat: conversation.username,
+                localId,
+                returnRoute: withSmokeQuery("/ai"),
+                activeResultId: localId && localId > 0 ? `ai-evidence-${localId}` : `ai-evidence-${conversation.id}`,
+                query: "AI 证据",
+              })).then(() => navigate(withSmokeQuery("/workbench")));
             }}
           />
         </Suspense>
       </div>
+      {ai.businessExport.isOpen && <BusinessExportDialog {...ai.businessExport.dialog} />}
     </div>
   );
 }

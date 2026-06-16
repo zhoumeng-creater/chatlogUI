@@ -4,6 +4,7 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import type { RawSemanticConnectionTestResponse } from "./chatlogRawTypes";
 import { adaptConnectionTestResult } from "./semanticAdapters";
 
 export interface ConnectionTestResultView {
@@ -20,7 +21,7 @@ export async function testLLMConnection(
 ): Promise<ConnectionTestResultView> {
   const startTime = Date.now();
 
-  const data = await requestJson(buildChatlogApiUrl("/api/v1/semantic/test", diagnosticOptions?.serviceBaseUrl), {
+  const data = await requestJson<RawSemanticConnectionTestResponse>(buildChatlogApiUrl("/api/v1/semantic/test", diagnosticOptions?.serviceBaseUrl), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider, ...config }),

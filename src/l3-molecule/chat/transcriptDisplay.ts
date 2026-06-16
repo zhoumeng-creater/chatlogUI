@@ -51,6 +51,12 @@ export function getMessageAttachmentSummary(
   return `${attachments.length.toLocaleString()} 个附件：${labels.join("、")}`;
 }
 
+export function getMessageSenderDisplay(
+  message: Pick<ChatMessage, "sender" | "senderName">,
+): string {
+  return message.senderName || message.sender;
+}
+
 export function shouldShowSender(message: Pick<ChatMessage, "isGroup" | "direction">): boolean {
   return message.isGroup && message.direction !== "self";
 }

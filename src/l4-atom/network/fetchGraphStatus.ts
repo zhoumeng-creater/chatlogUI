@@ -6,13 +6,14 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import type { RawGraphStatusResponse } from "./chatlogRawTypes";
 import { adaptGraphStatus, type GraphStatusView } from "./graphAdapters";
 
 export async function fetchGraphStatus(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ): Promise<GraphStatusView | null> {
   try {
-    const data = await requestJson(buildChatlogApiUrl("/api/v1/graph/status", diagnosticOptions?.serviceBaseUrl), {
+    const data = await requestJson<RawGraphStatusResponse>(buildChatlogApiUrl("/api/v1/graph/status", diagnosticOptions?.serviceBaseUrl), {
       timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
       ...withRequestDiagnostics(diagnosticOptions, {
         endpointFamily: "graph",

@@ -48,6 +48,23 @@ const events: DiagnosticEvent[] = [
     category: "diagnostic.export",
     summary: "[blocked diagnostic event]",
   },
+  {
+    id: "ux-1",
+    timestamp: "2026-06-01T00:21:00.000Z",
+    source: "ux",
+    level: "info",
+    privacy: "safe",
+    category: "ux.search.executed",
+    summary: "UX KPI search.executed success",
+    attributes: {
+      module: "search",
+      task: "executed",
+      outcome: "success",
+      resultCount: 5,
+      filterCount: 2,
+      durationMs: 28,
+    },
+  },
 ];
 
 describe("diagnosticEventViewModel", () => {
@@ -65,11 +82,12 @@ describe("diagnosticEventViewModel", () => {
       },
     });
 
-    expect(view.rows).toHaveLength(4);
+    expect(view.rows).toHaveLength(5);
     expect(view.counts).toEqual({
-      total: 4,
+      total: 5,
       sidecarLogs: 2,
-      diagnosticEvents: 2,
+      diagnosticEvents: 3,
+      uxKpiEvents: 1,
       warningsOrErrors: 3,
       redactedOrBlocked: 1,
     });
@@ -98,14 +116,17 @@ describe("diagnosticEventViewModel", () => {
     const summary = summarizeDiagnosticEventsForReport(events);
 
     expect(summary).toEqual({
-      total: 2,
+      total: 3,
       warningsOrErrors: 2,
       redactedOrBlocked: 1,
-      sources: "http, ui",
-      levels: "error: 1, warn: 1",
-      privacyStates: "blocked: 1, safe: 1",
-      endpointFamilies: "db: 1, ui: 1",
-      latestSummary: "[blocked diagnostic event]",
+      uxKpiEvents: 1,
+      uxKpiFailuresOrCancellations: 0,
+      sources: "http, ui, ux",
+      levels: "error: 1, info: 1, warn: 1",
+      privacyStates: "blocked: 1, safe: 2",
+      endpointFamilies: "db: 1, search: 1, ui: 1",
+      latestSummary: "UX KPI search.executed success",
+      latestUxSummary: "UX KPI search.executed success",
     });
   });
 
@@ -128,6 +149,7 @@ describe("diagnosticEventViewModel", () => {
     expect(view.endpointOptions).toEqual([
       { value: "all", label: "全部端点" },
       { value: "db", label: "db" },
+      { value: "search", label: "search" },
       { value: "sidecar", label: "sidecar" },
       { value: "ui", label: "ui" },
     ]);
@@ -159,5 +181,37 @@ describe("diagnosticEventViewModel", () => {
     });
     expect(row.detailRows).toContainEqual({ label: "Correlation", value: "db-refresh" });
     expect(JSON.stringify(row.detailRows)).not.toContain("dataKey");
+  });
+
+  it("filters UX KPI events and exposes module detail rows without private payloads", () => {
+    const view = buildDiagnosticEventViewModel({
+      logs,
+      events,
+      filters: {
+        source: "ux",
+        level: "all",
+        privacy: "all",
+        endpointFamily: "search",
+        failedOnly: false,
+        timeRange: "all",
+      },
+    });
+
+    expect(view.rows.map((row) => row.id)).toEqual(["ux-1"]);
+    expect(view.rows[0]).toMatchObject({
+      source: "ux",
+      endpointFamily: "search",
+      durationLabel: "28 ms",
+    });
+    expect(view.rows[0].detailRows).toEqual(
+      expect.arrayContaining([
+        { label: "Module", value: "search" },
+        { label: "Task", value: "executed" },
+        { label: "Outcome", value: "success" },
+        { label: "Result Count", value: "5" },
+      ]),
+    );
+    expect(JSON.stringify(view.rows[0])).not.toContain("query");
+    expect(JSON.stringify(view.rows[0])).not.toContain("prompt");
   });
 });

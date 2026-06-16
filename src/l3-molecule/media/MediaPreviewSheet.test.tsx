@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { MediaPreviewSheet } from "./MediaPreviewSheet";
+import type { MediaActionModel } from "@l2/commander/mediaActionModel";
 import type { MediaAttachment } from "@l2/data-clerk/stores/useMediaStore";
 
 describe("MediaPreviewSheet", () => {
@@ -55,6 +56,22 @@ describe("MediaPreviewSheet", () => {
     expect(html).not.toContain("media-preview-sheet__link");
     expect(html).toContain("文件附件暂不支持直接预览");
   });
+
+  it("disables the nested preview action while the preview sheet is already open", () => {
+    const html = renderToStaticMarkup(
+      <MediaPreviewSheet
+        attachment={attachment()}
+        resourceUrl="/api/v1/media/synthetic"
+        privacyOn={false}
+        actionModel={actionModel()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('aria-label="预览媒体"');
+    expect(html).toContain("当前已在预览中。");
+    expect(html).toContain("disabled=");
+  });
 });
 
 function attachment(): MediaAttachment {
@@ -66,5 +83,32 @@ function attachment(): MediaAttachment {
     label: "Synthetic image",
     redactedEndpointLabel: "media image",
     source: "history",
+  };
+}
+
+function actionModel(): MediaActionModel {
+  return {
+    attachmentId: "media-1",
+    copySummary: "媒体类型: 图片",
+    openPrompt: null,
+    actions: [
+      { id: "preview", label: "预览", enabled: true, disabledReason: null, requiresConfirmation: false },
+      { id: "copySummary", label: "复制摘要", enabled: true, disabledReason: null, requiresConfirmation: false },
+      { id: "locateSource", label: "定位来源", enabled: true, disabledReason: null, requiresConfirmation: false },
+      {
+        id: "openOriginal",
+        label: "打开原始资源",
+        enabled: true,
+        disabledReason: null,
+        requiresConfirmation: true,
+      },
+      {
+        id: "retryResource",
+        label: "重试资源",
+        enabled: false,
+        disabledReason: "资源未处于失败状态。",
+        requiresConfirmation: false,
+      },
+    ],
   };
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect } from "react";
 import { useSettingsStore } from "@/l2-coordinator/data-clerk/stores/useSettingsStore";
 import type { SettingsCategory, SettingsState } from "@/l2-coordinator/api-docs/settings";
 import { sanitizeSettingsForStorage, validateSettingsPatch } from "./settingsValidation";
+import { settingsMessagesZhCN } from "./messages.zh-CN";
 
 export function useSettingsCommander() {
   const settings = useSettingsStore((s) => s.settings);
@@ -33,20 +34,20 @@ export function useSettingsCommander() {
       return;
     }
 
-    setSaveFeedback("saving", "正在保存设置...");
+    setSaveFeedback("saving", settingsMessagesZhCN.settings.save.saving);
     updateSettings(sanitizeSettingsForStorage(partial as Record<string, unknown>));
     const saved = saveToStorage();
     if (saved) {
-      setSaveFeedback("saved", "设置已保存");
+      setSaveFeedback("saved", settingsMessagesZhCN.settings.save.saved);
       return;
     }
-    setSaveFeedback("error", "设置暂时无法保存，请检查浏览器或桌面存储权限后重试。");
+    setSaveFeedback("error", settingsMessagesZhCN.settings.save.storageError);
   }, [saveToStorage, setSaveFeedback, updateSettings]);
 
   const reset = useCallback(() => {
     resetStore();
     if (!saveToStorage()) {
-      setSaveFeedback("error", "设置暂时无法保存，请检查浏览器或桌面存储权限后重试。");
+      setSaveFeedback("error", settingsMessagesZhCN.settings.save.storageError);
     }
   }, [resetStore, saveToStorage, setSaveFeedback]);
 

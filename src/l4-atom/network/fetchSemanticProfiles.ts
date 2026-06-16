@@ -4,6 +4,7 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import type { RawSemanticProfilesResponse } from "./chatlogRawTypes";
 import { adaptSemanticProfiles, type SemanticProfilesView } from "./semanticAdapters";
 
 export interface SemanticProfilesRequestInput {
@@ -20,7 +21,7 @@ export async function fetchSemanticProfiles(
   if (chat) url.searchParams.set('chat', chat);
   if (window) url.searchParams.set('window', window);
 
-  const data = await requestJson(url.toString(), {
+  const data = await requestJson<RawSemanticProfilesResponse>(url.toString(), {
     timeoutMs: 30000,
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "semantic",

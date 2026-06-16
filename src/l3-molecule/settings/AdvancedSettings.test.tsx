@@ -6,6 +6,7 @@ describe("AdvancedSettings", () => {
   it("uses the same privacy and diagnostics label as the Settings navigation", () => {
     const html = renderToStaticMarkup(
       <AdvancedSettings
+        copy={advancedCopy}
         settings={{
           theme: "system",
           fontSize: "medium",
@@ -22,6 +23,21 @@ describe("AdvancedSettings", () => {
     );
 
     expect(html).toContain("隐私与诊断");
+    expect(html).toContain("隐私模式默认状态");
+    expect(html).toContain("默认开启");
+    expect(html).toContain("默认关闭");
     expect(html).not.toContain("高级诊断</");
   });
 });
+
+const advancedCopy = {
+  title: "隐私与诊断",
+  privacyDefaultLabel: "隐私模式默认状态",
+  privacyDefaultHint: "控制新打开工作区时是否默认隐藏私人内容。",
+  privacyDefaultOff: "默认关闭",
+  privacyDefaultOn: "默认开启",
+  developerEntryLabel: "开发者工具入口",
+  developerHint: "仅控制本机高级诊断入口；复制和导出诊断仍会脱敏。",
+  developerDisabled: "隐藏",
+  developerEnabled: "显示",
+};

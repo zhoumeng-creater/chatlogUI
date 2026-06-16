@@ -1,40 +1,61 @@
+import { forwardRef, type KeyboardEvent } from "react";
 import { Avatar, StatusIndicator } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
-import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
+import type { Conversation, UnreadStatus } from "@l2/data-clerk/stores/useChatStore";
 import {
   formatConversationA11yLabel,
   getConversationBadge,
   maskDisplayText,
+  shouldShowUnreadBadge,
 } from "./conversationDisplay";
 
 interface ConversationRowProps {
   conversation: Conversation;
   selected: boolean;
+  active: boolean;
+  tabIndex: number;
   privacyOn: boolean;
+  unreadStatus: UnreadStatus;
   onOpen: (conversation: Conversation) => void;
+  onFocus: () => void;
+  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
 }
 
-export function ConversationRow({
+export const ConversationRow = forwardRef<HTMLButtonElement, ConversationRowProps>(function ConversationRow({
   conversation,
   selected,
+  active,
+  tabIndex,
   privacyOn,
+  unreadStatus,
   onOpen,
-}: ConversationRowProps) {
+  onFocus,
+  onKeyDown,
+}, ref) {
   const badge = getConversationBadge(conversation);
   const displayName = privacyOn
     ? maskDisplayText(conversation.displayName)
     : conversation.displayName;
   const summary = privacyOn ? maskDisplayText(conversation.summary) : conversation.summary;
   const fallback = displayName.slice(0, conversation.isGroup ? 1 : 2);
-  const accessibilityLabel = formatConversationA11yLabel(conversation, privacyOn);
+  const accessibilityLabel = formatConversationA11yLabel(conversation, privacyOn, unreadStatus);
   const avatarAlt = privacyOn ? "已隐藏会话头像" : conversation.displayName;
+  const showUnread = shouldShowUnreadBadge(conversation, unreadStatus);
 
   return (
     <button
       type="button"
-      className={classNames("conversation-row", selected && "conversation-row--selected")}
+      className={classNames(
+        "conversation-row",
+        selected && "conversation-row--selected",
+        active && "conversation-row--active",
+      )}
       aria-current={selected ? "true" : undefined}
       aria-label={accessibilityLabel}
+      tabIndex={tabIndex}
+      ref={ref}
+      onFocus={onFocus}
+      onKeyDown={onKeyDown}
       onClick={() => onOpen(conversation)}
     >
       <div
@@ -52,7 +73,7 @@ export function ConversationRow({
           <span className="conversation-row__summary">{summary || "没有消息摘要"}</span>
           <StatusIndicator label={badge.label} tone={badge.tone} />
         </span>
-        {conversation.unread > 0 && (
+        {showUnread && (
           <span className="conversation-row__unread">
             {conversation.unread.toLocaleString()} 条未读
           </span>
@@ -60,4 +81,4 @@ export function ConversationRow({
       </span>
     </button>
   );
-}
+});

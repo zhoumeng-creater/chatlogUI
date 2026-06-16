@@ -8,6 +8,7 @@ export type DiagnosticEventSource =
   | "sidecar"
   | "tauri"
   | "ui"
+  | "ux"
   | "updater"
   | "release";
 
@@ -80,6 +81,38 @@ const SAFE_ATTRIBUTE_KEYS = new Set([
   "releaseGate",
 ]);
 
+const UX_SAFE_ATTRIBUTE_KEYS = new Set([
+  "module",
+  "task",
+  "outcome",
+  "mode",
+  "durationMs",
+  "count",
+  "eventCount",
+  "resultCount",
+  "filterCount",
+  "scopeKind",
+  "format",
+  "redactionPolicy",
+  "cancelKind",
+  "nodeCount",
+  "edgeCount",
+  "evidenceCount",
+  "sourceCount",
+  "answerLengthBucket",
+  "httpReady",
+  "dbReady",
+  "sourceModule",
+  "rowCount",
+  "recoveryAction",
+  "rankBucket",
+  "hasAnchor",
+  "layout",
+  "graphType",
+  "cached",
+  "errorKind",
+]);
+
 const RECOVERY_HINTS = new Set<DiagnosticRecoveryHint>([
   "retry",
   "check-service",
@@ -108,12 +141,12 @@ export function createDiagnosticEvent(
       summary: "[blocked diagnostic event]",
       correlationId: sanitizeCorrelationId(input.correlationId),
       recoveryHint: normalizeRecoveryHint(input.recoveryHint),
-      attributes: sanitizeDiagnosticAttributes(input.attributes),
+      attributes: sanitizeDiagnosticAttributes(input.attributes, input.source),
     };
   }
 
   const maskedSummary = maskDiagnosticText(input.summary, { privacyMode: true });
-  const attributes = sanitizeDiagnosticAttributes(input.attributes);
+  const attributes = sanitizeDiagnosticAttributes(input.attributes, input.source);
   const changed =
     maskedSummary !== input.summary ||
     Object.keys(attributes).length !== Object.keys(input.attributes ?? {}).length;
@@ -253,12 +286,15 @@ export function createHttpDiagnosticEvent(
 
 export function sanitizeDiagnosticAttributes(
   attributes: Record<string, unknown> | undefined,
+  source?: DiagnosticEventSource,
 ): DiagnosticEventAttributes {
   if (!attributes) return {};
 
   return Object.entries(attributes).reduce<DiagnosticEventAttributes>(
     (safeAttributes, [key, value]) => {
-      if (!SAFE_ATTRIBUTE_KEYS.has(key)) return safeAttributes;
+      if (!SAFE_ATTRIBUTE_KEYS.has(key) && !(source === "ux" && UX_SAFE_ATTRIBUTE_KEYS.has(key))) {
+        return safeAttributes;
+      }
       if (!isDiagnosticAttributeValue(value)) return safeAttributes;
 
       if (typeof value === "string") {

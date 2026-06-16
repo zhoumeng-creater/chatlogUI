@@ -16,8 +16,20 @@
           "family": "file",
           "content_type": "application/octet-stream",
           "resource_note": "Synthetic metadata-only edge row with omitted size."
+        },
+        {
+          "id": "media_synthetic_edge_missing_resource",
+          "family": "image",
+          "content_type": "image/png",
+          "availability": "missing",
+          "resource_note": "Synthetic missing-resource edge row for media operation recovery."
         }
-      ]
+      ],
+      "partialEndpoint": {
+        "endpoint": "/api/v1/favorites",
+        "status": 503,
+        "error": "synthetic favorites unavailable"
+      }
     },
     "snsFailure": {
       "error": "synthetic SNS unavailable",
@@ -232,6 +244,8 @@
           "id": "new_message_synthetic_001",
           "chat": "session_synthetic_001",
           "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
           "time": "2026-01-02 08:00",
           "timestamp": 1767340800,
           "type": "image",
@@ -249,19 +263,63 @@
           "chat": "session_synthetic_001",
           "sender": "contact_synthetic_001",
           "time": "2026-01-02 08:30",
-          "type": "text",
-          "content": "Synthetic favorite summary"
+          "type": "image",
+          "content": "Synthetic favorite image summary",
+          "media_type": "image",
+          "media_key": "media_synthetic_favorite_image_key"
         }
       ]
     },
     "mediaResources": {
       "items": [
         {
-          "id": "media_synthetic_001",
+          "id": "media_synthetic_image_key",
           "family": "image",
           "content_type": "image/png",
           "size_bytes": 1024,
-          "resource_note": "Synthetic metadata only. No binary media included."
+          "resource_note": "Synthetic history image resource. No binary media included."
+        },
+        {
+          "id": "media_synthetic_video_key",
+          "family": "video",
+          "content_type": "video/mp4",
+          "size_bytes": 4096,
+          "resource_note": "Synthetic history video resource. No binary media included."
+        },
+        {
+          "id": "media_synthetic_voice_key",
+          "family": "voice",
+          "content_type": "audio/mpeg",
+          "size_bytes": 2048,
+          "resource_note": "Synthetic history voice resource. No binary media included."
+        },
+        {
+          "id": "media_synthetic_file_key",
+          "family": "file",
+          "content_type": "application/pdf",
+          "size_bytes": 3072,
+          "resource_note": "Synthetic history file resource. No binary media included."
+        },
+        {
+          "id": "media_synthetic_favorite_image_key",
+          "family": "image",
+          "content_type": "image/png",
+          "size_bytes": 1024,
+          "resource_note": "Synthetic favorite image resource. No binary media included."
+        },
+        {
+          "id": "media_synthetic_new_image",
+          "family": "image",
+          "content_type": "image/png",
+          "size_bytes": 1024,
+          "resource_note": "Synthetic new-message image resource. No binary media included."
+        },
+        {
+          "id": "media_synthetic_missing_resource",
+          "family": "image",
+          "content_type": "image/png",
+          "availability": "missing",
+          "resource_note": "Synthetic unavailable resource metadata. No filesystem path is included."
         }
       ]
     },

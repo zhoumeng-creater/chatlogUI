@@ -97,4 +97,22 @@ describe("graphResidualViewModel", () => {
     expect(view.resetRebuildCopy).toBe("确认重置重建");
     expect(view.confirmationCopy).toContain("清空并重建");
   });
+
+  it("requires a separate confirmation copy before ordinary graph rebuild", () => {
+    const view = buildGraphResidualView({
+      configStatus: "ready",
+      ingestStatus: "idle",
+      qaStatus: "idle",
+      config: { workers: 1, enqueueWorkers: 1 },
+      ingestResult: null,
+      qaResult: null,
+      confirmationPending: "rebuild",
+      configError: null,
+      ingestError: null,
+      qaError: null,
+    }, false);
+
+    expect(view.rebuildCopy).toBe("确认重建图谱");
+    expect(view.confirmationCopy).toContain("重新构建图谱索引");
+  });
 });

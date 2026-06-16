@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const appUrl = "http://127.0.0.1:5173";
 const mockSidecarUrl = "http://127.0.0.1:5030/health?format=json";
+const useExternalWebServers = process.env.CHATLOG_E2E_EXTERNAL_SERVERS === "1";
 
 export default defineConfig({
   testDir: "e2e/specs",
@@ -26,24 +27,26 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  webServer: [
-    {
-      command: "pnpm exec vite --host 127.0.0.1",
-      url: appUrl,
-      reuseExistingServer: true,
-      timeout: 120_000,
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-    {
-      command: "node e2e/mock-chatlog-server/server.mjs",
-      url: mockSidecarUrl,
-      reuseExistingServer: false,
-      timeout: 60_000,
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  ],
+  webServer: useExternalWebServers
+    ? undefined
+    : [
+        {
+          command: "node ./node_modules/vite/bin/vite.js --host 127.0.0.1",
+          url: appUrl,
+          reuseExistingServer: true,
+          timeout: 120_000,
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+        {
+          command: "node e2e/mock-chatlog-server/server.mjs",
+          url: mockSidecarUrl,
+          reuseExistingServer: false,
+          timeout: 60_000,
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      ],
   projects: [
     {
       name: "chromium",

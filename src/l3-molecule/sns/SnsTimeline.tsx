@@ -8,15 +8,18 @@ import {
   formatSnsContentTypeLabel,
   formatSnsFinderSummary,
   formatSnsLocationSummary,
+  formatSnsMediaTileLabel,
   formatSnsTime,
   buildSnsHighlightedSegments,
 } from "./snsDisplay";
+import type { SnsModuleDensity } from "./SnsModule";
 import type { AdaptedSnsPost } from "./snsTypes";
 
 interface SnsTimelineProps {
   posts: AdaptedSnsPost[];
   selectedPostId: string | null;
   privacyOn: boolean;
+  density: SnsModuleDensity;
   emptyCopy: string;
   highlightQuery?: string;
   onSelectPost: (postId: string | null) => void;
@@ -26,6 +29,7 @@ export function SnsTimeline({
   posts,
   selectedPostId,
   privacyOn,
+  density,
   emptyCopy,
   highlightQuery = "",
   onSelectPost,
@@ -41,7 +45,7 @@ export function SnsTimeline({
   }
 
   return (
-    <div className="sns-timeline" aria-label="朋友圈时间线">
+    <div className={classNames("sns-timeline", `sns-timeline--${density}`)} aria-label="朋友圈时间线">
       {posts.map((post) => (
         <button
           key={post.id}
@@ -61,6 +65,7 @@ export function SnsTimeline({
               text={formatSnsContentPreview(post, privacyOn)}
               highlightQuery={privacyOn ? "" : highlightQuery}
             />
+            {density === "comfortable" && <PostMediaPreview post={post} privacyOn={privacyOn} />}
             <PostChips post={post} privacyOn={privacyOn} />
           </div>
         </button>
@@ -88,6 +93,25 @@ function PostContentPreview({
         ) : (
           <span key={`${segment.text}-${index}`}>{segment.text}</span>
         ),
+      )}
+    </span>
+  );
+}
+
+function PostMediaPreview({ post, privacyOn }: { post: AdaptedSnsPost; privacyOn: boolean }) {
+  const media = post.media.slice(0, 4);
+  if (media.length === 0) return null;
+
+  return (
+    <span className="sns-post-row__media-preview" aria-label="动态媒体预览">
+      {media.map((item) => (
+        <span key={item.id} className="sns-post-row__media-tile">
+          {item.kind === "video" ? <PlaySquare size={13} /> : <Image size={13} />}
+          <span>{formatSnsMediaTileLabel(item, privacyOn)}</span>
+        </span>
+      ))}
+      {post.mediaCount > media.length && (
+        <span className="sns-post-row__media-tile">+{post.mediaCount - media.length}</span>
       )}
     </span>
   );

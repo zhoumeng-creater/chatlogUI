@@ -5,6 +5,7 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import type { RawGraphActionResponse } from "./chatlogRawTypes";
 import { adaptGraphActionResult, type GraphActionResult } from "./graphAdapters";
 
 export type GraphAction = "rebuild" | "reset-rebuild" | "pause" | "resume";
@@ -17,7 +18,7 @@ export async function manageGraph(
   const rebuildBody = action === "rebuild" || action === "reset-rebuild"
     ? JSON.stringify({ reset: action === "reset-rebuild" })
     : undefined;
-  const data = await requestJson(buildChatlogApiUrl(`/api/v1/graph/${endpoint}`, diagnosticOptions?.serviceBaseUrl), {
+  const data = await requestJson<RawGraphActionResponse>(buildChatlogApiUrl(`/api/v1/graph/${endpoint}`, diagnosticOptions?.serviceBaseUrl), {
     method: "POST",
     timeoutMs: GRAPH_FETCH_TIMEOUT_MS,
     ...(rebuildBody

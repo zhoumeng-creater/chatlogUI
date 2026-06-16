@@ -1,31 +1,54 @@
 import type { SettingsState } from "@/l2-coordinator/api-docs/settings";
+import type { SettingsMessages } from "@/l2-coordinator/commander/messages.zh-CN";
 import type { SettingsSaveStatus } from "@l2/data-clerk/stores/useSettingsStore";
 import { Field, SegmentedControl, StatusIndicator, Surface, Typography } from "@l4/ui";
 
 interface AdvancedSettingsProps {
+  copy: SettingsMessages["settings"]["advanced"];
   settings: SettingsState;
   saveStatus: SettingsSaveStatus;
   saveMessage: string | null;
   onChange: (partial: Partial<SettingsState>) => void;
 }
 
-export function AdvancedSettings({ settings, saveStatus, saveMessage, onChange }: AdvancedSettingsProps) {
+export function AdvancedSettings({
+  copy,
+  settings,
+  saveStatus,
+  saveMessage,
+  onChange,
+}: AdvancedSettingsProps) {
   return (
     <div className="settings-stack">
-      <Typography variant="h2">隐私与诊断</Typography>
+      <Typography variant="h2">{copy.title}</Typography>
 
       <Surface variant="base" className="settings-section">
         <Field
-          id="settings-developer-mode"
-          label="开发者工具入口"
-          hint="仅控制本机高级诊断入口；复制和导出诊断仍会脱敏。"
+          id="settings-privacy-default"
+          label={copy.privacyDefaultLabel}
+          hint={copy.privacyDefaultHint}
         >
           <SegmentedControl
-            label="开发者工具入口"
+            label={copy.privacyDefaultLabel}
+            value={settings.privacyOn ? "enabled" : "disabled"}
+            options={[
+              { value: "disabled", label: copy.privacyDefaultOff },
+              { value: "enabled", label: copy.privacyDefaultOn },
+            ]}
+            onChange={(value) => onChange({ privacyOn: value === "enabled" })}
+          />
+        </Field>
+        <Field
+          id="settings-developer-mode"
+          label={copy.developerEntryLabel}
+          hint={copy.developerHint}
+        >
+          <SegmentedControl
+            label={copy.developerEntryLabel}
             value={settings.developerMode ? "enabled" : "disabled"}
             options={[
-              { value: "disabled", label: "隐藏" },
-              { value: "enabled", label: "显示" },
+              { value: "disabled", label: copy.developerDisabled },
+              { value: "enabled", label: copy.developerEnabled },
             ]}
             onChange={(value) => onChange({ developerMode: value === "enabled" })}
           />

@@ -68,6 +68,13 @@ export function SetupCenterView() {
                     loading={setup.loading}
                     error={setup.error}
                     profile={setup.profile}
+                    detectionStatus={setup.view.detectedPath.status}
+                    candidates={setup.view.detectedPath.candidates}
+                    detectionError={setup.view.detectedPath.error}
+                    onUseCandidate={(candidateId) => void setup.actions.importDetectedDataDirectory(candidateId)}
+                    onChooseDirectory={() => void setup.actions.chooseAndImportDataDirectory()}
+                    onConnectExternalService={() => setup.actions.chooseSetupPath("external-service")}
+                    onOpenManualAdvanced={() => setup.actions.chooseSetupPath("manual-advanced")}
                   />
                 )}
 
@@ -79,6 +86,8 @@ export function SetupCenterView() {
                     fieldErrors={setup.manualFieldErrors}
                     onDraftChange={setup.actions.setManualDraft}
                     onSubmit={() => setup.actions.performAction("save-manual-config")}
+                    onChooseDataDir={setup.actions.chooseManualDataDirectory}
+                    onChooseWorkDir={setup.actions.chooseManualWorkDirectory}
                   />
                 )}
 
@@ -92,6 +101,7 @@ export function SetupCenterView() {
                     error={setup.error}
                     externalBaseUrl={setup.externalBaseUrlDraft}
                     externalBaseUrlError={setup.externalBaseUrlError}
+                    latestDiagnosticFamily={setup.latestDiagnosticFamily}
                     onExternalBaseUrlChange={setup.actions.setExternalBaseUrlDraft}
                   />
                 )}

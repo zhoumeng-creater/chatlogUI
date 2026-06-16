@@ -229,9 +229,13 @@ export function GraphAdvancedPanel({
               {graphPaused ? <Play size={14} /> : <Pause size={14} />}
               {graphPaused ? "继续抽取" : "暂停抽取"}
             </Button>
-            <Button variant="secondary" size="sm" onClick={onRebuild}>
+            <Button
+              variant={view.rebuildCopy.startsWith("确认") ? "danger" : "secondary"}
+              size="sm"
+              onClick={onRebuild}
+            >
               <RefreshCw size={14} />
-              重建
+              {view.rebuildCopy}
             </Button>
             <Button
               variant={view.resetRebuildCopy.startsWith("确认") ? "danger" : "secondary"}

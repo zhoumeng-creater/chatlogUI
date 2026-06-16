@@ -1,4 +1,5 @@
 import type { WindowMaterial } from "@l2/api-docs/settings";
+import { settingsMessagesZhCN } from "./messages.zh-CN";
 
 export interface AppShellViewInput {
   title: string;
@@ -18,9 +19,14 @@ export interface AppShellWindowControlsView {
 }
 
 export interface AppShellView {
+  productName: string;
   title: string;
   privacyOn: boolean;
   windowMaterial: WindowMaterial;
+  shortcutHelpAction: {
+    label: string;
+    tooltip: string;
+  };
   developerConsoleAction: {
     label: string;
     tooltip: string;
@@ -32,9 +38,14 @@ export function deriveAppShellView(input: AppShellViewInput): AppShellView {
   const isMaximized = input.isMaximized ?? false;
 
   return {
+    productName: settingsMessagesZhCN.app.productName,
     title: input.title,
     privacyOn: input.privacyOn,
     windowMaterial: input.windowMaterial,
+    shortcutHelpAction: {
+      label: "快捷键帮助",
+      tooltip: "查看当前页面快捷键",
+    },
     developerConsoleAction: input.developerConsoleVisible
       ? {
           label: "开发者控制台",

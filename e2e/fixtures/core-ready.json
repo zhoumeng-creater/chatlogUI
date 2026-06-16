@@ -227,16 +227,21 @@
       "username": "session_synthetic_001",
       "is_group": false,
       "chat_type": "private",
-      "total_count": 3,
-      "count": 3,
+      "total_count": 7,
+      "count": 7,
       "limit": 50,
       "offset": 0,
+      "query_since": 1767254400,
+      "query_until": 1767340800,
+      "query_range_label": "Synthetic fixed history range",
       "messages": [
         {
           "local_id": 1001,
           "timestamp": 1767254400,
           "time": "2026-01-01 08:00",
           "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
           "type": "text",
           "content": "Synthetic message for UI state only"
         },
@@ -245,6 +250,8 @@
           "timestamp": 1767254460,
           "time": "2026-01-01 08:01",
           "sender": "self_synthetic",
+          "sender_name": "Synthetic Self",
+          "is_self": true,
           "type": "image",
           "content": "Synthetic image attachment summary",
           "media_type": "image",
@@ -255,16 +262,72 @@
           "timestamp": 1767254520,
           "time": "2026-01-01 08:02",
           "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
+          "type": "video",
+          "content": "Synthetic video attachment summary",
+          "media_type": "video",
+          "media_key": "media_synthetic_video_key"
+        },
+        {
+          "local_id": 1004,
+          "timestamp": 1767254580,
+          "time": "2026-01-01 08:03",
+          "sender": "self_synthetic",
+          "sender_name": "Synthetic Self",
+          "is_self": true,
+          "type": "voice",
+          "content": "Synthetic voice attachment summary",
+          "media_type": "voice",
+          "media_key": "media_synthetic_voice_key"
+        },
+        {
+          "local_id": 1005,
+          "timestamp": 1767254640,
+          "time": "2026-01-01 08:04",
+          "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
+          "type": "file",
+          "content": "Synthetic file attachment summary",
+          "media_type": "file",
+          "media_key": "media_synthetic_file_key",
+          "file_name": "Synthetic media file.pdf"
+        },
+        {
+          "local_id": 1006,
+          "timestamp": 1767254700,
+          "time": "2026-01-01 08:05",
+          "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
+          "type": "image",
+          "content": "Synthetic missing attachment summary",
+          "media_type": "image",
+          "media_path": "synthetic-missing-resource-redacted-source"
+        },
+        {
+          "local_id": 1007,
+          "timestamp": 1767254760,
+          "time": "2026-01-01 08:06",
+          "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
           "type": "text",
           "content": "Synthetic long transcript row for stable browser checks"
         }
       ]
     },
     "/api/v1/search": {
+      "query": "synthetic",
+      "chats": ["session_synthetic_001"],
       "total_count": 1,
       "count": 1,
       "limit": 20,
       "offset": 0,
+      "query_since": 1767254400,
+      "query_until": 1767340800,
+      "query_range_label": "Synthetic fixed search range",
       "messages": [
         {
           "local_id": 1001,
@@ -273,6 +336,8 @@
           "chat": "session_synthetic_001",
           "username": "session_synthetic_001",
           "sender": "contact_synthetic_001",
+          "sender_name": "Synthetic Contact Alpha",
+          "is_self": false,
           "type": "text",
           "content": "Synthetic search result for UI state only"
         }
@@ -290,6 +355,8 @@
       "active_days": 2,
       "first_message_time": 1767254400,
       "last_message_time": 1767340800,
+      "query_since": 1767254400,
+      "query_until": 1767340800,
       "query_range_label": "Synthetic fixed range",
       "by_type": [
         {

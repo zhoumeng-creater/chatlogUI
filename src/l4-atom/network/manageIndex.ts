@@ -4,6 +4,7 @@ import {
   withRequestDiagnostics,
   type RequestDiagnosticsOptions,
 } from "./httpClient";
+import type { RawSemanticIndexActionResponse } from "./chatlogRawTypes";
 import { adaptSemanticIndexActionResult, type SemanticIndexActionResult } from "./semanticAdapters";
 
 type IndexAction = 'rebuild' | 'pause' | 'resume' | 'clear';
@@ -19,7 +20,7 @@ export async function manageIndex(
     clear: buildChatlogApiUrl("/api/v1/semantic/index/clear", diagnosticOptions?.serviceBaseUrl),
   };
 
-  const data = await requestJson(endpoints[action], {
+  const data = await requestJson<RawSemanticIndexActionResponse>(endpoints[action], {
     method: 'POST',
     ...withRequestDiagnostics(diagnosticOptions, {
       endpointFamily: "semantic",

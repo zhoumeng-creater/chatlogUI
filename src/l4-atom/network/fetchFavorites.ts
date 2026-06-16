@@ -19,7 +19,6 @@ export async function fetchFavorites(
   diagnosticOptions?: RequestDiagnosticsOptions,
 ) {
   const params = new URLSearchParams();
-  params.set("format", "json");
   if (options.chat) params.set("chat", options.chat);
   if (options.limit !== undefined) params.set("limit", String(options.limit));
   if (options.offset !== undefined) params.set("offset", String(options.offset));

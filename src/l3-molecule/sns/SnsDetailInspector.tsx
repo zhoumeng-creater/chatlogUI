@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ExternalLink, FileText, MapPin, PlaySquare, ShieldCheck } from "lucide-react";
+import { ExternalLink, FileText, MapPin, PlaySquare, ShieldCheck, X } from "lucide-react";
 import { Button, DisabledReason, Typography } from "@l4/ui";
 import {
   formatSnsArticleSummary,
@@ -17,9 +17,10 @@ interface SnsDetailInspectorProps {
   post: AdaptedSnsPost | null;
   privacyOn: boolean;
   onRequestArticleOpen?: (postId: string) => void;
+  onClose?: () => void;
 }
 
-export function SnsDetailInspector({ post, privacyOn, onRequestArticleOpen }: SnsDetailInspectorProps) {
+export function SnsDetailInspector({ post, privacyOn, onRequestArticleOpen, onClose }: SnsDetailInspectorProps) {
   if (!post) {
     return (
       <div className="sns-detail sns-detail--empty">
@@ -54,6 +55,11 @@ export function SnsDetailInspector({ post, privacyOn, onRequestArticleOpen }: Sn
           <FileText size={12} />
           {formatSnsContentTypeLabel(post.contentType)}
         </span>
+        {onClose && (
+          <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="关闭朋友圈详情">
+            <X size={14} />
+          </Button>
+        )}
       </div>
 
       <Typography variant="body" color="var(--text-primary)">

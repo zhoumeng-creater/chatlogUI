@@ -1,27 +1,69 @@
 import { Bell, FileText, Image, MessageSquare, RefreshCw, Star, Users } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Button, DisabledReason, Input, SegmentedControl, Spinner, Typography } from "@l4/ui";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  Button,
+  DisabledReason,
+  Input,
+  SegmentedControl,
+  Spinner,
+  Typography,
+  focusInitialOverlayTarget,
+  getOverlayDialogProps,
+  restoreFocusTarget,
+  shouldCloseOverlayOnKey,
+  trapOverlayFocus,
+  type FocusTarget,
+} from "@l4/ui";
+import type { MediaActionModel } from "@l2/commander/mediaActionModel";
+import type { MediaFilterChip } from "@l2/commander/mediaFilterModel";
+import type { BusinessExportActionView } from "@l2/commander/useBusinessExportCommander";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
+import { StatusAnnouncer } from "@l3/common/StatusAnnouncer";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
+import { ExportActionButton } from "@l3/export";
+import { containsUnsafeDisplayText } from "@/utils/privacyDisplay";
 import type {
+  MediaActionPrompt,
+  MediaActionResult,
   MediaAttachment,
   MediaEndpointState,
   MediaEndpointStatus,
+  MediaFilterField,
+  MediaFilters,
   MediaFavoriteItem,
   MediaLoadStatus,
   MediaMember,
   MediaNewMessage,
+  MediaResourceLoadStatus,
   MediaUnreadResponse,
 } from "@l2/data-clerk/stores/useMediaStore";
 import {
   formatAttachmentLabel,
+  formatMediaAvailability,
   formatFavoritePreview,
   formatMediaEmptyCopy,
   formatMemberDisplayName,
   summarizeMediaCounts,
 } from "./mediaDisplay";
+import { MediaActionMenu } from "./MediaActionMenu";
+import { MediaFilterBar } from "./MediaFilterBar";
 import { MediaPreviewSheet } from "./MediaPreviewSheet";
 
 type MediaTab = "attachments" | "favorites" | "members" | "unread" | "new";
 const MEMBER_PREVIEW_LIMIT = 50;
+const MEDIA_OPEN_PROMPT_TITLE_ID = "media-open-prompt-title";
+const PRIVACY_SAFE_MEDIA_ACTION_MESSAGES = new Set([
+  "已复制媒体摘要。",
+  "已标记来源消息，可从工作台继续查看上下文。",
+  "已重新尝试加载媒体资源。",
+  "已请求系统打开外部链接。",
+]);
+const defaultMediaFilters: MediaFilters = {
+  type: "all",
+  source: "all",
+  availability: "all",
+  dateRange: { start: "", end: "" },
+};
 
 interface MediaLibraryProps {
   currentChat: string;
@@ -37,9 +79,33 @@ interface MediaLibraryProps {
   endpointStatus: MediaEndpointStatus;
   selectedAttachment: MediaAttachment | null;
   previewResourceUrl: string;
+  previewResourceStatus?: MediaResourceLoadStatus;
+  exportAction?: BusinessExportActionView;
+  emptyStates: {
+    noConversation: ActionableEmptyStateView;
+  };
+  filters?: MediaFilters;
+  filteredAttachments?: MediaAttachment[];
+  filterChips?: MediaFilterChip[];
+  selectedAttachmentIds?: string[];
+  actionModelsByAttachmentId?: Record<string, MediaActionModel>;
+  actionPrompt?: MediaActionPrompt | null;
+  lastActionResult?: MediaActionResult;
   onRetry: () => void;
+  onEmptyAction?: (actionId: EmptyStateActionId) => void;
   onPreviewAttachment: (attachment: MediaAttachment) => void;
   onClosePreview: () => void;
+  onChangeFilters?: (filters: MediaFilters) => void;
+  onClearFilter?: (field: MediaFilterField) => void;
+  onResetFilters?: () => void;
+  onToggleSelectedAttachment?: (attachmentId: string) => void;
+  onCopyAttachmentSummary?: (attachment: MediaAttachment) => void;
+  onLocateAttachment?: (attachment: MediaAttachment) => void;
+  onRequestOpenOriginal?: (attachment: MediaAttachment) => void;
+  onConfirmOpenOriginal?: () => void;
+  onCancelOpenOriginal?: () => void;
+  onRetryResource?: (attachment: MediaAttachment) => void;
+  onPreviewResourceError?: (attachment: MediaAttachment) => void;
 }
 
 export function MediaLibrary({
@@ -56,14 +122,37 @@ export function MediaLibrary({
   endpointStatus,
   selectedAttachment,
   previewResourceUrl,
+  previewResourceStatus = "idle",
+  exportAction,
+  emptyStates,
+  filters = defaultMediaFilters,
+  filteredAttachments,
+  filterChips = [],
+  selectedAttachmentIds = [],
+  actionModelsByAttachmentId = {},
+  actionPrompt = null,
+  lastActionResult = { status: "idle", message: "" },
   onRetry,
+  onEmptyAction,
   onPreviewAttachment,
   onClosePreview,
+  onChangeFilters = () => undefined,
+  onClearFilter = () => undefined,
+  onResetFilters = () => undefined,
+  onToggleSelectedAttachment = () => undefined,
+  onCopyAttachmentSummary = () => undefined,
+  onLocateAttachment = () => undefined,
+  onRequestOpenOriginal = () => undefined,
+  onConfirmOpenOriginal = () => undefined,
+  onCancelOpenOriginal = () => undefined,
+  onRetryResource = () => undefined,
+  onPreviewResourceError = () => undefined,
 }: MediaLibraryProps) {
   const [activeTab, setActiveTab] = useState<MediaTab>(() =>
     chooseInitialMediaTab({ attachments, favorites, members, unread, newMessages }),
   );
   const [memberQuery, setMemberQuery] = useState("");
+  const visibleAttachments = filteredAttachments ?? attachments;
   const mediaCounts = useMemo(() => summarizeMediaCounts(attachments), [attachments]);
   const reportedMemberTotal = Math.max(memberTotal ?? members.length, members.length);
   const memberLabel = reportedMemberTotal > members.length
@@ -71,6 +160,13 @@ export function MediaLibrary({
     : members.length.toLocaleString();
   const totalItems = attachments.length + favorites.length + members.length + unread.total + newMessages.length;
   const refreshDisabledReasonId = !currentChat ? "media-library-refresh-disabled-reason" : undefined;
+  const handleEmptyAction = (actionId: EmptyStateActionId) => {
+    if (actionId === "refresh") {
+      onRetry();
+      return;
+    }
+    onEmptyAction?.(actionId);
+  };
 
   useEffect(() => {
     if (status === "loading") return;
@@ -90,16 +186,19 @@ export function MediaLibrary({
             {currentChat ? `${totalItems.toLocaleString()} 项可查看内容` : "选择会话后加载扩展信息"}
           </Typography>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRetry}
-          disabled={!currentChat || status === "loading"}
-          aria-describedby={refreshDisabledReasonId}
-          aria-label="刷新媒体与扩展"
-        >
-          <RefreshCw size={14} />
-        </Button>
+        <div className="media-library__header-actions">
+          {exportAction && <ExportActionButton {...exportAction} />}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRetry}
+            disabled={!currentChat || status === "loading"}
+            aria-describedby={refreshDisabledReasonId}
+            aria-label="刷新媒体与扩展"
+          >
+            <RefreshCw size={14} />
+          </Button>
+        </div>
       </div>
       {!currentChat && (
         <DisabledReason
@@ -109,14 +208,11 @@ export function MediaLibrary({
       )}
 
       {!currentChat ? (
-        <div className="workbench-empty-state">
-          <Typography variant="label" weight={700}>
-            选择会话
-          </Typography>
-          <Typography variant="body" color="var(--text-secondary)">
-            打开会话后显示附件、收藏、成员、未读和增量消息。
-          </Typography>
-        </div>
+        <ActionableEmptyState
+          className="workbench-empty-state"
+          model={emptyStates.noConversation}
+          onAction={handleEmptyAction}
+        />
       ) : error && status !== "partial" ? (
         <div className="workbench-error-state" role="alert">
           <Typography variant="label" weight={700}>
@@ -142,6 +238,17 @@ export function MediaLibrary({
             unreadTotal={unread.total}
             newMessageCount={newMessages.length}
             loading={status === "loading"}
+          />
+
+          <MediaFilterBar
+            filters={filters}
+            activeChips={filterChips}
+            visibleCount={visibleAttachments.length}
+            totalCount={attachments.length}
+            selectedCount={selectedAttachmentIds.length}
+            onChange={onChangeFilters}
+            onClearFilter={onClearFilter}
+            onReset={onResetFilters}
           />
 
           {mediaCounts.length > 0 && (
@@ -182,9 +289,18 @@ export function MediaLibrary({
             )}
             {activeTab === "attachments" && (
               <AttachmentList
-                attachments={attachments}
+                attachments={visibleAttachments}
                 privacyOn={privacyOn}
+                selectedAttachmentIds={selectedAttachmentIds}
+                actionModelsByAttachmentId={actionModelsByAttachmentId}
                 onPreviewAttachment={onPreviewAttachment}
+                onCopyAttachmentSummary={onCopyAttachmentSummary}
+                onLocateAttachment={onLocateAttachment}
+                onRequestOpenOriginal={onRequestOpenOriginal}
+                onRetryResource={onRetryResource}
+                onToggleSelectedAttachment={onToggleSelectedAttachment}
+                filtered={filterChips.length > 0}
+                totalAttachmentCount={attachments.length}
               />
             )}
             {activeTab === "favorites" && (
@@ -223,9 +339,22 @@ export function MediaLibrary({
       <MediaPreviewSheet
         attachment={selectedAttachment}
         resourceUrl={previewResourceUrl}
+        resourceStatus={previewResourceStatus}
         privacyOn={privacyOn}
+        actionModel={selectedAttachment ? actionModelsByAttachmentId[selectedAttachment.id] : null}
         onClose={onClosePreview}
+        onCopySummary={onCopyAttachmentSummary}
+        onLocateSource={onLocateAttachment}
+        onRequestOpenOriginal={onRequestOpenOriginal}
+        onRetryResource={onRetryResource}
+        onResourceError={onPreviewResourceError}
       />
+      <MediaOpenPrompt
+        prompt={actionPrompt}
+        onConfirm={onConfirmOpenOriginal}
+        onCancel={onCancelOpenOriginal}
+      />
+      <MediaActionResultNotice result={lastActionResult} privacyOn={privacyOn} />
     </aside>
   );
 }
@@ -403,30 +532,82 @@ function SummaryStrip({
 function AttachmentList({
   attachments,
   privacyOn,
+  selectedAttachmentIds,
+  actionModelsByAttachmentId,
   onPreviewAttachment,
+  onCopyAttachmentSummary,
+  onLocateAttachment,
+  onRequestOpenOriginal,
+  onRetryResource,
+  onToggleSelectedAttachment,
+  filtered,
+  totalAttachmentCount,
 }: {
   attachments: MediaAttachment[];
   privacyOn: boolean;
+  selectedAttachmentIds: string[];
+  actionModelsByAttachmentId: Record<string, MediaActionModel>;
   onPreviewAttachment: (attachment: MediaAttachment) => void;
+  onCopyAttachmentSummary: (attachment: MediaAttachment) => void;
+  onLocateAttachment: (attachment: MediaAttachment) => void;
+  onRequestOpenOriginal: (attachment: MediaAttachment) => void;
+  onRetryResource: (attachment: MediaAttachment) => void;
+  onToggleSelectedAttachment: (attachmentId: string) => void;
+  filtered: boolean;
+  totalAttachmentCount: number;
 }) {
-  if (attachments.length === 0) return <EmptyTab label="附件" />;
+  if (attachments.length === 0) {
+    return filtered && totalAttachmentCount > 0
+      ? <EmptyTab label="匹配媒体" />
+      : <EmptyTab label="附件" />;
+  }
 
   return (
     <div className="media-library__list">
       {attachments.map((attachment) => (
-        <button
+        <div
           key={attachment.id}
-          type="button"
-          className="media-library__row media-library__row--button"
-          onClick={() => onPreviewAttachment(attachment)}
+          className="media-library__row media-library__row--attachment"
         >
           <Image size={16} />
-          <span>{formatAttachmentLabel(attachment, privacyOn)}</span>
-          <span className="media-library__row-meta">{privacyOn ? "已隐藏来源" : attachment.source}</span>
-        </button>
+          <div className="media-library__row-stack">
+            <span>{formatAttachmentLabel(attachment, privacyOn)}</span>
+            <span className="media-library__row-note">
+              {privacyOn
+                ? "已隐藏来源"
+                : `${attachment.sourceLabel ?? attachment.source} · ${attachment.time || "未知时间"} · ${formatMediaAvailability(attachment)}`}
+            </span>
+          </div>
+          <MediaActionMenu
+            attachment={attachment}
+            model={actionModelsByAttachmentId[attachment.id] ?? fallbackActionModel(attachment)}
+            selected={selectedAttachmentIds.includes(attachment.id)}
+            onPreview={onPreviewAttachment}
+            onCopySummary={onCopyAttachmentSummary}
+            onLocateSource={onLocateAttachment}
+            onRequestOpenOriginal={onRequestOpenOriginal}
+            onRetryResource={onRetryResource}
+            onToggleSelected={onToggleSelectedAttachment}
+          />
+        </div>
       ))}
     </div>
   );
+}
+
+function fallbackActionModel(attachment: MediaAttachment): MediaActionModel {
+  return {
+    attachmentId: attachment.id,
+    copySummary: "",
+    openPrompt: null,
+    actions: [
+      { id: "preview", label: "预览", enabled: false, disabledReason: "媒体操作尚未就绪。", requiresConfirmation: false },
+      { id: "copySummary", label: "复制摘要", enabled: false, disabledReason: "媒体操作尚未就绪。", requiresConfirmation: false },
+      { id: "locateSource", label: "定位来源", enabled: false, disabledReason: "媒体操作尚未就绪。", requiresConfirmation: false },
+      { id: "openOriginal", label: "打开原始资源", enabled: false, disabledReason: "媒体操作尚未就绪。", requiresConfirmation: true },
+      { id: "retryResource", label: "重试资源", enabled: false, disabledReason: "媒体操作尚未就绪。", requiresConfirmation: false },
+    ],
+  };
 }
 
 function FavoriteList({
@@ -588,4 +769,105 @@ function EmptyTab({ label }: { label: string }) {
       </Typography>
     </div>
   );
+}
+
+function MediaOpenPrompt({
+  prompt,
+  onConfirm,
+  onCancel,
+}: {
+  prompt: MediaActionPrompt | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const restoreTargetRef = useRef<FocusTarget | null>(null);
+
+  useEffect(() => {
+    if (!prompt) return undefined;
+    restoreTargetRef.current = document.activeElement as FocusTarget | null;
+    focusInitialOverlayTarget(dialogRef.current);
+
+    return () => {
+      restoreFocusTarget(restoreTargetRef.current);
+      restoreTargetRef.current = null;
+    };
+  }, [prompt]);
+
+  if (!prompt) return null;
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (trapOverlayFocus(dialogRef.current, document.activeElement, event)) return;
+    if (!shouldCloseOverlayOnKey(event.key, { dismissible: true })) return;
+    event.preventDefault();
+    onCancel();
+  };
+
+  return (
+    <div
+      {...getOverlayDialogProps({ titleId: MEDIA_OPEN_PROMPT_TITLE_ID })}
+      ref={dialogRef}
+      className="media-open-prompt"
+      onKeyDown={handleKeyDown}
+    >
+      <div className="media-open-prompt__copy">
+        <Typography id={MEDIA_OPEN_PROMPT_TITLE_ID} variant="label" weight={700}>
+          {prompt.title}
+        </Typography>
+        <Typography variant="caption" color="var(--text-secondary)">
+          {prompt.message}
+        </Typography>
+        <Typography variant="caption" color="var(--text-muted)">
+          {prompt.redactedUrlLabel}
+        </Typography>
+      </div>
+      <div className="media-open-prompt__actions">
+        <Button variant="secondary" size="md" onClick={onCancel}>
+          {prompt.cancelLabel}
+        </Button>
+        <Button variant="primary" size="md" onClick={onConfirm}>
+          {prompt.confirmLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function MediaActionResultNotice({ result, privacyOn }: { result: MediaActionResult; privacyOn: boolean }) {
+  if (result.status === "idle" || !result.message) return null;
+  const displayMessage = privacyOn ? getMediaActionDisplayMessage(result) : result.message;
+
+  return (
+    <>
+      <StatusAnnouncer
+        privacyOn={privacyOn}
+        politeness={result.status === "error" ? "assertive" : "polite"}
+        message={result.message}
+        privacySafeMessage={getMediaActionAnnouncement(result)}
+      />
+      <div
+        className="media-action-result"
+        role={result.status === "error" ? "alert" : "status"}
+        data-status={result.status}
+      >
+        <Typography variant="caption" color="var(--text-secondary)">
+          {displayMessage}
+        </Typography>
+      </div>
+    </>
+  );
+}
+
+function getMediaActionDisplayMessage(result: MediaActionResult): string {
+  if (result.status === "error") return "媒体操作失败";
+  const message = result.message.trim();
+  if (PRIVACY_SAFE_MEDIA_ACTION_MESSAGES.has(message) && !containsUnsafeDisplayText(message)) {
+    return message;
+  }
+  return "媒体操作完成";
+}
+
+function getMediaActionAnnouncement(result: MediaActionResult): string {
+  const displayMessage = getMediaActionDisplayMessage(result);
+  return displayMessage === "已复制媒体摘要。" ? "媒体摘要已复制。" : displayMessage;
 }

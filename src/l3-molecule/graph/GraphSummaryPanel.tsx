@@ -1,5 +1,7 @@
 import { Pause, Play, RefreshCw, RotateCcw } from "lucide-react";
 import { Button, StatusIndicator, Typography } from "@l4/ui";
+import type { GraphContextSummaryView } from "@l2/commander/graphContextSummaryModel";
+import { GraphContextSummary } from "./GraphContextSummary";
 import type {
   GraphActionResultView,
   GraphLoadStatusView,
@@ -13,8 +15,10 @@ interface GraphSummaryPanelProps {
   loadStatus: GraphLoadStatusView;
   loading: boolean;
   actionStatus: GraphActionResultView | null;
+  rebuildCopy: string;
   resetRebuildCopy: string;
   confirmationCopy: string | null;
+  contextSummary: GraphContextSummaryView;
   onRefresh: () => void;
   onRebuild: () => void;
   onResetRebuild: () => void;
@@ -30,8 +34,10 @@ export function GraphSummaryPanel({
   loadStatus,
   loading,
   actionStatus,
+  rebuildCopy,
   resetRebuildCopy,
   confirmationCopy,
+  contextSummary,
   onRefresh,
   onRebuild,
   onResetRebuild,
@@ -59,6 +65,8 @@ export function GraphSummaryPanel({
         )}
       </div>
 
+      <GraphContextSummary summary={contextSummary} />
+
       <div className="graph-summary-panel__metrics">
         <Metric label="实体" value={counts?.entities ?? summary?.nodeCount ?? 0} />
         <Metric label="关系" value={counts?.relations ?? summary?.edgeCount ?? 0} />
@@ -75,9 +83,13 @@ export function GraphSummaryPanel({
           <RefreshCw size={14} />
           刷新
         </Button>
-        <Button variant="ghost" size="sm" onClick={onRebuild}>
+        <Button
+          variant={rebuildCopy.startsWith("确认") ? "danger" : "ghost"}
+          size="sm"
+          onClick={onRebuild}
+        >
           <RotateCcw size={14} />
-          重建
+          {rebuildCopy}
         </Button>
         <Button
           variant={resetRebuildCopy.startsWith("确认") ? "danger" : "ghost"}

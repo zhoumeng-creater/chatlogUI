@@ -1,31 +1,27 @@
-import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useMediaCommander } from "@l2/commander/useMediaCommander";
-import { useScopedWorkspaceConversation } from "@l2/commander/useScopedWorkspaceConversation";
-import { MediaLibrary } from "@l3/media/MediaLibrary";
-import { WorkspaceScopeStatus, type WorkspaceScopeStatusItem } from "@l3/workspace/WorkspaceScopeStatus";
-import { Typography } from "@l4/ui";
+import { lazy, Suspense } from "react";
+import { useMediaWorkspaceCommander } from "@l2/commander/useMediaWorkspaceCommander";
+import { BusinessExportDialog } from "@l3/export";
+import { WorkspaceScopeController } from "@l3/workspace/WorkspaceScopeController";
+import { WorkspaceScopeStatus } from "@l3/workspace/WorkspaceScopeStatus";
+import { Spinner, Typography } from "@l4/ui";
+
+const LazyMediaLibrary = lazy(() =>
+  import("@l3/media/MediaLibrary").then((module) => ({ default: module.MediaLibrary })),
+);
 
 export function MediaView() {
-  const [params] = useSearchParams();
-  const { workspaceRouteScope, privacyOn } = useScopedWorkspaceConversation({
-    scope: params.get("scope"),
-    scopedChat: params.get("chat"),
-    focus: params.get("focus"),
-    source: params.get("source"),
-    defaultScope: "currentChat",
-  });
-  const media = useMediaCommander();
-  const { loadMediaModule } = media;
-  const currentConversation = media.currentConversation ?? workspaceRouteScope.currentConversation;
-  const currentChat = currentConversation?.username ?? "";
-  const isGroup = currentConversation?.isGroup ?? false;
-
-  useEffect(() => {
-    if (currentChat) {
-      void loadMediaModule(currentChat, isGroup);
-    }
-  }, [currentChat, isGroup, loadMediaModule]);
+  const {
+    currentChat,
+    privacyOn,
+    media,
+    scopeController,
+    workspaceRouteScope,
+    selectScope,
+    clearScopeChip,
+    resetScope,
+    statusItems,
+    navigateBackToWorkbench,
+  } = useMediaWorkspaceCommander();
 
   return (
     <div className="workspace-page media-workspace">
@@ -39,38 +35,63 @@ export function MediaView() {
       </header>
       <WorkspaceScopeStatus
         workspaceRouteScope={workspaceRouteScope}
-        items={[mediaStatusItem(media.status, currentChat)]}
+        items={statusItems}
+      />
+      <WorkspaceScopeController
+        model={scopeController}
+        onSelectScope={selectScope}
+        onClearChip={clearScopeChip}
+        onReset={resetScope}
       />
       <div className="workspace-page__surface workspace-page__module-surface">
-        <MediaLibrary
-          currentChat={currentChat}
-          privacyOn={privacyOn}
-          attachments={media.attachments}
-          favorites={media.favorites}
-          members={media.members}
-          memberTotal={media.memberTotal}
-          unread={media.unread}
-          newMessages={media.newMessages}
-          status={media.status}
-          error={media.error}
-          endpointStatus={media.endpointStatus}
-          selectedAttachment={media.selectedAttachment}
-          previewResourceUrl={media.previewResourceUrl}
-          onRetry={media.retry}
-          onPreviewAttachment={media.previewAttachment}
-          onClosePreview={media.closePreview}
-        />
+        <Suspense fallback={<div className="panel-loading"><Spinner size={20} label="加载媒体..." /></div>}>
+          <LazyMediaLibrary
+            currentChat={currentChat}
+            privacyOn={privacyOn}
+            attachments={media.attachments}
+            favorites={media.favorites}
+            members={media.members}
+            memberTotal={media.memberTotal}
+            unread={media.unread}
+            newMessages={media.newMessages}
+            status={media.status}
+            error={media.error}
+            endpointStatus={media.endpointStatus}
+            selectedAttachment={media.selectedAttachment}
+            previewResourceUrl={media.previewResourceUrl}
+            previewResourceStatus={media.previewResourceStatus}
+            exportAction={media.businessExport.action}
+            emptyStates={media.emptyStates}
+            filters={media.filters}
+            filteredAttachments={media.filteredAttachments}
+            filterChips={media.filterChips}
+            selectedAttachmentIds={media.selectedAttachmentIds}
+            actionModelsByAttachmentId={media.actionModelsByAttachmentId}
+            actionPrompt={media.actionPrompt}
+            lastActionResult={media.lastActionResult}
+            onRetry={media.retry}
+            onEmptyAction={(actionId) => {
+              if (actionId === "choose-conversation") {
+                navigateBackToWorkbench();
+              }
+            }}
+            onPreviewAttachment={media.previewAttachment}
+            onClosePreview={media.closePreview}
+            onChangeFilters={media.setFilters}
+            onClearFilter={media.clearFilter}
+            onResetFilters={media.resetFilters}
+            onToggleSelectedAttachment={media.toggleSelectedAttachment}
+            onCopyAttachmentSummary={media.copyAttachmentSummary}
+            onLocateAttachment={media.locateAttachment}
+            onRequestOpenOriginal={media.requestOpenOriginal}
+            onConfirmOpenOriginal={media.confirmOpenOriginal}
+            onCancelOpenOriginal={media.cancelOpenOriginal}
+            onRetryResource={media.retryResource}
+            onPreviewResourceError={media.markResourceError}
+          />
+        </Suspense>
       </div>
+      {media.businessExport.isOpen && <BusinessExportDialog {...media.businessExport.dialog} />}
     </div>
   );
-}
-
-function mediaStatusItem(status: string, currentChat: string): WorkspaceScopeStatusItem {
-  if (!currentChat) return { label: "媒体", value: "等待范围", tone: "warning" };
-  if (status === "loading") return { label: "媒体", value: "加载中", tone: "info", busy: true };
-  if (status === "partial") return { label: "媒体", value: "部分可用", tone: "warning" };
-  if (status === "error") return { label: "媒体", value: "异常", tone: "danger" };
-  if (status === "ready") return { label: "媒体", value: "已加载", tone: "success" };
-  if (status === "empty") return { label: "媒体", value: "暂无内容", tone: "neutral" };
-  return { label: "媒体", value: "待刷新", tone: "neutral" };
 }

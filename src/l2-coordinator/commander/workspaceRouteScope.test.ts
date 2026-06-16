@@ -21,6 +21,11 @@ describe("buildWorkspaceRouteScopeView", () => {
     });
 
     expect(view.state).toBe("current-chat");
+    expect(view.scopeKind).toBe("currentConversation");
+    expect(view.contextChips).toEqual([
+      expect.objectContaining({ id: "sourceRoute", label: "来源", value: "来自搜索结果" }),
+      expect.objectContaining({ id: "focusMessage", label: "定位", value: "上下文定位" }),
+    ]);
     expect(view.currentChat).toBe("room_secret_001");
     expect(view.scopeLabel).toBe("当前会话（已隐藏）");
     expect(view.sourceLabel).toBe("来自搜索结果");
@@ -63,6 +68,23 @@ describe("buildWorkspaceRouteScopeView", () => {
     expect(view.sourceLabel).not.toContain("example.test");
   });
 
+  it("uses product labels for cross-module source context", () => {
+    expect(buildWorkspaceRouteScopeView({
+      scope: "all",
+      source: "ai",
+      conversations: [],
+      selectedConversation: null,
+      privacyOn: false,
+    }).sourceLabel).toBe("来自 AI 证据");
+    expect(buildWorkspaceRouteScopeView({
+      scope: "all",
+      source: "graph",
+      conversations: [],
+      selectedConversation: null,
+      privacyOn: false,
+    }).sourceLabel).toBe("来自图谱");
+  });
+
   it("supports an explicit all-conversations scope without inventing a chat", () => {
     const view = buildWorkspaceRouteScopeView({
       scope: "all",
@@ -73,6 +95,7 @@ describe("buildWorkspaceRouteScopeView", () => {
     });
 
     expect(view.state).toBe("all");
+    expect(view.scopeKind).toBe("allConversations");
     expect(view.currentConversation).toBeNull();
     expect(view.currentChat).toBe("");
     expect(view.scopeLabel).toBe("全部会话");
