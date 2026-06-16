@@ -328,6 +328,10 @@ describe("businessExportModel", () => {
       privacyOn: true,
       generatedAt,
       scopeSummary: "当前会话",
+      filterSummary: ["类型：图片", "状态：可预览"],
+      loadedCount: 2,
+      visibleCount: 1,
+      selectedCount: 1,
       attachments: [
         {
           id: "file-1",
@@ -336,11 +340,14 @@ describe("businessExportModel", () => {
           sizeBytes: 1024,
           time: "2026-01-02",
           available: true,
+          source: "当前会话",
         },
       ],
     });
-    expect(media.content).toContain("kind,fileName,sizeBytes,time,available");
-    expect(media.content).toContain("image,已隐藏文件名,1024,2026-01-02,true");
+    expect(media.content).toContain("kind,source,fileName,sizeBytes,time,available");
+    expect(media.content).toContain("image,当前会话,已隐藏文件名,1024,2026-01-02,true");
+    expect(media.warnings).toContain("当前只导出已加载媒体记录。");
+    expect(media.warnings).toContain("当前导出已选媒体记录。");
     expect(media.content).not.toContain("C:\\Users");
     expect(media.content).not.toContain("wxid_synthetic_private");
 
@@ -357,6 +364,8 @@ describe("businessExportModel", () => {
     });
     expect(ai.content).toContain("AI 问答与证据");
     expect(ai.content).toContain("证据数量: 1");
+    expect(ai.content).toContain("证据 1");
+    expect(ai.content).toContain("score 0.87");
     expect(ai.content).not.toContain("地址在私密聊天里");
     expect(ai.content).not.toContain("证据正文");
 
@@ -371,6 +380,139 @@ describe("businessExportModel", () => {
     expect(graph.content).toContain('"nodes"');
     expect(graph.content).toContain("已隐藏实体");
     expect(graph.content).not.toContain("Synthetic Person");
+  });
+
+  it("keeps selected-fragment conversation export attributed to the selection source", () => {
+    const artifact = createConversationExportArtifact({
+      source: "conversation_selection",
+      format: "markdown",
+      privacyOn: false,
+      requestedUnredacted: true,
+      unredactedConfirmed: true,
+      generatedAt,
+      scopeSummary: "当前会话 · 已选 2 条",
+      totalCount: 2,
+      loadedCount: 2,
+      messages: [
+        {
+          id: "selected-1",
+          sender: "Synthetic Sender",
+          content: "Selected message one",
+          time: "2026-01-02 08:00",
+          type: "text",
+        },
+        {
+          id: "selected-2",
+          sender: "Synthetic Sender",
+          content: "Selected message two",
+          time: "2026-01-02 08:05",
+          type: "text",
+        },
+      ],
+    });
+
+    expect(artifact.source).toBe("conversation_selection");
+    expect(artifact.job.source).toBe("conversation_selection");
+    expect(artifact.job.sourceLabel).toBe("选中消息片段");
+    expect(artifact.fileName).toBe("chatlog-conversation-selection-20260102-030405.md");
+    expect(artifact.content).toContain("# 选中消息片段");
+    expect(artifact.content).toContain("Selected message one");
+    expect(artifact.content).toContain("Selected message two");
+    expect(artifact.content).not.toContain("Full conversation message");
+  });
+
+  it("exports graph query, timeline, visualization, metadata, freshness, and empty summaries", () => {
+    const artifact = createGraphExportArtifact({
+      format: "markdown",
+      privacyOn: true,
+      generatedAt,
+      scopeSummary: "全部会话",
+      filterSummary: ["关键词：已隐藏关键词", "时间：近 30 天"],
+      sourceSummary: "来源：图谱当前视图",
+      graphGeneratedAt: "2026-01-02T03:04:00.000Z",
+      refreshedAt: "2026-01-02T03:05:00.000Z",
+      freshnessState: "partial",
+      partialWarnings: ["图谱任务仍有等待处理项目。"],
+      entities: [
+        { id: "entity-1", label: "Synthetic Person", type: "person", mentions: 2 },
+      ],
+      relations: [
+        {
+          id: "relation-1",
+          subject: "Synthetic Person",
+          predicate: "knows",
+          object: "Synthetic Topic",
+          status: "active",
+          evidenceCount: 3,
+        },
+      ],
+      events: [
+        {
+          id: "event-1",
+          label: "Synthetic Event",
+          type: "event",
+          time: "2026-01-02 03:04",
+          source: "Synthetic Source",
+          evidenceCount: 1,
+        },
+      ],
+      facts: [
+        {
+          id: "fact-1",
+          label: "Synthetic Fact",
+          status: "active",
+          evidenceCount: 2,
+        },
+      ],
+      timelineRows: [
+        {
+          id: "timeline-1",
+          time: "2026-01-02 03:04",
+          type: "event",
+          title: "Synthetic Timeline",
+          description: "Private detail",
+          source: "Synthetic Source",
+        },
+      ],
+      visualNodes: [{ id: "node-1", label: "Synthetic Person", kind: "person" }],
+      visualEdges: [{ id: "edge-1", source: "node-1", target: "node-2", label: "knows", evidenceCount: 3 }],
+    });
+
+    expect(artifact.content).toContain("# 图谱");
+    expect(artifact.content).toContain("筛选: 关键词：已隐藏关键词、时间：近 30 天");
+    expect(artifact.content).toContain("新鲜度: partial");
+    expect(artifact.content).toContain("## 实体");
+    expect(artifact.content).toContain("## 关系");
+    expect(artifact.content).toContain("## 事件");
+    expect(artifact.content).toContain("## 事实");
+    expect(artifact.content).toContain("## 时间线");
+    expect(artifact.warnings).toContain("图谱任务仍有等待处理项目。");
+    expect(artifact.content).not.toContain("Synthetic Person");
+    expect(artifact.content).not.toContain("Private detail");
+
+    const empty = createGraphExportArtifact({
+      format: "json",
+      privacyOn: false,
+      generatedAt,
+      scopeSummary: "全部会话",
+      filterSummary: [],
+      sourceSummary: "来源：图谱当前视图",
+      graphGeneratedAt: "",
+      refreshedAt: "",
+      freshnessState: "empty",
+      partialWarnings: ["当前图谱没有条目。"],
+      entities: [],
+      relations: [],
+      events: [],
+      facts: [],
+      timelineRows: [],
+      visualNodes: [],
+      visualEdges: [],
+    });
+    const emptyJson = JSON.parse(empty.content) as { freshness: { state: string }; metadata: { rowCount: number } };
+    expect(emptyJson.freshness.state).toBe("empty");
+    expect(emptyJson.metadata.rowCount).toBe(0);
+    expect(empty.warnings).toContain("当前图谱没有条目。");
   });
 
   it("fails closed when export content still contains hard secrets or raw local paths", () => {

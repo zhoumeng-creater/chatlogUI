@@ -119,6 +119,58 @@ test.describe("core synthetic routes", () => {
     await expectStableSyntheticPage(page);
   });
 
+  test("opens contextual shortcut help by button and keyboard shortcuts", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    const helpButton = page.getByRole("button", { name: "快捷键帮助" });
+    await helpButton.focus();
+    await helpButton.click();
+
+    const workbenchDialog = page.getByRole("dialog", { name: "会话阅读快捷键" });
+    await expect(workbenchDialog).toBeVisible();
+    await expect(workbenchDialog).toContainText("关闭浮层");
+    await expect(workbenchDialog).toContainText("回到最新消息");
+
+    await page.keyboard.press("Escape");
+    await expect(workbenchDialog).toHaveCount(0);
+    await expect(helpButton).toBeFocused();
+
+    await page.keyboard.press("Shift+/");
+    await expect(workbenchDialog).toBeVisible();
+    await workbenchDialog.getByRole("button", { name: "关闭快捷键帮助" }).click();
+    await expect(workbenchDialog).toHaveCount(0);
+
+    await page.goto("/ai?codex-smoke=workbench-ready");
+    await page.keyboard.press("Control+/");
+    const aiDialog = page.getByRole("dialog", { name: "AI快捷键" });
+    await expect(aiDialog).toBeVisible();
+    await expect(aiDialog).toContainText("聚焦问题输入");
+    await expect(aiDialog).not.toContainText("Synthetic Session Alpha");
+  });
+
+  test("persists coach mark dismissal and keeps empty state actions valid", async ({ page }) => {
+    await setDesktop(page);
+    await page.goto("/");
+    await page.evaluate(() => {
+      window.localStorage.removeItem("chatlog_alpha_workspace_preferences");
+    });
+    await page.goto("/search?codex-smoke=workbench-ready");
+
+    const emptyState = page.locator('[data-empty-state="search-not-started"]');
+    await expect(emptyState).toBeVisible();
+    await expect(emptyState).toContainText("输入关键词开始搜索");
+    await expect(emptyState).not.toContainText("搜索当前会话");
+
+    const coachMark = page.locator('[data-coach-mark="search-scope"]');
+    await expect(coachMark).toBeVisible();
+    await coachMark.getByRole("button", { name: "知道了" }).click();
+    await expect(coachMark).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.locator('[data-coach-mark="search-scope"]')).toHaveCount(0);
+  });
+
   test("persists rail collapse and supports desktop panel splitters", async ({ page }) => {
     await setDesktop(page);
     await openSyntheticWorkbench(page);

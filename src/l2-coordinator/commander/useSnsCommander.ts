@@ -23,6 +23,11 @@ import { createSnsExportArtifact } from "./businessExportModel";
 import { useBusinessExportCommander } from "./useBusinessExportCommander";
 import type { WorkspaceScopeClearAction } from "./workspaceScopeModel";
 import {
+  bindActionableEmptyStateActions,
+  buildActionableEmptyState,
+  type ActionableEmptyStateView,
+} from "./actionableEmptyStateModel";
+import {
   activeTabLabel,
   applySnsDraftFilters,
   buildAppliedFilterSummary,
@@ -53,6 +58,11 @@ export function useSnsCommander() {
   const [externalOpenPromptState, setExternalOpenPromptState] = useState<SnsExternalOpenPromptState | null>(null);
   const [externalOpenError, setExternalOpenError] = useState<string | null>(null);
   const view = useMemo(() => buildSnsModuleView(store, privacyOn), [store, privacyOn]);
+  const emptyStates = useMemo(() => buildSnsEmptyStates({
+    emptyCopy: view.emptyCopy,
+    privacyOn,
+    searchQuery: store.searchQuery,
+  }), [privacyOn, store.searchQuery, view.emptyCopy]);
   const businessExport = useBusinessExportCommander({
     source: "sns",
     formats: ["markdown", "csv", "json"],
@@ -367,6 +377,7 @@ export function useSnsCommander() {
   return {
     ...store,
     view,
+    emptyStates,
     businessExport,
     privacyOn,
     externalOpenPrompt,
@@ -390,6 +401,79 @@ export function useSnsCommander() {
     requestArticleOpen,
     confirmExternalOpen,
     cancelExternalOpen,
+  };
+}
+
+interface SnsEmptyStateBundle {
+  timeline: ActionableEmptyStateView;
+  search: ActionableEmptyStateView;
+  notifications: ActionableEmptyStateView;
+}
+
+function buildSnsEmptyStates({
+  emptyCopy,
+  privacyOn,
+  searchQuery,
+}: {
+  emptyCopy: string;
+  privacyOn: boolean;
+  searchQuery: string;
+}): SnsEmptyStateBundle {
+  const base = {
+    readiness: {
+      serviceConfigured: true,
+      httpReady: true,
+      dbReady: true,
+      hasCurrentConversation: true,
+    },
+    privacyOn,
+  } as const;
+  const supported = ["clear-filters", "refresh"] as const;
+
+  return {
+    timeline: {
+      ...bindActionableEmptyStateActions(
+        buildActionableEmptyState({
+          variant: "sns-empty",
+          ...base,
+        }),
+        supported,
+      ),
+      title: emptyCopy,
+    },
+    search: {
+      ...bindActionableEmptyStateActions(
+        buildActionableEmptyState({
+          variant: searchQuery.trim() ? "search-no-results" : "sns-empty",
+          ...base,
+        }),
+        supported,
+      ),
+      title: emptyCopy,
+    },
+    notifications: {
+      ...buildActionableEmptyState({
+        variant: "sns-empty",
+        ...base,
+      }),
+      title: emptyCopy,
+      actions: [
+        {
+          id: "refresh",
+          label: "刷新朋友圈",
+          variant: "secondary",
+          disabled: false,
+          disabledReason: null,
+        },
+        {
+          id: "clear-filters",
+          label: "查看动态列表",
+          variant: "ghost",
+          disabled: false,
+          disabledReason: null,
+        },
+      ],
+    },
   };
 }
 

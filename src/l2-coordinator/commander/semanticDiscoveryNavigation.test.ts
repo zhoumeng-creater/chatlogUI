@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveSemanticSearchNavigation } from "./semanticDiscoveryNavigation";
+import {
+  buildAiEvidenceNavigationTarget,
+  resolveSemanticSearchNavigation,
+} from "./semanticDiscoveryNavigation";
 
 describe("semanticDiscoveryNavigation", () => {
   const conversations = [
@@ -42,5 +45,36 @@ describe("semanticDiscoveryNavigation", () => {
       message: "未在当前会话列表中找到该语义结果来源。",
     });
     expect(JSON.stringify(target)).not.toContain("Private room");
+  });
+
+  it("builds an AI evidence navigation target even when no exact localId exists", () => {
+    const target = buildAiEvidenceNavigationTarget({
+      conversationId: "conv-1",
+      chat: "wxid_synthetic_backend_chat",
+      localId: undefined,
+      returnRoute: "/ai",
+      activeResultId: "semantic-conv-1",
+      query: "Synthetic semantic query",
+    });
+
+    expect(target.anchor).toMatchObject({
+      source: "ai",
+      chat: "wxid_synthetic_backend_chat",
+      localId: null,
+      messageId: "",
+      timestamp: null,
+      time: null,
+    });
+    expect(target.returnToSearch).toMatchObject({
+      returnRoute: "/ai",
+      activeResultId: "semantic-conv-1",
+      sourceConversationId: "conv-1",
+      querySnapshot: {
+        query: "Synthetic semantic query",
+        filter: "all",
+        scope: "current",
+        scopeChat: "wxid_synthetic_backend_chat",
+      },
+    });
   });
 });

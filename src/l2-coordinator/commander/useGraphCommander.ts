@@ -47,6 +47,10 @@ import {
   createUxKpiTimer,
   recordGraphVisualizationKpiEvent,
 } from "./uxKpiEvents";
+import {
+  bindActionableEmptyStateActions,
+  buildActionableEmptyState,
+} from "./actionableEmptyStateModel";
 
 function graphDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
@@ -582,6 +586,18 @@ export function useGraphCommander(routeContext?: Omit<GraphCommanderContextInput
     ingestStatus: store.ingestStatus,
     qaStatus: store.qaStatus,
     businessExport,
+    emptyStates: {
+      graphEmpty: bindActionableEmptyStateActions(buildActionableEmptyState({
+        variant: "graph-empty",
+        readiness: {
+          serviceConfigured: true,
+          httpReady: true,
+          dbReady: true,
+          hasCurrentConversation: true,
+        },
+        privacyOn,
+      }), ["refresh"]),
+    },
     controlModel: buildGraphControlModel({
       keyword: store.keyword,
       timeWindow: store.timeWindow,

@@ -120,6 +120,12 @@ describe("workbenchViewModel", () => {
       statusTone: "neutral",
       title: "尚未配置",
       message: "请先完成设置中心的基本配置后再进入工作台。",
+      readinessEmptyState: {
+        id: "service-not-configured",
+        actions: expect.arrayContaining([
+          expect.objectContaining({ id: "configure-service", label: "前往设置中心" }),
+        ]),
+      },
     });
 
     expect(
@@ -135,6 +141,9 @@ describe("workbenchViewModel", () => {
       statusTone: "warning",
       title: "服务尚未完全就绪",
       message: "服务已启动但数据库尚未就绪，请稍候。",
+      readinessEmptyState: {
+        id: "db-not-ready",
+      },
     });
 
     expect(
@@ -146,7 +155,19 @@ describe("workbenchViewModel", () => {
       }),
     ).toMatchObject({
       renderWorkbench: false,
-      message: "无法连接已配置的本机 chatlog 服务，请在设置中心检查服务地址或服务进程。",
+      message: "无法连接已配置的本机聊天服务，请在设置中心检查服务地址或服务进程。",
+    });
+
+    expect(
+      deriveWorkbenchShellView({
+        profile: profileSummary({ mode: "managed", source: "manual-advanced" }),
+        httpReady: false,
+        dbReady: false,
+        devSmokeReady: false,
+      }),
+    ).toMatchObject({
+      renderWorkbench: false,
+      message: "本机聊天服务尚未启动，请在设置中心启动服务。",
     });
   });
 

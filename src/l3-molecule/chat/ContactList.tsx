@@ -1,4 +1,5 @@
 import type { Conversation, LoadStatus, UnreadStatus } from "@l2/data-clerk/stores/useChatStore";
+import type { ActionableEmptyStateView } from "@l2/commander/actionableEmptyStateModel";
 import type { ConversationListFilter } from "@l2/commander/conversationListInteractionModel";
 import { ConversationList } from "./ConversationList";
 
@@ -11,6 +12,7 @@ interface ContactListProps {
   query: string;
   filter: ConversationListFilter;
   activeConversationId: string | null;
+  emptyState: ActionableEmptyStateView;
   privacyOn: boolean;
   onLoadConversations: () => void;
   onOpenConversation: (conversation: Conversation) => void;
@@ -30,6 +32,7 @@ export function ContactList({
   query,
   filter,
   activeConversationId,
+  emptyState,
   privacyOn,
   onLoadConversations,
   onOpenConversation,
@@ -49,6 +52,7 @@ export function ContactList({
       query={query}
       filter={filter}
       activeConversationId={activeConversationId}
+      emptyState={emptyState}
       privacyOn={privacyOn}
       onLoadConversations={onLoadConversations}
       onOpenConversation={onOpenConversation}

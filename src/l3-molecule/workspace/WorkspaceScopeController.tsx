@@ -80,6 +80,7 @@ export function WorkspaceScopeController({
       className="workspace-scope-controller"
       aria-label={model.title}
       data-module={model.moduleId}
+      data-coach-anchor="workspace-scope"
     >
       <div className="workspace-scope-controller__summary">
         <div className="workspace-scope-controller__copy">

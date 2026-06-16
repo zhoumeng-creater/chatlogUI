@@ -114,6 +114,7 @@ export function SnsView() {
           privacyOn={sns.privacyOn}
           externalOpenPrompt={sns.externalOpenPrompt}
           externalOpenError={sns.externalOpenError}
+          emptyStates={sns.emptyStates}
           exportAction={sns.businessExport.action}
           onRefresh={sns.refresh}
           onRetry={sns.retry}

@@ -5,7 +5,9 @@ import { maskDisplayText } from "@/utils/privacyDisplay";
 import type { BusinessExportActionView } from "@l2/commander/useBusinessExportCommander";
 import type { SearchResults, SearchStatus } from "@l2/data-clerk/stores/useSearchStore";
 import type { SearchActiveFilterChip, SearchAdvancedFilterField } from "@l2/commander/searchAdvancedFilters";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
 import { ExportActionButton } from "@l3/export";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
 import { SearchActiveFilterChips } from "./SearchActiveFilterChips";
 import { SearchHitNavigator } from "./SearchHitNavigator";
 import { SearchStatusAnnouncer } from "./SearchStatusAnnouncer";
@@ -44,6 +46,11 @@ interface SearchResultsPaneProps {
   activeResultId: string | null;
   privacyOn: boolean;
   viewModel: SearchResultsPaneViewModel | null;
+  emptyStates: {
+    notStarted: ActionableEmptyStateView;
+    noResults: ActionableEmptyStateView;
+    filteredNoResults: ActionableEmptyStateView;
+  };
   activeFilterChips?: SearchActiveFilterChip[];
   exportAction?: BusinessExportActionView;
   onOpenResult: (message: SearchResults["messages"][number]) => void;
@@ -74,6 +81,7 @@ export function SearchResultsPane({
   activeResultId,
   privacyOn,
   viewModel,
+  emptyStates,
   activeFilterChips = [],
   exportAction,
   onOpenResult,
@@ -86,6 +94,15 @@ export function SearchResultsPane({
   onClearAdvancedFilter,
 }: SearchResultsPaneProps) {
   const resultButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const handleEmptyAction = (actionId: EmptyStateActionId) => {
+    if (actionId === "clear-filters" || actionId === "clear-search") {
+      onClear();
+      return;
+    }
+    if (actionId === "refresh") {
+      onRetry();
+    }
+  };
 
   useEffect(() => {
     if (!activeResultId) return;
@@ -94,27 +111,21 @@ export function SearchResultsPane({
 
   if (status === "invalid" && query.length > 0) {
     return (
-      <div className="workbench-empty-state">
-        <Typography variant="label" weight={700}>
-          请输入搜索关键词
-        </Typography>
-        <Typography variant="body" color="var(--text-secondary)">
-          搜索不会向后端提交空白查询。
-        </Typography>
-      </div>
+      <ActionableEmptyState
+        className="workbench-empty-state"
+        model={emptyStates.notStarted}
+        onAction={handleEmptyAction}
+      />
     );
   }
 
   if (status === "cancelled" && !results) {
     return (
-      <div className="workbench-empty-state">
-        <Typography variant="label" weight={700}>
-          搜索已取消
-        </Typography>
-        <Typography variant="body" color="var(--text-secondary)">
-          输入关键词后可以重新搜索聊天记录。
-        </Typography>
-      </div>
+      <ActionableEmptyState
+        className="workbench-empty-state"
+        model={emptyStates.notStarted}
+        onAction={handleEmptyAction}
+      />
     );
   }
 
@@ -141,27 +152,21 @@ export function SearchResultsPane({
 
   if (!results) {
     return (
-      <div className="workbench-empty-state">
-        <Typography variant="label" weight={700}>
-          输入关键词开始搜索
-        </Typography>
-        <Typography variant="body" color="var(--text-secondary)">
-          搜索不会向后端提交空白查询。可以先选择范围和消息类型。
-        </Typography>
-      </div>
+      <ActionableEmptyState
+        className="workbench-empty-state"
+        model={emptyStates.notStarted}
+        onAction={handleEmptyAction}
+      />
     );
   }
 
   if (status === "empty" || (results.messages.length === 0 && query.trim())) {
     return (
-      <div className="workbench-empty-state">
-        <Typography variant="label" weight={700}>
-          没有搜索结果
-        </Typography>
-        <Typography variant="body" color="var(--text-secondary)">
-          换一个关键词或放宽搜索范围。
-        </Typography>
-      </div>
+      <ActionableEmptyState
+        className="workbench-empty-state"
+        model={activeFilterChips.length > 0 ? emptyStates.filteredNoResults : emptyStates.noResults}
+        onAction={handleEmptyAction}
+      />
     );
   }
 

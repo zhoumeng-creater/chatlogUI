@@ -449,11 +449,13 @@ function buildActiveChips(
 function capabilityForDateRange(moduleId: WorkspaceScopeModuleId): WorkspaceScopeCapability {
   if (moduleId === "sns") return backendApplied("dateRange");
   if (moduleId === "analytics") return backendApplied("dateRange");
+  if (moduleId === "media") return localOnly("dateRange", "媒体时间筛选只影响已加载内容。");
   return disabled("dateRange", "日期范围筛选将在对应模块的生产力任务中启用。");
 }
 
 function capabilityForMediaType(moduleId: WorkspaceScopeModuleId): WorkspaceScopeCapability {
   if (moduleId === "sns") return localOnly("mediaType", "朋友圈媒体类型只影响已加载内容。");
+  if (moduleId === "media") return localOnly("mediaType", "媒体类型筛选只影响已加载内容。");
   return disabled("mediaType", "媒体类型筛选将在媒体任务中启用。");
 }
 

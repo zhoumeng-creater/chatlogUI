@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, type RefObject } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@l4/ui/Button';
 import { DisabledReason } from '@l4/ui/DisabledReason';
+import { StatusAnnouncer } from '../common/StatusAnnouncer';
 import { QAMessage } from './QAMessage';
 import { QAInput, type QAComposerDraft, type QAEntityOverride, type QARecentChatOption } from './QAInput';
 import { SemanticQAEvidenceDrawer } from './SemanticQAEvidenceDrawer';
@@ -62,6 +63,8 @@ export function QAPanel({
   const [entityOverride, setEntityOverride] = useState<QAEntityOverride | null>(null);
   const evidenceMessage = qaMessages.find((message) => message.id === evidenceMessageId);
   const hasMessages = qaMessages.length > 0;
+  const statusAnnouncement = getQAStatusAnnouncement(qaStatus);
+  const failedMessage = privacyOn ? "生成失败，请复制脱敏诊断或重试。" : qaError || "生成失败";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,6 +86,12 @@ export function QAPanel({
 
   return (
     <div className="qa-panel">
+      <StatusAnnouncer
+        privacyOn={privacyOn}
+        politeness={qaStatus === "failed" ? "assertive" : "polite"}
+        message={statusAnnouncement}
+        privacySafeMessage={statusAnnouncement}
+      />
       {hasMessages && (
         <div className="qa-panel__toolbar">
           {qaStreaming ? (
@@ -106,18 +115,18 @@ export function QAPanel({
           />
         ))}
         {qaStatus === "stopped" && (
-          <div role="status" aria-live="polite" className="qa-panel__status qa-panel__status--stopped">
+          <div className="qa-panel__status qa-panel__status--stopped">
             已停止，保留当前回答
           </div>
         )}
         {qaStatus === "empty" && (
-          <div role="status" aria-live="polite" className="qa-panel__status qa-panel__status--empty">
+          <div className="qa-panel__status qa-panel__status--empty">
             未返回可显示答案
           </div>
         )}
         {qaStatus === "failed" && (
           <div role="alert" className="qa-panel__status qa-panel__status--failed">
-            {qaError || "生成失败"}
+            {failedMessage}
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -153,4 +162,23 @@ export function QAPanel({
       />
     </div>
   );
+}
+
+function getQAStatusAnnouncement(status: QAPanelProps["qaStatus"]): string {
+  switch (status) {
+    case "connecting":
+      return "正在连接 AI 回答";
+    case "streaming":
+      return "正在生成回答";
+    case "completed":
+      return "回答已完成";
+    case "stopped":
+      return "已停止，保留当前回答";
+    case "failed":
+      return "生成失败";
+    case "empty":
+      return "未返回可显示答案";
+    case "idle":
+      return "";
+  }
 }

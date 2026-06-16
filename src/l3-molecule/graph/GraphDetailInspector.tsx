@@ -52,7 +52,7 @@ export function GraphDetailInspector({ inspector, privacyOn, onAction }: GraphDe
       <div className="graph-detail-inspector__actions">
         {inspector.actions.map((action) => {
           const Icon = actionIcon(action.id);
-          const disabled = privacyOn || !action.enabled || action.id === "open-source";
+          const disabled = privacyOn || !action.enabled;
           return (
             <Button
               key={action.id}

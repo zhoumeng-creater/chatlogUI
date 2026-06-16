@@ -89,6 +89,7 @@ describe("ConfigImportPanel", () => {
       />,
     );
 
+    expect(html).toContain('data-empty-state="service-not-configured"');
     expect(html).toContain("未找到可用的默认目录");
     expect(html).toContain("选择其他目录");
     expect(html).toContain("连接已有服务");

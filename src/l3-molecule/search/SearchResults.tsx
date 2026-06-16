@@ -4,6 +4,7 @@ import type {
   SearchActiveFilterChip,
   SearchAdvancedFilterField,
 } from "@l2/commander/searchAdvancedFilters";
+import type { ActionableEmptyStateView } from "@l2/commander/actionableEmptyStateModel";
 import { SearchResultsPane, type SearchResultsPaneViewModel } from "./SearchResultsPane";
 
 interface SearchResultsProps {
@@ -15,6 +16,11 @@ interface SearchResultsProps {
   activeResultId: string | null;
   privacyOn: boolean;
   viewModel: SearchResultsPaneViewModel | null;
+  emptyStates: {
+    notStarted: ActionableEmptyStateView;
+    noResults: ActionableEmptyStateView;
+    filteredNoResults: ActionableEmptyStateView;
+  };
   activeFilterChips: SearchActiveFilterChip[];
   exportAction?: BusinessExportActionView;
   onSetActiveResultId: (id: string | null) => void;
@@ -36,6 +42,7 @@ export function SearchResults({
   activeResultId,
   privacyOn,
   viewModel,
+  emptyStates,
   activeFilterChips,
   exportAction,
   onSetActiveResultId,
@@ -57,6 +64,7 @@ export function SearchResults({
       activeResultId={activeResultId}
       privacyOn={privacyOn}
       viewModel={viewModel}
+      emptyStates={emptyStates}
       activeFilterChips={activeFilterChips}
       exportAction={exportAction}
       onSetActiveResultId={onSetActiveResultId}

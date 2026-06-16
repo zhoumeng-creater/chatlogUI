@@ -7,6 +7,8 @@ import { GraphTimeline } from "./GraphTimeline";
 import { Typography } from "@l4/ui/Typography";
 import { Button } from "@l4/ui/Button";
 import { Spinner } from "@l4/ui/Spinner";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
 import type {
   EntityKind,
   GraphDataView,
@@ -28,6 +30,7 @@ export interface GraphCanvasProps {
   selectedNodeId: string | null;
   pulsedNodeId: string | null;
   tooltipCoord: { x: number; y: number } | null;
+  emptyState: ActionableEmptyStateView;
   privacyOn: boolean;
   onRefresh: () => void;
   onNodeHover: (nodeId: string | null, coord?: { x: number; y: number }) => void;
@@ -55,6 +58,7 @@ export function GraphCanvas({
   selectedNodeId,
   pulsedNodeId,
   tooltipCoord,
+  emptyState,
   privacyOn,
   onRefresh,
   onNodeHover,
@@ -66,6 +70,9 @@ export function GraphCanvas({
   onHighlightTimelineEntry,
 }: GraphCanvasProps) {
   const [viewResetToken, setViewResetToken] = useState(0);
+  const handleEmptyAction = (actionId: EmptyStateActionId) => {
+    if (actionId === "refresh") onRefresh();
+  };
   const shouldRenderCanvas = !loading && !error && data && data.nodes.length > 0;
   const enableCanvasReadback =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("codex-smoke");
@@ -114,9 +121,10 @@ export function GraphCanvas({
 
         {!loading && !error && data && data.nodes.length === 0 && (
           <div className="graph-canvas__overlay">
-            <Typography variant="body" color="var(--text-secondary)">
-              当前条件下没有图谱节点。
-            </Typography>
+            <ActionableEmptyState
+              model={emptyState}
+              onAction={handleEmptyAction}
+            />
           </div>
         )}
 

@@ -10,12 +10,11 @@ import {
   resolveConversationListActiveId,
   type ConversationListFilter,
 } from "@l2/commander/conversationListInteractionModel";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
 import { StatusAnnouncer } from "@l3/common/StatusAnnouncer";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
 import { ConversationListToolbar } from "./ConversationListToolbar";
 import { ConversationRow } from "./ConversationRow";
-import {
-  getConversationEmptyMessage,
-} from "./conversationDisplay";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -26,6 +25,7 @@ interface ConversationListProps {
   query: string;
   filter: ConversationListFilter;
   activeConversationId: string | null;
+  emptyState: ActionableEmptyStateView;
   privacyOn: boolean;
   onLoadConversations: () => void;
   onOpenConversation: (conversation: Conversation) => void;
@@ -44,7 +44,8 @@ export function ConversationList({
     selectedConversationId,
     query,
     filter,
-    activeConversationId,
+  activeConversationId,
+  emptyState,
   privacyOn,
   onLoadConversations,
   onOpenConversation,
@@ -76,6 +77,16 @@ export function ConversationList({
     query,
     filter,
   }), [filter, query, visibleConversations.length]);
+  const handleEmptyAction = (actionId: EmptyStateActionId) => {
+    if (actionId === "clear-filters" || actionId === "clear-search") {
+      if (query.trim()) onQueryChange("");
+      if (filter !== "all") onClearFilters();
+      return;
+    }
+    if (actionId === "refresh") {
+      onLoadConversations();
+    }
+  };
 
   useEffect(() => {
     if (resolvedActiveId !== activeConversationId) {
@@ -140,26 +151,11 @@ export function ConversationList({
             </Button>
           </div>
         ) : visibleConversations.length === 0 ? (
-          <div className="workbench-empty-state">
-            <Typography variant="label" weight={700}>
-              {getConversationEmptyMessage(conversationsStatus, query, filter)}
-            </Typography>
-            <div className="conversation-list__empty-actions">
-              {query.trim() && (
-              <Button variant="ghost" size="sm" onClick={() => onQueryChange("")}>
-                清除搜索
-              </Button>
-              )}
-              {filter !== "all" && (
-                <Button variant="ghost" size="sm" onClick={onClearFilters}>
-                  显示全部
-                </Button>
-              )}
-              <Button variant="secondary" size="sm" onClick={onLoadConversations}>
-                刷新会话
-              </Button>
-            </div>
-          </div>
+          <ActionableEmptyState
+            className="workbench-empty-state"
+            model={emptyState}
+            onAction={handleEmptyAction}
+          />
         ) : (
           visibleConversations.map((conversation) => (
             <div key={conversation.id} role="listitem">

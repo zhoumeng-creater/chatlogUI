@@ -10,7 +10,9 @@ import { Button, SegmentedControl, Spinner, Typography } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
 import type { BusinessExportActionView } from "@l2/commander/useBusinessExportCommander";
 import type { SnsDraftFilters, SnsFilterChip, SnsFilterField, SnsFilterViewModel } from "@l2/commander/snsFilterModel";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
 import { ExportActionButton } from "@l3/export";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
 import { SnsDetailInspector } from "./SnsDetailInspector";
 import { SnsExternalOpenDialog, type SnsExternalOpenPrompt } from "./SnsExternalOpenDialog";
 import { formatSnsNotificationLabel, formatSnsTime } from "./snsDisplay";
@@ -79,6 +81,12 @@ export interface SnsModuleViewModel {
   errorCopy: string | null;
 }
 
+export interface SnsModuleEmptyStates {
+  timeline: ActionableEmptyStateView;
+  search: ActionableEmptyStateView;
+  notifications: ActionableEmptyStateView;
+}
+
 interface SnsModuleProps {
   view: SnsModuleViewModel;
   status: SnsModuleLoadStatus;
@@ -98,6 +106,7 @@ interface SnsModuleProps {
   privacyOn: boolean;
   externalOpenPrompt: SnsExternalOpenPrompt | null;
   externalOpenError: string | null;
+  emptyStates: SnsModuleEmptyStates;
   exportAction?: BusinessExportActionView;
   onRefresh: () => void;
   onRetry: () => void;
@@ -137,6 +146,7 @@ export function SnsModule({
   privacyOn,
   externalOpenPrompt,
   externalOpenError,
+  emptyStates,
   exportAction,
   onRefresh,
   onRetry,
@@ -197,6 +207,15 @@ export function SnsModule({
   };
 
   const closeDetail = () => onSelectPost(null);
+  const handleEmptyAction = (actionId: EmptyStateActionId) => {
+    if (actionId === "clear-filters" || actionId === "clear-search") {
+      onResetFilters();
+      return;
+    }
+    if (actionId === "refresh" || actionId === "retry") {
+      onRefresh();
+    }
+  };
 
   const handleDetailKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!detailModalOpen) return;
@@ -331,23 +350,32 @@ export function SnsModule({
 
               {activeTab === "timeline" && (
                 <>
-                  <SnsTimeline
-                    posts={view.timelinePosts}
-                    selectedPostId={selectedPostId}
-                    privacyOn={privacyOn}
-                    density={density}
-                    emptyCopy={view.emptyCopy}
-                    onSelectPost={handleSelectPost}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onLoadMore}
-                    disabled={status === "loading"}
-                    className="sns-module__load-more"
-                  >
-                    {view.loadMore.label}
-                  </Button>
+                  {status !== "loading" && view.timelinePosts.length === 0 ? (
+                    <SnsEmptyState
+                      model={emptyStates.timeline}
+                      onAction={handleEmptyAction}
+                    />
+                  ) : (
+                    <>
+                      <SnsTimeline
+                        posts={view.timelinePosts}
+                        selectedPostId={selectedPostId}
+                        privacyOn={privacyOn}
+                        density={density}
+                        emptyCopy={view.emptyCopy}
+                        onSelectPost={handleSelectPost}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onLoadMore}
+                        disabled={status === "loading"}
+                        className="sns-module__load-more"
+                      >
+                        {view.loadMore.label}
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
 
@@ -359,10 +387,12 @@ export function SnsModule({
                   results={view.searchResults}
                   selectedPostId={selectedPostId}
                   privacyOn={privacyOn}
+                  emptyState={emptyStates.search}
                   emptyCopy={view.emptyCopy}
                   onSearchQueryChange={onSearchQueryChange}
                   onSearch={onSearch}
                   onClearSearch={onClearSearch}
+                  onEmptyAction={handleEmptyAction}
                   onSelectPost={handleSelectPost}
                   density={density}
                 />
@@ -374,7 +404,8 @@ export function SnsModule({
                   notificationTargetIds={view.notificationTargetIds}
                   selectedPostId={selectedPostId}
                   privacyOn={privacyOn}
-                  emptyCopy={view.emptyCopy}
+                  emptyState={emptyStates.notifications}
+                  onRefresh={onRefresh}
                   onSelectPost={handleSelectPost}
                   onShowTimeline={() => onTabChange("timeline")}
                 />
@@ -417,6 +448,22 @@ export function SnsModule({
   );
 }
 
+function SnsEmptyState({
+  model,
+  onAction,
+}: {
+  model: ActionableEmptyStateView;
+  onAction: (actionId: EmptyStateActionId) => void;
+}) {
+  return (
+    <ActionableEmptyState
+      className="sns-module__empty"
+      model={model}
+      onAction={onAction}
+    />
+  );
+}
+
 function SummaryStrip({
   view,
   loading,
@@ -449,25 +496,37 @@ function NotificationList({
   notificationTargetIds,
   selectedPostId,
   privacyOn,
-  emptyCopy,
+  emptyState,
   onSelectPost,
+  onRefresh,
   onShowTimeline,
 }: {
   notifications: AdaptedSnsNotification[];
   notificationTargetIds: string[];
   selectedPostId: string | null;
   privacyOn: boolean;
-  emptyCopy: string;
+  emptyState: ActionableEmptyStateView;
+  onRefresh: () => void;
   onSelectPost: (postId: string | null) => void;
   onShowTimeline: () => void;
 }) {
   if (notifications.length === 0) {
+    const handleAction = (actionId: EmptyStateActionId) => {
+      if (actionId === "refresh" || actionId === "retry") {
+        onRefresh();
+        return;
+      }
+      if (actionId === "clear-filters") {
+        onShowTimeline();
+      }
+    };
+
     return (
-      <div className="sns-module__empty">
-        <Typography variant="label" weight={700}>
-          {emptyCopy}
-        </Typography>
-      </div>
+      <ActionableEmptyState
+        className="sns-module__empty"
+        model={emptyState}
+        onAction={handleAction}
+      />
     );
   }
 

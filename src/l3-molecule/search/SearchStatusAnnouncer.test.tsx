@@ -4,9 +4,21 @@ import { SearchStatusAnnouncer } from "./SearchStatusAnnouncer";
 
 describe("SearchStatusAnnouncer", () => {
   it("announces searching, found, empty, cancelled and failed states", () => {
+    const privateQuery = "invoice dataKey=secret123 C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_private";
+
     expect(renderToStaticMarkup(
-      <SearchStatusAnnouncer status="loading" loading totalCount={0} loadedCount={0} query="invoice" />,
+      <SearchStatusAnnouncer status="loading" loading totalCount={0} loadedCount={0} query={privateQuery} />,
     )).toContain("正在搜索");
+
+    expect(renderToStaticMarkup(
+      <SearchStatusAnnouncer status="loading" loading totalCount={0} loadedCount={0} query={privateQuery} />,
+    )).not.toContain("invoice");
+    expect(renderToStaticMarkup(
+      <SearchStatusAnnouncer status="loading" loading totalCount={0} loadedCount={0} query={privateQuery} />,
+    )).not.toContain("secret123");
+    expect(renderToStaticMarkup(
+      <SearchStatusAnnouncer status="loading" loading totalCount={0} loadedCount={0} query={privateQuery} />,
+    )).not.toContain("C:\\Users\\Synthetic");
 
     expect(renderToStaticMarkup(
       <SearchStatusAnnouncer status="ready" loading={false} totalCount={8} loadedCount={3} query="invoice" />,

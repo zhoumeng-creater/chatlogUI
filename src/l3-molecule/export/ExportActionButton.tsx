@@ -21,6 +21,7 @@ export function ExportActionButton({
       size="md"
       disabled={disabled}
       onClick={onClick}
+      data-coach-anchor="export-redaction"
     >
       <Download size={16} aria-hidden="true" />
       <span>{label}</span>

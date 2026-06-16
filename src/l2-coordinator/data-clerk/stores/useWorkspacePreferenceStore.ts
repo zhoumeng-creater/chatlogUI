@@ -4,12 +4,14 @@ import type {
 } from "@/l2-coordinator/commander/primaryWorkspaceNavigation";
 import {
   cloneDefaultWorkspacePreferences,
+  dismissWorkspaceCoachMark,
   sanitizeWorkspacePreferences,
   toggleWorkspaceRailMode,
   type WorkspacePanelWidths,
   type WorkspacePreferences,
   type WorkspaceRailMode,
 } from "@/l2-coordinator/commander/workspacePreferenceModel";
+import type { CoachMarkId } from "@/l2-coordinator/commander/coachMarkModel";
 
 export const WORKSPACE_PREFERENCES_STORAGE_KEY = "chatlog_alpha_workspace_preferences";
 
@@ -28,6 +30,8 @@ interface WorkspacePreferenceStoreActions {
   setLastPrimaryRoute: (route: PrimaryWorkspaceId) => void;
   setInspectorOpen: (open: boolean) => void;
   setSelectedTab: (tab: string | null) => void;
+  dismissCoachMark: (id: CoachMarkId) => void;
+  pauseCoachMarksUntil: (timestamp: number | null) => void;
   reset: () => void;
 }
 
@@ -133,6 +137,23 @@ export const useWorkspacePreferenceStore = create<WorkspacePreferenceStore>((set
       preferences: sanitizeWorkspacePreferences({
         ...state.preferences,
         selectedTab: tab,
+      }),
+    }));
+    get().saveToStorage();
+  },
+
+  dismissCoachMark: (id) => {
+    set((state) => ({
+      preferences: dismissWorkspaceCoachMark(state.preferences, id),
+    }));
+    get().saveToStorage();
+  },
+
+  pauseCoachMarksUntil: (timestamp) => {
+    set((state) => ({
+      preferences: sanitizeWorkspacePreferences({
+        ...state.preferences,
+        coachMarksPausedUntil: timestamp,
       }),
     }));
     get().saveToStorage();

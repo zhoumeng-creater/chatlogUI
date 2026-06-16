@@ -173,4 +173,27 @@ describe("useChatStore history pagination state", () => {
       returnToSearch: null,
     });
   });
+
+  it("tracks message selection state and clears stale selections on conversation changes", () => {
+    useChatStore.getState().enterSelectionMode();
+    useChatStore.getState().toggleMessageSelection("1");
+    useChatStore.getState().toggleMessageSelection("2");
+
+    expect(useChatStore.getState()).toMatchObject({
+      selectionMode: true,
+      selectedMessageIds: ["1", "2"],
+      lastSelectedMessageId: "2",
+    });
+
+    useChatStore.getState().setSelectionStatus("已复制 2 条消息");
+    expect(useChatStore.getState().selectionStatus).toBe("已复制 2 条消息");
+
+    useChatStore.getState().selectConversation("conversation-2");
+    expect(useChatStore.getState()).toMatchObject({
+      selectionMode: false,
+      selectedMessageIds: [],
+      lastSelectedMessageId: null,
+      selectionStatus: null,
+    });
+  });
 });

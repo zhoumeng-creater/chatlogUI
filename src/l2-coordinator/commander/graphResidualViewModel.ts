@@ -36,6 +36,7 @@ export interface GraphResidualView {
   businessIngestCopy: string;
   eventIngestCopy: string;
   qaCopy: string;
+  rebuildCopy: string;
   resetRebuildCopy: string;
   confirmationCopy: string | null;
   errorCopy: string | null;
@@ -61,6 +62,7 @@ export function buildGraphResidualView(
     businessIngestCopy: input.confirmationPending === "business" ? "确认写入业务记录" : "写入业务记录",
     eventIngestCopy: input.confirmationPending === "event" ? "确认写入事件" : "写入事件",
     qaCopy: input.confirmationPending === "qa" ? "确认提问" : "提问",
+    rebuildCopy: input.confirmationPending === "rebuild" ? "确认重建图谱" : "重建图谱",
     resetRebuildCopy: input.confirmationPending === "reset" ? "确认重置重建" : "重置重建",
     confirmationCopy: confirmationCopy(input.confirmationPending),
     errorCopy: input.configError ?? input.ingestError ?? input.qaError,
@@ -93,9 +95,14 @@ function confirmationCopy(action: GraphAdvancedConfirmation | null): string | nu
       ? "业务记录写入"
       : action === "event"
         ? "事件写入"
+        : action === "rebuild"
+          ? "图谱重建"
         : action === "reset"
           ? "图谱清空并重建"
           : "图谱 QA";
+  if (action === "rebuild") {
+    return `${label} 会重新构建图谱索引，期间可能占用本机资源；再次点击确认，或取消。`;
+  }
   if (action === "reset") {
     return `${label} 会调用本地图谱接口清空并重建索引；再次点击确认，或取消。`;
   }

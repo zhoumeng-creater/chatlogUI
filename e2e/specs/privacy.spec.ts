@@ -93,6 +93,32 @@ test.describe("privacy mode synthetic browser gate", () => {
     privacyGuard.assertNoLeaks();
   });
 
+  test("keeps shortcut help coach marks and empty states privacy-safe", async ({ page }) => {
+    const privacyGuard = installPrivacyLeakGuard(page);
+
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+    await enablePrivacyMode(page);
+    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
+
+    const emptyState = page.locator('[data-empty-state="search-not-started"]');
+    await expect(emptyState).toBeVisible();
+    await expect(emptyState).toContainText("输入关键词开始搜索");
+    await expect(emptyState).not.toContainText("Synthetic Session Alpha");
+
+    await page.getByRole("button", { name: "快捷键帮助" }).click();
+    const dialog = page.getByRole("dialog", { name: "搜索快捷键" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("搜索");
+    await expect(dialog).not.toContainText("Synthetic Session Alpha");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+
+    await expect(page.locator("[data-coach-mark]").first()).toBeVisible();
+    await assertNoForbiddenVisibleText(page);
+    privacyGuard.assertNoLeaks();
+  });
+
   test("masks analytics scope and export context in privacy mode", async ({ page }) => {
     const privacyGuard = installPrivacyLeakGuard(page);
 

@@ -1,0 +1,96 @@
+name: UX repair
+description: Track a privacy-safe chatlogUI UX repair item from audit to evidence.
+title: "[UX] "
+labels:
+  - ux-repair
+  - local-privacy
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste real chat content, API keys, tokens, full local paths, wxid values, private screenshots, or unredacted logs.
+  - type: textarea
+    id: user-task
+    attributes:
+      label: User task
+      description: What local chatlog task should the user complete?
+      placeholder: "Example: Search a conversation and export redacted evidence."
+    validations:
+      required: true
+  - type: dropdown
+    id: affected-module
+    attributes:
+      label: Affected module
+      multiple: true
+      options:
+        - Setup / readiness
+        - Workbench / chat reading
+        - Search
+        - Statistics
+        - SNS / moments
+        - Media
+        - AI / semantic
+        - Graph
+        - Settings / diagnostics
+        - Export
+        - Release quality gate
+    validations:
+      required: true
+  - type: input
+    id: source-audit
+    attributes:
+      label: Source audit or plan
+      description: Link or path to the audit, plan, or task note that found this issue.
+      placeholder: "docs/ux-issue-audits/2026-06-13-comprehensive-code-repair-plan.md#task-15"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Code or product evidence
+      description: Cite files, synthetic screenshots, or redacted logs. Keep evidence privacy-safe.
+      placeholder: "src/l3-molecule/search/SearchResultsPane.tsx: result state lacks..."
+    validations:
+      required: true
+  - type: textarea
+    id: privacy-risk
+    attributes:
+      label: Privacy risk
+      description: State what must not be logged, copied, exported, screenshotted, or uploaded.
+      placeholder: "Must not include query text, prompt, answer, contact names, raw local paths, dataKey, imgKey, tokens, or wxid."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: Include states, responsive behavior, privacy mode, and L1/L2/L3/L4 ownership where relevant.
+      placeholder: |
+        - Loading, empty, error, success, and cancelled states are handled.
+        - Privacy mode preserves structure and masks private content.
+        - L2 owns orchestration; L3 receives data and callbacks only.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification commands
+      description: List focused and broad commands expected for this issue.
+      placeholder: |
+        pnpm lint
+        pnpm typecheck
+        pnpm test -- --run <focused tests>
+        pnpm build
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Screenshots or logs
+      description: Attach only synthetic, redacted, or privacy-safe evidence.
+      placeholder: "Attach redacted screenshots or paste safe command output."
+  - type: textarea
+    id: blockers
+    attributes:
+      label: Blockers or dependencies
+      description: Note missing sidecar contract, prior task dependency, or user authorization needed.

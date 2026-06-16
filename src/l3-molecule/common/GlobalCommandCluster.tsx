@@ -1,9 +1,14 @@
-import { Lock, Settings, Terminal, Unlock } from "lucide-react";
+import { CircleHelp, Lock, Settings, Terminal, Unlock } from "lucide-react";
 import { IconButton } from "@l4/ui";
 
 interface GlobalCommandClusterProps {
   privacyOn: boolean;
   onTogglePrivacy: () => void;
+  shortcutHelpAction?: {
+    label: string;
+    tooltip: string;
+    onClick: () => void;
+  };
   developerConsoleAction?: {
     label: string;
     tooltip: string;
@@ -15,6 +20,7 @@ interface GlobalCommandClusterProps {
 export function GlobalCommandCluster({
   privacyOn,
   onTogglePrivacy,
+  shortcutHelpAction,
   developerConsoleAction,
   onOpenSettings,
 }: GlobalCommandClusterProps) {
@@ -27,7 +33,18 @@ export function GlobalCommandCluster({
         active={privacyOn}
         icon={privacyOn ? <Lock size={16} /> : <Unlock size={16} />}
         onClick={onTogglePrivacy}
+        data-coach-anchor="privacy-toggle"
       />
+      {shortcutHelpAction && (
+        <IconButton
+          label={shortcutHelpAction.label}
+          tooltip={shortcutHelpAction.tooltip}
+          tooltipPlacement="bottom"
+          icon={<CircleHelp size={16} />}
+          onClick={shortcutHelpAction.onClick}
+          onPointerUp={(event) => event.preventDefault()}
+        />
+      )}
       {developerConsoleAction && (
         <IconButton
           label={developerConsoleAction.label}

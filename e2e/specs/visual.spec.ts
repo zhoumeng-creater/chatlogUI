@@ -50,9 +50,18 @@ async function installTask14VisualLongContentFixture(page: Page) {
   });
 }
 
+async function suppressCoachMarksForVisuals(page: Page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("chatlog_alpha_workspace_preferences", JSON.stringify({
+      coachMarksPausedUntil: 4_102_444_800_000,
+    }));
+  });
+}
+
 test.describe("visual regression synthetic states", () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await suppressCoachMarksForVisuals(page);
   });
 
   test("captures desktop workbench and advanced module states", async ({ page }) => {

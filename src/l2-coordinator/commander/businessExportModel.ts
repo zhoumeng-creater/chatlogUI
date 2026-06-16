@@ -18,6 +18,7 @@ export type BusinessExportSourceModule =
   | "stats"
   | "sns"
   | "conversation"
+  | "conversation_selection"
   | "media"
   | "ai"
   | "graph";
@@ -194,6 +195,7 @@ export interface SnsExportInput {
 }
 
 export interface ConversationExportInput {
+  source?: Extract<BusinessExportSourceModule, "conversation" | "conversation_selection">;
   format: BusinessExportFormat;
   privacyOn: boolean;
   requestedUnredacted?: boolean;
@@ -326,9 +328,21 @@ const SOURCE_LABELS: Record<BusinessExportSourceModule, string> = {
   stats: "统计",
   sns: "朋友圈",
   conversation: "当前会话",
+  conversation_selection: "选中消息片段",
   media: "媒体清单",
   ai: "AI 问答与证据",
   graph: "图谱",
+};
+
+const SOURCE_FILENAME_SLUGS: Record<BusinessExportSourceModule, string> = {
+  search: "search",
+  stats: "stats",
+  sns: "sns",
+  conversation: "conversation",
+  conversation_selection: "conversation-selection",
+  media: "media",
+  ai: "ai",
+  graph: "graph",
 };
 
 const FORMAT_EXTENSIONS: Record<BusinessExportFormat, BusinessExportExtension> = {
@@ -651,6 +665,8 @@ export function createSnsExportArtifact(input: SnsExportInput): BusinessExportAr
 }
 
 export function createConversationExportArtifact(input: ConversationExportInput): BusinessExportArtifact {
+  const source = input.source ?? "conversation";
+  const title = source === "conversation_selection" ? "选中消息片段" : "当前会话";
   const partial = input.loadedCount < input.totalCount;
   const redactContent = shouldRedactExportContent(input);
   const messages = input.messages.map((message) => ({
@@ -662,7 +678,7 @@ export function createConversationExportArtifact(input: ConversationExportInput)
   }));
   const content = input.format === "json"
     ? JSON.stringify({
-        title: "当前会话",
+        title,
         generatedAt: input.generatedAt.toISOString(),
         scope: sanitizeScopeSummary(input.scopeSummary),
         loadedCount: input.loadedCount,
@@ -671,7 +687,7 @@ export function createConversationExportArtifact(input: ConversationExportInput)
         messages,
       }, null, 2)
     : [
-        "# 当前会话",
+        `# ${title}`,
         "",
         `生成时间: ${input.generatedAt.toISOString()}`,
         `范围: ${sanitizeScopeSummary(input.scopeSummary)}`,
@@ -683,7 +699,7 @@ export function createConversationExportArtifact(input: ConversationExportInput)
       ].join("\n");
 
   return createArtifact({
-    source: "conversation",
+    source,
     format: input.format === "csv" ? "markdown" : input.format,
     privacyOn: input.privacyOn,
     requestedUnredacted: input.requestedUnredacted,
@@ -1085,7 +1101,7 @@ function createBusinessExportFileName(
   format: BusinessExportFormat,
   generatedAt: Date,
 ): string {
-  return `chatlog-${source}-${formatTimestampForFileName(generatedAt)}.${FORMAT_EXTENSIONS[format]}`;
+  return `chatlog-${SOURCE_FILENAME_SLUGS[source]}-${formatTimestampForFileName(generatedAt)}.${FORMAT_EXTENSIONS[format]}`;
 }
 
 function formatTimestampForFileName(value: Date): string {

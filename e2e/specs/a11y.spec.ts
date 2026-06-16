@@ -187,6 +187,31 @@ test.describe("accessibility and keyboard gate", () => {
     await expect(page.getByRole("region", { name: "图谱问答面板" })).toBeVisible();
   });
 
+  test("keeps shortcut help overlay focus-contained and axe-clean", async ({ page }) => {
+    await setDesktop(page);
+    await openSyntheticWorkbench(page);
+
+    const helpButton = page.getByRole("button", { name: "快捷键帮助" });
+    await helpButton.focus();
+    await page.keyboard.press("Enter");
+
+    const dialog = page.getByRole("dialog", { name: "会话阅读快捷键" });
+    await expect(dialog).toBeVisible();
+    await expect.poll(() =>
+      dialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+    await expectNoCriticalA11yViolations(page);
+
+    await page.keyboard.press("Tab");
+    await expect.poll(() =>
+      dialog.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(helpButton).toBeFocused();
+  });
+
   test("does not expose forbidden accessible names in narrow privacy mode", async ({ page }) => {
     const privacyGuard = installPrivacyLeakGuard(page);
 

@@ -15,6 +15,8 @@ describe("workspacePreferenceModel", () => {
       lastPrimaryRoute: "graph",
       inspectorOpen: true,
       selectedTab: "summary",
+      dismissedCoachMarkIds: ["privacy-mode", "search-scope", "Synthetic Private Room"],
+      coachMarksPausedUntil: 123,
       query: "Synthetic private query",
       prompt: "Synthetic prompt",
       wxid: "wxid_synthetic_private",
@@ -29,6 +31,8 @@ describe("workspacePreferenceModel", () => {
       lastPrimaryRoute: "graph",
       inspectorOpen: true,
       selectedTab: "summary",
+      dismissedCoachMarkIds: ["privacy-mode", "search-scope"],
+      coachMarksPausedUntil: 123,
     });
     expect(preferences).not.toHaveProperty("query");
     expect(preferences).not.toHaveProperty("prompt");
@@ -44,6 +48,8 @@ describe("workspacePreferenceModel", () => {
       panelWidths: { conversationList: -1, inspector: Number.NaN },
       lastPrimaryRoute: "/tmp/private",
       selectedTab: "",
+      dismissedCoachMarkIds: ["unknown", "wxid_synthetic_private"],
+      coachMarksPausedUntil: -1,
     })).toEqual(DEFAULT_WORKSPACE_PREFERENCES);
   });
 

@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { SearchResults } from "@l2/data-clerk/stores/useSearchStore";
+import type { ActionableEmptyStateView } from "@l2/commander/actionableEmptyStateModel";
 import type { SearchResultsPaneViewModel } from "./SearchResultsPane";
 import { SearchResultsPane } from "./SearchResultsPane";
 
@@ -21,6 +22,11 @@ const baseProps = {
   onMoveHit: vi.fn(),
   viewModel: null,
   activeFilterChips: [],
+  emptyStates: {
+    notStarted: emptyState("search-not-started", "输入关键词开始搜索", "搜索不会向后端提交空白查询。", ["clear-filters"]),
+    noResults: emptyState("search-no-results", "没有搜索结果", "换一个关键词或放宽范围。", ["clear-filters", "refresh"]),
+    filteredNoResults: emptyState("filters-no-results", "筛选后没有结果", "当前筛选组合没有可显示内容。", ["clear-filters", "refresh"]),
+  },
 };
 
 const results: SearchResults = {
@@ -117,6 +123,21 @@ describe("SearchResultsPane", () => {
     expect(html).toContain("不会向后端提交空白查询");
   });
 
+  it("omits current-conversation search from idle state when no conversation exists", () => {
+    const html = renderToStaticMarkup(
+      <SearchResultsPane
+        {...baseProps}
+        emptyStates={{
+          ...baseProps.emptyStates,
+          notStarted: emptyState("search-not-started", "输入关键词开始搜索", "搜索不会向后端提交空白查询。", ["clear-filters"]),
+        }}
+      />,
+    );
+
+    expect(html).toContain("输入关键词开始搜索");
+    expect(html).not.toContain("搜索当前会话");
+  });
+
   it("keeps result rows exposed as buttons inside list items", () => {
     const html = renderToStaticMarkup(
       <SearchResultsPane
@@ -210,3 +231,24 @@ describe("SearchResultsPane", () => {
     expect(html).toContain("search result");
   });
 });
+
+function emptyState(
+  id: ActionableEmptyStateView["id"],
+  title: string,
+  reason: string,
+  actions: Array<"clear-filters" | "refresh">,
+): ActionableEmptyStateView {
+  return {
+    id,
+    title,
+    reason,
+    description: "可以先调整范围、消息类型或日期筛选，再执行搜索。",
+    actions: actions.map((actionId) => ({
+      id: actionId,
+      label: actionId === "refresh" ? "重新搜索" : "清除筛选",
+      variant: actionId === "refresh" ? "ghost" : "secondary",
+      disabled: false,
+      disabledReason: null,
+    })),
+  };
+}

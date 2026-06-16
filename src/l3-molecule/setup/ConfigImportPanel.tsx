@@ -1,6 +1,8 @@
 import type { SetupProfileSummary } from "@l2/data-clerk/types/setup";
 import type { SetupDetectedPathCandidateView } from "@l2/commander/setupDetectedPathModel";
 import type { SetupDetectedPathStatus } from "@l2/data-clerk/types/setup";
+import type { EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
 import { Button, Surface, Typography } from "@l4/ui";
 import { formatSafeUserFacingError } from "@/utils/privacyDisplay";
 
@@ -29,6 +31,20 @@ export function ConfigImportPanel({
   onConnectExternalService,
   onOpenManualAdvanced,
 }: ConfigImportPanelProps) {
+  const handleEmptyAction = (actionId: EmptyStateActionId) => {
+    if (actionId === "configure-service") {
+      onChooseDirectory();
+      return;
+    }
+    if (actionId === "check-service") {
+      onConnectExternalService();
+      return;
+    }
+    if (actionId === "open-settings") {
+      onOpenManualAdvanced();
+    }
+  };
+
   return (
     <div className="setup-panel-stack">
       <Typography variant="h2">导入本机配置</Typography>
@@ -69,19 +85,46 @@ export function ConfigImportPanel({
         </Surface>
       )}
       {detectionStatus === "empty" && !profile && (
-        <Surface variant="subtle" className="setup-result-card">
-          <Typography variant="label" weight={700}>未找到可用的默认目录</Typography>
-          <Typography variant="caption" color="var(--text-secondary)">
-            微信数据可能保存在自定义位置。请选择其他目录，或连接已经运行的本机服务。
-          </Typography>
-        </Surface>
+        <ActionableEmptyState
+          className="setup-result-card"
+          model={{
+            id: "service-not-configured",
+            title: "未找到可用的默认目录",
+            reason: "微信数据可能保存在自定义位置。",
+            description: "请选择其他目录、连接已经运行的本机服务，或进入高级配置手动填写结构化参数。",
+            actions: [
+              {
+                id: "configure-service",
+                label: "选择其他目录",
+                variant: "secondary",
+                disabled: loading,
+                disabledReason: loading ? "正在读取本机配置摘要..." : null,
+              },
+              {
+                id: "check-service",
+                label: "连接已有服务",
+                variant: "secondary",
+                disabled: loading,
+                disabledReason: loading ? "正在读取本机配置摘要..." : null,
+              },
+              {
+                id: "open-settings",
+                label: "高级配置",
+                variant: "ghost",
+                disabled: loading,
+                disabledReason: loading ? "正在读取本机配置摘要..." : null,
+              },
+            ],
+          }}
+          onAction={handleEmptyAction}
+        />
       )}
       {detectionStatus === "error" && detectionError && (
         <Surface variant="subtle" className="setup-result-card setup-result-card--error" role="alert">
           {formatSafeUserFacingError(detectionError)}
         </Surface>
       )}
-      {!profile && (
+      {!profile && detectionStatus !== "empty" && (
         <div className="setup-flow__secondary-actions">
           <Button type="button" variant="secondary" disabled={loading} onClick={onChooseDirectory}>
             选择其他目录

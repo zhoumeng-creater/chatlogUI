@@ -113,6 +113,55 @@ describe("useGraphStore", () => {
     });
   });
 
+  it("records applied graph request and refresh timestamps only for successful active summaries", () => {
+    useGraphStore.getState().startGraphLoadRequest("graph-summary-a");
+    expect(useGraphStore.getState().completeGraphSummaryRequest("graph-summary-a", {
+      statusSummary: statusView("fresh"),
+      query: { entities: [], relations: [], events: [], facts: [] },
+      visualize: visualize("fresh"),
+      timeline: timeline("fresh"),
+      appliedRequest: {
+        keyword: "Synthetic Entity",
+        window: "30d",
+        entity: "person",
+        relation: "owns",
+        limit: 120,
+        start: "2026-01-01",
+        end: "2026-01-31",
+      },
+      loadedAt: "2026-01-02T03:04:05.000Z",
+      refreshedAt: "2026-01-02T03:04:06.000Z",
+      summaryReason: "manual-refresh",
+    })).toBe(true);
+
+    expect(useGraphStore.getState()).toMatchObject({
+      appliedGraphRequest: {
+        keyword: "Synthetic Entity",
+        window: "30d",
+        entity: "person",
+        relation: "owns",
+        limit: 120,
+      },
+      lastLoadedAt: "2026-01-02T03:04:05.000Z",
+      lastRefreshedAt: "2026-01-02T03:04:06.000Z",
+      lastGeneratedAt: "1970-01-01T00:00:02.000Z",
+      lastSummaryReason: "manual-refresh",
+    });
+
+    useGraphStore.getState().startGraphLoadRequest("graph-summary-b");
+    expect(useGraphStore.getState().completeGraphSummaryRequest("graph-summary-old", {
+      statusSummary: statusView("stale"),
+      query: { entities: [], relations: [], events: [], facts: [] },
+      visualize: visualize("stale"),
+      timeline: timeline("stale"),
+      appliedRequest: { keyword: "stale", limit: 80 },
+      loadedAt: "2026-01-02T04:00:00.000Z",
+      refreshedAt: "2026-01-02T04:00:00.000Z",
+      summaryReason: "stale",
+    })).toBe(false);
+    expect(useGraphStore.getState().appliedGraphRequest?.keyword).toBe("Synthetic Entity");
+  });
+
   it("drops stale graph child completions after newer status, timeline, action, config, ingest, or QA requests", () => {
     const store = useGraphStore.getState();
 

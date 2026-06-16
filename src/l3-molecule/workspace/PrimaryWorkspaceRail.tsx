@@ -35,7 +35,11 @@ export function PrimaryWorkspaceRail({
   const toggleLabel = railMode === "expanded" ? "收起导航栏" : "展开导航栏";
 
   return (
-    <div className="primary-workspace-rail" data-rail-mode={railMode}>
+    <div
+      className="primary-workspace-rail"
+      data-rail-mode={railMode}
+      data-coach-anchor="primary-workspace-rail"
+    >
       {canToggleLabels && (
         <Tooltip label={toggleLabel} placement="right">
           <button

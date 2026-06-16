@@ -30,6 +30,10 @@ import { resolveSearchStoreScope } from "./searchWorkspaceContext";
 import { createSearchExportArtifact } from "./businessExportModel";
 import { useBusinessExportCommander } from "./useBusinessExportCommander";
 import { recordSearchResultOpenedKpiEvent } from "./uxKpiEvents";
+import {
+  bindActionableEmptyStateActions,
+  buildActionableEmptyState,
+} from "./actionableEmptyStateModel";
 
 function withSmokeQuery(route: string): string {
   if (typeof window === "undefined") return route;
@@ -213,6 +217,23 @@ export function useSearchWorkspaceCommander() {
         messages: search.results?.messages ?? [],
       }),
   });
+  const searchEmptyStates = useMemo(() => ({
+    notStarted: bindActionableEmptyStateActions(buildActionableEmptyState({
+      variant: "search-not-started",
+      readiness: buildReadySearchEmptyStateReadiness(Boolean(scopedChat?.trim() || currentChat)),
+      privacyOn,
+    }), ["clear-filters"]),
+    noResults: bindActionableEmptyStateActions(buildActionableEmptyState({
+      variant: "search-no-results",
+      readiness: buildReadySearchEmptyStateReadiness(Boolean(scopedChat?.trim() || currentChat)),
+      privacyOn,
+    }), ["clear-filters", "refresh"]),
+    filteredNoResults: bindActionableEmptyStateActions(buildActionableEmptyState({
+      variant: "filters-no-results",
+      readiness: buildReadySearchEmptyStateReadiness(Boolean(scopedChat?.trim() || currentChat)),
+      privacyOn,
+    }), ["clear-filters", "refresh"]),
+  }), [currentChat, privacyOn, scopedChat]);
 
   const openResult = useCallback(
     async (message: SearchResults["messages"][number]) => {
@@ -259,6 +280,7 @@ export function useSearchWorkspaceCommander() {
   return {
     chat,
     currentConversation,
+    hasCurrentConversation: Boolean(scopedChat?.trim() || currentChat),
     openResult,
     privacyOn,
     search,
@@ -278,6 +300,16 @@ export function useSearchWorkspaceCommander() {
     clearRecentQueries,
     moveHit,
     businessExport,
+    searchEmptyStates,
+  };
+}
+
+function buildReadySearchEmptyStateReadiness(hasCurrentConversation: boolean) {
+  return {
+    serviceConfigured: true,
+    httpReady: true,
+    dbReady: true,
+    hasCurrentConversation,
   };
 }
 

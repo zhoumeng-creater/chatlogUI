@@ -1,4 +1,9 @@
 import type { PrimaryWorkspaceId } from "./primaryWorkspaceNavigation";
+import {
+  dismissCoachMark,
+  sanitizeCoachMarkPreferences,
+  type CoachMarkId,
+} from "./coachMarkModel";
 
 export type WorkspaceRailMode = "expanded" | "collapsed" | "peek";
 
@@ -13,6 +18,8 @@ export interface WorkspacePreferences {
   lastPrimaryRoute: PrimaryWorkspaceId | null;
   inspectorOpen: boolean;
   selectedTab: string | null;
+  dismissedCoachMarkIds: CoachMarkId[];
+  coachMarksPausedUntil: number | null;
 }
 
 export const DEFAULT_WORKSPACE_PANEL_WIDTHS: WorkspacePanelWidths = {
@@ -26,6 +33,8 @@ export const DEFAULT_WORKSPACE_PREFERENCES: WorkspacePreferences = {
   lastPrimaryRoute: null,
   inspectorOpen: false,
   selectedTab: null,
+  dismissedCoachMarkIds: [],
+  coachMarksPausedUntil: null,
 };
 
 const primaryRouteIds: PrimaryWorkspaceId[] = [
@@ -53,6 +62,7 @@ export function sanitizeWorkspacePreferences(raw: unknown): WorkspacePreferences
       ? input.inspectorOpen
       : DEFAULT_WORKSPACE_PREFERENCES.inspectorOpen,
     selectedTab: sanitizeStructuralString(input.selectedTab),
+    ...sanitizeCoachMarkPreferences(input),
   };
 }
 
@@ -60,7 +70,22 @@ export function cloneDefaultWorkspacePreferences(): WorkspacePreferences {
   return {
     ...DEFAULT_WORKSPACE_PREFERENCES,
     panelWidths: { ...DEFAULT_WORKSPACE_PANEL_WIDTHS },
+    dismissedCoachMarkIds: [...DEFAULT_WORKSPACE_PREFERENCES.dismissedCoachMarkIds],
   };
+}
+
+export function getDismissedCoachMarkIds(preferences: WorkspacePreferences): CoachMarkId[] {
+  return [...preferences.dismissedCoachMarkIds];
+}
+
+export function dismissWorkspaceCoachMark(
+  preferences: WorkspacePreferences,
+  id: CoachMarkId,
+): WorkspacePreferences {
+  return sanitizeWorkspacePreferences({
+    ...preferences,
+    dismissedCoachMarkIds: dismissCoachMark(preferences.dismissedCoachMarkIds, id),
+  });
 }
 
 export function getEffectiveRailMode(

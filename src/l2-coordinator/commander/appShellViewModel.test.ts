@@ -10,6 +10,7 @@ describe("appShellViewModel", () => {
         windowMaterial: "mica",
       }),
     ).toMatchObject({
+      productName: "chatlogUI",
       title: "工作台",
       privacyOn: true,
       windowMaterial: "mica",
@@ -57,6 +58,19 @@ describe("appShellViewModel", () => {
     expect(view.developerConsoleAction).toEqual({
       label: "开发者控制台",
       tooltip: "打开开发者控制台",
+    });
+  });
+
+  it("exposes a contextual shortcut help action in the shell contract", () => {
+    const view = deriveAppShellView({
+      title: "搜索",
+      privacyOn: false,
+      windowMaterial: "none",
+    });
+
+    expect(view.shortcutHelpAction).toEqual({
+      label: "快捷键帮助",
+      tooltip: "查看当前页面快捷键",
     });
   });
 

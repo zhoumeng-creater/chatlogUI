@@ -43,6 +43,10 @@ import {
   buildWorkspaceReturnContext,
   getWorkspaceReturnSourceForChatAnchor,
 } from "./workspaceReturnContextModel";
+import {
+  bindActionableEmptyStateActions,
+  buildActionableEmptyState,
+} from "./actionableEmptyStateModel";
 
 function useViewportWidth(): number {
   const [width, setWidth] = useState(() =>
@@ -198,6 +202,37 @@ export function useWorkbenchCommander() {
         source: params.get("source"),
         returnRoute: params.get("returnRoute"),
       });
+  const conversationListEmptyState = useMemo(() => bindActionableEmptyStateActions(
+    buildActionableEmptyState({
+      variant: chat.conversationListQuery.trim() || chat.conversationListFilter !== "all"
+        ? "filters-no-results"
+        : "no-conversation-selected",
+      readiness: readyWorkbenchEmptyStateReadiness(false),
+      privacyOn,
+    }),
+    chat.conversationListQuery.trim() || chat.conversationListFilter !== "all"
+      ? ["clear-filters", "refresh"]
+      : ["refresh"],
+  ), [chat.conversationListFilter, chat.conversationListQuery, privacyOn]);
+  const messageListEmptyStates = useMemo(() => ({
+    noConversation: {
+      ...bindActionableEmptyStateActions(buildActionableEmptyState({
+        variant: "no-conversation-selected",
+        readiness: readyWorkbenchEmptyStateReadiness(false),
+        privacyOn,
+      }), ["choose-conversation"]),
+      description: chatReadingState.description,
+    },
+    conversationEmpty: {
+      ...bindActionableEmptyStateActions(buildActionableEmptyState({
+        variant: "conversation-empty",
+        readiness: readyWorkbenchEmptyStateReadiness(true),
+        privacyOn,
+      }), ["refresh", "choose-conversation"]),
+      title: chatReadingState.title,
+      reason: chatReadingState.description,
+    },
+  }), [chatReadingState.description, chatReadingState.title, privacyOn]);
   const resolvedSinglePaneView = resolveSinglePaneView(
     layout.mode,
     selectedConversationId,
@@ -390,6 +425,8 @@ export function useWorkbenchCommander() {
     inspectorOpen,
     inspectorTitle: getConversationInspectorTitle({ hasConversation: Boolean(currentConversation) }),
     commandBar,
+    conversationListEmptyState,
+    messageListEmptyStates,
     conversationExport,
     selectedFragmentExport,
     selectedMessages,
@@ -414,6 +451,15 @@ export function useWorkbenchCommander() {
     deriveTranscriptPositionModel,
     getMessageActionModel,
     getMessageSafeRawFieldRows,
+  };
+}
+
+function readyWorkbenchEmptyStateReadiness(hasCurrentConversation: boolean) {
+  return {
+    serviceConfigured: true,
+    httpReady: true,
+    dbReady: true,
+    hasCurrentConversation,
   };
 }
 

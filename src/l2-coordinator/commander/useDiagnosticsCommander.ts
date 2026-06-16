@@ -11,6 +11,7 @@ import { buildDiagnosticsReport, serializeDiagnosticsReport } from "./diagnostic
 import { buildRuntimeDiagnosticsManifest } from "./diagnosticsManifest";
 import { summarizeDiagnosticEventsForReport } from "./diagnosticEventViewModel";
 import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
+import { recordErrorRecoveryKpiEvent } from "./uxKpiEvents";
 
 export function useDiagnosticsCommander() {
   const profile = useSetupStore((s) => s.profile);
@@ -76,6 +77,11 @@ export function useDiagnosticsCommander() {
   const copyText = useMemo(() => serializeDiagnosticsReport(report), [report]);
 
   const exportReport = useCallback(async () => {
+    recordErrorRecoveryKpiEvent({
+      sourceModule: "diagnostics",
+      recoveryAction: "copy-diagnostics",
+      outcome: "success",
+    });
     try {
       const path = await exportDiagnosticsReport(report);
       recordLocalDiagnosticEvent({

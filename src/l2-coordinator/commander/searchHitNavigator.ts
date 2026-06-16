@@ -50,7 +50,7 @@ export function moveSearchHit({
 }): string | null {
   if (messages.length === 0) return null;
   const currentIndex = messages.findIndex((message) => message.id === activeResultId);
-  const index = currentIndex >= 0 ? currentIndex : -1;
+  const index = currentIndex >= 0 ? currentIndex : 0;
   if (direction === "first") return messages[0]?.id ?? null;
   if (direction === "last") return messages[messages.length - 1]?.id ?? null;
   if (direction === "previous") return messages[Math.max(0, index - 1)]?.id ?? null;

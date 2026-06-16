@@ -46,7 +46,15 @@ describe("chatlog raw DTO contracts", () => {
     const adaptedHistory = adaptHistoryResponse(rawHistory);
     const adaptedSearch = adaptSearchResponse(rawSearch);
 
-    expect(adaptedHistory.messages.map((message) => message.isSelf)).toEqual([false, true, false]);
+    expect(adaptedHistory.messages.map((message) => message.isSelf)).toEqual([
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+    ]);
     expect(adaptedSearch.messages[0]).toMatchObject({
       isSelf: false,
       sender: "contact_synthetic_001",
@@ -55,6 +63,13 @@ describe("chatlog raw DTO contracts", () => {
       kind: "image",
       resourceKey: "media_synthetic_image_key",
     });
+    expect(adaptedHistory.messages.flatMap((message) => message.attachments.map((attachment) => attachment.kind))).toEqual([
+      "image",
+      "video",
+      "voice",
+      "file",
+      "image",
+    ]);
   });
 
   it("exports semantic raw DTOs for search and QA evidence", () => {

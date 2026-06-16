@@ -31,6 +31,8 @@ describe("useWorkspacePreferenceStore", () => {
       lastPrimaryRoute: "analytics",
       inspectorOpen: true,
       selectedTab: null,
+      dismissedCoachMarkIds: [],
+      coachMarksPausedUntil: null,
     });
   });
 
@@ -55,6 +57,26 @@ describe("useWorkspacePreferenceStore", () => {
       }),
     });
     expect(useWorkspacePreferenceStore.getState().saveToStorage()).toBe(false);
+  });
+
+  it("persists dismissed coach marks without storing private context", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn(),
+      setItem,
+    });
+
+    useWorkspacePreferenceStore.getState().dismissCoachMark("privacy-mode");
+    useWorkspacePreferenceStore.getState().dismissCoachMark("privacy-mode");
+    useWorkspacePreferenceStore.getState().pauseCoachMarksUntil(1234);
+
+    expect(useWorkspacePreferenceStore.getState().preferences.dismissedCoachMarkIds).toEqual(["privacy-mode"]);
+    expect(useWorkspacePreferenceStore.getState().preferences.coachMarksPausedUntil).toBe(1234);
+    expect(JSON.stringify(useWorkspacePreferenceStore.getState().preferences)).not.toContain("Synthetic Private");
+    expect(setItem).toHaveBeenCalledWith(
+      WORKSPACE_PREFERENCES_STORAGE_KEY,
+      expect.stringContaining('"dismissedCoachMarkIds":["privacy-mode"]'),
+    );
   });
 
   it("falls back to defaults when storage cannot be parsed", () => {

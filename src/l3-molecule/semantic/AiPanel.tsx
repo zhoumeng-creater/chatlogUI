@@ -6,6 +6,7 @@ import { Button } from '@l4/ui/Button';
 import { IconButton } from '@l4/ui/IconButton';
 import { Spinner } from '@l4/ui/Spinner';
 import { ExportActionButton } from '@l3/export';
+import { ActionableEmptyState } from '@l3/common/ActionableEmptyState';
 import { QAPanel } from './QAPanel';
 import { SemanticSearch } from './SemanticSearch';
 import { TopicView } from './TopicView';
@@ -143,6 +144,7 @@ export function AiPanel({
                 className={classNames("semantic-primary-task", `semantic-primary-task--${primaryTask.kind}`)}
                 aria-label="AI 主任务"
                 aria-live="polite"
+                data-coach-anchor="ai-primary-task"
               >
                 <div className="semantic-primary-task__copy">
                   <Typography variant="label" weight={700}>{primaryTask.title}</Typography>
@@ -282,11 +284,10 @@ export function AiPanel({
                             </div>
                           )}
                           {activeTab === 'analysis' && !currentChat && (
-                            <div className="semantic-state">
-                              <Typography variant="body" color="var(--color-text-secondary)">
-                                选择左侧联系人后即可查看分析
-                              </Typography>
-                            </div>
+                            <ActionableEmptyState
+                              className="semantic-state"
+                              model={ai.emptyStates.analysisNoConversation}
+                            />
                           )}
                           {activeTab === 'preview' && (
                             <SemanticIndexPreview

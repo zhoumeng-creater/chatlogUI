@@ -9,6 +9,10 @@ import { useMediaCommander } from "./useMediaCommander";
 import { useScopedWorkspaceConversation } from "./useScopedWorkspaceConversation";
 import { useChatCommander } from "./useChatCommander";
 import type { MediaAttachment } from "@l2/data-clerk/stores/useMediaStore";
+import {
+  bindActionableEmptyStateActions,
+  buildActionableEmptyState,
+} from "./actionableEmptyStateModel";
 
 function withSmokeQuery(route: string): string {
   if (typeof window === "undefined") return route;
@@ -141,6 +145,21 @@ export function useMediaWorkspaceCommander() {
     media: {
       ...media,
       locateAttachment,
+      emptyStates: {
+        noConversation: {
+          ...bindActionableEmptyStateActions(buildActionableEmptyState({
+            variant: "no-conversation-selected",
+            readiness: {
+              serviceConfigured: true,
+              httpReady: true,
+              dbReady: true,
+              hasCurrentConversation: false,
+            },
+            privacyOn,
+          }), ["choose-conversation"]),
+          description: "打开会话后显示附件、收藏、成员、未读和增量消息。",
+        },
+      },
     },
     scopeController,
     workspaceRouteScope,
@@ -148,6 +167,7 @@ export function useMediaWorkspaceCommander() {
     clearScopeChip,
     resetScope,
     statusItems: [mediaStatusItem(media.status, currentChat)],
+    navigateBackToWorkbench: () => navigate(withSmokeQuery("/workbench")),
   };
 }
 

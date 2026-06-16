@@ -7,6 +7,7 @@ import type {
   TranscriptScrollIntent,
 } from "@l2/data-clerk/stores/useChatStore";
 import type { MessageActionId } from "@l2/commander/messageActionModel";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
 import type { MessageActionModel, SafeRawFieldRow } from "@l2/commander/messageActionModel";
 import type {
   TranscriptPositionModel,
@@ -25,6 +26,10 @@ interface ChatViewProps {
   messagesStatus: LoadStatus;
   messagesError: string | ApiErrorModel | null;
   readingState: ChatReadingState;
+  emptyStates: {
+    noConversation: ActionableEmptyStateView;
+    conversationEmpty: ActionableEmptyStateView;
+  };
   messagesTotalCount: number;
   scrollIntent: TranscriptScrollIntent;
   scrollAnchorMessageId: string | null;
@@ -39,6 +44,7 @@ interface ChatViewProps {
   privacyOn: boolean;
   onLoadHistory: (chat: string) => void;
   onLoadMoreHistory: (chat: string) => void;
+  onEmptyAction?: (actionId: EmptyStateActionId) => void;
   onScrollIntentHandled: () => void;
   onEnterSelectionMode: () => void;
   onExitSelectionMode: () => void;
@@ -67,6 +73,7 @@ export function ChatView({
   messagesStatus,
   messagesError,
   readingState,
+  emptyStates,
   messagesTotalCount,
   scrollIntent,
   scrollAnchorMessageId,
@@ -81,6 +88,7 @@ export function ChatView({
   privacyOn,
   onLoadHistory,
   onLoadMoreHistory,
+  onEmptyAction,
   onScrollIntentHandled,
   onEnterSelectionMode,
   onExitSelectionMode,
@@ -110,6 +118,7 @@ export function ChatView({
         messagesStatus={messagesStatus}
         messagesError={messagesError}
         readingState={readingState}
+        emptyStates={emptyStates}
         scrollIntent={scrollIntent}
         scrollAnchorMessageId={scrollAnchorMessageId}
         scrollAnchorLocalId={scrollAnchorLocalId}
@@ -123,6 +132,7 @@ export function ChatView({
         privacyOn={privacyOn}
         onLoadHistory={onLoadHistory}
         onLoadMoreHistory={onLoadMoreHistory}
+        onEmptyAction={onEmptyAction}
         onScrollIntentHandled={onScrollIntentHandled}
         onEnterSelectionMode={onEnterSelectionMode}
         onExitSelectionMode={onExitSelectionMode}

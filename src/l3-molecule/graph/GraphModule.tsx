@@ -112,7 +112,7 @@ export function GraphModule({ graph, privacyOn, onOpenSource }: GraphModuleProps
 
   return (
     <section className="graph-module" aria-label="知识图谱模块">
-      <div className="graph-module__header">
+      <div className="graph-module__header" data-coach-anchor="graph-evidence">
         <div>
           <Typography variant="label" weight={700}>
             知识图谱
@@ -181,6 +181,7 @@ export function GraphModule({ graph, privacyOn, onOpenSource }: GraphModuleProps
           selectedNodeId: graph.selectedNodeId,
           pulsedNodeId: graph.pulsedNodeId,
           tooltipCoord: graph.tooltipCoord,
+          emptyState: graph.emptyStates.graphEmpty,
           privacyOn,
           onRefresh: graph.refreshGraph,
           onNodeHover: graph.hoverNode,

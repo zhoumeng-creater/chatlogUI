@@ -17,7 +17,11 @@ import {
 import type { MediaActionModel } from "@l2/commander/mediaActionModel";
 import type { MediaFilterChip } from "@l2/commander/mediaFilterModel";
 import type { BusinessExportActionView } from "@l2/commander/useBusinessExportCommander";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
+import { StatusAnnouncer } from "@l3/common/StatusAnnouncer";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
 import { ExportActionButton } from "@l3/export";
+import { containsUnsafeDisplayText } from "@/utils/privacyDisplay";
 import type {
   MediaActionPrompt,
   MediaActionResult,
@@ -48,6 +52,12 @@ import { MediaPreviewSheet } from "./MediaPreviewSheet";
 type MediaTab = "attachments" | "favorites" | "members" | "unread" | "new";
 const MEMBER_PREVIEW_LIMIT = 50;
 const MEDIA_OPEN_PROMPT_TITLE_ID = "media-open-prompt-title";
+const PRIVACY_SAFE_MEDIA_ACTION_MESSAGES = new Set([
+  "已复制媒体摘要。",
+  "已标记来源消息，可从工作台继续查看上下文。",
+  "已重新尝试加载媒体资源。",
+  "已请求系统打开外部链接。",
+]);
 const defaultMediaFilters: MediaFilters = {
   type: "all",
   source: "all",
@@ -71,6 +81,9 @@ interface MediaLibraryProps {
   previewResourceUrl: string;
   previewResourceStatus?: MediaResourceLoadStatus;
   exportAction?: BusinessExportActionView;
+  emptyStates: {
+    noConversation: ActionableEmptyStateView;
+  };
   filters?: MediaFilters;
   filteredAttachments?: MediaAttachment[];
   filterChips?: MediaFilterChip[];
@@ -79,6 +92,7 @@ interface MediaLibraryProps {
   actionPrompt?: MediaActionPrompt | null;
   lastActionResult?: MediaActionResult;
   onRetry: () => void;
+  onEmptyAction?: (actionId: EmptyStateActionId) => void;
   onPreviewAttachment: (attachment: MediaAttachment) => void;
   onClosePreview: () => void;
   onChangeFilters?: (filters: MediaFilters) => void;
@@ -110,6 +124,7 @@ export function MediaLibrary({
   previewResourceUrl,
   previewResourceStatus = "idle",
   exportAction,
+  emptyStates,
   filters = defaultMediaFilters,
   filteredAttachments,
   filterChips = [],
@@ -118,6 +133,7 @@ export function MediaLibrary({
   actionPrompt = null,
   lastActionResult = { status: "idle", message: "" },
   onRetry,
+  onEmptyAction,
   onPreviewAttachment,
   onClosePreview,
   onChangeFilters = () => undefined,
@@ -144,6 +160,13 @@ export function MediaLibrary({
     : members.length.toLocaleString();
   const totalItems = attachments.length + favorites.length + members.length + unread.total + newMessages.length;
   const refreshDisabledReasonId = !currentChat ? "media-library-refresh-disabled-reason" : undefined;
+  const handleEmptyAction = (actionId: EmptyStateActionId) => {
+    if (actionId === "refresh") {
+      onRetry();
+      return;
+    }
+    onEmptyAction?.(actionId);
+  };
 
   useEffect(() => {
     if (status === "loading") return;
@@ -185,14 +208,11 @@ export function MediaLibrary({
       )}
 
       {!currentChat ? (
-        <div className="workbench-empty-state">
-          <Typography variant="label" weight={700}>
-            选择会话
-          </Typography>
-          <Typography variant="body" color="var(--text-secondary)">
-            打开会话后显示附件、收藏、成员、未读和增量消息。
-          </Typography>
-        </div>
+        <ActionableEmptyState
+          className="workbench-empty-state"
+          model={emptyStates.noConversation}
+          onAction={handleEmptyAction}
+        />
       ) : error && status !== "partial" ? (
         <div className="workbench-error-state" role="alert">
           <Typography variant="label" weight={700}>
@@ -334,7 +354,7 @@ export function MediaLibrary({
         onConfirm={onConfirmOpenOriginal}
         onCancel={onCancelOpenOriginal}
       />
-      <MediaActionResultNotice result={lastActionResult} />
+      <MediaActionResultNotice result={lastActionResult} privacyOn={privacyOn} />
     </aside>
   );
 }
@@ -813,17 +833,41 @@ function MediaOpenPrompt({
   );
 }
 
-function MediaActionResultNotice({ result }: { result: MediaActionResult }) {
+function MediaActionResultNotice({ result, privacyOn }: { result: MediaActionResult; privacyOn: boolean }) {
   if (result.status === "idle" || !result.message) return null;
+  const displayMessage = privacyOn ? getMediaActionDisplayMessage(result) : result.message;
+
   return (
-    <div
-      className="media-action-result"
-      role={result.status === "error" ? "alert" : "status"}
-      data-status={result.status}
-    >
-      <Typography variant="caption" color="var(--text-secondary)">
-        {result.message}
-      </Typography>
-    </div>
+    <>
+      <StatusAnnouncer
+        privacyOn={privacyOn}
+        politeness={result.status === "error" ? "assertive" : "polite"}
+        message={result.message}
+        privacySafeMessage={getMediaActionAnnouncement(result)}
+      />
+      <div
+        className="media-action-result"
+        role={result.status === "error" ? "alert" : "status"}
+        data-status={result.status}
+      >
+        <Typography variant="caption" color="var(--text-secondary)">
+          {displayMessage}
+        </Typography>
+      </div>
+    </>
   );
+}
+
+function getMediaActionDisplayMessage(result: MediaActionResult): string {
+  if (result.status === "error") return "媒体操作失败";
+  const message = result.message.trim();
+  if (PRIVACY_SAFE_MEDIA_ACTION_MESSAGES.has(message) && !containsUnsafeDisplayText(message)) {
+    return message;
+  }
+  return "媒体操作完成";
+}
+
+function getMediaActionAnnouncement(result: MediaActionResult): string {
+  const displayMessage = getMediaActionDisplayMessage(result);
+  return displayMessage === "已复制媒体摘要。" ? "媒体摘要已复制。" : displayMessage;
 }

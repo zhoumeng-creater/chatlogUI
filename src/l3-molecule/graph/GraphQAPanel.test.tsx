@@ -13,6 +13,7 @@ const graphView: GraphResidualView = {
   businessIngestCopy: "写入业务记录",
   eventIngestCopy: "写入事件",
   qaCopy: "提问",
+  rebuildCopy: "重建图谱",
   resetRebuildCopy: "重置重建",
   confirmationCopy: null,
   errorCopy: null,

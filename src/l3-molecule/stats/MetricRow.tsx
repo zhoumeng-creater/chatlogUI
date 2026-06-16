@@ -20,7 +20,14 @@ export function MetricRow({ row }: MetricRowProps) {
           {row.description}
         </Typography>
       </div>
-      <span className="metric-row__value">{row.value}</span>
+      <span className="metric-row__value">
+        {row.value}
+        {row.comparison && (
+          <span className="metric-row__comparison" data-tone={row.comparisonTone ?? "neutral"}>
+            {row.comparison}
+          </span>
+        )}
+      </span>
     </div>
   );
 }

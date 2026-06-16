@@ -45,6 +45,7 @@ export type UxKpiRecoverySourceModule =
   | "settings"
   | "workbench"
   | "conversation"
+  | "conversation_selection"
   | "stats"
   | "sns"
   | "media"
@@ -385,6 +386,7 @@ const RECOVERY_SOURCE_MODULES = new Set<UxKpiRecoverySourceModule>([
   "settings",
   "workbench",
   "conversation",
+  "conversation_selection",
   "stats",
   "sns",
   "media",

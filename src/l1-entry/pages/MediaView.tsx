@@ -1,9 +1,13 @@
+import { lazy, Suspense } from "react";
 import { useMediaWorkspaceCommander } from "@l2/commander/useMediaWorkspaceCommander";
 import { BusinessExportDialog } from "@l3/export";
-import { MediaLibrary } from "@l3/media/MediaLibrary";
 import { WorkspaceScopeController } from "@l3/workspace/WorkspaceScopeController";
 import { WorkspaceScopeStatus } from "@l3/workspace/WorkspaceScopeStatus";
-import { Typography } from "@l4/ui";
+import { Spinner, Typography } from "@l4/ui";
+
+const LazyMediaLibrary = lazy(() =>
+  import("@l3/media/MediaLibrary").then((module) => ({ default: module.MediaLibrary })),
+);
 
 export function MediaView() {
   const {
@@ -16,6 +20,7 @@ export function MediaView() {
     clearScopeChip,
     resetScope,
     statusItems,
+    navigateBackToWorkbench,
   } = useMediaWorkspaceCommander();
 
   return (
@@ -39,44 +44,52 @@ export function MediaView() {
         onReset={resetScope}
       />
       <div className="workspace-page__surface workspace-page__module-surface">
-        <MediaLibrary
-          currentChat={currentChat}
-          privacyOn={privacyOn}
-          attachments={media.attachments}
-          favorites={media.favorites}
-          members={media.members}
-          memberTotal={media.memberTotal}
-          unread={media.unread}
-          newMessages={media.newMessages}
-          status={media.status}
-          error={media.error}
-          endpointStatus={media.endpointStatus}
-          selectedAttachment={media.selectedAttachment}
-          previewResourceUrl={media.previewResourceUrl}
-          previewResourceStatus={media.previewResourceStatus}
-          exportAction={media.businessExport.action}
-          filters={media.filters}
-          filteredAttachments={media.filteredAttachments}
-          filterChips={media.filterChips}
-          selectedAttachmentIds={media.selectedAttachmentIds}
-          actionModelsByAttachmentId={media.actionModelsByAttachmentId}
-          actionPrompt={media.actionPrompt}
-          lastActionResult={media.lastActionResult}
-          onRetry={media.retry}
-          onPreviewAttachment={media.previewAttachment}
-          onClosePreview={media.closePreview}
-          onChangeFilters={media.setFilters}
-          onClearFilter={media.clearFilter}
-          onResetFilters={media.resetFilters}
-          onToggleSelectedAttachment={media.toggleSelectedAttachment}
-          onCopyAttachmentSummary={media.copyAttachmentSummary}
-          onLocateAttachment={media.locateAttachment}
-          onRequestOpenOriginal={media.requestOpenOriginal}
-          onConfirmOpenOriginal={media.confirmOpenOriginal}
-          onCancelOpenOriginal={media.cancelOpenOriginal}
-          onRetryResource={media.retryResource}
-          onPreviewResourceError={media.markResourceError}
-        />
+        <Suspense fallback={<div className="panel-loading"><Spinner size={20} label="加载媒体..." /></div>}>
+          <LazyMediaLibrary
+            currentChat={currentChat}
+            privacyOn={privacyOn}
+            attachments={media.attachments}
+            favorites={media.favorites}
+            members={media.members}
+            memberTotal={media.memberTotal}
+            unread={media.unread}
+            newMessages={media.newMessages}
+            status={media.status}
+            error={media.error}
+            endpointStatus={media.endpointStatus}
+            selectedAttachment={media.selectedAttachment}
+            previewResourceUrl={media.previewResourceUrl}
+            previewResourceStatus={media.previewResourceStatus}
+            exportAction={media.businessExport.action}
+            emptyStates={media.emptyStates}
+            filters={media.filters}
+            filteredAttachments={media.filteredAttachments}
+            filterChips={media.filterChips}
+            selectedAttachmentIds={media.selectedAttachmentIds}
+            actionModelsByAttachmentId={media.actionModelsByAttachmentId}
+            actionPrompt={media.actionPrompt}
+            lastActionResult={media.lastActionResult}
+            onRetry={media.retry}
+            onEmptyAction={(actionId) => {
+              if (actionId === "choose-conversation") {
+                navigateBackToWorkbench();
+              }
+            }}
+            onPreviewAttachment={media.previewAttachment}
+            onClosePreview={media.closePreview}
+            onChangeFilters={media.setFilters}
+            onClearFilter={media.clearFilter}
+            onResetFilters={media.resetFilters}
+            onToggleSelectedAttachment={media.toggleSelectedAttachment}
+            onCopyAttachmentSummary={media.copyAttachmentSummary}
+            onLocateAttachment={media.locateAttachment}
+            onRequestOpenOriginal={media.requestOpenOriginal}
+            onConfirmOpenOriginal={media.confirmOpenOriginal}
+            onCancelOpenOriginal={media.cancelOpenOriginal}
+            onRetryResource={media.retryResource}
+            onPreviewResourceError={media.markResourceError}
+          />
+        </Suspense>
       </div>
       {media.businessExport.isOpen && <BusinessExportDialog {...media.businessExport.dialog} />}
     </div>

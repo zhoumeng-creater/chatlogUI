@@ -74,6 +74,10 @@ import {
   type UxKpiScopeKind,
   type UxKpiTimer,
 } from "./uxKpiEvents";
+import {
+  bindActionableEmptyStateActions,
+  buildActionableEmptyState,
+} from "./actionableEmptyStateModel";
 
 type LegacyIndexAction = "rebuild" | "pause" | "resume" | "clear";
 type IndexAction = SemanticIndexCommand | LegacyIndexAction;
@@ -791,6 +795,18 @@ export function useAiCommander() {
     indexStatus: store.indexStatus,
     moduleView,
     primaryTaskView,
+    emptyStates: {
+      analysisNoConversation: bindActionableEmptyStateActions(buildActionableEmptyState({
+        variant: "no-conversation-selected",
+        readiness: {
+          serviceConfigured: true,
+          httpReady: true,
+          dbReady: true,
+          hasCurrentConversation: false,
+        },
+        privacyOn,
+      }), []),
+    },
     qaView,
     compactStatus,
     qaMessages: store.qaMessages,

@@ -21,7 +21,8 @@ describe("searchHitNavigator", () => {
   });
 
   it("moves through hits and clamps at boundaries", () => {
-    expect(moveSearchHit({ messages, activeResultId: null, direction: "next" })).toBe("one");
+    expect(moveSearchHit({ messages, activeResultId: null, direction: "next" })).toBe("two");
+    expect(moveSearchHit({ messages, activeResultId: null, direction: "previous" })).toBe("one");
     expect(moveSearchHit({ messages, activeResultId: "two", direction: "next" })).toBe("three");
     expect(moveSearchHit({ messages, activeResultId: "one", direction: "previous" })).toBe("one");
   });

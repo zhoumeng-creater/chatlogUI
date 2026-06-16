@@ -27,6 +27,7 @@ export function SearchView() {
     clearRecentQueries,
     moveHit,
     searchResultsView,
+    searchEmptyStates,
     businessExport,
   } = useSearchWorkspaceCommander();
 
@@ -80,6 +81,7 @@ export function SearchView() {
             activeResultId={search.activeResultId}
             privacyOn={privacyOn}
             viewModel={searchResultsView}
+            emptyStates={searchEmptyStates}
             activeFilterChips={activeFilterChips}
             exportAction={businessExport.action}
             onSetActiveResultId={search.setActiveResultId}

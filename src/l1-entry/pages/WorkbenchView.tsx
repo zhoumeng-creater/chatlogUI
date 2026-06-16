@@ -17,6 +17,21 @@ function getSearchAnchorStatusText(status: string): string {
   return "可返回搜索结果";
 }
 
+function getAiEvidenceAnchorStatusText(status: string): string {
+  if (status === "loading") return "正在定位 AI 证据";
+  if (status === "hit") return "已定位 AI 证据";
+  if (status === "missing") return "已打开会话，证据未提供消息锚点，需手动核对";
+  if (status === "error") return "已打开会话，但证据附近记录加载失败";
+  if (status === "cancelled") return "AI 证据定位已取消";
+  return "可返回 AI 证据";
+}
+
+export function getReturnContextStatusText(label: string, anchorStatus: string): string {
+  if (label === "来自搜索结果") return getSearchAnchorStatusText(anchorStatus);
+  if (label === "来自 AI 证据") return getAiEvidenceAnchorStatusText(anchorStatus);
+  return "可返回来源上下文";
+}
+
 export function WorkbenchView() {
   const workbench = useWorkbenchCommander();
   const highlightedMessageId = workbench.chat.highlightedMessageId;
@@ -37,12 +52,20 @@ export function WorkbenchView() {
       conversationsError={workbench.chat.conversationsError}
       unreadStatus={workbench.chat.unreadStatus}
       selectedConversationId={workbench.chat.selectedConversationId}
+      query={workbench.chat.conversationListQuery}
+      filter={workbench.chat.conversationListFilter}
+      activeConversationId={workbench.chat.conversationListActiveId}
+      emptyState={workbench.conversationListEmptyState}
       privacyOn={workbench.privacyOn}
       onLoadConversations={() => void workbench.chat.loadConversations()}
       onOpenConversation={(conversation) => {
         void workbench.chat.selectAndLoad(conversation.id, conversation.username);
       }}
       onConversationOpened={workbench.handleConversationOpened}
+      onQueryChange={workbench.chat.setConversationListQuery}
+      onFilterChange={workbench.chat.setConversationListFilter}
+      onActiveConversationChange={workbench.chat.setConversationListActiveId}
+      onClearFilters={workbench.chat.clearConversationListFilters}
     />
   );
 
@@ -57,16 +80,35 @@ export function WorkbenchView() {
         messagesStatus={workbench.chat.messagesStatus}
         messagesError={workbench.chat.messagesError}
         readingState={workbench.chatReadingState}
+        emptyStates={workbench.messageListEmptyStates}
         messagesTotalCount={workbench.chat.messagesTotalCount}
         scrollIntent={workbench.chat.scrollIntent}
         scrollAnchorMessageId={workbench.chat.scrollAnchorMessageId}
         scrollAnchorLocalId={workbench.chat.scrollAnchorLocalId}
         activeAnchor={workbench.chat.activeAnchor}
+        anchorStatus={workbench.chat.anchorStatus}
         highlightedMessageId={workbench.chat.highlightedMessageId}
+        selectionMode={workbench.chat.selectionMode}
+        selectedMessageIds={workbench.chat.selectedMessageIds}
+        selectionSummary={workbench.selectionSummary}
+        selectionStatus={workbench.chat.selectionStatus}
         privacyOn={workbench.privacyOn}
         onLoadHistory={(chat) => void workbench.chat.loadHistory(chat)}
         onLoadMoreHistory={(chat) => void workbench.chat.loadMoreHistory(chat)}
+        onEmptyAction={(actionId) => {
+          if (actionId === "choose-conversation") workbench.openConversationList();
+        }}
         onScrollIntentHandled={workbench.chat.clearScrollIntent}
+        onEnterSelectionMode={workbench.chat.enterSelectionMode}
+        onExitSelectionMode={workbench.chat.exitSelectionMode}
+        onToggleMessageSelection={workbench.chat.toggleMessageSelection}
+        onSelectVisibleMessages={workbench.chat.selectVisibleMessages}
+        onCopySelectedMarkdown={() => void workbench.copySelectedMessagesAsMarkdown()}
+        onExportSelected={workbench.selectedFragmentExport.action.onClick}
+        onMessageAction={(message, actionId) => void workbench.handleMessageAction(message, actionId)}
+        onDeriveTranscriptPosition={workbench.deriveTranscriptPositionModel}
+        getMessageActionModel={workbench.getMessageActionModel}
+        getMessageSafeRawFieldRows={workbench.getMessageSafeRawFieldRows}
       />
     );
 
@@ -98,10 +140,10 @@ export function WorkbenchView() {
           {workbench.returnContext && (
             <div className="workbench-search-return workspace-return-context" role="status">
               <Typography variant="caption" color="var(--text-secondary)">
-                {workbench.returnContext.label}
-                {workbench.returnContext.label === "来自搜索结果"
-                  ? ` · ${getSearchAnchorStatusText(workbench.chat.anchorStatus)}`
-                  : " · 可返回来源上下文"}
+                {workbench.returnContext.label} · {getReturnContextStatusText(
+                  workbench.returnContext.label,
+                  workbench.chat.anchorStatus,
+                )}
               </Typography>
               {workbench.returnContext.actionLabel && (
                 <Button variant="secondary" size="sm" onClick={workbench.returnToSearchResults}>
@@ -136,6 +178,9 @@ export function WorkbenchView() {
       {mainContent}
       {workbench.conversationExport.isOpen && (
         <BusinessExportDialog {...workbench.conversationExport.dialog} />
+      )}
+      {workbench.selectedFragmentExport.isOpen && (
+        <BusinessExportDialog {...workbench.selectedFragmentExport.dialog} />
       )}
     </WorkbenchFrame>
   );

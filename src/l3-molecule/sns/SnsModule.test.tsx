@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import type { ActionableEmptyStateView } from "@l2/commander/actionableEmptyStateModel";
 import { SnsModule, type SnsModuleViewModel } from "./SnsModule";
 import type { AdaptedSnsNotification, AdaptedSnsPost } from "./snsTypes";
 
@@ -108,6 +109,34 @@ describe("SnsModule", () => {
     expect(html).toContain('class="sns-search-panel__label"');
     expect(html).toContain('placeholder="输入关键词"');
   });
+
+  it("uses shared actionable empty states for empty SNS views", () => {
+    const html = renderToStaticMarkup(
+      <SnsModule
+        {...baseProps()}
+        filterChips={[
+          {
+            id: "contentType",
+            label: "类型",
+            value: "图片",
+            field: "contentType",
+            capability: "local-only",
+            clearable: true,
+            ariaLabel: "类型：图片，本地筛选",
+          },
+        ]}
+        view={{
+          ...viewModel(),
+          emptyCopy: "暂无朋友圈动态",
+        }}
+      />,
+    );
+
+    expect(html).toContain('data-empty-state="sns-empty"');
+    expect(html).toContain("暂无朋友圈动态");
+    expect(html).toContain("清除筛选");
+    expect(html).toContain("刷新朋友圈");
+  });
 });
 
 function baseProps() {
@@ -145,6 +174,26 @@ function baseProps() {
     privacyOn: false,
     externalOpenPrompt: null,
     externalOpenError: null,
+    emptyStates: {
+      timeline: emptyState("sns-empty", "暂无朋友圈动态"),
+      search: emptyState("search-no-results", "没有匹配的朋友圈结果"),
+      notifications: emptyState("sns-empty", "暂无朋友圈通知", [
+        {
+          id: "refresh",
+          label: "刷新朋友圈",
+          variant: "secondary",
+          disabled: false,
+          disabledReason: null,
+        },
+        {
+          id: "clear-filters",
+          label: "查看动态列表",
+          variant: "ghost",
+          disabled: false,
+          disabledReason: null,
+        },
+      ]),
+    },
     onRefresh: vi.fn(),
     onRetry: vi.fn(),
     onLoadMore: vi.fn(),
@@ -162,6 +211,35 @@ function baseProps() {
     onRequestArticleOpen: vi.fn(),
     onConfirmExternalOpen: vi.fn(),
     onCancelExternalOpen: vi.fn(),
+  };
+}
+
+function emptyState(
+  id: "sns-empty" | "search-no-results",
+  title: string,
+  actions: ActionableEmptyStateView["actions"] = [
+    {
+      id: "clear-filters" as const,
+      label: "清除筛选",
+      variant: "secondary" as const,
+      disabled: false,
+      disabledReason: null,
+    },
+    {
+      id: "refresh" as const,
+      label: "刷新朋友圈",
+      variant: "ghost" as const,
+      disabled: false,
+      disabledReason: null,
+    },
+  ],
+) {
+  return {
+    id,
+    title,
+    reason: "当前筛选没有返回动态、通知或搜索结果。",
+    description: "可以清除筛选、刷新朋友圈，或查看诊断确认服务状态。",
+    actions,
   };
 }
 

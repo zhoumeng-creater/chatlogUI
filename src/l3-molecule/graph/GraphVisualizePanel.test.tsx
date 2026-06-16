@@ -69,6 +69,21 @@ const canvasProps: GraphCanvasProps = {
   selectedNodeId: null,
   pulsedNodeId: null,
   tooltipCoord: null,
+  emptyState: {
+    id: "graph-empty",
+    title: "暂无图谱数据",
+    reason: "当前筛选条件下没有图谱节点或关系。",
+    description: "可以清除筛选、刷新图谱，或回到来源会话核对上下文。",
+    actions: [
+      {
+        id: "refresh",
+        label: "刷新图谱",
+        variant: "secondary",
+        disabled: false,
+        disabledReason: null,
+      },
+    ],
+  },
   privacyOn: false,
   onRefresh: vi.fn(),
   onNodeHover: vi.fn(),

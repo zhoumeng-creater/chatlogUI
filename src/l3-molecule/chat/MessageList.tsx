@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button, Spinner, Typography } from "@l4/ui";
 import { StatusAnnouncer } from "@l3/common/StatusAnnouncer";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
 import type {
   ChatMessage,
   ChatMessageAnchor,
@@ -41,6 +43,10 @@ interface MessageListProps {
   messagesStatus: LoadStatus;
   messagesError: string | ApiErrorModel | null;
   readingState: ChatReadingState;
+  emptyStates: {
+    noConversation: ActionableEmptyStateView;
+    conversationEmpty: ActionableEmptyStateView;
+  };
   scrollIntent: TranscriptScrollIntent;
   scrollAnchorMessageId: string | null;
   scrollAnchorLocalId: number | null;
@@ -54,6 +60,7 @@ interface MessageListProps {
   privacyOn: boolean;
   onLoadHistory: (chat: string) => void;
   onLoadMoreHistory: (chat: string) => void;
+  onEmptyAction?: (actionId: EmptyStateActionId) => void;
   onScrollIntentHandled: () => void;
   onEnterSelectionMode: () => void;
   onExitSelectionMode: () => void;
@@ -82,6 +89,7 @@ export function MessageList({
   messagesStatus,
   messagesError,
   readingState,
+  emptyStates,
   scrollIntent,
   scrollAnchorMessageId,
   scrollAnchorLocalId,
@@ -95,6 +103,7 @@ export function MessageList({
   privacyOn,
   onLoadHistory,
   onLoadMoreHistory,
+  onEmptyAction,
   onScrollIntentHandled,
   onEnterSelectionMode,
   onExitSelectionMode,
@@ -229,17 +238,21 @@ export function MessageList({
       onSelectVisibleMessages(messages.map((message) => message.id));
     }
   };
+  const handleEmptyAction = (actionId: EmptyStateActionId) => {
+    if (actionId === "refresh" && activeChat) {
+      onLoadHistory(activeChat);
+      return;
+    }
+    onEmptyAction?.(actionId);
+  };
 
   if (!conversation) {
     return (
-      <div className="workbench-empty-state">
-        <Typography variant="label" weight={700}>
-          选择会话
-        </Typography>
-        <Typography variant="body" color="var(--text-secondary)">
-          {readingState.description}
-        </Typography>
-      </div>
+      <ActionableEmptyState
+        className="workbench-empty-state"
+        model={emptyStates.noConversation}
+        onAction={handleEmptyAction}
+      />
     );
   }
 
@@ -261,17 +274,11 @@ export function MessageList({
 
   if (messagesStatus === "empty") {
     return (
-      <div className="workbench-empty-state">
-        <Typography variant="label" weight={700}>
-          {readingState.title}
-        </Typography>
-        <Typography variant="body" color="var(--text-secondary)">
-          {readingState.description}
-        </Typography>
-        <Button variant="secondary" size="sm" onClick={() => onLoadHistory(activeChat)}>
-          {readingState.primaryAction ?? "重试"}
-        </Button>
-      </div>
+      <ActionableEmptyState
+        className="workbench-empty-state"
+        model={emptyStates.conversationEmpty}
+        onAction={handleEmptyAction}
+      />
     );
   }
 

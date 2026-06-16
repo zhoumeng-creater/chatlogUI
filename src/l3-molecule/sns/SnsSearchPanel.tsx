@@ -1,6 +1,8 @@
 import type { FormEvent } from "react";
 import { Search, X } from "lucide-react";
 import { Button, Input, Spinner, Typography } from "@l4/ui";
+import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
+import { ActionableEmptyState } from "@l3/common/ActionableEmptyState";
 import type { SnsModuleDensity, SnsModuleLoadStatus } from "./SnsModule";
 import { SnsTimeline } from "./SnsTimeline";
 import type { AdaptedSnsPost } from "./snsTypes";
@@ -12,11 +14,13 @@ interface SnsSearchPanelProps {
   results: AdaptedSnsPost[];
   selectedPostId: string | null;
   privacyOn: boolean;
+  emptyState: ActionableEmptyStateView;
   density: SnsModuleDensity;
   emptyCopy: string;
   onSearchQueryChange: (query: string) => void;
   onSearch: (query?: string) => void;
   onClearSearch: () => void;
+  onEmptyAction?: (actionId: EmptyStateActionId) => void;
   onSelectPost: (postId: string | null) => void;
 }
 
@@ -27,11 +31,13 @@ export function SnsSearchPanel({
   results,
   selectedPostId,
   privacyOn,
+  emptyState,
   density,
   emptyCopy,
   onSearchQueryChange,
   onSearch,
   onClearSearch,
+  onEmptyAction,
   onSelectPost,
 }: SnsSearchPanelProps) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -81,15 +87,33 @@ export function SnsSearchPanel({
         </div>
       )}
 
-      <SnsTimeline
-        posts={results}
-        selectedPostId={selectedPostId}
-        privacyOn={privacyOn}
-        density={density}
-        emptyCopy={emptyCopy}
-        highlightQuery={searchQuery}
-        onSelectPost={onSelectPost}
-      />
+      {searchStatus !== "loading" && results.length === 0 ? (
+        <ActionableEmptyState
+          className="sns-module__empty"
+          model={emptyState}
+          onAction={(actionId) => {
+            if (actionId === "clear-search" || actionId === "clear-filters") {
+              onClearSearch();
+              onEmptyAction?.(actionId);
+              return;
+            }
+            if (actionId === "refresh" || actionId === "retry") {
+              onSearch(searchQuery);
+              onEmptyAction?.(actionId);
+            }
+          }}
+        />
+      ) : (
+        <SnsTimeline
+          posts={results}
+          selectedPostId={selectedPostId}
+          privacyOn={privacyOn}
+          density={density}
+          emptyCopy={emptyCopy}
+          highlightQuery={searchQuery}
+          onSelectPost={onSelectPost}
+        />
+      )}
     </div>
   );
 }
