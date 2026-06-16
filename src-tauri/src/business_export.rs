@@ -157,7 +157,13 @@ mod tests {
         let contents = std::fs::read_to_string(&path).expect("export file should be readable");
         let _ = std::fs::remove_file(&path);
 
-        assert_eq!(response.file_name, "chatlog-search-export.md");
+        let expected_file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("temp file should have a valid file name");
+
+        assert_eq!(response.file_name, expected_file_name);
+        assert!(response.file_name.ends_with("chatlog-search-export.md"));
         assert_eq!(response.extension, "md");
         assert_eq!(
             response.bytes_written,

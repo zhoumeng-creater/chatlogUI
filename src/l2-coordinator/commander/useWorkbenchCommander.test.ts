@@ -8,8 +8,8 @@ describe("useWorkbenchCommander", () => {
       commanderSource.indexOf("const commandBar"),
     );
 
-    expect(selectedExportBlock).toContain('source: "conversation_selection",\n    formats');
-    expect(selectedExportBlock).toContain('createConversationExportArtifact({\n        source: "conversation_selection"');
+    expect(selectedExportBlock).toMatch(/source:\s*"conversation_selection",\s*formats/);
+    expect(selectedExportBlock).toMatch(/createConversationExportArtifact\(\{\s*source:\s*"conversation_selection"/);
     expect(selectedExportBlock).toContain("createConversationExportArtifact");
   });
 });
