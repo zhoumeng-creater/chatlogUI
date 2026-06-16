@@ -67,6 +67,13 @@ import {
 import { buildSemanticPrimaryTaskView } from "./semanticPrimaryTaskModel";
 import { createSemanticQaExportArtifact } from "./semanticQaExportModel";
 import { useBusinessExportCommander } from "./useBusinessExportCommander";
+import {
+  answerLengthBucket,
+  createUxKpiTimer,
+  recordQaKpiEvent,
+  type UxKpiScopeKind,
+  type UxKpiTimer,
+} from "./uxKpiEvents";
 
 type LegacyIndexAction = "rebuild" | "pause" | "resume" | "clear";
 type IndexAction = SemanticIndexCommand | LegacyIndexAction;
@@ -86,7 +93,12 @@ export function useAiCommander() {
   const { selectedConversationId, selectAndLoadAtAnchor } = useChatCommander();
   const conversations = useChatStore((s) => s.conversations);
   const sseAbortRef = useRef<AbortController | null>(null);
-  const activeQARef = useRef<{ streamId: string; aiMsgId: string } | null>(null);
+  const activeQARef = useRef<{
+    streamId: string;
+    aiMsgId: string;
+    timer: UxKpiTimer;
+    scopeKind: UxKpiScopeKind;
+  } | null>(null);
   const indexPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const semanticSearchRequestCounterRef = useRef(0);
   const semanticAnalysisRequestCounterRef = useRef(0);
@@ -211,6 +223,7 @@ export function useAiCommander() {
         const activeQA = activeQARef.current;
         if (activeQA) {
           useAiStore.getState().stopQAStream(activeQA.streamId, activeQA.aiMsgId);
+          recordQaStopKpi(activeQA);
           activeQARef.current = null;
         }
       }
@@ -221,6 +234,7 @@ export function useAiCommander() {
     const activeQA = activeQARef.current;
     if (activeQA) {
       useAiStore.getState().stopQAStream(activeQA.streamId, activeQA.aiMsgId);
+      recordQaStopKpi(activeQA);
       activeQARef.current = null;
     }
     sseAbortRef.current?.abort();
@@ -245,6 +259,7 @@ export function useAiCommander() {
     const previousQA = activeQARef.current;
     if (previousQA) {
       useAiStore.getState().stopQAStream(previousQA.streamId, previousQA.aiMsgId);
+      recordQaStopKpi(previousQA);
       activeQARef.current = null;
     }
     sseAbortRef.current?.abort();
@@ -271,7 +286,12 @@ export function useAiCommander() {
       completionStatus: "streaming",
       requestSnapshot: envelope.snapshot,
     });
-    activeQARef.current = { streamId, aiMsgId };
+    activeQARef.current = {
+      streamId,
+      aiMsgId,
+      timer: createUxKpiTimer(),
+      scopeKind: toSemanticKpiScopeKind(envelope.snapshot.scope, currentChat),
+    };
 
     store.setQAError(null);
     store.setQAStatus("connecting");
@@ -308,6 +328,15 @@ export function useAiCommander() {
             sourceCount: sourceCountFromDonePayload(event.payload),
             metadata: event.payload.metadata,
           });
+          const activeQA = activeQARef.current;
+          recordQaKpiEvent({
+            evidenceCount: event.payload.evidence.length,
+            sourceCount: sourceCountFromDonePayload(event.payload),
+            durationMs: activeQA?.timer.durationMs() ?? 0,
+            scopeKind: activeQA?.scopeKind ?? toSemanticKpiScopeKind(envelope.snapshot.scope, currentChat),
+            answerLengthBucket: answerLengthBucket(answer),
+            outcome: "success",
+          });
           activeQARef.current = null;
           if (sseAbortRef.current === abortController) sseAbortRef.current = null;
         } else if (event.type === "error") {
@@ -317,6 +346,16 @@ export function useAiCommander() {
           if (!useAiStore.getState().isActiveQAStream(streamId)) return;
           const message = translateError(event.error || "ESEMANTIC_SSE_ERROR");
           useAiStore.getState().failQAStream(streamId, aiMsgId, message);
+          const activeQA = activeQARef.current;
+          recordQaKpiEvent({
+            evidenceCount: 0,
+            sourceCount: 0,
+            durationMs: activeQA?.timer.durationMs() ?? 0,
+            scopeKind: activeQA?.scopeKind ?? toSemanticKpiScopeKind(envelope.snapshot.scope, currentChat),
+            answerLengthBucket: answerLengthBucket(getAiMessageContent(aiMsgId)),
+            outcome: "failed",
+            errorKind: "sse",
+          });
           activeQARef.current = null;
           if (sseAbortRef.current === abortController) sseAbortRef.current = null;
         }
@@ -326,6 +365,16 @@ export function useAiCommander() {
         if (error.name === "AbortError") return;
         const message = translateError(error.message || "ESEMANTIC_SSE_ERROR");
         useAiStore.getState().failQAStream(streamId, aiMsgId, message);
+        const activeQA = activeQARef.current;
+        recordQaKpiEvent({
+          evidenceCount: 0,
+          sourceCount: 0,
+          durationMs: activeQA?.timer.durationMs() ?? 0,
+          scopeKind: activeQA?.scopeKind ?? toSemanticKpiScopeKind(envelope.snapshot.scope, currentChat),
+          answerLengthBucket: answerLengthBucket(getAiMessageContent(aiMsgId)),
+          outcome: "failed",
+          errorKind: "network",
+        });
         activeQARef.current = null;
         if (sseAbortRef.current === abortController) sseAbortRef.current = null;
       },
@@ -893,6 +942,36 @@ function sourceCountFromDonePayload(payload: { evidence: Array<Record<string, un
   const metadataSourceCount = numberMetadata(payload.metadata, "sourceCount")
     ?? numberMetadata(payload.metadata, "source_count");
   return metadataSourceCount ?? payload.evidence.length;
+}
+
+function recordQaStopKpi(activeQA: {
+  aiMsgId: string;
+  timer: UxKpiTimer;
+  scopeKind: UxKpiScopeKind;
+}): void {
+  const message = useAiStore.getState().qaMessages.find((item) => item.id === activeQA.aiMsgId);
+  recordQaKpiEvent({
+    evidenceCount: message?.evidence?.length ?? 0,
+    sourceCount: message?.sourceCount ?? message?.evidence?.length ?? 0,
+    durationMs: activeQA.timer.durationMs(),
+    scopeKind: activeQA.scopeKind,
+    answerLengthBucket: answerLengthBucket(message?.content ?? ""),
+    outcome: "stopped",
+  });
+}
+
+function toSemanticKpiScopeKind(
+  scope: "contact" | "selected" | "all" | undefined,
+  currentChat: string | undefined,
+): UxKpiScopeKind {
+  if (scope === "all") return "all";
+  if (scope === "selected") return "selected";
+  if (scope === "contact") return "contact";
+  return currentChat ? "current" : "all";
+}
+
+function getAiMessageContent(messageId: string): string {
+  return useAiStore.getState().qaMessages.find((item) => item.id === messageId)?.content ?? "";
 }
 
 function numberMetadata(metadata: Record<string, unknown>, key: string): number | null {

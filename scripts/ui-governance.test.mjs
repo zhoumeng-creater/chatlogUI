@@ -481,4 +481,36 @@ describe("UI governance", () => {
       expect(evidence, score).toContain(score);
     }
   });
+
+  it("keeps Task 15 performance budgets wired as local verification gates", async () => {
+    const packageJson = JSON.parse(await readFile("package.json", "utf8"));
+    const budgetScript = await readFile("scripts/check-performance-budgets.mjs", "utf8");
+    const runtimeBudgetScript = await readFile("scripts/check-runtime-performance-budgets.mjs", "utf8");
+    const graphWrapper = await readFile("scripts/check-graph-performance-budget.mjs", "utf8");
+
+    expect(packageJson.scripts["perf:budget"]).toBe("node scripts/check-performance-budgets.mjs && node scripts/check-runtime-performance-budgets.mjs");
+    expect(packageJson.scripts["perf:runtime"]).toBe("node scripts/check-runtime-performance-budgets.mjs");
+    expect(budgetScript).toContain("checkPerformanceBudgets");
+    expect(budgetScript).toContain("main app JS");
+    expect(budgetScript).toContain("AI/semantic lazy chunk");
+    expect(budgetScript).toContain("media lazy chunk");
+    expect(runtimeBudgetScript).toContain("search first result visible");
+    expect(runtimeBudgetScript).toContain("large message list initial render");
+    expect(runtimeBudgetScript).toContain("graph canvas first visible frame");
+    expect(graphWrapper).toContain("runPerformanceBudgetCli");
+    expect(graphWrapper).toContain('only: ["graph3d"]');
+  });
+
+  it("keeps Task 15 error recovery KPI wired to L2-owned recovery handlers", async () => {
+    const businessExportCommander = await readFile("src/l2-coordinator/commander/useBusinessExportCommander.ts", "utf8");
+    const updateNotificationCommander = await readFile("src/l2-coordinator/commander/useUpdateNotificationCommander.ts", "utf8");
+    const diagnosticsCommander = await readFile("src/l2-coordinator/commander/useDiagnosticsCommander.ts", "utf8");
+
+    expect(businessExportCommander).toContain("recordErrorRecoveryKpiEvent");
+    expect(businessExportCommander).toContain('recoveryAction: "retry"');
+    expect(updateNotificationCommander).toContain("recordErrorRecoveryKpiEvent");
+    expect(updateNotificationCommander).toContain('recoveryAction: "open-settings"');
+    expect(diagnosticsCommander).toContain("recordErrorRecoveryKpiEvent");
+    expect(diagnosticsCommander).toContain('recoveryAction: "copy-diagnostics"');
+  });
 });

@@ -9,6 +9,11 @@ import type {
   BusinessExportSourceModule,
 } from "./businessExportModel";
 import { validateBusinessExportArtifact } from "./businessExportModel";
+import {
+  createUxKpiTimer,
+  recordErrorRecoveryKpiEvent,
+  recordExportKpiEvent,
+} from "./uxKpiEvents";
 
 interface BusinessExportBuildInput {
   format: BusinessExportFormat;
@@ -116,12 +121,23 @@ export function useBusinessExportCommander({
   }, [activeJob, beginExport, createArtifact, selectedFormat]);
 
   const writeArtifact = useCallback(async (artifact: BusinessExportArtifact) => {
+    const timer = createUxKpiTimer();
     const validation = validateBusinessExportArtifact(artifact);
     if (!validation.ok) {
-      failExport(artifact.job.id, validation.error ?? {
+      const exportError = validation.error ?? {
         category: "redaction-blocked",
         message: "导出内容未通过隐私校验，已阻止写入。",
         retryable: true,
+      };
+      failExport(artifact.job.id, exportError);
+      recordExportKpiEvent({
+        sourceModule: artifact.source,
+        format: artifact.format,
+        rowCount: artifact.rowCount,
+        redactionPolicy: artifact.redactionPolicy,
+        durationMs: timer.durationMs(),
+        outcome: "failed",
+        errorKind: exportError.category,
       });
       return;
     }
@@ -138,11 +154,38 @@ export function useBusinessExportCommander({
       });
       if (result.status === "cancelled") {
         cancelExport(artifact.job.id);
+        recordExportKpiEvent({
+          sourceModule: artifact.source,
+          format: artifact.format,
+          rowCount: artifact.rowCount,
+          redactionPolicy: artifact.redactionPolicy,
+          durationMs: timer.durationMs(),
+          outcome: "cancelled",
+          cancelKind: "user",
+        });
         return;
       }
       completeExport(artifact.job.id, result.summary);
+      recordExportKpiEvent({
+        sourceModule: artifact.source,
+        format: artifact.format,
+        rowCount: artifact.rowCount,
+        redactionPolicy: artifact.redactionPolicy,
+        durationMs: timer.durationMs(),
+        outcome: "success",
+      });
     } catch (error) {
-      failExport(artifact.job.id, translateExportError(error));
+      const exportError = translateExportError(error);
+      failExport(artifact.job.id, exportError);
+      recordExportKpiEvent({
+        sourceModule: artifact.source,
+        format: artifact.format,
+        rowCount: artifact.rowCount,
+        redactionPolicy: artifact.redactionPolicy,
+        durationMs: timer.durationMs(),
+        outcome: "failed",
+        errorKind: exportError.category,
+      });
     }
   }, [cancelExport, completeExport, failExport, startWriting]);
 
@@ -168,10 +211,15 @@ export function useBusinessExportCommander({
   }, [activeJob, cancelExport, resetExport]);
 
   const retry = useCallback(() => {
+    recordErrorRecoveryKpiEvent({
+      sourceModule: source,
+      recoveryAction: "retry",
+      outcome: "success",
+    });
     const artifact = createArtifact();
     beginExport(artifact.job, artifact);
     void writeArtifact(artifact);
-  }, [beginExport, createArtifact, writeArtifact]);
+  }, [beginExport, createArtifact, source, writeArtifact]);
 
   return {
     action: {

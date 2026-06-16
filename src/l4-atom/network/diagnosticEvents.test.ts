@@ -156,6 +156,50 @@ describe("diagnosticEvents", () => {
     expect(JSON.stringify(event)).not.toContain("Synthetic semantic contact");
   });
 
+  it("keeps only the dedicated UX KPI attribute allowlist for ux events", () => {
+    const event = createDiagnosticEvent(
+      {
+        source: "ux",
+        level: "info",
+        category: "ux.search.executed",
+        summary: "UX KPI search.executed success",
+        attributes: {
+          module: "search",
+          task: "executed",
+          outcome: "success",
+          durationMs: 37,
+          resultCount: 4,
+          filterCount: 2,
+          scopeKind: "current",
+          query: "Synthetic private query",
+          prompt: "Synthetic private prompt",
+          path: "C:\\Users\\Synthetic\\WeChat Files\\wxid_synthetic_private",
+          dataKey: "synthetic-data-key",
+          contactName: "Synthetic Contact",
+        },
+      },
+      testOptions,
+    );
+
+    expect(event).toMatchObject({
+      source: "ux",
+      privacy: "redacted",
+      attributes: {
+        module: "search",
+        task: "executed",
+        outcome: "success",
+        durationMs: 37,
+        resultCount: 4,
+        filterCount: 2,
+        scopeKind: "current",
+      },
+    });
+    expect(JSON.stringify(event)).not.toContain("Synthetic private");
+    expect(JSON.stringify(event)).not.toContain("wxid_synthetic_private");
+    expect(JSON.stringify(event)).not.toContain("dataKey");
+    expect(JSON.stringify(event)).not.toContain("Contact");
+  });
+
   it("keeps safe correlation and recovery metadata on HTTP events", () => {
     const event = createHttpDiagnosticEvent(
       {

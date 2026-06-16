@@ -43,6 +43,10 @@ import {
   type GraphAppliedRequest,
   type GraphCommanderContextInput,
 } from "./graphContextSummaryModel";
+import {
+  createUxKpiTimer,
+  recordGraphVisualizationKpiEvent,
+} from "./uxKpiEvents";
 
 function graphDiagnostics(method: "GET" | "POST" = "GET") {
   return createDiagnosticHttpOptions({
@@ -243,10 +247,33 @@ export function useGraphCommander(routeContext?: Omit<GraphCommanderContextInput
   }, []);
 
   const loadVisualization = useCallback(async () => {
+    const timer = createUxKpiTimer();
     const graphStore = useGraphStore.getState();
     graphStore.setVisualizationRequested(true);
-    if (graphStore.visualize?.state === "loaded") return;
+    if (graphStore.visualize?.state === "loaded") {
+      recordGraphVisualizationKpiEvent({
+        nodeCount: graphStore.visualize.nodes.length,
+        edgeCount: graphStore.visualize.edges.length,
+        durationMs: timer.durationMs(),
+        layout: graphStore.layoutMode,
+        graphType: "3d",
+        cached: true,
+        outcome: "success",
+      });
+      return;
+    }
     await loadGraph(graphRequestParams());
+    const nextGraphStore = useGraphStore.getState();
+    const visualize = nextGraphStore.visualize;
+    recordGraphVisualizationKpiEvent({
+      nodeCount: visualize?.state === "loaded" ? visualize.nodes.length : 0,
+      edgeCount: visualize?.state === "loaded" ? visualize.edges.length : 0,
+      durationMs: timer.durationMs(),
+      layout: nextGraphStore.layoutMode,
+      graphType: "3d",
+      cached: false,
+      outcome: visualize?.state === "loaded" ? "success" : "failed",
+    });
   }, [loadGraph]);
 
   const cancelGraphLoad = useCallback(() => {

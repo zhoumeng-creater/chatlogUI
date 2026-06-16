@@ -29,6 +29,7 @@ import { useSearchCommander } from "./useSearchCommander";
 import { resolveSearchStoreScope } from "./searchWorkspaceContext";
 import { createSearchExportArtifact } from "./businessExportModel";
 import { useBusinessExportCommander } from "./useBusinessExportCommander";
+import { recordSearchResultOpenedKpiEvent } from "./uxKpiEvents";
 
 function withSmokeQuery(route: string): string {
   if (typeof window === "undefined") return route;
@@ -234,6 +235,12 @@ export function useSearchWorkspaceCommander() {
         return;
       }
       await chat.selectAndLoadAtAnchor(target);
+      recordSearchResultOpenedKpiEvent({
+        rankBucket: toSearchResultRankBucket(search.results?.messages.findIndex((item) => item.id === message.id) ?? -1),
+        scopeKind: scope === "current" ? "current" : "all",
+        hasAnchor: target.anchor.localId !== null || target.anchor.timestamp !== null,
+        outcome: "success",
+      });
       navigate(withSmokeQuery("/workbench"));
     },
     [
@@ -245,6 +252,7 @@ export function useSearchWorkspaceCommander() {
       scopedChat,
       scope,
       setError,
+      search.results,
     ],
   );
 
@@ -405,4 +413,12 @@ function formatSearchDateGroup(message: SearchResults["messages"][number]): stri
   const date = new Date(normalizeSearchTimestamp(message));
   if (Number.isNaN(date.getTime())) return "未知日期";
   return date.toLocaleDateString("zh-CN");
+}
+
+function toSearchResultRankBucket(index: number): string {
+  if (index < 0) return "unknown";
+  const rank = index + 1;
+  if (rank <= 10) return "top-10";
+  if (rank <= 50) return "top-50";
+  return "after-50";
 }

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import type {
@@ -42,6 +42,11 @@ import {
   deriveManualConfigValidationView,
   mapConfigValidationErrorsToManualFields,
 } from "./setupManualValidation";
+import { settingsMessagesZhCN } from "./messages.zh-CN";
+import {
+  createUxKpiTimer,
+  recordSetupCompletedKpiEvent,
+} from "./uxKpiEvents";
 
 function isProfileConfigValid(profile: ReturnType<typeof useSetupStore.getState>["profile"]): boolean {
   if (profile?.mode === "external" || profile?.source === "external-service") {
@@ -88,6 +93,7 @@ export interface SetupCommander {
 
 export function useSetupCommander(): SetupCommander {
   const navigate = useNavigate();
+  const setupKpiCompletionKeyRef = useRef<string | null>(null);
   const setMode = useSetupStore((s) => s.setMode);
   const setActivePath = useSetupStore((s) => s.setActivePath);
   const setCurrentStep = useSetupStore((s) => s.setCurrentStep);
@@ -115,6 +121,30 @@ export function useSetupCommander(): SetupCommander {
     };
     setCurrentStep(deriveSetupStep(snapshot));
   }, [setCurrentStep]);
+
+  const recordSetupCompletedIfReady = useCallback((durationMs: number) => {
+    const state = useSetupStore.getState();
+    if (!isProfileConfigValid(state.profile) || !state.httpReady || !state.dbReady) {
+      return;
+    }
+
+    const mode = state.mode === "external" || state.profile?.mode === "external"
+      ? "external"
+      : state.mode === "managed" || state.profile?.mode === "managed"
+        ? "managed"
+        : "unknown";
+    const key = `${mode}:${state.profile?.source ?? "unknown"}:${state.profile?.httpAddr ?? "unknown"}`;
+    if (setupKpiCompletionKeyRef.current === key) return;
+
+    setupKpiCompletionKeyRef.current = key;
+    recordSetupCompletedKpiEvent({
+      mode,
+      httpReady: state.httpReady,
+      dbReady: state.dbReady,
+      durationMs,
+      outcome: "success",
+    });
+  }, []);
 
   const loadExistingProfile = useCallback(async () => {
     setLoading(true);
@@ -386,6 +416,7 @@ export function useSetupCommander(): SetupCommander {
   }, [setError, setExternalBaseUrlError, setLoading, setPortState, syncStep]);
 
   const startManagedService = useCallback(async () => {
+    const timer = createUxKpiTimer();
     setLoading(true);
     setError(null);
     try {
@@ -398,12 +429,12 @@ export function useSetupCommander(): SetupCommander {
       const inspectedPortState = toPortState(inspection);
       setPortState(inspectedPortState);
       if (inspectedPortState === "external-chatlog") {
-        setError("5030 端口已有外部 chatlog_alpha 服务。请切换到外部服务模式连接，或手动停止该服务后再启动托管服务。");
+        setError(settingsMessagesZhCN.setup.service.externalServiceOccupied);
         syncStep();
         return;
       }
       if (inspectedPortState === "occupied") {
-        setError("5030 端口被其他进程占用。请关闭该进程或修改服务端口后再启动。");
+        setError(settingsMessagesZhCN.setup.service.portOccupied);
         syncStep();
         return;
       }
@@ -432,6 +463,7 @@ export function useSetupCommander(): SetupCommander {
           setReadiness({ dbReady: dbResult.ready });
         }
         syncStep();
+        recordSetupCompletedIfReady(timer.durationMs());
         return;
       }
       await startManagedSidecar({
@@ -466,15 +498,17 @@ export function useSetupCommander(): SetupCommander {
         setReadiness({ dbReady: dbResult.ready });
       }
       syncStep();
+      recordSetupCompletedIfReady(timer.durationMs());
     } catch (err) {
       setError(formatSafeUserFacingError(err));
     } finally {
       setLoading(false);
     }
-  }, [setError, setLoading, setPortState, setReadiness, syncStep]);
+  }, [recordSetupCompletedIfReady, setError, setLoading, setPortState, setReadiness, syncStep]);
 
   const connectExternalService = useCallback(
     async (baseUrl: string) => {
+      const timer = createUxKpiTimer();
       setLoading(true);
       setError(null);
       setExternalBaseUrlError(null);
@@ -526,6 +560,7 @@ export function useSetupCommander(): SetupCommander {
           setError(dbResult.message || "服务已连接，但数据库尚未就绪");
         }
         syncStep();
+        recordSetupCompletedIfReady(timer.durationMs());
       } catch (err) {
         const message = formatReadinessFailureMessage(err, "service");
         setError(message);
@@ -544,11 +579,13 @@ export function useSetupCommander(): SetupCommander {
       setPortState,
       setProfile,
       setReadiness,
+      recordSetupCompletedIfReady,
       syncStep,
     ],
   );
 
   const checkReadiness = useCallback(async () => {
+    const timer = createUxKpiTimer();
     const state = useSetupStore.getState();
     setError(null);
     try {
@@ -595,12 +632,13 @@ export function useSetupCommander(): SetupCommander {
         setReadiness({ dbReady: dbResult.ready });
       }
       syncStep();
+      recordSetupCompletedIfReady(timer.durationMs());
     } catch {
       setReadiness({ httpReady: false, dbReady: false });
       setError("无法刷新服务状态，请检查服务地址或稍后重试。");
       syncStep();
     }
-  }, [setError, setExternalBaseUrlError, setReadiness, syncStep]);
+  }, [recordSetupCompletedIfReady, setError, setExternalBaseUrlError, setReadiness, syncStep]);
 
   const stopManagedService = useCallback(async () => {
     try {
