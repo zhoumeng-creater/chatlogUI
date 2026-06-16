@@ -1,17 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button, Spinner, Typography } from "@l4/ui";
+import { StatusAnnouncer } from "@l3/common/StatusAnnouncer";
 import type {
   ChatMessage,
   ChatMessageAnchor,
+  ChatAnchorStatus,
   Conversation,
   LoadStatus,
   TranscriptScrollIntent,
 } from "@l2/data-clerk/stores/useChatStore";
 import type { ApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 import type { ChatReadingState } from "@/l2-coordinator/commander/chatReadingState";
+import type {
+  TranscriptControlId,
+  TranscriptPositionModel,
+  TranscriptPositionRow,
+} from "@/l2-coordinator/commander/transcriptPositionModel";
+import type {
+  MessageActionId,
+  MessageActionModel,
+  SafeRawFieldRow,
+} from "@/l2-coordinator/commander/messageActionModel";
 import { classNames } from "@/utils/classNames";
 import { MessageBubble } from "./MessageBubble";
+import { MessageSelectionToolbar } from "./MessageSelectionToolbar";
+import { TranscriptScrollControls } from "./TranscriptScrollControls";
 import {
   buildTranscriptRows,
   estimateTranscriptRowHeight,
@@ -31,11 +45,33 @@ interface MessageListProps {
   scrollAnchorMessageId: string | null;
   scrollAnchorLocalId: number | null;
   activeAnchor: ChatMessageAnchor | null;
+  anchorStatus: ChatAnchorStatus;
   highlightedMessageId: string | null;
+  selectionMode: boolean;
+  selectedMessageIds: string[];
+  selectionSummary: string;
+  selectionStatus: string | null;
   privacyOn: boolean;
   onLoadHistory: (chat: string) => void;
   onLoadMoreHistory: (chat: string) => void;
   onScrollIntentHandled: () => void;
+  onEnterSelectionMode: () => void;
+  onExitSelectionMode: () => void;
+  onToggleMessageSelection: (messageId: string, range?: boolean) => void;
+  onSelectVisibleMessages: (messageIds: string[]) => void;
+  onCopySelectedMarkdown: () => void;
+  onExportSelected: () => void;
+  onMessageAction: (message: ChatMessage, actionId: MessageActionId) => void;
+  onDeriveTranscriptPosition: (input: {
+    rows: TranscriptPositionRow[];
+    visibleIndexes: number[];
+    messagesHasMore: boolean;
+    nearLatest: boolean;
+    activeAnchor: ChatMessageAnchor | null;
+    anchorStatus: ChatAnchorStatus;
+  }) => TranscriptPositionModel;
+  getMessageActionModel: (message: ChatMessage) => MessageActionModel;
+  getMessageSafeRawFieldRows: (message: ChatMessage) => SafeRawFieldRow[];
 }
 
 export function MessageList({
@@ -50,11 +86,26 @@ export function MessageList({
   scrollAnchorMessageId,
   scrollAnchorLocalId,
   activeAnchor,
+  anchorStatus,
   highlightedMessageId,
+  selectionMode,
+  selectedMessageIds,
+  selectionSummary,
+  selectionStatus,
   privacyOn,
   onLoadHistory,
   onLoadMoreHistory,
   onScrollIntentHandled,
+  onEnterSelectionMode,
+  onExitSelectionMode,
+  onToggleMessageSelection,
+  onSelectVisibleMessages,
+  onCopySelectedMarkdown,
+  onExportSelected,
+  onMessageAction,
+  onDeriveTranscriptPosition,
+  getMessageActionModel,
+  getMessageSafeRawFieldRows,
 }: MessageListProps) {
   const activeChat = conversation?.username || "";
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,6 +125,37 @@ export function MessageList({
     getItemKey: (index) => rows[index]?.id ?? index,
     overscan: 8,
   });
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const selectedIds = useMemo(() => new Set(selectedMessageIds), [selectedMessageIds]);
+  const transcriptPositionRows = useMemo<TranscriptPositionRow[]>(() =>
+    rows.map((row) => row.kind === "date"
+      ? row
+      : {
+          kind: "message" as const,
+          id: row.id,
+          message: {
+            id: row.message.id,
+            localId: row.message.localId,
+            time: row.message.time,
+            timestamp: row.message.timestamp,
+          },
+        }), [rows]);
+  const transcriptPosition = useMemo(() => onDeriveTranscriptPosition({
+    rows: transcriptPositionRows,
+    visibleIndexes: virtualItems.map((item) => item.index),
+    messagesHasMore,
+    nearLatest,
+    activeAnchor,
+    anchorStatus,
+  }), [
+    activeAnchor,
+    anchorStatus,
+    messagesHasMore,
+    nearLatest,
+    onDeriveTranscriptPosition,
+    transcriptPositionRows,
+    virtualItems,
+  ]);
 
   useEffect(() => {
     if (highlightedRowIndex === null) return;
@@ -122,6 +204,32 @@ export function MessageList({
     setNearLatest(true);
   };
 
+  const scrollToAnchor = () => {
+    if (highlightedRowIndex === null) return;
+    rowVirtualizer.scrollToIndex(highlightedRowIndex, { align: "center" });
+  };
+
+  const handleTranscriptControlAction = (id: TranscriptControlId) => {
+    if (id === "latest" || id === "bottom") {
+      scrollToLatest();
+      return;
+    }
+    if (id === "return-anchor") {
+      scrollToAnchor();
+    }
+  };
+
+  const handleListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && selectionMode) {
+      event.preventDefault();
+      onExitSelectionMode();
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a" && selectionMode) {
+      event.preventDefault();
+      onSelectVisibleMessages(messages.map((message) => message.id));
+    }
+  };
+
   if (!conversation) {
     return (
       <div className="workbench-empty-state">
@@ -168,7 +276,35 @@ export function MessageList({
   }
 
   return (
-    <div ref={containerRef} className="message-list">
+    <div ref={containerRef} className="message-list" onKeyDown={handleListKeyDown}>
+      <StatusAnnouncer
+        message={selectionStatus}
+        privacyOn={privacyOn}
+        privacySafeMessage={privacyOn && selectionStatus ? "消息选择状态已更新" : null}
+      />
+      <TranscriptScrollControls
+        positionText={transcriptPosition.positionText}
+        stickyDateLabel={transcriptPosition.stickyDateLabel}
+        topTerminalText={transcriptPosition.topTerminalText}
+        bottomTerminalText={transcriptPosition.bottomTerminalText}
+        controls={transcriptPosition.controls}
+        onAction={handleTranscriptControlAction}
+      />
+      {selectionMode && (
+        <MessageSelectionToolbar
+          selectedCount={selectedMessageIds.length}
+          privacyOn={privacyOn}
+          summary={selectionSummary}
+          exportDisabledReason={selectedMessageIds.length === 0 ? "先选择要导出的消息。" : null}
+          aiDisabledReason="AI 暂未提供选中消息入口。"
+          graphDisabledReason="图谱暂未提供选中消息入口。"
+          onCopyMarkdown={onCopySelectedMarkdown}
+          onExportSelected={onExportSelected}
+          onSendToAi={() => undefined}
+          onCreateGraphContext={() => undefined}
+          onCancel={onExitSelectionMode}
+        />
+      )}
       {messagesError && messages.length > 0 && (
         <div className="message-list__inline-error" role="status">
           <Typography variant="caption" color="var(--text-secondary)">
@@ -196,17 +332,6 @@ export function MessageList({
         </div>
       )}
 
-      {!nearLatest && rows.length > 0 && (
-        <Button
-          className="message-list__jump-latest"
-          variant="secondary"
-          size="sm"
-          onClick={scrollToLatest}
-        >
-          跳到最新
-        </Button>
-      )}
-
       {messagesLoading && messages.length === 0 && (
         <div style={{ display: "flex", justifyContent: "center", padding: 24 }}>
           <Spinner size={24} label="加载聊天记录..." />
@@ -218,7 +343,7 @@ export function MessageList({
           className="message-list__virtual-space"
           style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
         >
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          {virtualItems.map((virtualRow) => {
             const row = rows[virtualRow.index];
             if (!row) return null;
             const isHighlighted = row.kind === "message" && row.message.id === highlightedMessageId;
@@ -243,6 +368,13 @@ export function MessageList({
                     message={row.message}
                     privacyOn={privacyOn}
                     highlighted={isHighlighted}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(row.message.id)}
+                    actionModel={getMessageActionModel(row.message)}
+                    safeRawFieldRows={getMessageSafeRawFieldRows(row.message)}
+                    onEnterSelectionMode={onEnterSelectionMode}
+                    onToggleSelected={(range) => onToggleMessageSelection(row.message.id, range)}
+                    onAction={(actionId) => onMessageAction(row.message, actionId)}
                   />
                 )}
               </div>

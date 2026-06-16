@@ -1,40 +1,59 @@
-import { Input } from "@l4/ui";
-import type { ConversationFilter } from "./conversationDisplay";
-
-const FILTERS: { value: ConversationFilter; label: string }[] = [
-  { value: "all", label: "全部" },
-  { value: "recent", label: "最近" },
-  { value: "private", label: "私聊" },
-  { value: "group", label: "群聊" },
-  { value: "official_service", label: "公众号/服务号" },
-  { value: "enterprise_system", label: "企业/系统" },
-  { value: "folded_unknown", label: "折叠/未知" },
-];
+import { X } from "lucide-react";
+import { IconButton, Input, Typography } from "@l4/ui";
+import type {
+  ConversationFilterOptionView,
+  ConversationListFilter,
+  ConversationListSortState,
+} from "@l2/commander/conversationListInteractionModel";
 
 interface ConversationListToolbarProps {
   query: string;
-  filter: ConversationFilter;
+  filter: ConversationListFilter;
+  filterOptions: ConversationFilterOptionView[];
+  sortState: ConversationListSortState;
   onQueryChange: (query: string) => void;
-  onFilterChange: (filter: ConversationFilter) => void;
+  onFilterChange: (filter: ConversationListFilter) => void;
+  onClearQuery: () => void;
 }
 
 export function ConversationListToolbar({
   query,
   filter,
+  filterOptions,
+  sortState,
   onQueryChange,
   onFilterChange,
+  onClearQuery,
 }: ConversationListToolbarProps) {
   return (
     <div className="conversation-list__toolbar">
-      <Input
-        variant="search"
-        aria-label="搜索会话"
-        placeholder="搜索会话"
-        value={query}
-        onChange={(event) => onQueryChange(event.currentTarget.value)}
-      />
+      <label className="conversation-list__search-field">
+        <span className="conversation-list__search-label">搜索会话</span>
+        <span className="conversation-list__search-shell">
+          <Input
+            variant="search"
+            aria-label="搜索会话"
+            placeholder="输入联系人、群名或摘要"
+            value={query}
+            onChange={(event) => onQueryChange(event.currentTarget.value)}
+          />
+          {query.trim() && (
+            <IconButton
+              className="conversation-list__search-clear"
+              icon={<X size={14} />}
+              label="清除会话搜索"
+              tooltip="清除搜索"
+              size="sm"
+              onClick={onClearQuery}
+            />
+          )}
+        </span>
+      </label>
+      <Typography variant="caption" color="var(--text-secondary)">
+        {sortState.disabledReason ?? sortState.label}
+      </Typography>
       <div className="conversation-list__filters" role="toolbar" aria-label="会话类型">
-        {FILTERS.map((item) => (
+        {filterOptions.map((item) => (
           <button
             key={item.value}
             type="button"
@@ -42,7 +61,10 @@ export function ConversationListToolbar({
             aria-pressed={filter === item.value}
             onClick={() => onFilterChange(item.value)}
           >
-            {item.label}
+            <span>{item.label}</span>
+            <span aria-label={`${item.label} ${item.count} 个会话`}>
+              {item.count.toLocaleString()}
+            </span>
           </button>
         ))}
       </div>

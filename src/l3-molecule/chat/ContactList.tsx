@@ -1,4 +1,5 @@
 import type { Conversation, LoadStatus, UnreadStatus } from "@l2/data-clerk/stores/useChatStore";
+import type { ConversationListFilter } from "@l2/commander/conversationListInteractionModel";
 import { ConversationList } from "./ConversationList";
 
 interface ContactListProps {
@@ -7,10 +8,17 @@ interface ContactListProps {
   conversationsError: string | null;
   unreadStatus: UnreadStatus;
   selectedConversationId: string | null;
+  query: string;
+  filter: ConversationListFilter;
+  activeConversationId: string | null;
   privacyOn: boolean;
   onLoadConversations: () => void;
   onOpenConversation: (conversation: Conversation) => void;
   onConversationOpened?: () => void;
+  onQueryChange: (query: string) => void;
+  onFilterChange: (filter: ConversationListFilter) => void;
+  onActiveConversationChange: (id: string | null) => void;
+  onClearFilters: () => void;
 }
 
 export function ContactList({
@@ -19,10 +27,17 @@ export function ContactList({
   conversationsError,
   unreadStatus,
   selectedConversationId,
+  query,
+  filter,
+  activeConversationId,
   privacyOn,
   onLoadConversations,
   onOpenConversation,
   onConversationOpened,
+  onQueryChange,
+  onFilterChange,
+  onActiveConversationChange,
+  onClearFilters,
 }: ContactListProps) {
   return (
     <ConversationList
@@ -31,10 +46,17 @@ export function ContactList({
       conversationsError={conversationsError}
       unreadStatus={unreadStatus}
       selectedConversationId={selectedConversationId}
+      query={query}
+      filter={filter}
+      activeConversationId={activeConversationId}
       privacyOn={privacyOn}
       onLoadConversations={onLoadConversations}
       onOpenConversation={onOpenConversation}
       onConversationOpened={onConversationOpened}
+      onQueryChange={onQueryChange}
+      onFilterChange={onFilterChange}
+      onActiveConversationChange={onActiveConversationChange}
+      onClearFilters={onClearFilters}
     />
   );
 }

@@ -1,6 +1,14 @@
+import { useState } from "react";
 import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
+import type {
+  MessageActionId,
+  MessageActionModel,
+  SafeRawFieldRow,
+} from "@l2/commander/messageActionModel";
 import { classNames } from "@/utils/classNames";
 import { maskDisplayText } from "./conversationDisplay";
+import { MessageActionMenu } from "./MessageActionMenu";
+import { MessageRawFieldInspector } from "./MessageRawFieldInspector";
 import { MessageMeta } from "./MessageMeta";
 import {
   getMessageAttachmentSummary,
@@ -12,6 +20,13 @@ interface MessageBubbleProps {
   message: ChatMessage;
   privacyOn: boolean;
   highlighted?: boolean;
+  selectionMode?: boolean;
+  selected?: boolean;
+  actionModel?: MessageActionModel;
+  safeRawFieldRows?: SafeRawFieldRow[];
+  onEnterSelectionMode?: () => void;
+  onToggleSelected?: (range: boolean) => void;
+  onAction?: (actionId: MessageActionId) => void;
 }
 
 function getContent(message: ChatMessage): string {
@@ -21,7 +36,20 @@ function getContent(message: ChatMessage): string {
   return "";
 }
 
-export function MessageBubble({ message, privacyOn, highlighted = false }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  privacyOn,
+  highlighted = false,
+  selectionMode = false,
+  selected = false,
+  actionModel,
+  safeRawFieldRows = [],
+  onEnterSelectionMode,
+  onToggleSelected,
+  onAction,
+}: MessageBubbleProps) {
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [rawInspectorOpen, setRawInspectorOpen] = useState(false);
   const tone = getTranscriptTone(message);
   const rawContent = getContent(message);
   const content = privacyOn ? maskDisplayText(rawContent) : rawContent;
@@ -30,13 +58,43 @@ export function MessageBubble({ message, privacyOn, highlighted = false }: Messa
 
   if (!content && !attachmentSummary && !hasLegacyMedia) return null;
 
+  const resolvedActionModel = actionModel ?? { actions: [] };
+  const handleAction = (actionId: MessageActionId) => {
+    if (actionId === "view-safe-raw-fields") {
+      setRawInspectorOpen(true);
+      setActionsOpen(false);
+      return;
+    }
+    onAction?.(actionId);
+    setActionsOpen(false);
+  };
+
   return (
     <div className={classNames(
       "message-row",
       `message-row--${tone}`,
       highlighted && "message-row--search-hit",
+      selectionMode && "message-row--selecting",
+      selected && "message-row--selected",
     )}>
-      <article className="message-bubble" aria-label={highlighted ? "搜索命中消息" : undefined}>
+      {selectionMode && (
+        <label className="message-row__select">
+          <input
+            type="checkbox"
+            checked={selected}
+            aria-label={selected ? "取消选择消息" : "选择消息"}
+            onChange={(event) => onToggleSelected?.(event.nativeEvent instanceof MouseEvent && event.nativeEvent.shiftKey)}
+          />
+        </label>
+      )}
+      <article
+        className="message-bubble"
+        aria-label={highlighted ? "搜索命中消息" : undefined}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setActionsOpen(true);
+        }}
+      >
         <MessageMeta message={message} privacyOn={privacyOn} />
         {content && <span>{content}</span>}
         {attachmentSummary && (
@@ -51,7 +109,35 @@ export function MessageBubble({ message, privacyOn, highlighted = false }: Messa
             {privacyOn ? "[媒体]" : "[媒体可用]"}
           </span>
         )}
+        <div
+          className="message-bubble__actions"
+        >
+          {!selectionMode && (
+            <button
+              type="button"
+              className="message-bubble__select-mode"
+              onClick={() => {
+                onEnterSelectionMode?.();
+                onToggleSelected?.(false);
+              }}
+            >
+              选择
+            </button>
+          )}
+          <MessageActionMenu
+            model={resolvedActionModel}
+            open={actionsOpen}
+            onToggleOpen={() => setActionsOpen((value) => !value)}
+            onAction={handleAction}
+          />
+        </div>
       </article>
+      {rawInspectorOpen && (
+        <MessageRawFieldInspector
+          rows={safeRawFieldRows}
+          onClose={() => setRawInspectorOpen(false)}
+        />
+      )}
     </div>
   );
 }

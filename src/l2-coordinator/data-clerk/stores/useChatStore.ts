@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
+import type { ConversationListFilter } from "@/l2-coordinator/commander/conversationListInteractionModel";
 import type { ApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 import type { MediaAttachment } from "./useMediaStore";
 
@@ -92,6 +93,9 @@ interface ChatState {
   chatRoomsByName: Record<string, unknown>;
   conversationsStatus: LoadStatus;
   conversationsError: string | null;
+  conversationListQuery: string;
+  conversationListFilter: ConversationListFilter;
+  conversationListActiveId: string | null;
   unreadStatus: UnreadStatus;
   unreadError: string | null;
   selectedConversationId: string | null;
@@ -110,6 +114,10 @@ interface ChatState {
   highlightedMessageId: string | null;
   returnToSearch: ChatReturnToSearch | null;
   anchorError: string | null;
+  selectionMode: boolean;
+  selectedMessageIds: string[];
+  lastSelectedMessageId: string | null;
+  selectionStatus: string | null;
 }
 
 interface ChatActions {
@@ -120,6 +128,10 @@ interface ChatActions {
   ) => void;
   setConversationsLoading: () => void;
   setConversationsError: (error: string) => void;
+  setConversationListQuery: (query: string) => void;
+  setConversationListFilter: (filter: ConversationListFilter) => void;
+  setConversationListActiveId: (id: string | null) => void;
+  clearConversationListFilters: () => void;
   setUnreadLoading: () => void;
   mergeConversationUnread: (unreadByChat: Record<string, number>) => void;
   setUnreadUnavailable: () => void;
@@ -143,6 +155,12 @@ interface ChatActions {
   setAnchorCancelled: () => void;
   clearHighlightedMessage: () => void;
   clearAnchor: () => void;
+  enterSelectionMode: () => void;
+  exitSelectionMode: () => void;
+  toggleMessageSelection: (messageId: string, range?: boolean) => void;
+  selectVisibleMessages: (messageIds: string[]) => void;
+  clearMessageSelection: () => void;
+  setSelectionStatus: (status: string | null) => void;
   resetChat: () => void;
 }
 
@@ -154,6 +172,9 @@ const initialState: ChatState = {
   chatRoomsByName: {},
   conversationsStatus: "idle",
   conversationsError: null,
+  conversationListQuery: "",
+  conversationListFilter: "all",
+  conversationListActiveId: null,
   unreadStatus: "idle",
   unreadError: null,
   selectedConversationId: null,
@@ -172,6 +193,10 @@ const initialState: ChatState = {
   highlightedMessageId: null,
   returnToSearch: null,
   anchorError: null,
+  selectionMode: false,
+  selectedMessageIds: [],
+  lastSelectedMessageId: null,
+  selectionStatus: null,
 };
 
 const clearedAnchorState = {
@@ -180,6 +205,13 @@ const clearedAnchorState = {
   highlightedMessageId: null,
   returnToSearch: null,
   anchorError: null,
+};
+
+const clearedSelectionState = {
+  selectionMode: false,
+  selectedMessageIds: [] as string[],
+  lastSelectedMessageId: null,
+  selectionStatus: null,
 };
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -198,6 +230,18 @@ export const useChatStore = create<ChatStore>((set) => ({
     set({ conversationsStatus: "loading", conversationsError: null }),
   setConversationsError: (error) =>
     set({ conversationsStatus: "error", conversationsError: error }),
+  setConversationListQuery: (conversationListQuery) =>
+    set({ conversationListQuery, conversationListActiveId: null }),
+  setConversationListFilter: (conversationListFilter) =>
+    set({ conversationListFilter, conversationListActiveId: null }),
+  setConversationListActiveId: (conversationListActiveId) =>
+    set({ conversationListActiveId }),
+  clearConversationListFilters: () =>
+    set({
+      conversationListQuery: "",
+      conversationListFilter: "all",
+      conversationListActiveId: null,
+    }),
   setUnreadLoading: () => set({ unreadStatus: "loading", unreadError: null }),
   mergeConversationUnread: (unreadByChat) =>
     set((state) => ({
@@ -221,6 +265,7 @@ export const useChatStore = create<ChatStore>((set) => ({
       scrollIntent: "none",
       scrollAnchorMessageId: null,
       scrollAnchorLocalId: null,
+      ...clearedSelectionState,
       ...clearedAnchorState,
     }),
   setMessages: (messages, totalCount, offset, hasMore = false, scrollIntent = "latest") =>
@@ -306,6 +351,39 @@ export const useChatStore = create<ChatStore>((set) => ({
     }),
   clearHighlightedMessage: () => set({ highlightedMessageId: null }),
   clearAnchor: () => set(clearedAnchorState),
+  enterSelectionMode: () => set({ selectionMode: true, selectionStatus: null }),
+  exitSelectionMode: () => set(clearedSelectionState),
+  toggleMessageSelection: (messageId, range = false) =>
+    set((state) => {
+      const selected = new Set(state.selectedMessageIds);
+      if (range && state.lastSelectedMessageId) {
+        for (const id of getMessageIdRange(state.messages, state.lastSelectedMessageId, messageId)) {
+          selected.add(id);
+        }
+      } else if (selected.has(messageId)) {
+        selected.delete(messageId);
+      } else {
+        selected.add(messageId);
+      }
+
+      return {
+        selectionMode: true,
+        selectedMessageIds: orderMessageIds([...selected], state.messages),
+        lastSelectedMessageId: messageId,
+        selectionStatus: null,
+      };
+    }),
+  selectVisibleMessages: (messageIds) =>
+    set((state) => ({
+      selectionMode: messageIds.length > 0,
+      selectedMessageIds: orderMessageIds(messageIds, state.messages),
+      lastSelectedMessageId: messageIds.length > 0
+        ? messageIds[messageIds.length - 1] ?? null
+        : state.lastSelectedMessageId,
+      selectionStatus: null,
+    })),
+  clearMessageSelection: () => set(clearedSelectionState),
+  setSelectionStatus: (selectionStatus) => set({ selectionStatus }),
   resetChat: () =>
     set({
       selectedConversationId: null,
@@ -318,6 +396,24 @@ export const useChatStore = create<ChatStore>((set) => ({
       scrollIntent: "none",
       scrollAnchorMessageId: null,
       scrollAnchorLocalId: null,
+      ...clearedSelectionState,
       ...clearedAnchorState,
     }),
 }));
+
+function getMessageIdRange(messages: ChatMessage[], startId: string, endId: string): string[] {
+  const start = messages.findIndex((message) => message.id === startId);
+  const end = messages.findIndex((message) => message.id === endId);
+  if (start < 0 || end < 0) return [endId];
+  const [from, to] = start <= end ? [start, end] : [end, start];
+  return messages.slice(from, to + 1).map((message) => message.id);
+}
+
+function orderMessageIds(messageIds: string[], messages: ChatMessage[]): string[] {
+  const selected = new Set(messageIds);
+  const ordered = messages.filter((message) => selected.has(message.id)).map((message) => message.id);
+  for (const id of messageIds) {
+    if (!ordered.includes(id)) ordered.push(id);
+  }
+  return ordered;
+}

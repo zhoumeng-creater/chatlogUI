@@ -1,3 +1,4 @@
+import { forwardRef, type KeyboardEvent } from "react";
 import { Avatar, StatusIndicator } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
 import type { Conversation, UnreadStatus } from "@l2/data-clerk/stores/useChatStore";
@@ -11,18 +12,26 @@ import {
 interface ConversationRowProps {
   conversation: Conversation;
   selected: boolean;
+  active: boolean;
+  tabIndex: number;
   privacyOn: boolean;
   unreadStatus: UnreadStatus;
   onOpen: (conversation: Conversation) => void;
+  onFocus: () => void;
+  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
 }
 
-export function ConversationRow({
+export const ConversationRow = forwardRef<HTMLButtonElement, ConversationRowProps>(function ConversationRow({
   conversation,
   selected,
+  active,
+  tabIndex,
   privacyOn,
   unreadStatus,
   onOpen,
-}: ConversationRowProps) {
+  onFocus,
+  onKeyDown,
+}, ref) {
   const badge = getConversationBadge(conversation);
   const displayName = privacyOn
     ? maskDisplayText(conversation.displayName)
@@ -36,9 +45,17 @@ export function ConversationRow({
   return (
     <button
       type="button"
-      className={classNames("conversation-row", selected && "conversation-row--selected")}
+      className={classNames(
+        "conversation-row",
+        selected && "conversation-row--selected",
+        active && "conversation-row--active",
+      )}
       aria-current={selected ? "true" : undefined}
       aria-label={accessibilityLabel}
+      tabIndex={tabIndex}
+      ref={ref}
+      onFocus={onFocus}
+      onKeyDown={onKeyDown}
       onClick={() => onOpen(conversation)}
     >
       <div
@@ -64,4 +81,4 @@ export function ConversationRow({
       </span>
     </button>
   );
-}
+});

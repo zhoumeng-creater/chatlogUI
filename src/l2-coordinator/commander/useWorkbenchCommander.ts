@@ -22,6 +22,19 @@ import {
 } from "./workspaceCommandBarModel";
 import { createConversationExportArtifact } from "./businessExportModel";
 import { useBusinessExportCommander } from "./useBusinessExportCommander";
+import { copyTextToClipboard } from "@/l4-atom/system";
+import {
+  deriveSelectedMessages,
+  getSelectionPrivacySummary,
+} from "./chatSelectionModel";
+import {
+  buildMessageActionModel,
+  getSafeRawFieldRows,
+  serializeMessageAction,
+  type MessageActionId,
+} from "./messageActionModel";
+import type { ChatMessage } from "@/l2-coordinator/data-clerk/stores/useChatStore";
+import { deriveTranscriptPositionModel } from "./transcriptPositionModel";
 import {
   getEffectiveRailMode,
   getWorkspaceRailWidth,
@@ -59,6 +72,38 @@ export function useWorkbenchCommander() {
   const stats = useStatsCommander();
   const { conversations, loadConversations, selectedConversationId } = chat;
   const { loadAll } = stats;
+  const selectedMessages = useMemo(() => deriveSelectedMessages({
+    state: {
+      mode: chat.selectionMode,
+      selectedMessageIds: chat.selectedMessageIds,
+      lastSelectedMessageId: chat.lastSelectedMessageId,
+      status: chat.selectionStatus,
+    },
+    messages: chat.messages,
+  }), [
+    chat.lastSelectedMessageId,
+    chat.messages,
+    chat.selectedMessageIds,
+    chat.selectionMode,
+    chat.selectionStatus,
+  ]);
+  const selectionSummary = useMemo(() => getSelectionPrivacySummary({
+    state: {
+      mode: chat.selectionMode,
+      selectedMessageIds: chat.selectedMessageIds,
+      lastSelectedMessageId: chat.lastSelectedMessageId,
+      status: chat.selectionStatus,
+    },
+    messages: chat.messages,
+    privacyOn,
+  }), [
+    chat.lastSelectedMessageId,
+    chat.messages,
+    chat.selectedMessageIds,
+    chat.selectionMode,
+    chat.selectionStatus,
+    privacyOn,
+  ]);
   const [singlePaneView, setSinglePaneView] = useState<SinglePaneView>("detail");
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const viewportWidth = useViewportWidth();
@@ -102,6 +147,31 @@ export function useWorkbenchCommander() {
           content: message.content || "",
           time: message.time,
           type: message.type,
+        })),
+      }),
+  });
+  const selectedFragmentExport = useBusinessExportCommander({
+    source: "conversation_selection",
+    formats: ["markdown", "json"],
+    defaultFormat: "markdown",
+    disabledReason: selectedMessages.length === 0 ? "先选择要导出的消息。" : null,
+    buildArtifact: ({ format, privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+      createConversationExportArtifact({
+        source: "conversation_selection",
+        format,
+        privacyOn: exportPrivacyOn,
+        requestedUnredacted,
+        unredactedConfirmed,
+        generatedAt,
+        scopeSummary: `当前会话 · 已选 ${selectedMessages.length.toLocaleString()} 条`,
+        totalCount: selectedMessages.length,
+        loadedCount: selectedMessages.length,
+        messages: selectedMessages.map((message) => ({
+          id: message.id,
+          sender: message.senderName || message.sender || message.talkerName || message.talker || "",
+          content: message.content || "",
+          time: message.time,
+          type: message.mediaType || message.type,
         })),
       }),
   });
@@ -202,6 +272,63 @@ export function useWorkbenchCommander() {
     navigate(returnContext.returnRoute);
   }, [navigate, returnContext?.returnRoute]);
 
+  const copySelectedMessagesAsMarkdown = useCallback(async () => {
+    const fragments = selectedMessages
+      .map((message) => serializeMessageAction({
+        actionId: "copy-markdown-quote",
+        message,
+        privacyOn,
+        unmaskedConfirmed: false,
+      }))
+      .filter((result) => result.ok)
+      .map((result) => result.text);
+
+    if (fragments.length === 0) {
+      chat.setSelectionStatus("没有可复制的选中消息。");
+      return;
+    }
+
+    const copied = await copyTextToClipboard(fragments.join("\n\n"));
+    chat.setSelectionStatus(copied
+      ? `已复制 ${fragments.length.toLocaleString()} 条选中消息。`
+      : "复制失败，请检查剪贴板权限。");
+  }, [chat, privacyOn, selectedMessages]);
+
+  const handleMessageAction = useCallback(async (message: ChatMessage, actionId: MessageActionId) => {
+    if (actionId === "jump-to-time") {
+      chat.setSelectionStatus(message.time ? `已定位到 ${message.time} 附近。` : "这条消息没有可定位时间。");
+      return;
+    }
+    if (actionId === "find-similar") {
+      chat.setSelectionStatus("当前后端暂不支持同类消息搜索。");
+      return;
+    }
+    if (actionId === "view-safe-raw-fields") return;
+
+    const serialized = serializeMessageAction({
+      actionId,
+      message,
+      privacyOn,
+      unmaskedConfirmed: false,
+    });
+    if (!serialized.ok) {
+      chat.setSelectionStatus(serialized.disabledReason ?? "当前消息操作不可用。");
+      return;
+    }
+
+    const copied = await copyTextToClipboard(serialized.text);
+    chat.setSelectionStatus(copied ? "已复制消息内容。" : "复制失败，请检查剪贴板权限。");
+  }, [chat, privacyOn]);
+
+  const getMessageActionModel = useCallback((message: ChatMessage) => buildMessageActionModel({
+    message,
+    privacyOn,
+    similarSearchSupported: false,
+  }), [privacyOn]);
+
+  const getMessageSafeRawFieldRows = useCallback((message: ChatMessage) =>
+    getSafeRawFieldRows(message), []);
+
   const commandBar = useMemo(() => buildWorkspaceCommandBar({
     hasConversation: Boolean(currentConversation),
     inspectorMode: layout.inspectorMode,
@@ -264,6 +391,9 @@ export function useWorkbenchCommander() {
     inspectorTitle: getConversationInspectorTitle({ hasConversation: Boolean(currentConversation) }),
     commandBar,
     conversationExport,
+    selectedFragmentExport,
+    selectedMessages,
+    selectionSummary,
     returnContext,
     openConversationList,
     handleConversationOpened,
@@ -279,6 +409,11 @@ export function useWorkbenchCommander() {
     resizePanel,
     resetPanel,
     returnToSearchResults,
+    copySelectedMessagesAsMarkdown,
+    handleMessageAction,
+    deriveTranscriptPositionModel,
+    getMessageActionModel,
+    getMessageSafeRawFieldRows,
   };
 }
 
