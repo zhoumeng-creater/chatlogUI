@@ -133,14 +133,16 @@ function hasBlockingUi(): boolean {
   ));
 }
 
-function positionCoachMark(
+export function positionCoachMark(
   rect: DOMRectReadOnly,
   placement: CoachMarkView["placement"],
   viewportWidth: number,
+  viewportHeight = typeof window === "undefined" ? 768 : window.innerHeight,
 ): CoachMarkView["position"] {
   const gap = 12;
   const width = Math.min(360, Math.max(288, viewportWidth - 32));
   const left = clamp(rect.left, 16, Math.max(16, viewportWidth - width - 16));
+  const topChromeLimit = 72;
 
   if (placement === "right" && rect.right + width + gap <= viewportWidth - 16) {
     return {
@@ -159,12 +161,19 @@ function positionCoachMark(
   if (placement === "top" && rect.top > 160) {
     return {
       left: Math.round(left),
-      bottom: Math.max(16, Math.round(window.innerHeight - rect.top + gap)),
+      bottom: Math.max(16, Math.round(viewportHeight - rect.top + gap)),
+    };
+  }
+
+  if (placement === "bottom" && rect.bottom <= topChromeLimit) {
+    return {
+      bottom: 48,
+      left: Math.round(left),
     };
   }
 
   return {
-    top: Math.round(Math.min(window.innerHeight - 180, rect.bottom + gap)),
+    top: Math.round(Math.min(viewportHeight - 180, rect.bottom + gap)),
     left: Math.round(left),
   };
 }

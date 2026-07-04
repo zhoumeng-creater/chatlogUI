@@ -81,6 +81,26 @@ describe("coachMarkModel", () => {
     })).toBeNull();
   });
 
+  it("does not interrupt the setup start page with the privacy coach mark", () => {
+    const candidates = buildCoachMarkCandidates({
+      contextId: "setup",
+      privacyOn: false,
+      viewportWidth: 390,
+      anchors: new Set(["privacy-toggle"]),
+    });
+
+    expect(candidates.map((candidate) => candidate.id)).not.toContain("privacy-mode");
+    expect(selectCoachMark({
+      candidates,
+      dismissedIds: [],
+      blocking: false,
+      overlayOpen: false,
+      viewportWidth: 390,
+      now: 100,
+      pausedUntil: null,
+    })).toBeNull();
+  });
+
   it("sanitizes stored coach mark preferences to structural ids only", () => {
     expect(sanitizeCoachMarkPreferences({
       dismissedCoachMarkIds: ["privacy-mode", "wxid_synthetic_private", "search-scope", "C:/Users/Synthetic/private"],

@@ -145,7 +145,7 @@ function defaultCoachMarks(): CoachMarkCandidate[] {
       title: "隐私模式保留结构",
       body: "这里切换隐私遮罩。数量、类型和布局会保留，姓名、内容和路径会隐藏。",
       placement: "bottom",
-      contexts: ["setup", "settings", "workbench", "search", "media", "sns", "analytics", "ai", "graph"],
+      contexts: ["settings", "workbench", "search", "media", "sns", "analytics", "ai", "graph"],
       priority: 20,
     },
     {

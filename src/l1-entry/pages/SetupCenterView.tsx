@@ -3,12 +3,13 @@ import { useAppShellCommander, useSetupCenterCommander } from "@l2/commander";
 import { AppLayout } from "@l3/common/AppLayout";
 import { SetupStepper } from "@l3/setup/SetupStepper";
 import { SetupModeChooser } from "@l3/setup/SetupModeChooser";
+import { SetupActionPanel } from "@l3/setup/SetupActionPanel";
 import { ConfigImportPanel } from "@l3/setup/ConfigImportPanel";
 import { ManualAdvancedConfigPanel } from "@l3/setup/ManualAdvancedConfigPanel";
 import { ServiceControlPanel } from "@l3/setup/ServiceControlPanel";
 import { ReadinessChecklist } from "@l3/setup/ReadinessChecklist";
 import { SetupDiagnosticsDisclosure } from "@l3/setup/SetupDiagnosticsDisclosure";
-import { Button, Surface, Typography } from "@l4/ui";
+import { Surface, Typography } from "@l4/ui";
 
 export function SetupCenterView() {
   const setup = useSetupCenterCommander();
@@ -23,37 +24,28 @@ export function SetupCenterView() {
               <Server size={17} />
             </div>
             <div className="setup-brand__text">
-              <Typography id="setup-center-title" variant="h2">{setup.view.heading}</Typography>
-              <Typography variant="body" color="var(--text-secondary)" className="setup-hero__copy">
-                {setup.view.description}
+              <Typography variant="label" weight={700}>chatlogUI 设置中心</Typography>
+              <Typography variant="caption" color="var(--text-secondary)" className="setup-hero__copy">
+                本地私有聊天数据连接
               </Typography>
             </div>
           </div>
         </header>
 
-        <aside className="setup-shell__aside" aria-label="设置状态摘要">
-          <div aria-live="polite" className="sr-only">
-            {setup.view.readyAnnouncement}
-          </div>
-          <section className="setup-card--compact">
-            <div className="setup-card-header">
-              <Database size={16} color="var(--text-secondary)" />
-              <Typography variant="label" weight={700}>状态摘要</Typography>
-            </div>
-            <div className="setup-status-stack">
-              <ReadinessChecklist
-                profile={setup.profile}
-                mode={setup.mode}
-                httpReady={setup.httpReady}
-                dbReady={setup.dbReady}
-                items={setup.view.readinessSummary}
-              />
-            </div>
-          </section>
-        </aside>
-
         <main className="setup-shell__main" aria-labelledby="setup-center-title">
           <div className="setup-shell__content">
+            <div aria-live="polite" className="sr-only">
+              {setup.view.readyAnnouncement}
+            </div>
+            <SetupActionPanel
+              headingId="setup-center-title"
+              heading={setup.view.heading}
+              description={setup.view.description}
+              primaryAction={setup.view.primaryAction}
+              secondaryActions={setup.view.secondaryActions}
+              onAction={(actionId) => void setup.actions.performAction(actionId)}
+            />
+
             <section className="setup-flow" aria-label="设置流程">
               <SetupStepper currentStep={setup.currentStep} />
               <SetupModeChooser
@@ -122,41 +114,25 @@ export function SetupCenterView() {
                   </Surface>
                 )}
               </div>
+            </section>
 
-              <div className="setup-flow__actions">
-                {setup.view.primaryAction.helperText && (
-                  <Typography variant="caption" color="var(--text-secondary)">
-                    {setup.view.primaryAction.helperText}
-                  </Typography>
-                )}
-                <Button
-                  type="button"
-                  variant={setup.view.primaryAction.variant}
-                  loading={Boolean(setup.view.primaryAction.busy)}
-                  disabled={setup.view.primaryAction.disabled}
-                  onClick={() => void setup.actions.performAction(setup.view.primaryAction.id)}
-                >
-                  {setup.view.primaryAction.label}
-                </Button>
-                {setup.view.secondaryActions.length > 0 && (
-                  <div className="setup-flow__secondary-actions">
-                    {setup.view.secondaryActions.map((action) => (
-                      <Button
-                        key={action.id}
-                        type="button"
-                        variant={action.variant}
-                        disabled={action.disabled}
-                        onClick={() => void setup.actions.performAction(action.id)}
-                      >
-                        {action.label}
-                      </Button>
-                    ))}
-                  </div>
-                )}
+            <section className="setup-card--compact setup-status-summary" aria-label="设置状态摘要">
+              <div className="setup-card-header">
+                <Database size={16} color="var(--text-secondary)" />
+                <Typography variant="label" weight={700}>状态摘要</Typography>
+              </div>
+              <div className="setup-status-stack">
+                <ReadinessChecklist
+                  profile={setup.profile}
+                  mode={setup.mode}
+                  httpReady={setup.httpReady}
+                  dbReady={setup.dbReady}
+                  items={setup.view.readinessSummary}
+                />
               </div>
             </section>
 
-            <section className="setup-card--compact">
+            <section className="setup-card--compact setup-diagnostics-card">
               <Typography variant="label" weight={700}>诊断信息</Typography>
               <SetupDiagnosticsDisclosure
                 report={setup.diagnostics.report}

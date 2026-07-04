@@ -2364,10 +2364,10 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  grid-template-columns: minmax(0, 760px) minmax(240px, 304px);
+  grid-template-columns: minmax(0, 960px);
   align-content: start;
   justify-content: center;
-  gap: var(--space-6);
+  gap: var(--space-5);
   overflow: auto;
   padding: var(--space-8);
   background: var(--surface-app);
@@ -2386,7 +2386,7 @@
 }
 
 .setup-shell__main {
-  grid-column: 1;
+  grid-column: 1 / -1;
   grid-row: 2;
   min-width: 0;
   overflow: visible;
@@ -2407,7 +2407,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-5);
+  margin-bottom: 0;
 }
 
 .setup-brand__text {
@@ -2435,6 +2435,47 @@
   display: grid;
   min-width: 0;
   gap: var(--space-5);
+}
+
+.setup-action-panel {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border-subtle));
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 42%),
+    var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.setup-action-panel__copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.setup-action-panel__primary {
+  display: grid;
+  min-width: 0;
+  justify-items: stretch;
+  gap: var(--space-2);
+}
+
+.setup-action-panel__primary > .ui-button {
+  min-width: 220px;
+}
+
+.setup-action-panel__secondary {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  grid-column: 1 / -1;
 }
 
 .setup-flow__panel {
@@ -2503,6 +2544,7 @@
 
 .setup-stepper {
   display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-1);
 }
 
@@ -2629,6 +2671,16 @@
 .setup-status-stack {
   display: grid;
   gap: var(--space-2);
+}
+
+.setup-status-summary .readiness-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.setup-status-summary .readiness-state-panel {
+  gap: var(--space-2);
+  padding: var(--space-3);
 }
 
 .setup-diagnostics-body {
@@ -5147,7 +5199,7 @@
 
   .setup-shell__main,
   .settings-shell__content {
-    order: 3;
+    order: 2;
     overflow: visible;
   }
 
@@ -5156,17 +5208,34 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .setup-shell__aside .readiness-list {
+  .setup-action-panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .setup-action-panel__primary > .ui-button,
+  .setup-action-panel__secondary > .ui-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .setup-action-panel__secondary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .setup-status-summary .readiness-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
   }
 
-  .setup-shell__aside .readiness-state-panel {
+  .setup-status-summary .readiness-state-panel {
     gap: 4px;
     padding: var(--space-2) var(--space-3);
   }
 
-  .setup-shell__aside .readiness-state-panel p {
+  .setup-status-summary .readiness-state-panel p {
     display: none;
     font-size: 12px;
     line-height: 1.35;
