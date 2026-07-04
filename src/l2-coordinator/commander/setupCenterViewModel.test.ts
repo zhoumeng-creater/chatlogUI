@@ -63,6 +63,10 @@ describe("deriveSetupCenterView", () => {
     expect(view.diagnostics).toMatchObject({ defaultOpen: false });
     expect(view.showWorkbenchAction).toBe(false);
     expect(view.activePanel).toBe("recommended-import");
+    expect(view.pathOptions.find((option) => option.id === "manual-advanced")).toMatchObject({
+      label: "高级手动配置",
+    });
+    expect(JSON.stringify(view.pathOptions)).not.toContain("专家手动配置");
   });
 
   it("keeps external service and DB readiness separate before showing Workbench", () => {

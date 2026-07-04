@@ -22,7 +22,7 @@ describe("SetupModeChooser", () => {
           },
           {
             id: "manual-advanced",
-            label: "专家手动配置",
+            label: "高级手动配置",
             description: "排障时手动填写服务配置。",
             selected: false,
           },
@@ -34,7 +34,8 @@ describe("SetupModeChooser", () => {
     expect(html).toContain("setup-choice-card");
     expect(html).toContain("推荐自动导入");
     expect(html).toContain("连接已有服务");
-    expect(html).toContain("专家手动配置");
+    expect(html).toContain("高级手动配置");
+    expect(html).not.toContain("专家手动配置");
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('aria-pressed="false"');
     expect(html).not.toMatch(/\b(bg|text|border)-(green|red|gray|blue)-/);

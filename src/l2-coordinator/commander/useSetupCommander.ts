@@ -11,6 +11,7 @@ import {
   importDataDirConfig,
   clearExternalConnectionConfig,
   loadExternalConnectionConfigSummary,
+  readDataDirConfigDraft,
   saveManagedServerConfig,
   saveExternalConnectionConfig,
   loadManagedServerConfigSummary,
@@ -335,8 +336,32 @@ export function useSetupCommander(): SetupCommander {
   );
 
   const chooseManualDataDirectory = useCallback(
-    () => chooseManualDirectory("dataDir"),
-    [chooseManualDirectory],
+    async () => {
+      const dir = await openDirectoryPicker();
+      if (!dir) return null;
+      const currentDraft = useSetupStore.getState().manualDraft;
+      try {
+        const importedDraft = await readDataDirConfigDraft(dir);
+        setManualDraft({
+          ...currentDraft,
+          ...importedDraft,
+          dataDir: importedDraft.dataDir ?? dir,
+          workDir: importedDraft.workDir ?? currentDraft.workDir,
+          httpAddr: importedDraft.httpAddr ?? currentDraft.httpAddr ?? "127.0.0.1:5030",
+          saveDecryptedMedia: importedDraft.saveDecryptedMedia ?? currentDraft.saveDecryptedMedia ?? true,
+        });
+        setManualFieldErrors({});
+        setError(null);
+      } catch (err) {
+        setManualDraft({
+          ...currentDraft,
+          dataDir: dir,
+        });
+        setError(formatSafeUserFacingError(err));
+      }
+      return dir;
+    },
+    [setError, setManualDraft, setManualFieldErrors],
   );
 
   const chooseManualWorkDirectory = useCallback(

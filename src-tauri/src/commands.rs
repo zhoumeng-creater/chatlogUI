@@ -42,6 +42,14 @@ pub async fn export_diagnostics_report(
 }
 
 #[tauri::command]
+pub async fn export_diagnostics_report_to_path(
+    path: String,
+    report: crate::sidecar::DiagnosticExportPayload,
+) -> Result<String, String> {
+    crate::sidecar::export_diagnostics_report_to_path_command(path, report).await
+}
+
+#[tauri::command]
 pub async fn export_business_file(
     payload: crate::business_export::BusinessExportPayload,
 ) -> Result<crate::business_export::BusinessExportResponse, String> {
@@ -63,6 +71,23 @@ pub async fn import_data_dir_config(
         cfg.data_dir = Some(data_dir);
     }
     config_store::write_managed_server_config_with_source(&cfg, "data-dir-chatlog-json")
+}
+
+#[tauri::command]
+pub async fn read_data_dir_config_draft(
+    data_dir: String,
+) -> Result<config_store::ServerConfigDraft, String> {
+    let mut cfg = config_store::read_data_dir_chatlog_json(std::path::Path::new(&data_dir))?;
+    if cfg
+        .data_dir
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        .is_empty()
+    {
+        cfg.data_dir = Some(data_dir);
+    }
+    Ok(cfg)
 }
 
 #[tauri::command]

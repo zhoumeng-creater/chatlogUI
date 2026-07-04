@@ -1,6 +1,7 @@
 import { Button, Surface, Typography } from "@l4/ui";
 import type { SettingsMessages } from "@/l2-coordinator/commander/messages.zh-CN";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
+import type { ExportDiagnosticsResult } from "@l4/system";
 import { SettingsDiagnosticsDisclosure } from "./SettingsDiagnosticsDisclosure";
 import packageJson from "../../../package.json";
 
@@ -11,7 +12,7 @@ interface AboutSettingsProps {
   onCheckUpdate: () => Promise<void>;
   diagnosticReport: DiagnosticsReport;
   diagnosticCopyText: string;
-  onExportDiagnostics: () => Promise<string>;
+  onExportDiagnostics: () => Promise<ExportDiagnosticsResult>;
 }
 
 export function AboutSettings({

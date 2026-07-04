@@ -53,4 +53,32 @@ describe("SetupActionPanel", () => {
     expect(html).toContain("刷新数据库状态");
     expect(html).toContain("disabled");
   });
+
+  it("groups primary and secondary actions into one aligned action column", () => {
+    const html = renderToStaticMarkup(
+      <SetupActionPanel
+        heading="连接本地聊天数据服务"
+        description="保存配置后继续检查数据库。"
+        primaryAction={{
+          id: "save-manual-config",
+          label: "保存并验证配置",
+          variant: "primary",
+          disabled: false,
+        }}
+        secondaryActions={[
+          {
+            id: "inspect-service-port",
+            label: "检查端口",
+            variant: "secondary",
+            disabled: false,
+          },
+        ]}
+        onAction={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("setup-action-panel__actions");
+    expect(html.indexOf("setup-action-panel__actions")).toBeLessThan(html.indexOf("保存并验证配置"));
+    expect(html.indexOf("保存并验证配置")).toBeLessThan(html.indexOf("检查端口"));
+  });
 });

@@ -8,7 +8,13 @@ export { applyWindowMaterial } from "./applyWindowMaterial";
 export { listenSidecarLogs } from "./listenSidecarLogs";
 export type { SidecarLogPayload } from "./listenSidecarLogs";
 export { exportDiagnosticsReport } from "./exportDiagnostics";
-export type { ExportDiagnosticsPayload, ExportDiagnosticsLine } from "./exportDiagnostics";
+export type {
+  ExportDiagnosticsCancelled,
+  ExportDiagnosticsCompleted,
+  ExportDiagnosticsLine,
+  ExportDiagnosticsPayload,
+  ExportDiagnosticsResult,
+} from "./exportDiagnostics";
 export { exportBusinessFile } from "./exportBusinessFile";
 export type {
   ExportBusinessFileCompleted,
@@ -37,6 +43,7 @@ export {
   importDataDirConfig,
   saveManagedServerConfig,
   loadManagedServerConfigSummary,
+  readDataDirConfigDraft,
   validateManagedServerConfig,
 } from "./chatlogConfig";
 export {

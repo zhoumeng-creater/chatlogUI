@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
+import type { ExportDiagnosticsResult } from "@l4/system";
 import { Button, DisabledReason, StatusIndicator, Surface, Typography } from "@l4/ui";
 import { maskDiagnosticText } from "@/utils/maskSecrets";
-import { formatExportPathSummary } from "@/utils/privacyDisplay";
 import { DiagnosticCopyButton } from "./DiagnosticCopyButton";
 
 interface DiagnosticsPanelProps {
   report: DiagnosticsReport;
   copyText: string;
-  onExport: () => Promise<string>;
+  onExport: () => Promise<ExportDiagnosticsResult>;
 }
 
 function formatDiagnosticsExportError(error: unknown): string {
@@ -34,8 +34,7 @@ function formatDiagnosticsExportError(error: unknown): string {
 }
 
 export function formatDiagnosticsExportSuccess(path: string): string {
-  const summary = formatExportPathSummary(path);
-  return summary === "诊断已导出" ? summary : `诊断已导出：${summary}`;
+  return path ? `诊断已导出：${path}` : "诊断已导出";
 }
 
 export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPanelProps) {
@@ -58,9 +57,14 @@ export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPane
     setExportState("exporting");
     setMessage(null);
     try {
-      const path = await onExport();
+      const result = await onExport();
+      if (result.status === "cancelled") {
+        setExportState("idle");
+        setMessage("已取消导出，未写入文件。");
+        return;
+      }
       setExportState("exported");
-      setMessage(formatDiagnosticsExportSuccess(path));
+      setMessage(formatDiagnosticsExportSuccess(result.locationSummary));
     } catch (error) {
       setExportState("error");
       setMessage(formatDiagnosticsExportError(error));
@@ -70,7 +74,7 @@ export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPane
   return (
     <Surface variant="base" className="diagnostics-panel">
       <div className="diagnostics-panel__header">
-        <div>
+        <div className="diagnostics-panel__title">
           <Typography variant="label" weight={700}>
             诊断摘要
           </Typography>
@@ -78,10 +82,46 @@ export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPane
             仅包含用户触发的脱敏状态摘要，不导出聊天正文或原始凭据。
           </Typography>
         </div>
-        <StatusIndicator
-          label={report.redactionOk ? "已脱敏" : "已阻止导出"}
-          tone={report.redactionOk ? "success" : "danger"}
-        />
+        <div className="diagnostics-panel__header-actions">
+          <StatusIndicator
+            label={report.redactionOk ? "已脱敏" : "已阻止导出"}
+            tone={report.redactionOk ? "success" : "danger"}
+          />
+          <div className="diagnostics-actions">
+            <DiagnosticCopyButton
+              text={copyText}
+              disabled={!report.redactionOk}
+              disabledReason={redactionBlockedReason}
+            />
+            {exportDisabledReason ? (
+              <DisabledReason id={exportDisabledReasonId} reason={exportDisabledReason} variant="compact">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={exportState === "exporting"}
+                  disabled={!report.redactionOk}
+                  aria-describedby={exportDisabledReasonId}
+                  onClick={handleExport}
+                >
+                  <Download size={14} />
+                  导出诊断
+                </Button>
+              </DisabledReason>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={exportState === "exporting"}
+                disabled={!report.redactionOk}
+                aria-describedby={exportDisabledReasonId}
+                onClick={handleExport}
+              >
+                <Download size={14} />
+                导出诊断
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
       <dl className="diagnostics-grid">
@@ -92,41 +132,6 @@ export function DiagnosticsPanel({ report, copyText, onExport }: DiagnosticsPane
           </div>
         ))}
       </dl>
-
-      <div className="diagnostics-actions">
-        <DiagnosticCopyButton
-          text={copyText}
-          disabled={!report.redactionOk}
-          disabledReason={redactionBlockedReason}
-        />
-        {exportDisabledReason ? (
-          <DisabledReason id={exportDisabledReasonId} reason={exportDisabledReason} variant="compact">
-            <Button
-              variant="secondary"
-              size="sm"
-              loading={exportState === "exporting"}
-              disabled={!report.redactionOk}
-              aria-describedby={exportDisabledReasonId}
-              onClick={handleExport}
-            >
-              <Download size={14} />
-              导出诊断
-            </Button>
-          </DisabledReason>
-        ) : (
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={exportState === "exporting"}
-            disabled={!report.redactionOk}
-            aria-describedby={exportDisabledReasonId}
-            onClick={handleExport}
-          >
-            <Download size={14} />
-            导出诊断
-          </Button>
-        )}
-      </div>
 
       {message && (
         <Typography

@@ -9,7 +9,10 @@ describe("DiagnosticsPanel", () => {
       <DiagnosticsPanel
         report={blockedReport}
         copyText="blocked diagnostics"
-        onExport={vi.fn(async () => "C:/Users/Synthetic/Documents/diagnostics.txt")}
+        onExport={vi.fn(async () => ({
+          status: "completed",
+          locationSummary: "diagnostics.txt",
+        } as const))}
       />,
     );
 
@@ -21,7 +24,7 @@ describe("DiagnosticsPanel", () => {
   });
 
   it("formats export success without revealing the full filesystem path", () => {
-    const message = formatDiagnosticsExportSuccess("C:\\Users\\Synthetic\\Documents\\diagnostics.txt");
+    const message = formatDiagnosticsExportSuccess("diagnostics.txt");
 
     expect(message).toContain("diagnostics.txt");
     expect(message).not.toContain("Users");
@@ -30,9 +33,27 @@ describe("DiagnosticsPanel", () => {
   });
 
   it("uses a single generic export success message when the filename is unsafe", () => {
-    expect(formatDiagnosticsExportSuccess("C:\\Users\\Synthetic\\Documents\\wxid_synthetic_private.txt")).toBe(
+    expect(formatDiagnosticsExportSuccess("")).toBe(
       "诊断已导出",
     );
+  });
+
+  it("places copy and export actions in the diagnostic header before the report lines", () => {
+    const html = renderToStaticMarkup(
+      <DiagnosticsPanel
+        report={readyReport}
+        copyText="safe diagnostics"
+        onExport={vi.fn(async () => ({
+          status: "completed",
+          locationSummary: "diagnostics.txt",
+        } as const))}
+      />,
+    );
+
+    expect(html).toContain("diagnostics-panel__header-actions");
+    expect(html.indexOf("diagnostics-panel__header-actions")).toBeLessThan(html.indexOf("diagnostics-grid"));
+    expect(html.indexOf("复制诊断")).toBeLessThan(html.indexOf("Mode"));
+    expect(html.indexOf("导出诊断")).toBeLessThan(html.indexOf("Mode"));
   });
 });
 
@@ -43,6 +64,16 @@ const blockedReport: DiagnosticsReport = {
     {
       label: "Redaction result",
       value: "blocked",
+    },
+  ],
+};
+
+const readyReport: DiagnosticsReport = {
+  redactionOk: true,
+  lines: [
+    {
+      label: "Mode",
+      value: "managed",
     },
   ],
 };

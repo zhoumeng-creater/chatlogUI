@@ -65,7 +65,10 @@ export function useDevConsoleCommander() {
           { label: "Last error", value: lastError ?? "-" },
         ],
       });
-      const path = await exportDiagnosticsReport(report);
+      const result = await exportDiagnosticsReport(report);
+      if (result.status === "cancelled") {
+        return null;
+      }
       recordLocalDiagnosticEvent({
         source: "ui",
         level: "info",
@@ -76,7 +79,7 @@ export function useDevConsoleCommander() {
           target: "dev-console",
         },
       });
-      return path;
+      return result.locationSummary;
     } catch (error) {
       const safeMessage = maskDiagnosticText(
         error instanceof Error ? error.message : String(error),

@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
+import type { ExportDiagnosticsResult } from "@l4/system";
 import { Button, Typography } from "@l4/ui";
 import { DiagnosticPanel } from "./DiagnosticPanel";
 
 interface SetupDiagnosticsDisclosureProps {
   report: DiagnosticsReport;
   copyText: string;
-  onExport: () => Promise<string>;
+  onExport: () => Promise<ExportDiagnosticsResult>;
 }
 
 export function SetupDiagnosticsDisclosure({

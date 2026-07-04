@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ServerConfigDraft } from "@l4/system";
-import { Button, Field, Input, SegmentedControl, Select, Typography } from "@l4/ui";
+import { Button, Field, Input, Select, Typography } from "@l4/ui";
 import { formatSafeUserFacingError } from "@/utils/privacyDisplay";
 
 type PlatformOption = "windows" | "darwin" | "linux";
@@ -33,6 +33,18 @@ export function ManualAdvancedConfigPanel({
     onDraftChange({ ...draft, [field]: value });
   }
 
+  const hasTechnicalFieldErrors = Boolean(
+    fieldErrors.platform ||
+    fieldErrors.version ||
+    fieldErrors.fullVersion ||
+    fieldErrors.dataKey ||
+    fieldErrors.imgKey ||
+    fieldErrors.httpAddr,
+  );
+  const hasVersionMetadata = Boolean(draft.platform?.trim() && draft.version && draft.fullVersion?.trim());
+  const hasDataKey = Boolean(draft.dataKey?.trim());
+  const hasImgKey = Boolean(draft.imgKey?.trim());
+
   return (
     <div className="settings-section setup-manual-panel">
       <form
@@ -46,7 +58,7 @@ export function ManualAdvancedConfigPanel({
         <div>
           <Typography variant="h2">高级手动配置</Typography>
           <Typography variant="body" color="var(--text-secondary)">
-            适合迁移或排障时使用。普通首次启动建议返回推荐导入。
+            适合迁移或排障时使用。选择数据目录后，应用会读取目录配置并隐藏密钥内容。
           </Typography>
         </div>
 
@@ -66,6 +78,21 @@ export function ManualAdvancedConfigPanel({
             </Button>
           </div>
 
+          <div className="setup-manual-status-grid" aria-label="目录配置读取状态">
+            <div className="setup-manual-status-item">
+              <Typography variant="caption" color="var(--text-secondary)">数据密钥</Typography>
+              <strong>{hasDataKey ? "已读取" : "缺失"}</strong>
+            </div>
+            <div className="setup-manual-status-item">
+              <Typography variant="caption" color="var(--text-secondary)">媒体密钥</Typography>
+              <strong>{hasImgKey ? "已读取" : "未读取"}</strong>
+            </div>
+            <div className="setup-manual-status-item">
+              <Typography variant="caption" color="var(--text-secondary)">平台版本</Typography>
+              <strong>{hasVersionMetadata ? "已读取" : "缺失"}</strong>
+            </div>
+          </div>
+
           <div className="settings-inline">
             <Field id="manual-work-dir" label="工作目录" error={fieldErrors.workDir}>
               <Input
@@ -80,84 +107,101 @@ export function ManualAdvancedConfigPanel({
             </Button>
           </div>
 
-          <div className="form-grid form-grid--two">
-            <Field id="manual-platform" label="平台 *" error={fieldErrors.platform}>
-              <Select
-                id="manual-platform"
-                value={draft.platform ?? "windows"}
-                onChange={(event) => update("platform", event.currentTarget.value as PlatformOption)}
-              >
-                <option value="windows">Windows</option>
-                <option value="darwin">macOS</option>
-                <option value="linux">Linux</option>
-              </Select>
-            </Field>
-            <Field id="manual-version" label="版本号 *" error={fieldErrors.version}>
-              <Input
-                id="manual-version"
-                type="number"
-                value={draft.version ?? 4}
-                onChange={(event) => update("version", Number(event.currentTarget.value))}
-              />
-            </Field>
-          </div>
-
-          <Field id="manual-full-version" label="完整版本号 *" error={fieldErrors.fullVersion}>
-            <Input
-              id="manual-full-version"
-              type="text"
-              value={draft.fullVersion ?? ""}
-              onChange={(event) => update("fullVersion", event.currentTarget.value)}
-              placeholder="4.1.8.107"
+          <label className="setup-media-cache-toggle">
+            <input
+              type="checkbox"
+              checked={Boolean(draft.saveDecryptedMedia)}
+              onChange={(event) => update("saveDecryptedMedia", event.currentTarget.checked)}
             />
-          </Field>
+            <span>
+              <strong>保存解密后的媒体缓存</strong>
+              <small>关闭后仍可连接数据库，只是不保留媒体解密缓存。</small>
+            </span>
+          </label>
 
-          <div className="settings-inline">
-            <Field id="manual-data-key" label="数据密钥 *" error={fieldErrors.dataKey}>
-              <Input
-                id="manual-data-key"
-                type={showKey ? "text" : "password"}
-                autoComplete="off"
-                value={draft.dataKey ?? ""}
-                onChange={(event) => update("dataKey", event.currentTarget.value)}
-                placeholder="64位十六进制密钥"
-              />
-            </Field>
-            <Button type="button" variant="secondary" size="md" onClick={() => setShowKey((value) => !value)}>
-              {showKey ? "隐藏" : "显示"}
-            </Button>
-          </div>
+          <details className="setup-manual-technical" open={hasTechnicalFieldErrors}>
+            <summary>手动粘贴与兼容字段</summary>
+            <div className="form-grid">
+              <div className="form-grid form-grid--two">
+                <Field id="manual-platform" label="平台 *" error={fieldErrors.platform}>
+                  <Select
+                    id="manual-platform"
+                    value={draft.platform ?? "windows"}
+                    onChange={(event) => update("platform", event.currentTarget.value as PlatformOption)}
+                  >
+                    <option value="windows">Windows</option>
+                    <option value="darwin">macOS</option>
+                    <option value="linux">Linux</option>
+                  </Select>
+                </Field>
+                <Field id="manual-version" label="版本号 *" error={fieldErrors.version}>
+                  <Input
+                    id="manual-version"
+                    type="number"
+                    value={draft.version ?? 4}
+                    onChange={(event) => update("version", Number(event.currentTarget.value))}
+                  />
+                </Field>
+              </div>
 
-          <Field id="manual-img-key" label="媒体密钥" error={fieldErrors.imgKey}>
-            <Input
-              id="manual-img-key"
-              type="password"
-              autoComplete="off"
-              value={draft.imgKey ?? ""}
-              onChange={(event) => update("imgKey", event.currentTarget.value)}
-            />
-          </Field>
+              <Field id="manual-full-version" label="完整版本号 *" error={fieldErrors.fullVersion}>
+                <Input
+                  id="manual-full-version"
+                  type="text"
+                  value={draft.fullVersion ?? ""}
+                  onChange={(event) => update("fullVersion", event.currentTarget.value)}
+                  placeholder="4.1.8.107"
+                />
+              </Field>
 
-          <Field id="manual-http-addr" label="本机服务地址" error={fieldErrors.httpAddr}>
-            <Input
-              id="manual-http-addr"
-              type="text"
-              value={draft.httpAddr ?? "127.0.0.1:5030"}
-              onChange={(event) => update("httpAddr", event.currentTarget.value)}
-            />
-          </Field>
+              {!hasDataKey ? (
+                <div className="settings-inline">
+                  <Field id="manual-data-key" label="数据密钥 *" error={fieldErrors.dataKey}>
+                    <Input
+                      id="manual-data-key"
+                      type={showKey ? "text" : "password"}
+                      autoComplete="off"
+                      value={draft.dataKey ?? ""}
+                      onChange={(event) => update("dataKey", event.currentTarget.value)}
+                      placeholder="64位十六进制密钥"
+                    />
+                  </Field>
+                  <Button type="button" variant="secondary" size="md" onClick={() => setShowKey((value) => !value)}>
+                    {showKey ? "隐藏" : "显示"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="setup-manual-secret-note">
+                  数据密钥已从目录配置读取。为保护本机数据，界面不显示或回填原始密钥。
+                </div>
+              )}
 
-          <Field id="manual-save-media" label="解密媒体缓存">
-            <SegmentedControl
-              label="解密媒体缓存"
-              value={draft.saveDecryptedMedia ? "on" : "off"}
-              options={[
-                { value: "on", label: "保存" },
-                { value: "off", label: "不保存" },
-              ]}
-              onChange={(value) => update("saveDecryptedMedia", value === "on")}
-            />
-          </Field>
+              {!hasImgKey ? (
+                <Field id="manual-img-key" label="媒体密钥" error={fieldErrors.imgKey}>
+                  <Input
+                    id="manual-img-key"
+                    type="password"
+                    autoComplete="off"
+                    value={draft.imgKey ?? ""}
+                    onChange={(event) => update("imgKey", event.currentTarget.value)}
+                  />
+                </Field>
+              ) : (
+                <div className="setup-manual-secret-note">
+                  媒体密钥已从目录配置读取，原始值已隐藏。
+                </div>
+              )}
+
+              <Field id="manual-http-addr" label="本机服务地址" error={fieldErrors.httpAddr}>
+                <Input
+                  id="manual-http-addr"
+                  type="text"
+                  value={draft.httpAddr ?? "127.0.0.1:5030"}
+                  onChange={(event) => update("httpAddr", event.currentTarget.value)}
+                />
+              </Field>
+            </div>
+          </details>
         </div>
 
         {loading && (

@@ -33,6 +33,17 @@ export interface ServerConfigPayload {
   save_decrypted_media?: boolean | null;
 }
 
+type RawServerConfigDraft = Partial<ServerConfigDraft> & {
+  type_?: string | null;
+  full_version?: string | null;
+  data_dir?: string | null;
+  work_dir?: string | null;
+  data_key?: string | null;
+  img_key?: string | null;
+  http_addr?: string | null;
+  save_decrypted_media?: boolean | null;
+};
+
 export interface ExternalConnectionConfigDraft {
   httpAddr: string;
   port: number;
@@ -74,6 +85,32 @@ export function toServerConfigPayload(config: ServerConfigDraft): ServerConfigPa
   };
 }
 
+export function normalizeServerConfigDraft(
+  config: RawServerConfigDraft,
+  fallbackDataDir?: string,
+): ServerConfigDraft {
+  return {
+    type: firstNonBlank(config.type, config.type_) ?? null,
+    platform: firstNonBlank(config.platform) ?? null,
+    version: config.version ?? null,
+    fullVersion: firstNonBlank(config.fullVersion, config.full_version) ?? null,
+    dataDir: firstNonBlank(config.dataDir, config.data_dir, fallbackDataDir) ?? null,
+    workDir: firstNonBlank(config.workDir, config.work_dir) ?? null,
+    dataKey: firstNonBlank(config.dataKey, config.data_key) ?? null,
+    imgKey: firstNonBlank(config.imgKey, config.img_key) ?? null,
+    httpAddr: firstNonBlank(config.httpAddr, config.http_addr) ?? null,
+    saveDecryptedMedia: config.saveDecryptedMedia ?? config.save_decrypted_media ?? null,
+  };
+}
+
+function firstNonBlank(...values: Array<string | null | undefined>): string | undefined {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) return value ?? undefined;
+  }
+  return undefined;
+}
+
 export function toExternalConnectionConfigPayload(
   config: ExternalConnectionConfigDraft,
 ): ExternalConnectionConfigPayload {
@@ -107,6 +144,13 @@ export async function importDataDirConfig(
 ): Promise<SetupProfileSummary> {
   const summary = await invoke<RawConfigSummary>("import_data_dir_config", { dataDir });
   return normalizeConfigSummary(summary);
+}
+
+export async function readDataDirConfigDraft(
+  dataDir: string,
+): Promise<ServerConfigDraft> {
+  const draft = await invoke<RawServerConfigDraft>("read_data_dir_config_draft", { dataDir });
+  return normalizeServerConfigDraft(draft, dataDir);
 }
 
 export async function saveManagedServerConfig(

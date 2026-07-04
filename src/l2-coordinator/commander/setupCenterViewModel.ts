@@ -232,8 +232,8 @@ function buildPathOptions(activePath: SetupPathId): SetupPathOption[] {
     },
     {
       id: "manual-advanced",
-      label: "专家手动配置",
-      description: "排障或迁移时手动填写高级配置。",
+      label: "高级手动配置",
+      description: "排障或迁移时手动调整高级配置。",
       selected: activePath === "manual-advanced",
     },
   ];

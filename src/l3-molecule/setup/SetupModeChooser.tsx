@@ -30,7 +30,7 @@ const DEFAULT_OPTIONS: SetupModeChoiceOption[] = [
   },
   {
     id: "manual-advanced",
-    label: "专家手动配置",
+    label: "高级手动配置",
     description: "排障或迁移时手动填写服务配置。",
   },
 ];

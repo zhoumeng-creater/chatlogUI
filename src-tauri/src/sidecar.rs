@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_shell::{
@@ -235,13 +235,34 @@ pub async fn export_logs_command(logs: Vec<LogPayload>) -> Result<String, String
 pub async fn export_diagnostics_report_command(
     report: DiagnosticExportPayload,
 ) -> Result<String, String> {
-    use std::io::Write;
     if !report.redaction_ok {
         return Err("诊断报告仍包含敏感信息，已阻止导出。".into());
     }
 
     let path = std::env::temp_dir().join("chatlog_alpha_diagnostics.log");
-    let mut file = std::fs::File::create(&path).map_err(|e| format!("无法创建诊断文件: {}", e))?;
+    write_diagnostics_report(&path, &report)?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn export_diagnostics_report_to_path_command(
+    path: String,
+    report: DiagnosticExportPayload,
+) -> Result<String, String> {
+    if !report.redaction_ok {
+        return Err("诊断报告仍包含敏感信息，已阻止导出。".into());
+    }
+
+    let path = PathBuf::from(path);
+    validate_diagnostics_export_path(&path)?;
+    write_diagnostics_report(&path, &report)?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+fn write_diagnostics_report(path: &Path, report: &DiagnosticExportPayload) -> Result<(), String> {
+    use std::io::Write;
+    let mut file = std::fs::File::create(path)
+        .map_err(|_| "无法创建诊断文件，请换一个位置后重试。".to_string())?;
 
     for entry in &report.lines {
         let label = redact_text(&entry.label);
@@ -258,7 +279,33 @@ pub async fn export_diagnostics_report_command(
             .map_err(|e| format!("写入诊断失败: {}", e))?;
     }
 
-    Ok(path.to_string_lossy().to_string())
+    Ok(())
+}
+
+fn validate_diagnostics_export_path(path: &Path) -> Result<(), String> {
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "保存文件名无效，请重新选择位置。".to_string())?;
+
+    if contains_sensitive_marker(file_name) {
+        return Err("保存文件名包含私密标记，请重命名后重试。".into());
+    }
+
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if extension != "log" {
+        return Err("请选择 .log 文件后重试。".into());
+    }
+
+    if !path.parent().map(Path::exists).unwrap_or(false) {
+        return Err("保存位置不可用，请重新选择。".into());
+    }
+
+    Ok(())
 }
 
 fn redact_log_payload(payload: &LogPayload) -> Result<LogPayload, String> {

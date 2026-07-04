@@ -30,6 +30,7 @@ export function SetupCenterView() {
               </Typography>
             </div>
           </div>
+          <SetupStepper currentStep={setup.currentStep} />
         </header>
 
         <main className="setup-shell__main" aria-labelledby="setup-center-title">
@@ -47,7 +48,6 @@ export function SetupCenterView() {
             />
 
             <section className="setup-flow" aria-label="设置流程">
-              <SetupStepper currentStep={setup.currentStep} />
               <SetupModeChooser
                 activePath={setup.view.activePath}
                 pathOptions={setup.view.pathOptions}

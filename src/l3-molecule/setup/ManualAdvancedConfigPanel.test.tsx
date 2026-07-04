@@ -100,4 +100,52 @@ describe("ManualAdvancedConfigPanel", () => {
     expect(html).not.toContain("Data Key");
     expect(html).not.toContain("Image Key");
   });
+
+  it("shows imported key and version status before the manual technical fields", () => {
+    const html = renderToStaticMarkup(
+      <ManualAdvancedConfigPanel
+        loading={false}
+        error={null}
+        draft={{
+          ...draft,
+          platform: "windows",
+          version: 4,
+          fullVersion: "4.1.8.107",
+          dataKey: "a".repeat(64),
+          imgKey: "image-key",
+        }}
+        onDraftChange={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
+      />,
+    );
+
+    expect(html).toContain("setup-manual-status-grid");
+    expect(html).toContain("数据密钥");
+    expect(html).toContain("媒体密钥");
+    expect(html).toContain("平台版本");
+    expect(html).toContain("已读取");
+    expect(html.indexOf("setup-manual-status-grid")).toBeLessThan(html.indexOf("手动粘贴与兼容字段"));
+    expect(html).not.toContain("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    expect(html).not.toContain("image-key");
+  });
+
+  it("uses a compact checkbox for decrypted media cache instead of large segmented save buttons", () => {
+    const html = renderToStaticMarkup(
+      <ManualAdvancedConfigPanel
+        loading={false}
+        error={null}
+        draft={draft}
+        onDraftChange={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
+      />,
+    );
+
+    expect(html).toContain("setup-media-cache-toggle");
+    expect(html).toContain('type="checkbox"');
+    expect(html).not.toContain('aria-label="解密媒体缓存"');
+  });
 });

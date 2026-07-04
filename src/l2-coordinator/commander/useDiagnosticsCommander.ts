@@ -83,7 +83,10 @@ export function useDiagnosticsCommander() {
       outcome: "success",
     });
     try {
-      const path = await exportDiagnosticsReport(report);
+      const result = await exportDiagnosticsReport(report);
+      if (result.status === "cancelled") {
+        return result;
+      }
       recordLocalDiagnosticEvent({
         source: "ui",
         level: "info",
@@ -94,7 +97,7 @@ export function useDiagnosticsCommander() {
           target: "setup",
         },
       });
-      return path;
+      return result;
     } catch (error) {
       const safeMessage = maskDiagnosticText(
         error instanceof Error ? error.message : String(error),

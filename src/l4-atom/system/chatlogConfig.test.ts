@@ -1,11 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
 import {
   normalizeConfigSummary,
+  readDataDirConfigDraft,
   toExternalConnectionConfigPayload,
   toServerConfigPayload,
 } from "./chatlogConfig";
 
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
+
 describe("chatlog config payload mapping", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
+  });
+
   it("maps UI camelCase config fields to chatlog server snake_case fields", () => {
     expect(
       toServerConfigPayload({
@@ -67,6 +77,39 @@ describe("chatlog config payload mapping", () => {
       http_addr: "http://127.0.0.1:6041",
       port: 6041,
       last_validated_at: "2026-06-09T10:00:00.000Z",
+    });
+  });
+
+  it("loads a data directory chatlog.json draft and maps snake_case secret fields", async () => {
+    vi.mocked(invoke).mockResolvedValue({
+      type: "wechat",
+      platform: "windows",
+      version: 4,
+      full_version: "4.1.8.107",
+      data_dir: "",
+      work_dir: "E:/Synthetic/work",
+      data_key: "a".repeat(64),
+      img_key: "image-key",
+      http_addr: "127.0.0.1:5030",
+      save_decrypted_media: true,
+    });
+
+    const draft = await readDataDirConfigDraft("E:/Synthetic/WeChat Files/wxid_synthetic_xxx");
+
+    expect(invoke).toHaveBeenCalledWith("read_data_dir_config_draft", {
+      dataDir: "E:/Synthetic/WeChat Files/wxid_synthetic_xxx",
+    });
+    expect(draft).toMatchObject({
+      type: "wechat",
+      platform: "windows",
+      version: 4,
+      fullVersion: "4.1.8.107",
+      dataDir: "E:/Synthetic/WeChat Files/wxid_synthetic_xxx",
+      workDir: "E:/Synthetic/work",
+      dataKey: "a".repeat(64),
+      imgKey: "image-key",
+      httpAddr: "127.0.0.1:5030",
+      saveDecryptedMedia: true,
     });
   });
 });

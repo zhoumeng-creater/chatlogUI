@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { DiagnosticsReport } from "@l2/commander/diagnostics";
+import type { ExportDiagnosticsResult } from "@l4/system";
 import type { SettingsMessages } from "@/l2-coordinator/commander/messages.zh-CN";
 import { Button, StatusIndicator, Surface, Typography } from "@l4/ui";
 import { DiagnosticsPanel } from "@l3/diagnostics/DiagnosticsPanel";
@@ -9,7 +10,7 @@ interface SettingsDiagnosticsDisclosureProps {
   copy: SettingsMessages["settings"]["diagnostics"];
   report: DiagnosticsReport;
   copyText: string;
-  onExport: () => Promise<string>;
+  onExport: () => Promise<ExportDiagnosticsResult>;
 }
 
 export function SettingsDiagnosticsDisclosure({

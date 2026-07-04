@@ -13,7 +13,10 @@ describe("AboutSettings", () => {
         onCheckUpdate={vi.fn(async () => undefined)}
         diagnosticReport={diagnosticReport}
         diagnosticCopyText="Export manifest version: 2.0"
-        onExportDiagnostics={vi.fn(async () => "diagnostics.txt")}
+        onExportDiagnostics={vi.fn(async () => ({
+          status: "completed",
+          locationSummary: "diagnostics.txt",
+        } as const))}
       />,
     );
 
