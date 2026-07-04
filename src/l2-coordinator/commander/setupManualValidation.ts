@@ -21,32 +21,18 @@ export interface ManualConfigValidationView {
   summary: string | null;
 }
 
-const VALID_PLATFORMS = new Set(["windows", "darwin", "linux"]);
-
 export function deriveManualConfigValidationView(
   draft: ServerConfigDraft,
 ): ManualConfigValidationView {
   const fieldErrors: Partial<Record<ManualConfigField, string>> = {};
 
-  if (!draft.dataDir?.trim()) {
+  const dataDir = draft.dataDir?.trim() ?? "";
+  if (!dataDir) {
     fieldErrors.dataDir = "请选择微信数据目录。";
   }
 
-  const platform = draft.platform?.trim() ?? "";
-  if (!VALID_PLATFORMS.has(platform)) {
-    fieldErrors.platform = "请选择平台。";
-  }
-
-  if (!Number.isInteger(draft.version) || Number(draft.version) <= 0) {
-    fieldErrors.version = "请输入有效版本号。";
-  }
-
-  if (!draft.fullVersion?.trim()) {
-    fieldErrors.fullVersion = "请输入完整版本号。";
-  }
-
-  if (!draft.dataKey?.trim()) {
-    fieldErrors.dataKey = "数据密钥必填。";
+  if (dataDir && !draft.dataKey?.trim()) {
+    fieldErrors.dataKey = "数据密钥缺失，请重新选择数据目录或在密钥手动覆盖中粘贴。";
   }
 
   const httpAddr = draft.httpAddr?.trim();
@@ -70,6 +56,10 @@ export function mapConfigValidationErrorsToManualFields(
   for (const error of errors) {
     const field = normalizeManualConfigField(error.field);
     if (!field) continue;
+    if (isHiddenDirectoryMetadataField(field)) {
+      fieldErrors.dataDir = "目录配置不完整，请重新选择包含有效 chatlog.json 的微信数据目录。";
+      continue;
+    }
     fieldErrors[field] = toSafeManualFieldError(field, error.message);
   }
 
@@ -103,6 +93,10 @@ function normalizeManualConfigField(field: string): ManualConfigField | null {
     default:
       return null;
   }
+}
+
+function isHiddenDirectoryMetadataField(field: ManualConfigField): boolean {
+  return field === "platform" || field === "version" || field === "fullVersion";
 }
 
 function toValidationView(

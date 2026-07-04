@@ -50,6 +50,24 @@ describe("ManualAdvancedConfigPanel", () => {
     expect(html.match(/id="manual-data-key"/g)).toHaveLength(1);
   });
 
+  it("aligns data and work directory picker rows with the same layout class", () => {
+    const html = renderToStaticMarkup(
+      <ManualAdvancedConfigPanel
+        loading={false}
+        error={null}
+        draft={draft}
+        onDraftChange={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
+      />,
+    );
+
+    expect(html.match(/class="setup-directory-row"/g)).toHaveLength(2);
+    expect(html).toMatch(/class="setup-directory-row"[\s\S]*id="manual-data-dir"[\s\S]*>选择数据目录</);
+    expect(html).toMatch(/class="setup-directory-row"[\s\S]*id="manual-work-dir"[\s\S]*>选择工作目录</);
+  });
+
   it("renders field-level errors without leaking raw paths or keys", () => {
     const html = renderToStaticMarkup(
       <ManualAdvancedConfigPanel
@@ -101,7 +119,7 @@ describe("ManualAdvancedConfigPanel", () => {
     expect(html).not.toContain("Image Key");
   });
 
-  it("shows imported key and version status before the manual technical fields", () => {
+  it("shows imported secret status before the manual override fields", () => {
     const html = renderToStaticMarkup(
       <ManualAdvancedConfigPanel
         loading={false}
@@ -124,11 +142,17 @@ describe("ManualAdvancedConfigPanel", () => {
     expect(html).toContain("setup-manual-status-grid");
     expect(html).toContain("数据密钥");
     expect(html).toContain("媒体密钥");
-    expect(html).toContain("平台版本");
+    expect(html).toContain("目录配置");
     expect(html).toContain("已读取");
-    expect(html.indexOf("setup-manual-status-grid")).toBeLessThan(html.indexOf("手动粘贴与兼容字段"));
+    expect(html.indexOf("setup-manual-status-grid")).toBeLessThan(html.indexOf("密钥手动覆盖"));
+    expect(html.indexOf("密钥手动覆盖")).toBeLessThan(html.indexOf("manual-data-key"));
     expect(html).not.toContain("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     expect(html).not.toContain("image-key");
+    expect(html).not.toContain("版本号");
+    expect(html).not.toContain("完整版本号");
+    expect(html).not.toContain("manual-platform");
+    expect(html).not.toContain("manual-version");
+    expect(html).not.toContain("manual-full-version");
   });
 
   it("uses a compact checkbox for decrypted media cache instead of large segmented save buttons", () => {
@@ -147,5 +171,25 @@ describe("ManualAdvancedConfigPanel", () => {
     expect(html).toContain("setup-media-cache-toggle");
     expect(html).toContain('type="checkbox"');
     expect(html).not.toContain('aria-label="解密媒体缓存"');
+  });
+
+  it("explains media key and work directory with accessible help tooltips", () => {
+    const html = renderToStaticMarkup(
+      <ManualAdvancedConfigPanel
+        loading={false}
+        error={null}
+        draft={draft}
+        onDraftChange={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
+      />,
+    );
+
+    expect(html).toContain('role="tooltip"');
+    expect(html).toContain('aria-label="工作目录说明"');
+    expect(html).toContain('aria-label="媒体密钥说明"');
+    expect(html).toContain("工作目录用于保存 chatlog 运行缓存");
+    expect(html).toContain("媒体密钥通常随数据目录配置自动读取");
   });
 });

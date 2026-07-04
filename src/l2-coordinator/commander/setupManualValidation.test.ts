@@ -22,13 +22,32 @@ describe("setup manual validation", () => {
     expect(result.valid).toBe(false);
     expect(result.fieldErrors).toMatchObject({
       dataDir: expect.stringContaining("数据目录"),
-      platform: expect.stringContaining("平台"),
-      fullVersion: expect.stringContaining("完整版本"),
-      dataKey: expect.stringContaining("数据密钥"),
       httpAddr: expect.stringContaining("本机"),
     });
+    expect(result.fieldErrors.dataKey).toBeUndefined();
+    expect(result.fieldErrors.platform).toBeUndefined();
+    expect(result.fieldErrors.fullVersion).toBeUndefined();
+    expect(result.fieldErrors.version).toBeUndefined();
     expect(JSON.stringify(result)).not.toContain("example.com/api");
     expect(JSON.stringify(result)).not.toContain("sk-synthetic-secret");
+  });
+
+  it("asks for a key override only after a data directory is present but key import failed", () => {
+    const result = deriveManualConfigValidationView({
+      dataDir: "C:\\Synthetic\\WeChat Files",
+      workDir: "",
+      platform: "",
+      version: 0,
+      fullVersion: "",
+      dataKey: "",
+      imgKey: "",
+      httpAddr: "127.0.0.1:5030",
+      saveDecryptedMedia: true,
+    } satisfies ServerConfigDraft);
+
+    expect(result.valid).toBe(false);
+    expect(result.fieldErrors.dataDir).toBeUndefined();
+    expect(result.fieldErrors.dataKey).toContain("密钥手动覆盖");
   });
 
   it("maps backend validation errors to safe field messages and an aggregate summary", () => {
@@ -51,5 +70,25 @@ describe("setup manual validation", () => {
     expect(result.summary).toContain("请检查 2 个字段");
     expect(JSON.stringify(result)).not.toContain("C:\\Users\\Synthetic");
     expect(JSON.stringify(result)).not.toContain("wxid_synthetic_private");
+  });
+
+  it("maps hidden version metadata errors back to the selected data directory", () => {
+    const result = mapConfigValidationErrorsToManualFields([
+      {
+        code: "full_version_required",
+        field: "full_version",
+        message: "需要完整微信版本号，例如 4.1.8.107",
+      },
+      {
+        code: "version_required",
+        field: "version",
+        message: "需要微信主版本号，例如 4",
+      },
+    ] satisfies ConfigValidationError[]);
+
+    expect(result.valid).toBe(false);
+    expect(result.fieldErrors.dataDir).toContain("目录配置不完整");
+    expect(result.fieldErrors.fullVersion).toBeUndefined();
+    expect(result.fieldErrors.version).toBeUndefined();
   });
 });
