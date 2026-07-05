@@ -16,6 +16,7 @@ describe("ShortcutHelpOverlay", () => {
 
     expect(html).toContain('role="dialog"');
     expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('class="shortcut-help-overlay__body"');
     expect(html).toContain("搜索帮助");
     expect(html).toContain("页面说明");
     expect(html).toContain("搜索页用于在聊天数据中查找关键词");
@@ -27,6 +28,7 @@ describe("ShortcutHelpOverlay", () => {
 
   it("uses a single close affordance without showing a close tooltip", () => {
     expect(overlaySource).toContain('aria-label="关闭帮助"');
+    expect(overlaySource).toContain('className="shortcut-help-overlay__body"');
     expect(overlaySource).not.toContain("<IconButton");
     expect(overlaySource).not.toContain('tooltip="关闭快捷键帮助"');
     expect(overlaySource).not.toContain("shortcut-help-overlay__footer");

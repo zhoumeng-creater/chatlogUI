@@ -1610,6 +1610,7 @@
 .sns-filter-drawer {
   position: relative;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   width: min(760px, 100%);
   max-height: min(620px, 86vh);
   flex: 0 0 auto;
@@ -1619,7 +1620,7 @@
   padding: var(--space-3);
   background: var(--surface-raised);
   box-shadow: var(--shadow-overlay);
-  overflow: auto;
+  overflow: hidden;
 }
 
 .sns-filter-drawer:focus-visible {
@@ -1643,8 +1644,11 @@
 .sns-filter-drawer__grid {
   display: grid;
   min-width: 0;
+  min-height: 0;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
+  overflow: auto;
+  padding-right: var(--space-1);
 }
 
 .sns-filter-drawer__toggles {

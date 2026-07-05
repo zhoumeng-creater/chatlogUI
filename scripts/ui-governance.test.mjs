@@ -101,6 +101,11 @@ function collectDisabledBlocksWithoutDescription(text) {
   return offenders;
 }
 
+function cssRule(css, selector) {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return css.match(new RegExp(`${escapedSelector}\\s*\\{[\\s\\S]*?\\}`))?.[0] ?? "";
+}
+
 describe("UI governance", () => {
   it("does not expose deprecated AppleButton or GlassPanel primitives", async () => {
     const barrel = await readFile("src/l4-atom/ui/index.ts", "utf8");
@@ -194,6 +199,45 @@ describe("UI governance", () => {
     expect(layoutCss).toContain(".ui-tooltip:hover .ui-tooltip__bubble");
     expect(iconButton).toContain("handlePointerUp");
     expect(iconButton).toContain("event.currentTarget.blur()");
+  });
+
+  it("keeps scrollbars on shared app tokens instead of native chrome", async () => {
+    const tokensCss = await readFile("src/styles/tokens.css", "utf8");
+    const globalsCss = await readFile("src/styles/globals.css", "utf8");
+
+    for (const token of [
+      "--scrollbar-size",
+      "--scrollbar-track",
+      "--scrollbar-thumb",
+      "--scrollbar-thumb-hover",
+    ]) {
+      expect(tokensCss, token).toContain(token);
+    }
+
+    expect(globalsCss).toContain("scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track)");
+    expect(globalsCss).toContain("*::-webkit-scrollbar");
+    expect(globalsCss).toContain("width: var(--scrollbar-size)");
+    expect(globalsCss).toContain("height: var(--scrollbar-size)");
+    expect(globalsCss).toContain("background: var(--scrollbar-track)");
+    expect(globalsCss).toContain("border-radius: 999px");
+    expect(globalsCss).toContain("background-clip: content-box");
+    expect(globalsCss).toContain("*::-webkit-scrollbar-corner");
+  });
+
+  it("keeps overlay chrome fixed while long content owns scrolling", async () => {
+    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+    const workbenchContentCss = await readFile("src/styles/workbench-content.css", "utf8");
+    const shortcutOverlay = await readFile("src/l3-molecule/common/ShortcutHelpOverlay.tsx", "utf8");
+
+    expect(shortcutOverlay).toContain('className="shortcut-help-overlay__body"');
+    expect(cssRule(layoutCss, ".shortcut-help-overlay")).toContain("overflow: hidden");
+    expect(cssRule(layoutCss, ".shortcut-help-overlay__body")).toContain("overflow: auto");
+
+    expect(cssRule(layoutCss, ".graph-advanced-filter-drawer__panel")).toContain("overflow: hidden");
+    expect(cssRule(layoutCss, ".graph-advanced-filter-drawer__grid")).toContain("overflow: auto");
+
+    expect(cssRule(workbenchContentCss, ".sns-filter-drawer")).toContain("overflow: hidden");
+    expect(cssRule(workbenchContentCss, ".sns-filter-drawer__grid")).toContain("overflow: auto");
   });
 
   it("keeps Tauri current-window APIs owned by L4 system atoms", async () => {

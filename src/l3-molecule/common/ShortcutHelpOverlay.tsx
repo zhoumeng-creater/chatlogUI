@@ -85,49 +85,51 @@ export function ShortcutHelpOverlay({ catalog, open, onClose }: ShortcutHelpOver
             <X size={16} aria-hidden="true" />
           </button>
         </div>
-        <section className="shortcut-help-overview" aria-label="页面说明">
-          <Typography variant="label" weight={700}>
-            页面说明
-          </Typography>
-          <div className="shortcut-help-overview__copy">
-            <strong>{catalog.overview.title}</strong>
-            <p>{catalog.overview.description}</p>
-            <ul>
-              {catalog.overview.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        </section>
-        <div className="shortcut-help-overlay__groups">
-          <Typography variant="label" weight={700}>
-            快捷键
-          </Typography>
-          {catalog.groups.map((group) => (
-            <section key={group.id} className="shortcut-help-group" aria-label={group.label}>
-              <Typography variant="label" weight={700}>
-                {group.label}
-              </Typography>
-              <div className="shortcut-help-group__list">
-                {group.shortcuts.map((shortcut) => (
-                  <div
-                    key={shortcut.id}
-                    className="shortcut-help-row"
-                    aria-disabled={!shortcut.enabled}
-                  >
-                    <span className="shortcut-help-row__keys">
-                      <kbd>{shortcut.keyLabel}</kbd>
-                      {shortcut.alternativeKeyLabel && <kbd>{shortcut.alternativeKeyLabel}</kbd>}
-                    </span>
-                    <span className="shortcut-help-row__copy">
-                      <strong>{shortcut.actionLabel}</strong>
-                      <span>{shortcut.enabled ? shortcut.description : shortcut.disabledReason}</span>
-                    </span>
-                  </div>
+        <div className="shortcut-help-overlay__body">
+          <section className="shortcut-help-overview" aria-label="页面说明">
+            <Typography variant="label" weight={700}>
+              页面说明
+            </Typography>
+            <div className="shortcut-help-overview__copy">
+              <strong>{catalog.overview.title}</strong>
+              <p>{catalog.overview.description}</p>
+              <ul>
+                {catalog.overview.items.map((item) => (
+                  <li key={item}>{item}</li>
                 ))}
-              </div>
-            </section>
-          ))}
+              </ul>
+            </div>
+          </section>
+          <div className="shortcut-help-overlay__groups">
+            <Typography variant="label" weight={700}>
+              快捷键
+            </Typography>
+            {catalog.groups.map((group) => (
+              <section key={group.id} className="shortcut-help-group" aria-label={group.label}>
+                <Typography variant="label" weight={700}>
+                  {group.label}
+                </Typography>
+                <div className="shortcut-help-group__list">
+                  {group.shortcuts.map((shortcut) => (
+                    <div
+                      key={shortcut.id}
+                      className="shortcut-help-row"
+                      aria-disabled={!shortcut.enabled}
+                    >
+                      <span className="shortcut-help-row__keys">
+                        <kbd>{shortcut.keyLabel}</kbd>
+                        {shortcut.alternativeKeyLabel && <kbd>{shortcut.alternativeKeyLabel}</kbd>}
+                      </span>
+                      <span className="shortcut-help-row__copy">
+                        <strong>{shortcut.actionLabel}</strong>
+                        <span>{shortcut.enabled ? shortcut.description : shortcut.disabledReason}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         </div>
       </div>
     </div>

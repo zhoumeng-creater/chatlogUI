@@ -1421,9 +1421,10 @@
   width: min(420px, 100%);
   max-width: calc(100vw - var(--space-3));
   min-width: 0;
+  min-height: 0;
   flex-direction: column;
   gap: var(--space-3);
-  overflow: auto;
+  overflow: hidden;
   padding: var(--space-4);
   border-left: 1px solid var(--border-subtle);
   background: var(--surface-raised);
@@ -1442,8 +1443,12 @@
 
 .graph-advanced-filter-drawer__grid {
   display: grid;
+  flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   gap: var(--space-3);
+  overflow: auto;
+  padding-right: var(--space-1);
 }
 
 .graph-advanced-filter-drawer__field {
@@ -5639,10 +5644,12 @@
 
 .shortcut-help-overlay {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: var(--space-4);
   width: min(760px, 100%);
   max-height: min(720px, calc(100vh - 48px));
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   padding: var(--space-5);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
@@ -5662,6 +5669,15 @@
   align-items: flex-start;
   gap: var(--space-3);
   min-width: 0;
+}
+
+.shortcut-help-overlay__body {
+  display: grid;
+  min-height: 0;
+  gap: var(--space-4);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--space-1);
 }
 
 .shortcut-help-overlay__groups {
@@ -5806,6 +5822,10 @@
 
   .shortcut-help-overlay {
     padding: var(--space-4);
+  }
+
+  .shortcut-help-overlay__body {
+    padding-right: 2px;
   }
 
   .shortcut-help-row {

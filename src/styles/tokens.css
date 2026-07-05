@@ -54,6 +54,11 @@
   --workbench-splitter-width: 8px;
   --workbench-main-min-width: 420px;
 
+  --scrollbar-size: 10px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in srgb, var(--text-tertiary) 46%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--text-secondary) 62%, transparent);
+
   --duration-fast: 120ms;
   --duration-normal: 180ms;
   --easing-standard: cubic-bezier(0.2, 0, 0, 1);
