@@ -21,6 +21,43 @@ interface OlderHistoryRequestInput {
 }
 
 export const CHAT_HISTORY_ORDERING_CONTRACT: HistoryOrderingContract = "offset-zero-latest";
+export const LATEST_HISTORY_WINDOW_SECONDS = 3_600;
+
+interface LatestHistoryRequestInput {
+  chat: string;
+  limit: number;
+  latestTimestamp: number | null | undefined;
+  windowSeconds?: number;
+}
+
+function isValidTimestamp(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+export function buildLatestHistoryRequest({
+  chat,
+  limit,
+  latestTimestamp,
+  windowSeconds = LATEST_HISTORY_WINDOW_SECONDS,
+}: LatestHistoryRequestInput): FetchHistoryOptions {
+  const request: FetchHistoryOptions = {
+    chat,
+    limit,
+    offset: 0,
+  };
+
+  if (!isValidTimestamp(latestTimestamp)) return request;
+
+  const boundedWindow = Number.isFinite(windowSeconds) && windowSeconds > 0
+    ? Math.round(windowSeconds)
+    : LATEST_HISTORY_WINDOW_SECONDS;
+
+  return {
+    ...request,
+    since: Math.max(0, latestTimestamp - boundedWindow),
+    until: latestTimestamp + boundedWindow,
+  };
+}
 
 export function getLatestPageFollowupRequest(
   page: HistoryPageShape,

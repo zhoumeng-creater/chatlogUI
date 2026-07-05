@@ -59,7 +59,11 @@ export function WorkbenchView() {
       privacyOn={workbench.privacyOn}
       onLoadConversations={() => void workbench.chat.loadConversations()}
       onOpenConversation={(conversation) => {
-        void workbench.chat.selectAndLoad(conversation.id, conversation.username);
+        void workbench.chat.selectAndLoad(
+          conversation.id,
+          conversation.username,
+          conversation.timestamp,
+        );
       }}
       onConversationOpened={workbench.handleConversationOpened}
       onQueryChange={workbench.chat.setConversationListQuery}
@@ -93,7 +97,11 @@ export function WorkbenchView() {
         selectionSummary={workbench.selectionSummary}
         selectionStatus={workbench.chat.selectionStatus}
         privacyOn={workbench.privacyOn}
-        onLoadHistory={(chat) => void workbench.chat.loadHistory(chat)}
+        onLoadHistory={(chat) => void workbench.chat.loadHistory(chat, {
+          latestTimestamp: workbench.currentConversation?.username === chat
+            ? workbench.currentConversation.timestamp
+            : undefined,
+        })}
         onLoadMoreHistory={(chat) => void workbench.chat.loadMoreHistory(chat)}
         onEmptyAction={(actionId) => {
           if (actionId === "choose-conversation") workbench.openConversationList();

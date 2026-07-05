@@ -47,7 +47,7 @@ export function useScopedWorkspaceConversation(
     const scopedConversation = findConversationForScopedChat(conversations, scopedChat);
     if (!scopedConversation) return;
     if (selectedConversationId === scopedConversation.id) return;
-    void selectAndLoad(scopedConversation.id, scopedConversation.username);
+    void selectAndLoad(scopedConversation.id, scopedConversation.username, scopedConversation.timestamp);
   }, [conversations, explicitAllScope, scopedChat, selectedConversationId, selectAndLoad]);
 
   const selectedConversation = useMemo(

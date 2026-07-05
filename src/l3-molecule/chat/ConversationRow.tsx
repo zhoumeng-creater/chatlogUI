@@ -71,7 +71,9 @@ export const ConversationRow = forwardRef<HTMLButtonElement, ConversationRowProp
         </span>
         <span className="conversation-row__bottom">
           <span className="conversation-row__summary">{summary || "没有消息摘要"}</span>
-          <StatusIndicator label={badge.label} tone={badge.tone} />
+          <span className="conversation-row__status">
+            <StatusIndicator label={badge.label} tone={badge.tone} />
+          </span>
         </span>
         {showUnread && (
           <span className="conversation-row__unread">

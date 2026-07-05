@@ -11,6 +11,7 @@ import {
   findAnchoredMessage,
 } from "./chatHistoryAnchor";
 import {
+  buildLatestHistoryRequest,
   CHAT_HISTORY_ORDERING_CONTRACT,
   getLatestPageFollowupRequest,
   getOlderHistoryRequest,
@@ -20,6 +21,10 @@ import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
 const HISTORY_PAGE_SIZE = 50;
 const ANCHOR_WINDOW_SECONDS = 300;
+
+interface LoadHistoryOptions {
+  latestTimestamp?: number | null;
+}
 
 export interface AnchoredChatNavigationTarget {
   conversationId: string;
@@ -114,13 +119,20 @@ export function useChatCommander() {
     }
   }, []);
 
-  const loadHistory = useCallback(async (chat: string) => {
+  const loadHistory = useCallback(async (chat: string, options: LoadHistoryOptions = {}) => {
     const request = startHistoryRequest();
     useChatStore.getState().clearAnchor();
     useChatStore.getState().setMessagesLoading(true);
     try {
+      const historyRequest = buildLatestHistoryRequest({
+        chat,
+        limit: HISTORY_PAGE_SIZE,
+        latestTimestamp: options.latestTimestamp,
+      });
+      const usesLatestTimestampWindow =
+        historyRequest.since !== undefined || historyRequest.until !== undefined;
       let result = await fetchHistory(
-        { chat, limit: HISTORY_PAGE_SIZE, offset: 0 },
+        historyRequest,
         {
           ...createDiagnosticHttpOptions({
             endpointFamily: "history",
@@ -131,7 +143,9 @@ export function useChatCommander() {
         },
       );
       if (!isCurrentHistoryRequest(request.requestId)) return;
-      const latestFollowup = getLatestPageFollowupRequest(result, CHAT_HISTORY_ORDERING_CONTRACT);
+      const latestFollowup = usesLatestTimestampWindow
+        ? null
+        : getLatestPageFollowupRequest(result, CHAT_HISTORY_ORDERING_CONTRACT);
       if (latestFollowup) {
         result = await fetchHistory(latestFollowup, {
           ...createDiagnosticHttpOptions({
@@ -147,7 +161,9 @@ export function useChatCommander() {
         result.messages,
         result.totalCount,
         result.offset,
-        hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
+        usesLatestTimestampWindow
+          ? false
+          : hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
         "latest",
       );
     } catch (error) {
@@ -209,9 +225,9 @@ export function useChatCommander() {
   }, [clearCurrentHistoryRequest, isCancelledHistoryError, isCurrentHistoryRequest, startHistoryRequest]);
 
   const selectAndLoad = useCallback(
-    async (convId: string, chat: string) => {
+    async (convId: string, chat: string, latestTimestamp?: number | null) => {
       useChatStore.getState().selectConversation(convId);
-      await loadHistory(chat);
+      await loadHistory(chat, { latestTimestamp });
     },
     [loadHistory],
   );

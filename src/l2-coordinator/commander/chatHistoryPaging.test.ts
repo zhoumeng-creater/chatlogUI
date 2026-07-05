@@ -16,6 +16,45 @@ const page = {
 };
 
 describe("chatHistoryPaging", () => {
+  it("builds a bounded latest-window request from the conversation timestamp", async () => {
+    const module = await import("./chatHistoryPaging") as Record<string, unknown>;
+    const buildLatestHistoryRequest = module.buildLatestHistoryRequest as
+      | ((input: {
+          chat: string;
+          limit: number;
+          latestTimestamp: number | null;
+          windowSeconds: number;
+        }) => unknown)
+      | undefined;
+
+    expect(typeof buildLatestHistoryRequest).toBe("function");
+    if (typeof buildLatestHistoryRequest !== "function") return;
+
+    expect(buildLatestHistoryRequest({
+      chat: "wxid_synthetic_user",
+      limit: 50,
+      latestTimestamp: 1_783_227_901,
+      windowSeconds: 3_600,
+    })).toEqual({
+      chat: "wxid_synthetic_user",
+      limit: 50,
+      offset: 0,
+      since: 1_783_224_301,
+      until: 1_783_231_501,
+    });
+
+    expect(buildLatestHistoryRequest({
+      chat: "wxid_synthetic_user",
+      limit: 50,
+      latestTimestamp: null,
+      windowSeconds: 3_600,
+    })).toEqual({
+      chat: "wxid_synthetic_user",
+      limit: 50,
+      offset: 0,
+    });
+  });
+
   it("keeps offset zero as the latest page for the documented sidecar contract", () => {
     expect(getLatestPageFollowupRequest(page, "offset-zero-latest")).toBeNull();
     expect(getOlderHistoryRequest({
