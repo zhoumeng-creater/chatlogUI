@@ -432,6 +432,16 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+.ui-control[aria-invalid="true"] {
+  border-color: color-mix(in srgb, var(--danger) 58%, var(--border-subtle));
+  background: color-mix(in srgb, var(--danger) 4%, var(--surface-base));
+}
+
+.ui-control[aria-invalid="true"]:focus-visible {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
 .ui-control:disabled {
   cursor: not-allowed;
   opacity: 0.56;
@@ -2768,13 +2778,25 @@
   margin-bottom: var(--space-3);
 }
 
-.setup-manual-secret-note {
+.setup-secret-override-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: start;
+  gap: var(--space-2);
+}
+
+.setup-secret-override-row .setup-help-button {
+  margin-top: 24px;
+}
+
+.setup-secret-next-step {
   padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-subtle));
   border-radius: var(--radius-md);
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-base));
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.45;
 }
 

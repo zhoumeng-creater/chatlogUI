@@ -34,7 +34,7 @@ describe("ManualAdvancedConfigPanel", () => {
     expect(html).not.toContain("wxid_synthetic_private");
   });
 
-  it("keeps the data key field id unique when the reveal action is inline", () => {
+  it("keeps the data key field id unique in the secondary override section", () => {
     const html = renderToStaticMarkup(
       <ManualAdvancedConfigPanel
         loading={false}
@@ -188,8 +188,59 @@ describe("ManualAdvancedConfigPanel", () => {
 
     expect(html).toContain('role="tooltip"');
     expect(html).toContain('aria-label="工作目录说明"');
+    expect(html).toContain('aria-label="数据密钥说明"');
     expect(html).toContain('aria-label="媒体密钥说明"');
     expect(html).toContain("工作目录用于保存 chatlog 运行缓存");
+    expect(html).toContain("数据密钥用于解密聊天数据库");
     expect(html).toContain("媒体密钥通常随数据目录配置自动读取");
+  });
+
+  it("keeps secret override rows aligned without misleading reveal buttons", () => {
+    const html = renderToStaticMarkup(
+      <ManualAdvancedConfigPanel
+        loading={false}
+        error={null}
+        draft={draft}
+        onDraftChange={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
+      />,
+    );
+
+    expect(html.match(/class="setup-secret-override-row"/g)).toHaveLength(2);
+    expect(html).not.toContain(">显示<");
+    expect(html).not.toContain(">隐藏<");
+    expect(html).toContain("粘贴后不会自动读取");
+    expect(html).toContain("点击页面顶部的“保存并验证配置”");
+  });
+
+  it("shows validation errors under secret override inputs before save", () => {
+    const html = renderToStaticMarkup(
+      <ManualAdvancedConfigPanel
+        loading={false}
+        error={null}
+        draft={{
+          ...draft,
+          dataDir: "C:\\Synthetic\\WeChat Files",
+          dataKey: "abc",
+          imgKey: "not-a-media-key",
+        }}
+        fieldErrors={{
+          dataKey: "数据密钥应为64位十六进制字符。",
+          imgKey: "媒体密钥应为64位十六进制字符。",
+        }}
+        onDraftChange={vi.fn()}
+        onSubmit={vi.fn(async () => undefined)}
+        onChooseDataDir={vi.fn(async () => undefined)}
+        onChooseWorkDir={vi.fn(async () => undefined)}
+      />,
+    );
+
+    expect(html).toContain("manual-data-key-error");
+    expect(html).toContain("manual-img-key-error");
+    expect(html).toContain("数据密钥应为64位十六进制字符");
+    expect(html).toContain("媒体密钥应为64位十六进制字符");
+    expect(html).toContain("aria-invalid");
   });
 });

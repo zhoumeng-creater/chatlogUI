@@ -3,8 +3,10 @@ import { CircleHelp } from "lucide-react";
 import type { ServerConfigDraft } from "@l4/system";
 import { Button, Field, Input, Tooltip, Typography } from "@l4/ui";
 import { formatSafeUserFacingError } from "@/utils/privacyDisplay";
+import { validateManualSecretKeyFormat } from "@/utils/manualSecretKeyValidation";
 
 type ManualFieldErrors = Record<string, string>;
+type SecretOverrideField = "dataKey" | "imgKey";
 
 interface ManualAdvancedConfigPanelProps {
   loading: boolean;
@@ -27,17 +29,51 @@ export function ManualAdvancedConfigPanel({
   onChooseDataDir,
   onChooseWorkDir,
 }: ManualAdvancedConfigPanelProps) {
-  const [showKey, setShowKey] = useState(false);
-  const [showImgKey, setShowImgKey] = useState(false);
+  const [secretOverrideValues, setSecretOverrideValues] = useState<Record<SecretOverrideField, string>>({
+    dataKey: "",
+    imgKey: "",
+  });
+  const [touchedSecretOverrides, setTouchedSecretOverrides] = useState<Record<SecretOverrideField, boolean>>({
+    dataKey: false,
+    imgKey: false,
+  });
 
   function update(field: keyof ServerConfigDraft, value: string | number | boolean | null) {
     onDraftChange({ ...draft, [field]: value });
   }
 
-  const hasSecretFieldErrors = Boolean(fieldErrors.dataKey || fieldErrors.imgKey);
+  function updateSecretOverride(field: SecretOverrideField, value: string) {
+    setSecretOverrideValues((current) => ({ ...current, [field]: value }));
+    setTouchedSecretOverrides((current) => ({ ...current, [field]: true }));
+    update(field, value);
+  }
+
   const hasVersionMetadata = Boolean(draft.platform?.trim() && draft.version && draft.fullVersion?.trim());
   const hasDataKey = Boolean(draft.dataKey?.trim());
   const hasImgKey = Boolean(draft.imgKey?.trim());
+  const dataKeyFormatError = touchedSecretOverrides.dataKey
+    ? validateManualSecretKeyFormat(secretOverrideValues.dataKey, "数据密钥")
+    : null;
+  const imgKeyFormatError = touchedSecretOverrides.imgKey
+    ? validateManualSecretKeyFormat(secretOverrideValues.imgKey, "媒体密钥")
+    : null;
+  const dataKeyError = dataKeyFormatError ?? fieldErrors.dataKey;
+  const imgKeyError = imgKeyFormatError ?? fieldErrors.imgKey;
+  const hasSecretFieldErrors = Boolean(dataKeyError || imgKeyError);
+  const dataKeyStatus = getSecretStatus({
+    hasExistingValue: hasDataKey,
+    touched: touchedSecretOverrides.dataKey,
+    value: secretOverrideValues.dataKey,
+    formatError: dataKeyFormatError,
+    emptyLabel: "缺失",
+  });
+  const imgKeyStatus = getSecretStatus({
+    hasExistingValue: hasImgKey,
+    touched: touchedSecretOverrides.imgKey,
+    value: secretOverrideValues.imgKey,
+    formatError: imgKeyFormatError,
+    emptyLabel: "未读取",
+  });
 
   return (
     <div className="settings-section setup-manual-panel">
@@ -78,7 +114,7 @@ export function ManualAdvancedConfigPanel({
           <div className="setup-manual-status-grid" aria-label="目录配置读取状态">
             <div className="setup-manual-status-item">
               <Typography variant="caption" color="var(--text-secondary)">数据密钥</Typography>
-              <strong>{hasDataKey ? "已读取" : "缺失"}</strong>
+              <strong>{dataKeyStatus}</strong>
             </div>
             <div className="setup-manual-status-item">
               <div className="setup-manual-status-item__head">
@@ -89,7 +125,7 @@ export function ManualAdvancedConfigPanel({
                   placement="right"
                 />
               </div>
-              <strong>{hasImgKey ? "已读取" : "未读取"}</strong>
+              <strong>{imgKeyStatus}</strong>
             </div>
             <div className="setup-manual-status-item">
               <Typography variant="caption" color="var(--text-secondary)">目录配置</Typography>
@@ -146,36 +182,52 @@ export function ManualAdvancedConfigPanel({
                 默认从数据目录配置读取密钥。只有在你明确拿到了独立密钥、且自动读取失败时，才需要在这里粘贴覆盖。
               </Typography>
 
-              <div className="settings-inline">
-                <Field id="manual-data-key" label="数据密钥覆盖" error={fieldErrors.dataKey}>
+              <div className="setup-secret-override-row">
+                <Field id="manual-data-key" label="数据密钥覆盖" error={dataKeyError}>
                   <Input
                     id="manual-data-key"
-                    type={showKey ? "text" : "password"}
+                    type="password"
                     autoComplete="off"
-                    value={hasDataKey ? "" : draft.dataKey ?? ""}
-                    onChange={(event) => update("dataKey", event.currentTarget.value)}
-                    placeholder={hasDataKey ? "已读取；粘贴新密钥可覆盖" : "64位十六进制密钥"}
+                    value={secretOverrideValues.dataKey}
+                    onChange={(event) => updateSecretOverride("dataKey", event.currentTarget.value)}
+                    placeholder={
+                      hasDataKey && !touchedSecretOverrides.dataKey
+                        ? "已读取；粘贴新密钥可覆盖"
+                        : "64位十六进制密钥"
+                    }
                   />
                 </Field>
-                <Button type="button" variant="secondary" size="md" onClick={() => setShowKey((value) => !value)}>
-                  {showKey ? "隐藏" : "显示"}
-                </Button>
+                <SetupHelpTooltip
+                  label="数据密钥说明"
+                  message="数据密钥用于解密聊天数据库，通常从所选数据目录的配置自动读取。只有自动读取失败，且你已有64位十六进制 data_key 时，才需要手动粘贴。"
+                  placement="left"
+                />
               </div>
 
-              <div className="settings-inline">
-                <Field id="manual-img-key" label="媒体密钥覆盖" error={fieldErrors.imgKey}>
+              <div className="setup-secret-override-row">
+                <Field id="manual-img-key" label="媒体密钥覆盖" error={imgKeyError}>
                   <Input
                     id="manual-img-key"
-                    type={showImgKey ? "text" : "password"}
+                    type="password"
                     autoComplete="off"
-                    value={hasImgKey ? "" : draft.imgKey ?? ""}
-                    onChange={(event) => update("imgKey", event.currentTarget.value)}
-                    placeholder={hasImgKey ? "已读取；粘贴新密钥可覆盖" : "可选，通常由数据目录配置提供"}
+                    value={secretOverrideValues.imgKey}
+                    onChange={(event) => updateSecretOverride("imgKey", event.currentTarget.value)}
+                    placeholder={
+                      hasImgKey && !touchedSecretOverrides.imgKey
+                        ? "已读取；粘贴新密钥可覆盖"
+                        : "可选，64位十六进制媒体密钥"
+                    }
                   />
                 </Field>
-                <Button type="button" variant="secondary" size="md" onClick={() => setShowImgKey((value) => !value)}>
-                  {showImgKey ? "隐藏" : "显示"}
-                </Button>
+                <SetupHelpTooltip
+                  label="媒体密钥覆盖说明"
+                  message="媒体密钥通常随数据目录配置自动读取。未读取时只影响图片、视频等媒体缓存解密；如果你已有独立媒体密钥，可在这里粘贴覆盖。"
+                  placement="left"
+                />
+              </div>
+
+              <div className="setup-secret-next-step">
+                粘贴后不会自动读取；请点击页面顶部的“保存并验证配置”，应用会检查密钥、目录配置和本机服务地址。
               </div>
             </div>
           </details>
@@ -195,6 +247,25 @@ export function ManualAdvancedConfigPanel({
       </form>
     </div>
   );
+}
+
+function getSecretStatus({
+  hasExistingValue,
+  touched,
+  value,
+  formatError,
+  emptyLabel,
+}: {
+  hasExistingValue: boolean;
+  touched: boolean;
+  value: string;
+  formatError: string | null;
+  emptyLabel: string;
+}) {
+  if (touched && value.trim()) {
+    return formatError ? "格式待修正" : "已填写";
+  }
+  return hasExistingValue ? "已读取" : emptyLabel;
 }
 
 function SetupHelpTooltip({

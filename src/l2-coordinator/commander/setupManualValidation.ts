@@ -4,6 +4,7 @@ import {
   containsUnsafeDisplayText,
   formatSafeUserFacingError,
 } from "@/utils/privacyDisplay";
+import { validateManualSecretKeyFormat } from "@/utils/manualSecretKeyValidation";
 
 export type ManualConfigField =
   | "dataDir"
@@ -31,8 +32,21 @@ export function deriveManualConfigValidationView(
     fieldErrors.dataDir = "请选择微信数据目录。";
   }
 
-  if (dataDir && !draft.dataKey?.trim()) {
+  const dataKey = draft.dataKey?.trim() ?? "";
+  const imgKey = draft.imgKey?.trim() ?? "";
+
+  if (dataDir && !dataKey) {
     fieldErrors.dataKey = "数据密钥缺失，请重新选择数据目录或在密钥手动覆盖中粘贴。";
+  } else {
+    const dataKeyFormatError = validateManualSecretKeyFormat(dataKey, "数据密钥");
+    if (dataKeyFormatError) {
+      fieldErrors.dataKey = dataKeyFormatError;
+    }
+  }
+
+  const imgKeyFormatError = validateManualSecretKeyFormat(imgKey, "媒体密钥");
+  if (imgKeyFormatError) {
+    fieldErrors.imgKey = imgKeyFormatError;
   }
 
   const httpAddr = draft.httpAddr?.trim();
