@@ -9,7 +9,7 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   label: string;
   size?: IconButtonSize;
   active?: boolean;
-  tooltip?: string;
+  tooltip?: string | false;
   tooltipPlacement?: TooltipPlacement;
 }
 

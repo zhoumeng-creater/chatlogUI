@@ -10,7 +10,18 @@ describe("MessageSelectionToolbar", () => {
         privacyOn
         summary="已选 3 条 · 2024-04-28 09:20 - 2024-04-28 09:22 · text 2 条"
         exportDisabledReason={null}
+        filters={{ sender: "all", startDate: "", endDate: "" }}
+        filterModel={{
+          loadedCount: 12,
+          senderOptions: [
+            { value: "all", label: "全部对象", count: 12 },
+            { value: "sender-1", label: "Alice", count: 7 },
+          ],
+        }}
+        filterError={null}
         onSelectVisibleMessages={vi.fn()}
+        onFilterChange={vi.fn()}
+        onApplyFilters={vi.fn()}
         onCopyMarkdown={vi.fn()}
         onExportSelected={vi.fn()}
         onCancel={vi.fn()}
@@ -21,7 +32,12 @@ describe("MessageSelectionToolbar", () => {
     expect(html).toContain("已选 3 条");
     expect(html).toContain("隐私模式：脱敏");
     expect(html).toContain("2024-04-28 09:20 - 2024-04-28 09:22");
-    expect(html).toContain("选择当前页");
+    expect(html).toContain("全选已加载");
+    expect(html).toContain("对象");
+    expect(html).toContain("开始");
+    expect(html).toContain("结束");
+    expect(html).toContain("按范围选择");
+    expect(html).toContain("范围选择只作用于当前已加载的 12 条消息。");
     expect(html).toContain("复制为 Markdown");
     expect(html).toContain("导出选中片段");
     expect(html).toContain('aria-label="退出消息选择"');

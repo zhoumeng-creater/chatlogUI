@@ -53,4 +53,14 @@ describe("MessageBubble", () => {
     expect(masked).not.toContain("Synthetic Group Member");
     expect(masked).toContain("********* ***** ******");
   });
+
+  it("keeps selection inside the row more-actions menu instead of a separate visible button", () => {
+    const html = renderToStaticMarkup(
+      <MessageBubble message={message} privacyOn={false} />,
+    );
+
+    expect(html).toContain("选择消息");
+    expect(html).not.toContain("message-bubble__select-mode");
+    expect(html).not.toContain(">选择</button>");
+  });
 });

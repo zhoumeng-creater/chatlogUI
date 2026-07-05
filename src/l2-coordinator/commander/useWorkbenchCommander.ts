@@ -28,6 +28,18 @@ import {
   getSelectionPrivacySummary,
 } from "./chatSelectionModel";
 import {
+  buildConversationInlineSearchModel,
+  getNextConversationSearchIndex,
+} from "./conversationInlineSearchModel";
+import {
+  DEFAULT_MESSAGE_SELECTION_FILTERS,
+  buildMessageSelectionFilterModel,
+  selectMessageIdsByFilter,
+  validateMessageSelectionFilter,
+  type MessageSelectionFilterState,
+} from "./conversationSelectionFilterModel";
+import { validateDateJumpInput } from "./conversationDateJumpModel";
+import {
   buildMessageActionModel,
   getSafeRawFieldRows,
   serializeMessageAction,
@@ -108,6 +120,28 @@ export function useWorkbenchCommander() {
     chat.selectionStatus,
     privacyOn,
   ]);
+  const [conversationSearchOpen, setConversationSearchOpen] = useState(false);
+  const [conversationSearchQuery, setConversationSearchQuery] = useState("");
+  const [conversationSearchActiveIndex, setConversationSearchActiveIndex] = useState(0);
+  const conversationSearch = useMemo(() => buildConversationInlineSearchModel({
+    query: conversationSearchQuery,
+    messages: chat.messages,
+    activeIndex: conversationSearchActiveIndex,
+  }), [chat.messages, conversationSearchActiveIndex, conversationSearchQuery]);
+  const [dateJumpOpen, setDateJumpOpen] = useState(false);
+  const [dateJumpValue, setDateJumpValue] = useState("");
+  const [dateJumpError, setDateJumpError] = useState<string | null>(null);
+  const [selectionFilters, setSelectionFilters] = useState<MessageSelectionFilterState>(
+    DEFAULT_MESSAGE_SELECTION_FILTERS,
+  );
+  const selectionFilterModel = useMemo(() => buildMessageSelectionFilterModel({
+    messages: chat.messages,
+    privacyOn,
+  }), [chat.messages, privacyOn]);
+  const selectionFilterError = useMemo(
+    () => validateMessageSelectionFilter(selectionFilters),
+    [selectionFilters],
+  );
   const [singlePaneView, setSinglePaneView] = useState<SinglePaneView>("detail");
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const viewportWidth = useViewportWidth();
@@ -391,7 +425,77 @@ export function useWorkbenchCommander() {
     setStoredInspectorOpen(false);
   }, [setStoredInspectorOpen]);
 
-  const openSearch = useCallback(() => openScopedWorkspace("search"), [openScopedWorkspace]);
+  const openSearch = useCallback(() => {
+    setConversationSearchOpen(true);
+    setConversationSearchActiveIndex(0);
+  }, []);
+  const closeConversationSearch = useCallback(() => {
+    setConversationSearchOpen(false);
+    setConversationSearchQuery("");
+    setConversationSearchActiveIndex(0);
+  }, []);
+  const updateConversationSearchQuery = useCallback((query: string) => {
+    setConversationSearchQuery(query);
+    setConversationSearchActiveIndex(0);
+  }, []);
+  const moveConversationSearch = useCallback((direction: "previous" | "next") => {
+    setConversationSearchActiveIndex((currentIndex) => getNextConversationSearchIndex({
+      currentIndex,
+      matchCount: conversationSearch.matchCount,
+      direction,
+    }));
+  }, [conversationSearch.matchCount]);
+  const openFullSearch = useCallback(() => openScopedWorkspace("search"), [openScopedWorkspace]);
+  const updateSelectionFilters = useCallback((filters: Partial<MessageSelectionFilterState>) => {
+    setSelectionFilters((current) => ({ ...current, ...filters }));
+  }, []);
+  const applySelectionFilters = useCallback(() => {
+    const error = validateMessageSelectionFilter(selectionFilters);
+    if (error) {
+      chat.setSelectionStatus(error);
+      return;
+    }
+    const ids = selectMessageIdsByFilter({
+      messages: chat.messages,
+      senderOptions: selectionFilterModel.senderOptions,
+      filters: selectionFilters,
+    });
+    if (ids.length === 0) {
+      chat.setSelectionStatus("当前已加载消息中没有符合范围的消息。");
+      return;
+    }
+    chat.selectVisibleMessages(ids);
+    chat.setSelectionStatus(`已按范围选择 ${ids.length.toLocaleString()} 条已加载消息。`);
+  }, [chat, selectionFilterModel.senderOptions, selectionFilters]);
+  const openDateJump = useCallback(() => {
+    setDateJumpOpen(true);
+    setDateJumpError(null);
+  }, []);
+  const closeDateJump = useCallback(() => {
+    setDateJumpOpen(false);
+    setDateJumpError(null);
+  }, []);
+  const confirmDateJump = useCallback(async () => {
+    const error = validateDateJumpInput(dateJumpValue);
+    if (error) {
+      setDateJumpError(error);
+      return;
+    }
+    if (!currentChat) {
+      setDateJumpError("先选择一个会话。");
+      return;
+    }
+    const count = await chat.loadHistoryAtDate(currentChat, dateJumpValue);
+    if (count === null) {
+      setDateJumpError("日期跳转失败，请稍后重试。");
+      return;
+    }
+    setDateJumpOpen(false);
+    setDateJumpError(null);
+    chat.setSelectionStatus(count > 0
+      ? `已跳转到 ${dateJumpValue}，加载 ${count.toLocaleString()} 条附近消息。`
+      : `${dateJumpValue} 没有找到消息。`);
+  }, [chat, currentChat, dateJumpValue]);
   const openAnalytics = useCallback(() => openScopedWorkspace("analytics"), [openScopedWorkspace]);
   const openMedia = useCallback(() => openScopedWorkspace("media"), [openScopedWorkspace]);
   const openAi = useCallback(() => openScopedWorkspace("ai"), [openScopedWorkspace]);
@@ -408,8 +512,12 @@ export function useWorkbenchCommander() {
     }
     if (id === "export-current") {
       conversationExport.action.onClick();
+      return;
     }
-  }, [conversationExport.action, openInspector, openSearch]);
+    if (id === "jump-date") {
+      openDateJump();
+    }
+  }, [conversationExport.action, openDateJump, openInspector, openSearch]);
 
   return {
     chat,
@@ -431,6 +539,30 @@ export function useWorkbenchCommander() {
     selectedFragmentExport,
     selectedMessages,
     selectionSummary,
+    selectionFilters,
+    selectionFilterModel,
+    selectionFilterError,
+    conversationSearch: {
+      open: conversationSearchOpen,
+      query: conversationSearchQuery,
+      matchCount: conversationSearch.matchCount,
+      activeIndex: conversationSearch.activeIndex,
+      activeMessageId: conversationSearchOpen ? conversationSearch.activeMessageId : null,
+      statusText: conversationSearch.statusText,
+      onQueryChange: updateConversationSearchQuery,
+      onPrevious: () => moveConversationSearch("previous"),
+      onNext: () => moveConversationSearch("next"),
+      onClose: closeConversationSearch,
+      onOpenFullSearch: openFullSearch,
+    },
+    dateJump: {
+      open: dateJumpOpen,
+      value: dateJumpValue,
+      error: dateJumpError,
+      onValueChange: setDateJumpValue,
+      onConfirm: confirmDateJump,
+      onClose: closeDateJump,
+    },
     returnContext,
     openConversationList,
     handleConversationOpened,
@@ -447,6 +579,8 @@ export function useWorkbenchCommander() {
     resetPanel,
     returnToSearchResults,
     copySelectedMessagesAsMarkdown,
+    updateSelectionFilters,
+    applySelectionFilters,
     handleMessageAction,
     deriveTranscriptPositionModel,
     getMessageActionModel,

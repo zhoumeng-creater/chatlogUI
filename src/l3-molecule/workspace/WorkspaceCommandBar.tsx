@@ -11,7 +11,11 @@ import type {
   WorkspaceCommandBarModel,
   WorkspaceCommandId,
 } from "@l2/commander/workspaceCommandBarModel";
-import { Button, DisabledReason, IconButton, Tooltip } from "@l4/ui";
+import { Button, DisabledReason, IconButton } from "@l4/ui";
+import {
+  resolveFloatingMenuPosition,
+  type FloatingMenuPlacement,
+} from "@l4/ui/floatingPlacement";
 import {
   focusInitialOverlayTarget,
   restoreFocusTarget,
@@ -25,8 +29,10 @@ interface WorkspaceCommandBarProps {
 
 export function WorkspaceCommandBar({ model, onAction }: WorkspaceCommandBarProps) {
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const restoreTargetRef = useRef<HTMLElement | null>(null);
+  const placementRef = useRef<FloatingMenuPlacement>("bottom-end");
   const menuId = useId().replace(/:/g, "");
   const overflowButtonId = `${menuId}-trigger`;
   const overflowCount = model.overflow.length;
@@ -35,6 +41,24 @@ export function WorkspaceCommandBar({ model, onAction }: WorkspaceCommandBarProp
     if (!overflowOpen) return undefined;
 
     const focusFrame = window.requestAnimationFrame(() => {
+      const trigger = overflowRef.current;
+      const menu = menuRef.current;
+      if (trigger && menu) {
+        const position = resolveFloatingMenuPosition({
+          preferred: "bottom-end",
+          triggerRect: trigger.getBoundingClientRect(),
+          overlaySize: {
+            width: menu.offsetWidth || 188,
+            height: menu.offsetHeight || 120,
+          },
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+        });
+        placementRef.current = position.placement;
+        menu.dataset.placement = placementRef.current;
+        menu.style.setProperty("--floating-menu-left", `${Math.round(position.left)}px`);
+        menu.style.setProperty("--floating-menu-top", `${Math.round(position.top)}px`);
+      }
       focusInitialOverlayTarget(menuRef.current);
     });
 
@@ -73,12 +97,12 @@ export function WorkspaceCommandBar({ model, onAction }: WorkspaceCommandBarProp
       </div>
 
       {overflowCount > 0 && (
-        <div className="workspace-command-bar__overflow">
+        <div ref={overflowRef} className="workspace-command-bar__overflow">
           <IconButton
             id={overflowButtonId}
             icon={<MoreHorizontal size={17} />}
             label="更多当前会话操作"
-            tooltip="更多当前会话操作"
+            tooltip={false}
             aria-haspopup="menu"
             aria-expanded={overflowOpen}
             aria-controls={menuId}
@@ -91,6 +115,7 @@ export function WorkspaceCommandBar({ model, onAction }: WorkspaceCommandBarProp
             ref={menuRef}
             id={menuId}
             className="workspace-command-bar__menu"
+            data-placement={placementRef.current}
             role="menu"
             hidden={!overflowOpen}
           >
@@ -122,15 +147,27 @@ function CommandButton({
   onAction: (id: WorkspaceCommandId) => void;
 }) {
   const button = (
-    <Button
-      variant={variant}
-      size={action.minTargetPx >= 40 ? "md" : "sm"}
-      disabled={action.disabled}
-      onClick={() => onAction(action.id)}
-    >
-      {getCommandIcon(action.id)}
-      {action.label}
-    </Button>
+    action.id === "search-current" ? (
+      <IconButton
+        icon={getCommandIcon(action.id)}
+        label={action.label}
+        tooltip={action.label}
+        tooltipPlacement="bottom"
+        size="lg"
+        disabled={action.disabled}
+        onClick={() => onAction(action.id)}
+      />
+    ) : (
+      <Button
+        variant={variant}
+        size={action.minTargetPx >= 40 ? "md" : "sm"}
+        disabled={action.disabled}
+        onClick={() => onAction(action.id)}
+      >
+        {getCommandIcon(action.id)}
+        {action.label}
+      </Button>
+    )
   );
 
   if (!action.disabled || !action.disabledReason) return button;
@@ -163,18 +200,12 @@ function CommandMenuItem({
   );
 
   if (!action.disabled || !action.disabledReason) {
-    return (
-      <Tooltip label={action.label} placement="left">
-        {item}
-      </Tooltip>
-    );
+    return item;
   }
 
   return (
     <DisabledReason reason={action.disabledReason}>
-      <Tooltip label={action.disabledReason} placement="left">
-        {item}
-      </Tooltip>
+      {item}
     </DisabledReason>
   );
 }

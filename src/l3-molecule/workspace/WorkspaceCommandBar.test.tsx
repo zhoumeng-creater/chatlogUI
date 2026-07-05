@@ -15,11 +15,15 @@ describe("WorkspaceCommandBar", () => {
       />,
     );
 
-    expect(html).toContain("搜索此会话");
+    expect(html).toContain('aria-label="搜索此会话"');
+    expect(html).not.toContain(">搜索此会话</button>");
     expect(html).toContain("会话详情");
     expect(html).toContain("更多当前会话操作");
     expect(html).toContain('aria-haspopup="menu"');
     expect(html).not.toContain("导出当前会话</button><button");
+    const overflowButton = html.match(/<button[^>]*aria-label="更多当前会话操作"[^>]*>/)?.[0] ?? "";
+    expect(overflowButton).not.toContain("aria-describedby");
+    expect(html).not.toContain('role="tooltip">更多当前会话操作');
   });
 
   it("links disabled reasons for unavailable current conversation commands", () => {
@@ -31,8 +35,8 @@ describe("WorkspaceCommandBar", () => {
     );
 
     expect(html).toContain("先选择一个会话。");
-    expect(html).toContain("当前会话导出将在导出任务中启用。");
-    expect(html).toContain("日期跳转将在历史导航任务中启用。");
+    expect(html).not.toContain("导出任务");
+    expect(html).not.toContain("历史导航");
     expect(html).toContain("aria-describedby=");
   });
 
@@ -72,17 +76,13 @@ function buildModel(hasConversation: boolean): WorkspaceCommandBarModel {
         "export-current",
         "导出当前会话",
         "overflow",
-        hasConversation
-          ? "当前会话导出将在导出任务中启用。"
-          : "先选择一个会话。当前会话导出将在导出任务中启用。",
+        hasConversation ? null : "先选择一个会话。",
       ),
       buildAction(
         "jump-date",
         "跳转日期",
         "overflow",
-        hasConversation
-          ? "日期跳转将在历史导航任务中启用。"
-          : "先选择一个会话。日期跳转将在历史导航任务中启用。",
+        hasConversation ? null : "先选择一个会话。",
       ),
     ],
   };

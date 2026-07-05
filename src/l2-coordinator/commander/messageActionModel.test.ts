@@ -43,6 +43,7 @@ describe("messageActionModel", () => {
     const model = buildMessageActionModel({ message, privacyOn: false, similarSearchSupported: false });
 
     expect(model.actions.map((action) => action.id)).toEqual([
+      "select-message",
       "copy-message",
       "copy-time",
       "copy-sender",
@@ -52,6 +53,10 @@ describe("messageActionModel", () => {
       "view-safe-raw-fields",
       "copy-unmasked-message",
     ]);
+    expect(model.actions.find((action) => action.id === "select-message")).toMatchObject({
+      enabled: true,
+      disabledReason: null,
+    });
     expect(model.actions.find((action) => action.id === "find-similar")).toMatchObject({
       enabled: false,
       disabledReason: "当前后端暂不支持同类消息搜索。",

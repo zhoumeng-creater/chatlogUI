@@ -60,6 +60,12 @@ export function MessageBubble({
 
   const resolvedActionModel = actionModel ?? { actions: [] };
   const handleAction = (actionId: MessageActionId) => {
+    if (actionId === "select-message") {
+      onEnterSelectionMode?.();
+      onToggleSelected?.(false);
+      setActionsOpen(false);
+      return;
+    }
     if (actionId === "view-safe-raw-fields") {
       setRawInspectorOpen(true);
       setActionsOpen(false);
@@ -112,20 +118,8 @@ export function MessageBubble({
         <div
           className="message-bubble__actions"
         >
-          {!selectionMode && (
-            <button
-              type="button"
-              className="message-bubble__select-mode"
-              onClick={() => {
-                onEnterSelectionMode?.();
-                onToggleSelected?.(false);
-              }}
-            >
-              选择
-            </button>
-          )}
           <MessageActionMenu
-            model={resolvedActionModel}
+            model={selectionMode ? resolvedActionModel : ensureSelectionAction(resolvedActionModel)}
             open={actionsOpen}
             onToggleOpen={() => setActionsOpen((value) => !value)}
             onAction={handleAction}
@@ -140,4 +134,20 @@ export function MessageBubble({
       )}
     </div>
   );
+}
+
+function ensureSelectionAction(model: MessageActionModel): MessageActionModel {
+  if (model.actions.some((action) => action.id === "select-message")) return model;
+  return {
+    actions: [
+      {
+        id: "select-message",
+        label: "选择消息",
+        enabled: true,
+        disabledReason: null,
+        requiresConfirmation: false,
+      },
+      ...model.actions,
+    ],
+  };
 }

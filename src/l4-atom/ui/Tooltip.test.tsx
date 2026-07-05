@@ -3,6 +3,7 @@ import { Settings } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { IconButton } from "./IconButton";
 import { Tooltip } from "./Tooltip";
+import { resolveTooltipPlacement } from "./Tooltip";
 
 describe("Tooltip", () => {
   it("can receive a stable id for accessible descriptions", () => {
@@ -55,5 +56,21 @@ describe("Tooltip", () => {
 
     expect(html).toContain('aria-label="设置"');
     expect(html).not.toContain("title=");
+  });
+
+  it("resolves clipped top and side placements away from viewport edges", () => {
+    expect(resolveTooltipPlacement({
+      preferred: "top-end",
+      triggerRect: { top: 12, bottom: 44, left: 300, right: 340 },
+      viewportWidth: 800,
+      viewportHeight: 600,
+    })).toBe("bottom");
+
+    expect(resolveTooltipPlacement({
+      preferred: "left",
+      triggerRect: { top: 200, bottom: 232, left: 8, right: 40 },
+      viewportWidth: 800,
+      viewportHeight: 600,
+    })).toBe("right");
   });
 });

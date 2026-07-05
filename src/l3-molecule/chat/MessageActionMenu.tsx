@@ -1,4 +1,5 @@
 import {
+  CheckSquare,
   Clock,
   Copy,
   FileText,
@@ -17,6 +18,10 @@ import {
   trapOverlayFocus,
   type FocusTarget,
 } from "@l4/ui";
+import {
+  resolveFloatingMenuPosition,
+  type FloatingMenuPlacement,
+} from "@l4/ui/floatingPlacement";
 import type { MessageActionId, MessageActionItem, MessageActionModel } from "@l2/commander/messageActionModel";
 
 interface MessageActionMenuProps {
@@ -27,6 +32,7 @@ interface MessageActionMenuProps {
 }
 
 const ACTION_ICONS: Record<MessageActionId, ReactNode> = {
+  "select-message": <CheckSquare size={15} />,
   "copy-message": <Copy size={15} />,
   "copy-time": <Clock size={15} />,
   "copy-sender": <UserRound size={15} />,
@@ -43,8 +49,10 @@ export function MessageActionMenu({
   onToggleOpen,
   onAction,
 }: MessageActionMenuProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const restoreTargetRef = useRef<FocusTarget | null>(null);
+  const placementRef = useRef<FloatingMenuPlacement>("top-end");
   const generatedId = useId().replace(/:/g, "");
   const menuId = `message-action-menu-${generatedId}`;
 
@@ -54,6 +62,24 @@ export function MessageActionMenu({
       restoreTargetRef.current = document.activeElement as FocusTarget | null;
     }
     const frame = window.requestAnimationFrame(() => {
+      const container = containerRef.current;
+      const menu = menuRef.current;
+      if (container && menu) {
+        const position = resolveFloatingMenuPosition({
+          preferred: "top-end",
+          triggerRect: container.getBoundingClientRect(),
+          overlaySize: {
+            width: menu.offsetWidth || 190,
+            height: menu.offsetHeight || 260,
+          },
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+        });
+        placementRef.current = position.placement;
+        menu.dataset.placement = placementRef.current;
+        menu.style.setProperty("--floating-menu-left", `${Math.round(position.left)}px`);
+        menu.style.setProperty("--floating-menu-top", `${Math.round(position.top)}px`);
+      }
       focusInitialOverlayTarget(menuRef.current);
     });
 
@@ -79,13 +105,13 @@ export function MessageActionMenu({
   };
 
   return (
-    <div className="message-action-menu" aria-label="消息操作">
+    <div ref={containerRef} className="message-action-menu" aria-label="消息操作">
       <IconButton
         icon={<MoreHorizontal size={16} />}
         label={open ? "关闭消息操作" : "打开消息操作"}
-        tooltip={open ? "关闭消息操作" : "消息操作"}
         size="md"
         active={open}
+        tooltip={false}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-controls={menuId}
@@ -98,6 +124,7 @@ export function MessageActionMenu({
         id={menuId}
         ref={menuRef}
         className="message-action-menu__items"
+        data-placement={placementRef.current}
         role="menu"
         aria-label="消息操作菜单"
         hidden={!open}

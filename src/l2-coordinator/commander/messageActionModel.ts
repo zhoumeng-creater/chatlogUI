@@ -1,6 +1,7 @@
 import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
 
 export type MessageActionId =
+  | "select-message"
   | "copy-message"
   | "copy-time"
   | "copy-sender"
@@ -68,6 +69,13 @@ export function buildMessageActionModel({
 
   return {
     actions: [
+      {
+        id: "select-message",
+        label: "选择消息",
+        enabled: true,
+        disabledReason: null,
+        requiresConfirmation: false,
+      },
       {
         id: "copy-message",
         label: privacyOn ? "复制脱敏消息" : "复制消息",

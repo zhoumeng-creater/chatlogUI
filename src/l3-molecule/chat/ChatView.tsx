@@ -15,6 +15,10 @@ import type {
 } from "@l2/commander/transcriptPositionModel";
 import type { ApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 import type { ChatReadingState } from "@/l2-coordinator/commander/chatReadingState";
+import type {
+  MessageSelectionFilterModel,
+  MessageSelectionFilterState,
+} from "@/l2-coordinator/commander/conversationSelectionFilterModel";
 import { MessageList } from "./MessageList";
 import { MessageSelectionToolbar } from "./MessageSelectionToolbar";
 import { TranscriptHeader } from "./TranscriptHeader";
@@ -42,6 +46,9 @@ interface ChatViewProps {
   selectedMessageIds: string[];
   selectionSummary: string;
   selectionStatus: string | null;
+  selectionFilters: MessageSelectionFilterState;
+  selectionFilterModel: MessageSelectionFilterModel;
+  selectionFilterError: string | null;
   privacyOn: boolean;
   onLoadHistory: (chat: string) => void;
   onLoadMoreHistory: (chat: string) => void;
@@ -51,6 +58,8 @@ interface ChatViewProps {
   onExitSelectionMode: () => void;
   onToggleMessageSelection: (messageId: string, range?: boolean) => void;
   onSelectVisibleMessages: (messageIds: string[]) => void;
+  onSelectionFilterChange: (filters: Partial<MessageSelectionFilterState>) => void;
+  onApplySelectionFilters: () => void;
   onCopySelectedMarkdown: () => void;
   onExportSelected: () => void;
   onMessageAction: (message: ChatMessage, actionId: MessageActionId) => void;
@@ -86,6 +95,9 @@ export function ChatView({
   selectedMessageIds,
   selectionSummary,
   selectionStatus,
+  selectionFilters,
+  selectionFilterModel,
+  selectionFilterError,
   privacyOn,
   onLoadHistory,
   onLoadMoreHistory,
@@ -95,6 +107,8 @@ export function ChatView({
   onExitSelectionMode,
   onToggleMessageSelection,
   onSelectVisibleMessages,
+  onSelectionFilterChange,
+  onApplySelectionFilters,
   onCopySelectedMarkdown,
   onExportSelected,
   onMessageAction,
@@ -150,7 +164,12 @@ export function ChatView({
             privacyOn={privacyOn}
             summary={selectionSummary}
             exportDisabledReason={selectedMessageIds.length === 0 ? "先选择要导出的消息。" : null}
+            filters={selectionFilters}
+            filterModel={selectionFilterModel}
+            filterError={selectionFilterError}
             onSelectVisibleMessages={() => onSelectVisibleMessages(messages.map((message) => message.id))}
+            onFilterChange={onSelectionFilterChange}
+            onApplyFilters={onApplySelectionFilters}
             onCopyMarkdown={onCopySelectedMarkdown}
             onExportSelected={onExportSelected}
             onCancel={onExitSelectionMode}

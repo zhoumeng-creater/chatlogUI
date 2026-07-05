@@ -10,6 +10,7 @@ import {
   buildAnchorHistoryRequest,
   findAnchoredMessage,
 } from "./chatHistoryAnchor";
+import { buildDateJumpHistoryRequest } from "./conversationDateJumpModel";
 import {
   buildLatestHistoryRequest,
   CHAT_HISTORY_ORDERING_CONTRACT,
@@ -224,6 +225,49 @@ export function useChatCommander() {
     }
   }, [clearCurrentHistoryRequest, isCancelledHistoryError, isCurrentHistoryRequest, startHistoryRequest]);
 
+  const loadHistoryAtDate = useCallback(async (chat: string, date: string): Promise<number | null> => {
+    const request = startHistoryRequest();
+    useChatStore.getState().clearAnchor();
+    useChatStore.getState().setMessagesLoading(true);
+
+    try {
+      const result = await fetchHistory(
+        buildDateJumpHistoryRequest({
+          chat,
+          date,
+          limit: HISTORY_PAGE_SIZE,
+        }),
+        {
+          ...createDiagnosticHttpOptions({
+            endpointFamily: "history",
+            method: "GET",
+            recoveryHint: "retry",
+          }),
+          signal: request.controller.signal,
+        },
+      );
+      if (!isCurrentHistoryRequest(request.requestId)) return null;
+      useChatStore.getState().setMessages(
+        result.messages,
+        result.totalCount,
+        result.offset,
+        false,
+        "latest",
+      );
+      return result.messages.length;
+    } catch (error) {
+      if (!isCurrentHistoryRequest(request.requestId)) return null;
+      if (isCancelledHistoryError(error)) {
+        useChatStore.getState().setAnchorCancelled();
+        return null;
+      }
+      useChatStore.getState().setMessagesError(toApiErrorModel(error));
+      return null;
+    } finally {
+      clearCurrentHistoryRequest(request.requestId);
+    }
+  }, [clearCurrentHistoryRequest, isCancelledHistoryError, isCurrentHistoryRequest, startHistoryRequest]);
+
   const selectAndLoad = useCallback(
     async (convId: string, chat: string, latestTimestamp?: number | null) => {
       useChatStore.getState().selectConversation(convId);
@@ -289,6 +333,7 @@ export function useChatCommander() {
     loadConversations,
     loadHistory,
     loadMoreHistory,
+    loadHistoryAtDate,
     selectAndLoad,
     selectAndLoadAtAnchor,
   };

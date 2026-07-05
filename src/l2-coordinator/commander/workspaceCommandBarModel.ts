@@ -38,7 +38,7 @@ export function buildWorkspaceCommandBar({
   const missingConversationReason = hasConversation ? null : "先选择一个会话。";
   const currentExportDisabledReason = hasConversation
     ? exportDisabledReason
-    : "先选择一个会话。当前会话导出将在导出任务中启用。";
+    : "先选择一个会话。";
 
   const primary: WorkspaceCommandAction[] = [
     {
@@ -81,10 +81,8 @@ export function buildWorkspaceCommandBar({
       label: "跳转日期",
       shortLabel: "日期",
       group: "overflow",
-      disabled: true,
-      disabledReason: hasConversation
-        ? "日期跳转将在历史导航任务中启用。"
-        : "先选择一个会话。日期跳转将在历史导航任务中启用。",
+      disabled: !hasConversation,
+      disabledReason: missingConversationReason,
       minTargetPx: 32,
     },
   ];

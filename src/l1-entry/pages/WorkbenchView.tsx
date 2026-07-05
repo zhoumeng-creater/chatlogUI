@@ -6,6 +6,8 @@ import { BusinessExportDialog } from "@l3/export";
 import { ConversationInspector } from "@l3/workbench/ConversationInspector";
 import { WorkbenchFrame } from "@l3/workbench/WorkbenchFrame";
 import { WorkspaceCommandBar } from "@l3/workspace/WorkspaceCommandBar";
+import { ConversationInlineSearch } from "@l3/workspace/ConversationInlineSearch";
+import { ConversationDateJumpDialog } from "@l3/workspace/ConversationDateJumpDialog";
 import { Button, Typography } from "@l4/ui";
 
 function getSearchAnchorStatusText(status: string): string {
@@ -34,7 +36,7 @@ export function getReturnContextStatusText(label: string, anchorStatus: string):
 
 export function WorkbenchView() {
   const workbench = useWorkbenchCommander();
-  const highlightedMessageId = workbench.chat.highlightedMessageId;
+  const highlightedMessageId = workbench.chat.highlightedMessageId ?? workbench.conversationSearch.activeMessageId;
   const clearHighlightedMessage = workbench.chat.clearHighlightedMessage;
 
   useEffect(() => {
@@ -91,11 +93,14 @@ export function WorkbenchView() {
         scrollAnchorLocalId={workbench.chat.scrollAnchorLocalId}
         activeAnchor={workbench.chat.activeAnchor}
         anchorStatus={workbench.chat.anchorStatus}
-        highlightedMessageId={workbench.chat.highlightedMessageId}
+        highlightedMessageId={highlightedMessageId}
         selectionMode={workbench.chat.selectionMode}
         selectedMessageIds={workbench.chat.selectedMessageIds}
         selectionSummary={workbench.selectionSummary}
         selectionStatus={workbench.chat.selectionStatus}
+        selectionFilters={workbench.selectionFilters}
+        selectionFilterModel={workbench.selectionFilterModel}
+        selectionFilterError={workbench.selectionFilterError}
         privacyOn={workbench.privacyOn}
         onLoadHistory={(chat) => void workbench.chat.loadHistory(chat, {
           latestTimestamp: workbench.currentConversation?.username === chat
@@ -111,6 +116,8 @@ export function WorkbenchView() {
         onExitSelectionMode={workbench.chat.exitSelectionMode}
         onToggleMessageSelection={workbench.chat.toggleMessageSelection}
         onSelectVisibleMessages={workbench.chat.selectVisibleMessages}
+        onSelectionFilterChange={workbench.updateSelectionFilters}
+        onApplySelectionFilters={workbench.applySelectionFilters}
         onCopySelectedMarkdown={() => void workbench.copySelectedMessagesAsMarkdown()}
         onExportSelected={workbench.selectedFragmentExport.action.onClick}
         onMessageAction={(message, actionId) => void workbench.handleMessageAction(message, actionId)}
@@ -127,10 +134,10 @@ export function WorkbenchView() {
       toolbar={(
         <div className={`workbench-chat-toolbar${workbench.returnContext ? " workbench-chat-toolbar--with-search-return" : ""}`}>
           <div className="workbench-chat-toolbar__title">
-            <Typography variant="label" weight={700}>
+            <Typography className="workbench-chat-toolbar__conversation-name" variant="label" weight={700}>
               {workbench.toolbarConversationTitle}
             </Typography>
-            <Typography variant="caption" color="var(--text-secondary)">
+            <Typography className="workbench-chat-toolbar__scope" variant="caption" color="var(--text-secondary)">
               会话阅读工作区
             </Typography>
           </div>
@@ -160,6 +167,7 @@ export function WorkbenchView() {
               )}
             </div>
           )}
+          <ConversationInlineSearch {...workbench.conversationSearch} />
         </div>
       )}
       inspectorTitle={workbench.inspectorTitle}
@@ -190,6 +198,7 @@ export function WorkbenchView() {
       {workbench.selectedFragmentExport.isOpen && (
         <BusinessExportDialog {...workbench.selectedFragmentExport.dialog} />
       )}
+      <ConversationDateJumpDialog {...workbench.dateJump} />
     </WorkbenchFrame>
   );
 }

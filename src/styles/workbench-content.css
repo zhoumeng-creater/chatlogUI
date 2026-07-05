@@ -376,6 +376,33 @@
   white-space: nowrap;
 }
 
+.message-selection-toolbar__filters {
+  display: flex;
+  min-width: min(100%, 520px);
+  flex: 1 1 420px;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-1);
+}
+
+.message-selection-toolbar__filters label {
+  display: grid;
+  min-width: 116px;
+  flex: 1 1 116px;
+  gap: 2px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.message-selection-toolbar__filters .ui-button {
+  flex: 0 0 auto;
+}
+
+.message-selection-toolbar__hint {
+  min-width: 0;
+}
+
 .message-list__inline-error {
   display: flex;
   align-items: center;
@@ -486,30 +513,19 @@
   margin-top: var(--space-2);
 }
 
-.message-bubble__select-mode {
-  min-height: 32px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-2);
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  color: inherit;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .message-action-menu {
   position: relative;
   display: inline-flex;
 }
 
 .message-action-menu__items {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 4px);
-  z-index: 8;
+  position: fixed;
+  top: var(--floating-menu-top, 0);
+  left: var(--floating-menu-left, 0);
+  z-index: 2000;
   display: grid;
   min-width: 190px;
+  max-width: min(260px, calc(100vw - 16px));
   gap: 2px;
   padding: var(--space-1);
   border: 1px solid var(--border-subtle);
@@ -518,12 +534,20 @@
   box-shadow: var(--shadow-raised);
 }
 
+.message-action-menu__items[data-placement] {
+  top: var(--floating-menu-top, 0);
+  right: auto;
+  bottom: auto;
+  left: var(--floating-menu-left, 0);
+}
+
 .message-action-menu__items[hidden] {
   display: none;
 }
 
 .message-action-menu__item {
   display: flex;
+  width: 100%;
   min-height: 32px;
   align-items: center;
   gap: var(--space-2);
@@ -2698,6 +2722,14 @@
   }
 
   .message-selection-toolbar__actions .ui-button {
+    flex: 1 1 136px;
+  }
+
+  .message-selection-toolbar__filters {
+    flex-basis: 100%;
+  }
+
+  .message-selection-toolbar__filters .ui-button {
     flex: 1 1 136px;
   }
 
