@@ -39,16 +39,16 @@ describe("overlayFocus", () => {
     expect(getFocusableOverlayElements(container)).toEqual([first, second]);
   });
 
-  it("focuses the first safe action or the container when no controls exist", () => {
+  it("focuses the first safe action or the container without scrolling the transcript", () => {
     const first = focusableElement();
     const container = fakeContainer([first]);
 
     expect(focusInitialOverlayTarget(container)).toBe(true);
-    expect(first.focus).toHaveBeenCalledOnce();
+    expect(first.focus).toHaveBeenCalledWith({ preventScroll: true });
 
     const emptyContainer = fakeContainer([]);
     expect(focusInitialOverlayTarget(emptyContainer)).toBe(true);
-    expect(emptyContainer.focus).toHaveBeenCalledOnce();
+    expect(emptyContainer.focus).toHaveBeenCalledWith({ preventScroll: true });
   });
 
   it("traps Tab and Shift+Tab inside the overlay", () => {
@@ -60,18 +60,18 @@ describe("overlayFocus", () => {
 
     expect(trapOverlayFocus(container, last, tabFromLast)).toBe(true);
     expect(tabFromLast.preventDefault).toHaveBeenCalledOnce();
-    expect(first.focus).toHaveBeenCalledOnce();
+    expect(first.focus).toHaveBeenCalledWith({ preventScroll: true });
 
     expect(trapOverlayFocus(container, first, shiftTabFromFirst)).toBe(true);
     expect(shiftTabFromFirst.preventDefault).toHaveBeenCalledOnce();
-    expect(last.focus).toHaveBeenCalledOnce();
+    expect(last.focus).toHaveBeenCalledWith({ preventScroll: true });
   });
 
-  it("restores focus only to connected focus targets", () => {
+  it("restores focus only to connected focus targets without scrolling", () => {
     const focus = vi.fn();
 
     expect(restoreFocusTarget({ isConnected: true, focus })).toBe(true);
-    expect(focus).toHaveBeenCalledOnce();
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     expect(restoreFocusTarget({ isConnected: false, focus })).toBe(false);
     expect(restoreFocusTarget(null)).toBe(false);
   });

@@ -13,10 +13,13 @@ import {
 import { buildDateJumpHistoryRequest } from "./conversationDateJumpModel";
 import {
   buildLatestHistoryRequest,
+  buildLatestTimestampWindowRequest,
   CHAT_HISTORY_ORDERING_CONTRACT,
   getLatestPageFollowupRequest,
   getOlderHistoryRequest,
   hasOlderHistory,
+  mergeLatestTimestampWindowPage,
+  pageNeedsLatestTimestampFallback,
 } from "./chatHistoryPaging";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
 
@@ -130,8 +133,6 @@ export function useChatCommander() {
         limit: HISTORY_PAGE_SIZE,
         latestTimestamp: options.latestTimestamp,
       });
-      const usesLatestTimestampWindow =
-        historyRequest.since !== undefined || historyRequest.until !== undefined;
       let result = await fetchHistory(
         historyRequest,
         {
@@ -144,9 +145,7 @@ export function useChatCommander() {
         },
       );
       if (!isCurrentHistoryRequest(request.requestId)) return;
-      const latestFollowup = usesLatestTimestampWindow
-        ? null
-        : getLatestPageFollowupRequest(result, CHAT_HISTORY_ORDERING_CONTRACT);
+      const latestFollowup = getLatestPageFollowupRequest(result, CHAT_HISTORY_ORDERING_CONTRACT);
       if (latestFollowup) {
         result = await fetchHistory(latestFollowup, {
           ...createDiagnosticHttpOptions({
@@ -158,13 +157,31 @@ export function useChatCommander() {
         });
         if (!isCurrentHistoryRequest(request.requestId)) return;
       }
+      const hasMore = hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT);
+      if (pageNeedsLatestTimestampFallback(result, options.latestTimestamp)) {
+        const fallback = await fetchHistory(
+          buildLatestTimestampWindowRequest({
+            chat,
+            limit: HISTORY_PAGE_SIZE,
+            latestTimestamp: options.latestTimestamp,
+          }),
+          {
+            ...createDiagnosticHttpOptions({
+              endpointFamily: "history",
+              method: "GET",
+              recoveryHint: "retry",
+            }),
+            signal: request.controller.signal,
+          },
+        );
+        if (!isCurrentHistoryRequest(request.requestId)) return;
+        result = mergeLatestTimestampWindowPage({ primary: result, supplemental: fallback });
+      }
       useChatStore.getState().setMessages(
         result.messages,
         result.totalCount,
         result.offset,
-        usesLatestTimestampWindow
-          ? false
-          : hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
+        hasMore,
         "latest",
       );
     } catch (error) {
@@ -191,6 +208,7 @@ export function useChatCommander() {
       currentOffset: messagesOffset,
       loadedCount: messages.length,
       limit: HISTORY_PAGE_SIZE,
+      oldestLoadedTimestamp: messages[0]?.timestamp ?? null,
     });
     if (!olderRequest) {
       useChatStore.getState().appendMessages([], messagesOffset, false);
@@ -251,7 +269,7 @@ export function useChatCommander() {
         result.messages,
         result.totalCount,
         result.offset,
-        false,
+        result.messages.length > 0,
         "latest",
       );
       return result.messages.length;

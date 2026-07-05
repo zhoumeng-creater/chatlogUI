@@ -1,5 +1,5 @@
 import { CalendarDays } from "lucide-react";
-import { Button, Input, SpringModal, Typography } from "@l4/ui";
+import { Button, DateInput, SpringModal, Typography } from "@l4/ui";
 
 interface ConversationDateJumpDialogProps {
   open: boolean;
@@ -36,8 +36,7 @@ export function ConversationDateJumpDialog({
 
         <label className="conversation-date-jump-dialog__field">
           <span>日期</span>
-          <Input
-            type="date"
+          <DateInput
             value={value}
             aria-invalid={Boolean(error)}
             onChange={(event) => onValueChange(event.currentTarget.value)}

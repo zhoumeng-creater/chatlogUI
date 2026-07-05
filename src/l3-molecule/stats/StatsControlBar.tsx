@@ -5,7 +5,7 @@ import type {
   StatsObjectFilter,
   StatsTimePreset,
 } from "@l2/commander/statsControlModel";
-import { Button, DisabledReason, Typography } from "@l4/ui";
+import { Button, DateInput, DisabledReason, Typography } from "@l4/ui";
 
 interface StatsControlBarProps {
   model: StatsControlViewModel;
@@ -111,8 +111,7 @@ export function StatsControlBar({
         <div className="stats-control-bar__custom-range" aria-label="自定义时间范围">
           <label>
             <span>开始日期</span>
-            <input
-              type="date"
+            <DateInput
               value={model.customRange.start}
               aria-invalid={Boolean(model.customRangeError)}
               onChange={(event) => onCustomRangeChange({
@@ -123,8 +122,7 @@ export function StatsControlBar({
           </label>
           <label>
             <span>结束日期</span>
-            <input
-              type="date"
+            <DateInput
               value={model.customRange.end}
               aria-invalid={Boolean(model.customRangeError)}
               onChange={(event) => onCustomRangeChange({

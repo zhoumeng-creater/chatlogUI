@@ -59,6 +59,7 @@ export interface BusinessExportCommander {
   action: BusinessExportActionView;
   dialog: BusinessExportDialogView;
   isOpen: boolean;
+  refreshArtifact: () => void;
 }
 
 export function useBusinessExportCommander({
@@ -119,6 +120,12 @@ export function useBusinessExportCommander({
     const artifact = createArtifact(selectedFormat, confirmed);
     beginExport(artifact.job, artifact);
   }, [activeJob, beginExport, createArtifact, selectedFormat]);
+
+  const refreshArtifact = useCallback(() => {
+    if (!activeJob || activeJob.status === "writing" || activeJob.status === "completed") return;
+    const artifact = createArtifact(selectedFormat, unredactedConfirmed);
+    beginExport(artifact.job, artifact);
+  }, [activeJob, beginExport, createArtifact, selectedFormat, unredactedConfirmed]);
 
   const writeArtifact = useCallback(async (artifact: BusinessExportArtifact) => {
     const timer = createUxKpiTimer();
@@ -245,6 +252,7 @@ export function useBusinessExportCommander({
       onRetry: retry,
     },
     isOpen,
+    refreshArtifact,
   };
 }
 

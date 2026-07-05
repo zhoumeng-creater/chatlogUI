@@ -40,6 +40,23 @@ describe("MessageActionMenu", () => {
     expect(actionMenuSource).toContain("trapOverlayFocus");
   });
 
+  it("registers document-level outside pointer dismissal while the menu is open", () => {
+    expect(actionMenuSource).toContain('document.addEventListener("pointerdown"');
+    expect(actionMenuSource).toContain('document.removeEventListener("pointerdown"');
+    expect(actionMenuSource).toContain("containerRef.current?.contains");
+    expect(actionMenuSource).toContain("menuRef.current?.contains");
+    expect(actionMenuSource).toContain("closeMenu()");
+  });
+
+  it("renders the menu through a portal so virtual list transforms cannot offset fixed positioning", () => {
+    expect(actionMenuSource).toContain("createPortal");
+    expect(actionMenuSource).toContain("document.body");
+  });
+
+  it("closes before dispatching an action so parent close handlers cannot toggle it open again", () => {
+    expect(actionMenuSource.indexOf("closeMenu();\n        onAction(actionId);")).toBeGreaterThan(-1);
+  });
+
   it("does not attach visible hover tooltip copy to the standard ellipsis trigger", () => {
     const html = renderToStaticMarkup(
       <MessageActionMenu

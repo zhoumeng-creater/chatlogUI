@@ -10,12 +10,16 @@ describe("MessageSelectionToolbar", () => {
         privacyOn
         summary="已选 3 条 · 2024-04-28 09:20 - 2024-04-28 09:22 · text 2 条"
         exportDisabledReason={null}
-        filters={{ sender: "all", startDate: "", endDate: "" }}
+        filters={{ sender: "all", messageType: "all", startDate: "", endDate: "" }}
         filterModel={{
           loadedCount: 12,
           senderOptions: [
             { value: "all", label: "全部对象", count: 12 },
             { value: "sender-1", label: "Alice", count: 7 },
+          ],
+          typeOptions: [
+            { value: "all", label: "全部类型", count: 12 },
+            { value: "type-image", label: "图片", count: 4 },
           ],
         }}
         filterError={null}
@@ -34,6 +38,8 @@ describe("MessageSelectionToolbar", () => {
     expect(html).toContain("2024-04-28 09:20 - 2024-04-28 09:22");
     expect(html).toContain("全选已加载");
     expect(html).toContain("对象");
+    expect(html).toContain("类型");
+    expect(html).toContain("图片 · 4 条");
     expect(html).toContain("开始");
     expect(html).toContain("结束");
     expect(html).toContain("按范围选择");

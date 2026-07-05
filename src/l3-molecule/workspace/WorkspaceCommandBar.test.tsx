@@ -4,6 +4,7 @@ import type {
   WorkspaceCommandAction,
   WorkspaceCommandBarModel,
 } from "@l2/commander/workspaceCommandBarModel";
+import commandBarSource from "./WorkspaceCommandBar.tsx?raw";
 import { WorkspaceCommandBar } from "./WorkspaceCommandBar";
 
 describe("WorkspaceCommandBar", () => {
@@ -50,6 +51,13 @@ describe("WorkspaceCommandBar", () => {
 
     expect(html).toContain("ui-button--md");
     expect(html).not.toContain("ui-button--sm");
+  });
+
+  it("dismisses the overflow menu on outside pointer interactions", () => {
+    expect(commandBarSource).toContain('document.addEventListener("pointerdown"');
+    expect(commandBarSource).toContain('document.removeEventListener("pointerdown"');
+    expect(commandBarSource).toContain("overflowRef.current?.contains");
+    expect(commandBarSource).toContain("setOverflowOpen(false)");
   });
 });
 

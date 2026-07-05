@@ -25,19 +25,31 @@ describe("conversationSelectionFilterModel", () => {
     expect(JSON.stringify(model)).not.toContain("Bob");
   });
 
-  it("selects loaded messages by sender and date range", () => {
+  it("selects loaded messages by sender, message type, and date range", () => {
     const model = buildMessageSelectionFilterModel({ messages, privacyOn: false });
+
+    expect(model.typeOptions).toEqual([
+      { value: "all", label: "全部类型", count: 3 },
+      { value: "type-image", label: "图片", count: 1 },
+      { value: "type-text", label: "文本", count: 2 },
+    ]);
 
     expect(selectMessageIdsByFilter({
       messages,
       senderOptions: model.senderOptions,
-      filters: { sender: "sender-1", startDate: "2026-07-05", endDate: "2026-07-05" },
+      filters: {
+        sender: "sender-1",
+        messageType: "type-image",
+        startDate: "2026-07-05",
+        endDate: "2026-07-05",
+      },
     })).toEqual(["m3"]);
   });
 
   it("validates reversed date ranges", () => {
     expect(validateMessageSelectionFilter({
       sender: "all",
+      messageType: "all",
       startDate: "2026-07-06",
       endDate: "2026-07-05",
     })).toBe("开始日期不能晚于结束日期。");
@@ -52,7 +64,8 @@ function message(id: string, senderName: string, time: string): ChatMessage {
     time,
     sender: senderName,
     senderName,
-    type: "text",
+    type: id === "m3" ? "image" : "text",
+    mediaType: id === "m3" ? "image" : undefined,
     content: "Synthetic message",
     chat: "synthetic-room",
     username: "synthetic-room",

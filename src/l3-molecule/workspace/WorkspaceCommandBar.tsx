@@ -68,10 +68,18 @@ export function WorkspaceCommandBar({ model, onAction }: WorkspaceCommandBarProp
       restoreFocusTarget(restoreTargetRef.current ?? document.getElementById(overflowButtonId));
     };
 
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Node ? event.target : null;
+      if (!target || overflowRef.current?.contains(target)) return;
+      setOverflowOpen(false);
+    };
+
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
     return () => {
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
     };
   }, [overflowButtonId, overflowOpen]);
 

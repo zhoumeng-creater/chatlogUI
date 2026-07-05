@@ -67,6 +67,51 @@ describe("BusinessExportDialog", () => {
     expect(html).not.toContain("wxid_");
   });
 
+  it("renders current-conversation range filters when provided", () => {
+    const html = renderToStaticMarkup(
+      <BusinessExportDialog
+        artifact={artifact}
+        job={job}
+        formats={["markdown", "json"]}
+        selectedFormat="markdown"
+        privacyOn={false}
+        unredactedConfirmed={false}
+        rangeControls={{
+          summary: "筛选只作用于当前已加载的 3 条消息。",
+          error: null,
+          disabled: false,
+          filters: { sender: "all", messageType: "all", startDate: "", endDate: "" },
+          senderOptions: [
+            { value: "all", label: "全部对象", count: 3 },
+            { value: "sender-1", label: "Alice", count: 2 },
+          ],
+          typeOptions: [
+            { value: "all", label: "全部类型", count: 3 },
+            { value: "type-image", label: "图片", count: 1 },
+          ],
+          onChange: vi.fn(),
+          onReset: vi.fn(),
+        }}
+        onFormatChange={vi.fn()}
+        onToggleUnredacted={vi.fn()}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+        onClose={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("导出范围");
+    expect(html).toContain("对象");
+    expect(html).toContain("消息类型");
+    expect(html).toContain("开始日期");
+    expect(html).toContain("结束日期");
+    expect(html).toContain("YYYY-MM-DD");
+    expect(html).toContain("筛选只作用于当前已加载的 3 条消息");
+    expect(html).toContain("Alice · 2 条");
+    expect(html).toContain("图片 · 1 条");
+  });
+
   it("shows completed and failed states with persistent recovery actions", () => {
     const completed = renderToStaticMarkup(
       <BusinessExportDialog

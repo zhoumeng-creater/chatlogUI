@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { HTMLInputTypeAttribute, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { Button, Input, Typography } from "@l4/ui";
+import { Button, DateInput, Input, Typography } from "@l4/ui";
 import type { GraphControlModel } from "@l2/commander/graphControlModel";
 import {
   focusInitialOverlayTarget,
@@ -97,9 +97,9 @@ export function GraphAdvancedFilterDrawer({
         <div className="graph-advanced-filter-drawer__grid">
           <LabeledInput label="实体类型" value={entityDraft} onChange={onEntityDraftChange} placeholder="person / topic / event" />
           <LabeledInput label="关系类型" value={relationDraft} onChange={onRelationDraftChange} placeholder="mentions / owns / causes" />
-          <LabeledInput label="数量上限" type="number" min={1} max={300} value={limitDraft} onChange={onLimitDraftChange} />
-          <LabeledInput label="开始日期" type="date" value={startDraft} onChange={onStartDraftChange} />
-          <LabeledInput label="结束日期" type="date" value={endDraft} onChange={onEndDraftChange} />
+          <LabeledInput label="数量上限" kind="number" min={1} max={300} value={limitDraft} onChange={onLimitDraftChange} />
+          <LabeledInput label="开始日期" kind="date" value={startDraft} onChange={onStartDraftChange} />
+          <LabeledInput label="结束日期" kind="date" value={endDraft} onChange={onEndDraftChange} />
         </div>
 
         <div className="graph-advanced-filter-drawer__actions">
@@ -119,7 +119,7 @@ function LabeledInput({
   label,
   value,
   onChange,
-  type = "text",
+  kind = "text",
   min,
   max,
   placeholder,
@@ -127,7 +127,7 @@ function LabeledInput({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  type?: HTMLInputTypeAttribute;
+  kind?: HTMLInputTypeAttribute;
   min?: number;
   max?: number;
   placeholder?: string;
@@ -137,15 +137,24 @@ function LabeledInput({
       <Typography variant="caption" weight={700}>
         {label}
       </Typography>
-      <Input
-        controlSize="md"
-        type={type}
-        min={min}
-        max={max}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
+      {kind === "date" ? (
+        <DateInput
+          controlSize="md"
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => onChange(event.currentTarget.value)}
+        />
+      ) : (
+        <Input
+          controlSize="md"
+          type={kind}
+          min={min}
+          max={max}
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => onChange(event.currentTarget.value)}
+        />
+      )}
     </label>
   );
 }

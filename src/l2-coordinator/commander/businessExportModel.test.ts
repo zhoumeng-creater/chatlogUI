@@ -421,6 +421,44 @@ describe("businessExportModel", () => {
     expect(artifact.content).not.toContain("Full conversation message");
   });
 
+  it("records current-conversation export filters and exports only matching loaded messages", () => {
+    const artifact = createConversationExportArtifact({
+      format: "json",
+      privacyOn: false,
+      requestedUnredacted: true,
+      unredactedConfirmed: true,
+      generatedAt,
+      scopeSummary: "当前会话 · 筛选后 1 条",
+      totalCount: 99,
+      loadedCount: 3,
+      filterSummary: ["对象：Alice", "类型：图片", "日期：2026-07-05 至 2026-07-05"],
+      messages: [
+        {
+          id: "filtered-1",
+          sender: "Alice",
+          content: "Only filtered image message",
+          time: "2026-07-05 10:00",
+          type: "image",
+        },
+      ],
+    });
+    const json = JSON.parse(artifact.content) as {
+      filterSummary: string[];
+      loadedCount: number;
+      totalCount: number;
+      messages: Array<{ content: string; type: string }>;
+    };
+
+    expect(artifact.rowCount).toBe(1);
+    expect(json.loadedCount).toBe(3);
+    expect(json.totalCount).toBe(99);
+    expect(json.filterSummary).toEqual(["对象：Alice", "类型：图片", "日期：2026-07-05 至 2026-07-05"]);
+    expect(json.messages).toEqual([
+      expect.objectContaining({ content: "Only filtered image message", type: "image" }),
+    ]);
+    expect(artifact.warnings).toContain("筛选只作用于当前已加载消息。");
+  });
+
   it("exports graph query, timeline, visualization, metadata, freshness, and empty summaries", () => {
     const artifact = createGraphExportArtifact({
       format: "markdown",

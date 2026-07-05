@@ -1,5 +1,5 @@
 import { Play } from "lucide-react";
-import { Button, DisabledReason, Input, Typography } from "@l4/ui";
+import { Button, DateInput, DisabledReason, Input, Typography } from "@l4/ui";
 import type { GraphQADraft } from "@l4/network";
 import type { GraphResidualView } from "@l2/commander/graphResidualViewModel";
 
@@ -65,18 +65,16 @@ export function GraphQAPanel({
           placeholder={privacyOn ? "隐私模式已隐藏窗口" : "window，例如 7d"}
           aria-label="图谱问答时间窗口"
         />
-        <Input
+        <DateInput
           controlSize="sm"
-          type="date"
           value={privacyOn ? "" : draft.start ?? ""}
           disabled={privacyOn}
           aria-describedby={privacyDisabledReasonId}
           onChange={(event) => onDraftChange({ start: event.currentTarget.value })}
           aria-label="图谱问答开始日期"
         />
-        <Input
+        <DateInput
           controlSize="sm"
-          type="date"
           value={privacyOn ? "" : draft.end ?? ""}
           disabled={privacyOn}
           aria-describedby={privacyDisabledReasonId}

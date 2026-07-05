@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { useWorkspacePreferenceStore } from "@l2/data-clerk/stores/useWorkspacePreferenceStore";
@@ -34,6 +34,7 @@ import {
 import {
   DEFAULT_MESSAGE_SELECTION_FILTERS,
   buildMessageSelectionFilterModel,
+  filterMessagesBySelectionFilter,
   selectMessageIdsByFilter,
   validateMessageSelectionFilter,
   type MessageSelectionFilterState,
@@ -134,16 +135,40 @@ export function useWorkbenchCommander() {
   const [selectionFilters, setSelectionFilters] = useState<MessageSelectionFilterState>(
     DEFAULT_MESSAGE_SELECTION_FILTERS,
   );
+  const [conversationExportFilters, setConversationExportFilters] = useState<MessageSelectionFilterState>(
+    DEFAULT_MESSAGE_SELECTION_FILTERS,
+  );
   const selectionFilterModel = useMemo(() => buildMessageSelectionFilterModel({
     messages: chat.messages,
     privacyOn,
   }), [chat.messages, privacyOn]);
+  const conversationExportFilterModel = selectionFilterModel;
   const selectionFilterError = useMemo(
     () => validateMessageSelectionFilter(selectionFilters),
     [selectionFilters],
   );
+  const conversationExportFilterError = useMemo(
+    () => validateMessageSelectionFilter(conversationExportFilters),
+    [conversationExportFilters],
+  );
+  const conversationExportMessages = useMemo(() => filterMessagesBySelectionFilter({
+    messages: chat.messages,
+    filters: conversationExportFilters,
+  }), [chat.messages, conversationExportFilters]);
+  const conversationExportFilterSummary = useMemo(() => buildConversationExportFilterSummary({
+    filters: conversationExportFilters,
+    senderOptions: conversationExportFilterModel.senderOptions,
+    typeOptions: conversationExportFilterModel.typeOptions,
+  }), [
+    conversationExportFilterModel.senderOptions,
+    conversationExportFilterModel.typeOptions,
+    conversationExportFilters,
+  ]);
+  const conversationExportConfirmDisabledReason = conversationExportFilterError
+    ?? (conversationExportMessages.length === 0 ? "当前筛选没有可导出的消息。" : null);
   const [singlePaneView, setSinglePaneView] = useState<SinglePaneView>("detail");
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const conversationExportRefreshKeyRef = useRef("");
   const viewportWidth = useViewportWidth();
   const effectiveRailMode = getEffectiveRailMode(preferences.railMode, viewportWidth);
   const availableWorkbenchWidth = Math.max(
@@ -179,7 +204,8 @@ export function useWorkbenchCommander() {
         scopeSummary: "当前会话",
         totalCount: chat.messagesTotalCount,
         loadedCount: chat.messages.length,
-        messages: chat.messages.map((message) => ({
+        filterSummary: conversationExportFilterSummary,
+        messages: conversationExportMessages.map((message) => ({
           id: message.id,
           sender: message.senderName || message.sender || message.talkerName || message.talker || "",
           content: message.content || "",
@@ -213,6 +239,21 @@ export function useWorkbenchCommander() {
         })),
       }),
   });
+  const conversationExportOpen = conversationExport.isOpen;
+  const refreshConversationExportArtifact = conversationExport.refreshArtifact;
+  const conversationExportRefreshKey = useMemo(() => JSON.stringify({
+    filters: conversationExportFilters,
+    messageIds: conversationExportMessages.map((message) => message.id),
+    loadedCount: chat.messages.length,
+    totalCount: chat.messagesTotalCount,
+    filterError: conversationExportFilterError,
+  }), [
+    chat.messages.length,
+    chat.messagesTotalCount,
+    conversationExportFilterError,
+    conversationExportFilters,
+    conversationExportMessages,
+  ]);
   const chatReadingState = useMemo(() => buildChatReadingState({
     conversation: currentConversation,
     messagesStatus: chat.messagesStatus,
@@ -297,6 +338,20 @@ export function useWorkbenchCommander() {
       loadAll(currentChat);
     }
   }, [currentChat, loadAll]);
+
+  useEffect(() => {
+    setConversationExportFilters(DEFAULT_MESSAGE_SELECTION_FILTERS);
+  }, [currentChat]);
+
+  useEffect(() => {
+    if (!conversationExportOpen) {
+      conversationExportRefreshKeyRef.current = "";
+      return;
+    }
+    if (conversationExportRefreshKeyRef.current === conversationExportRefreshKey) return;
+    conversationExportRefreshKeyRef.current = conversationExportRefreshKey;
+    refreshConversationExportArtifact();
+  }, [conversationExportOpen, refreshConversationExportArtifact, conversationExportRefreshKey]);
 
   useEffect(() => {
     if (layout.mode === "single" && !selectedConversationId) {
@@ -449,6 +504,12 @@ export function useWorkbenchCommander() {
   const updateSelectionFilters = useCallback((filters: Partial<MessageSelectionFilterState>) => {
     setSelectionFilters((current) => ({ ...current, ...filters }));
   }, []);
+  const updateConversationExportFilters = useCallback((filters: Partial<MessageSelectionFilterState>) => {
+    setConversationExportFilters((current) => ({ ...current, ...filters }));
+  }, []);
+  const resetConversationExportFilters = useCallback(() => {
+    setConversationExportFilters(DEFAULT_MESSAGE_SELECTION_FILTERS);
+  }, []);
   const applySelectionFilters = useCallback(() => {
     const error = validateMessageSelectionFilter(selectionFilters);
     if (error) {
@@ -535,7 +596,23 @@ export function useWorkbenchCommander() {
     commandBar,
     conversationListEmptyState,
     messageListEmptyStates,
-    conversationExport,
+    conversationExport: {
+      ...conversationExport,
+      dialog: {
+        ...conversationExport.dialog,
+        rangeControls: {
+          summary: `筛选只作用于当前已加载的 ${chat.messages.length.toLocaleString()} 条消息，当前符合 ${conversationExportMessages.length.toLocaleString()} 条。`,
+          error: conversationExportFilterError,
+          disabled: chat.messages.length === 0,
+          filters: conversationExportFilters,
+          senderOptions: conversationExportFilterModel.senderOptions,
+          typeOptions: conversationExportFilterModel.typeOptions,
+          onChange: updateConversationExportFilters,
+          onReset: resetConversationExportFilters,
+        },
+        confirmDisabledReason: conversationExportConfirmDisabledReason,
+      },
+    },
     selectedFragmentExport,
     selectedMessages,
     selectionSummary,
@@ -612,4 +689,28 @@ function getConversationExportDisabledReason({
     return "当前会话消息加载失败，请重试后再导出。";
   }
   return null;
+}
+
+function buildConversationExportFilterSummary({
+  filters,
+  senderOptions,
+  typeOptions,
+}: {
+  filters: MessageSelectionFilterState;
+  senderOptions: Array<{ value: string; label: string }>;
+  typeOptions: Array<{ value: string; label: string }>;
+}): string[] {
+  const summary: string[] = [];
+  if (filters.sender !== "all") {
+    const label = senderOptions.find((option) => option.value === filters.sender)?.label ?? "已选对象";
+    summary.push(`对象：${label}`);
+  }
+  if (filters.messageType !== "all") {
+    const label = typeOptions.find((option) => option.value === filters.messageType)?.label ?? "已选类型";
+    summary.push(`类型：${label}`);
+  }
+  if (filters.startDate || filters.endDate) {
+    summary.push(`日期：${filters.startDate || "不限"} 至 ${filters.endDate || "不限"}`);
+  }
+  return summary;
 }

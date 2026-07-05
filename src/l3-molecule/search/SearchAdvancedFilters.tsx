@@ -3,7 +3,7 @@ import type {
   SearchGroupMode,
   SearchSortMode,
 } from "@l2/commander/searchAdvancedFilters";
-import { Input, Select, Typography } from "@l4/ui";
+import { DateInput, Select, Typography } from "@l4/ui";
 
 interface SearchAdvancedFiltersProps {
   filters: SearchAdvancedFiltersState;
@@ -40,8 +40,7 @@ export function SearchAdvancedFilters({ filters, onChange }: SearchAdvancedFilte
       <div className="search-advanced-filters__grid">
         <label className="search-advanced-filters__field">
           <span>开始日期</span>
-          <Input
-            type="date"
+          <DateInput
             value={filters.dateRange?.start ?? ""}
             onChange={(event) => update({
               dateRange: {
@@ -53,8 +52,7 @@ export function SearchAdvancedFilters({ filters, onChange }: SearchAdvancedFilte
         </label>
         <label className="search-advanced-filters__field">
           <span>结束日期</span>
-          <Input
-            type="date"
+          <DateInput
             value={filters.dateRange?.end ?? ""}
             onChange={(event) => update({
               dateRange: {

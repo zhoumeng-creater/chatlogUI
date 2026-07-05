@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { X } from "lucide-react";
-import { Button, Input, Select, Typography } from "@l4/ui";
+import { Button, DateInput, Input, Select, Typography } from "@l4/ui";
 import type { SnsDraftFilters } from "@l2/commander/snsFilterModel";
 import type { SnsContentTypeFilter } from "@l2/data-clerk/stores/useSnsStore";
 
@@ -189,18 +189,16 @@ export function SnsFilterDrawer({
         </label>
         <label className="sns-module__field">
           <span>开始</span>
-          <Input
+          <DateInput
             controlSize="sm"
-            type="date"
             value={draftFilters.since}
             onChange={(event) => onDraftChange({ since: event.currentTarget.value })}
           />
         </label>
         <label className="sns-module__field">
           <span>结束</span>
-          <Input
+          <DateInput
             controlSize="sm"
-            type="date"
             value={draftFilters.until}
             onChange={(event) => onDraftChange({ until: event.currentTarget.value })}
           />

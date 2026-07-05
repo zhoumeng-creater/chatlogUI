@@ -1,4 +1,4 @@
-import { Button, Input, Select, Typography } from "@l4/ui";
+import { Button, DateInput, Select, Typography } from "@l4/ui";
 import type {
   MediaAvailabilityFilter,
   MediaFilterField,
@@ -96,9 +96,8 @@ export function MediaFilterBar({
         </label>
         <label className="media-filter-bar__field">
           <span>开始日期</span>
-          <Input
+          <DateInput
             controlSize="md"
-            type="date"
             aria-label="媒体开始日期"
             value={filters.dateRange.start}
             onChange={(event) => onChange({
@@ -109,9 +108,8 @@ export function MediaFilterBar({
         </label>
         <label className="media-filter-bar__field">
           <span>结束日期</span>
-          <Input
+          <DateInput
             controlSize="md"
-            type="date"
             aria-label="媒体结束日期"
             value={filters.dateRange.end}
             onChange={(event) => onChange({

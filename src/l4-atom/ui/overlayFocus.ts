@@ -1,6 +1,6 @@
 export interface FocusTarget {
   isConnected: boolean;
-  focus: () => void;
+  focus: (options?: FocusOptions) => void;
 }
 
 interface OverlayDialogPropsInput {
@@ -57,7 +57,7 @@ export function focusInitialOverlayTarget(container: HTMLElement | null): boolea
   if (!container) return false;
   const [firstFocusable] = getFocusableOverlayElements(container);
   const focusTarget = firstFocusable ?? container;
-  focusTarget.focus();
+  focusWithoutScrolling(focusTarget);
   return true;
 }
 
@@ -71,7 +71,7 @@ export function trapOverlayFocus(
   const focusable = getFocusableOverlayElements(container);
   if (focusable.length === 0) {
     event.preventDefault();
-    container.focus();
+    focusWithoutScrolling(container);
     return true;
   }
 
@@ -80,19 +80,19 @@ export function trapOverlayFocus(
 
   if (!activeElement || !container.contains(activeElement)) {
     event.preventDefault();
-    first.focus();
+    focusWithoutScrolling(first);
     return true;
   }
 
   if (event.shiftKey && activeElement === first) {
     event.preventDefault();
-    last.focus();
+    focusWithoutScrolling(last);
     return true;
   }
 
   if (!event.shiftKey && activeElement === last) {
     event.preventDefault();
-    first.focus();
+    focusWithoutScrolling(first);
     return true;
   }
 
@@ -112,6 +112,10 @@ export function isRestorableFocusTarget(target: unknown): target is FocusTarget 
 
 export function restoreFocusTarget(target: unknown): boolean {
   if (!isRestorableFocusTarget(target)) return false;
-  target.focus();
+  focusWithoutScrolling(target);
   return true;
+}
+
+function focusWithoutScrolling(target: FocusTarget): void {
+  target.focus({ preventScroll: true });
 }

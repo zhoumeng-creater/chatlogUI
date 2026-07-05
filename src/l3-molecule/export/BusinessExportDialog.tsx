@@ -5,8 +5,32 @@ import type {
   BusinessExportStatus,
 } from "@/l2-coordinator/commander/businessExportModel";
 import type { BusinessExportResultSummary } from "@/l2-coordinator/data-clerk/stores";
-import { Button, DisabledReason, SpringModal, StatusIndicator } from "@/l4-atom/ui";
+import {
+  Button,
+  DateInput,
+  DisabledReason,
+  Select,
+  SpringModal,
+  StatusIndicator,
+  Typography,
+} from "@/l4-atom/ui";
 import { StatusAnnouncer } from "@/l3-molecule/common/StatusAnnouncer";
+
+interface BusinessExportRangeControls {
+  summary: string;
+  error: string | null;
+  disabled: boolean;
+  filters: {
+    sender: string;
+    messageType: string;
+    startDate: string;
+    endDate: string;
+  };
+  senderOptions: Array<{ value: string; label: string; count: number }>;
+  typeOptions: Array<{ value: string; label: string; count: number }>;
+  onChange: (filters: Partial<BusinessExportRangeControls["filters"]>) => void;
+  onReset: () => void;
+}
 
 interface BusinessExportDialogProps {
   artifact: BusinessExportArtifact | null;
@@ -17,6 +41,8 @@ interface BusinessExportDialogProps {
   unredactedConfirmed: boolean;
   resultSummary?: BusinessExportResultSummary | null;
   stopWaitingMessage?: string | null;
+  rangeControls?: BusinessExportRangeControls;
+  confirmDisabledReason?: string | null;
   onFormatChange: (format: BusinessExportFormat) => void;
   onToggleUnredacted: (confirmed: boolean) => void;
   onConfirm: () => void;
@@ -40,6 +66,8 @@ export function BusinessExportDialog({
   unredactedConfirmed,
   resultSummary = null,
   stopWaitingMessage = null,
+  rangeControls,
+  confirmDisabledReason = null,
   onFormatChange,
   onToggleUnredacted,
   onConfirm,
@@ -54,7 +82,7 @@ export function BusinessExportDialog({
   const isWriting = status === "writing";
   const isStopping = status === "cancelling";
   const isTerminal = status === "completed" || status === "failed" || status === "cancelled" || isStopping;
-  const confirmDisabled = isWriting || status === "completed" || isStopping;
+  const confirmDisabled = isWriting || status === "completed" || isStopping || Boolean(confirmDisabledReason);
   const canRetry = status === "failed" && job.error?.retryable;
 
   return (
@@ -128,6 +156,73 @@ export function BusinessExportDialog({
           </div>
         ) : null}
 
+        {rangeControls ? (
+          <fieldset
+            className="business-export-dialog__range"
+            disabled={isWriting || isTerminal || rangeControls.disabled}
+          >
+            <legend>导出范围</legend>
+            <div className="business-export-dialog__range-grid">
+              <label>
+                <span>对象</span>
+                <Select
+                  controlSize="sm"
+                  value={rangeControls.filters.sender}
+                  onChange={(event) => rangeControls.onChange({ sender: event.currentTarget.value })}
+                >
+                  {rangeControls.senderOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} · {option.count.toLocaleString()} 条
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label>
+                <span>消息类型</span>
+                <Select
+                  controlSize="sm"
+                  value={rangeControls.filters.messageType}
+                  onChange={(event) => rangeControls.onChange({ messageType: event.currentTarget.value })}
+                >
+                  {rangeControls.typeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} · {option.count.toLocaleString()} 条
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label>
+                <span>开始日期</span>
+                <DateInput
+                  controlSize="sm"
+                  value={rangeControls.filters.startDate}
+                  aria-invalid={Boolean(rangeControls.error)}
+                  onChange={(event) => rangeControls.onChange({ startDate: event.currentTarget.value })}
+                />
+              </label>
+              <label>
+                <span>结束日期</span>
+                <DateInput
+                  controlSize="sm"
+                  value={rangeControls.filters.endDate}
+                  aria-invalid={Boolean(rangeControls.error)}
+                  onChange={(event) => rangeControls.onChange({ endDate: event.currentTarget.value })}
+                />
+              </label>
+              <Button variant="ghost" size="sm" onClick={rangeControls.onReset}>
+                重置范围
+              </Button>
+            </div>
+            <Typography
+              variant="caption"
+              color={rangeControls.error ? "var(--danger)" : "var(--text-secondary)"}
+              role={rangeControls.error ? "alert" : undefined}
+            >
+              {rangeControls.error ?? rangeControls.summary}
+            </Typography>
+          </fieldset>
+        ) : null}
+
         <fieldset className="business-export-dialog__formats" disabled={isWriting || isTerminal}>
           <legend>格式</legend>
           <div className="business-export-dialog__format-grid">
@@ -180,14 +275,40 @@ export function BusinessExportDialog({
           <Button variant="ghost" onClick={isWriting ? onCancel : onClose}>
             {isWriting ? "停止等待" : "关闭"}
           </Button>
-          {!isTerminal ? (
-            <Button loading={isWriting} disabled={confirmDisabled} onClick={onConfirm}>
-              {isWriting ? "正在保存" : "保存"}
-            </Button>
-          ) : null}
+          {!isTerminal ? renderConfirmButton({
+            isWriting,
+            disabled: confirmDisabled,
+            disabledReason: confirmDisabledReason,
+            onConfirm,
+          }) : null}
         </footer>
       </section>
     </SpringModal>
+  );
+}
+
+function renderConfirmButton({
+  isWriting,
+  disabled,
+  disabledReason,
+  onConfirm,
+}: {
+  isWriting: boolean;
+  disabled: boolean;
+  disabledReason: string | null;
+  onConfirm: () => void;
+}) {
+  const button = (
+    <Button loading={isWriting} disabled={disabled} onClick={onConfirm}>
+      {isWriting ? "正在保存" : "保存"}
+    </Button>
+  );
+
+  if (!disabledReason) return button;
+  return (
+    <DisabledReason reason={disabledReason} variant="compact">
+      {button}
+    </DisabledReason>
   );
 }
 

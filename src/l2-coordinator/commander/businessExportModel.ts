@@ -204,6 +204,7 @@ export interface ConversationExportInput {
   scopeSummary: string;
   totalCount: number;
   loadedCount: number;
+  filterSummary?: string[];
   messages: Array<{
     id: string;
     sender: string;
@@ -669,6 +670,7 @@ export function createConversationExportArtifact(input: ConversationExportInput)
   const title = source === "conversation_selection" ? "选中消息片段" : "当前会话";
   const partial = input.loadedCount < input.totalCount;
   const redactContent = shouldRedactExportContent(input);
+  const filterSummary = input.filterSummary ?? [];
   const messages = input.messages.map((message) => ({
     id: message.id,
     time: message.time,
@@ -683,6 +685,7 @@ export function createConversationExportArtifact(input: ConversationExportInput)
         scope: sanitizeScopeSummary(input.scopeSummary),
         loadedCount: input.loadedCount,
         totalCount: input.totalCount,
+        filterSummary,
         partial,
         messages,
       }, null, 2)
@@ -692,6 +695,8 @@ export function createConversationExportArtifact(input: ConversationExportInput)
         `生成时间: ${input.generatedAt.toISOString()}`,
         `范围: ${sanitizeScopeSummary(input.scopeSummary)}`,
         `已加载 ${input.loadedCount} / 共 ${input.totalCount}`,
+        `筛选: ${filterSummary.length ? filterSummary.join("、") : "无"}`,
+        `本次导出: ${messages.length} 条`,
         partial ? "状态: 当前只导出已加载消息。" : "状态: 已导出当前消息。",
         "",
         ...messages.map((message) => `- ${message.time} · ${message.sender} · ${message.type}: ${message.content}`),
@@ -709,7 +714,10 @@ export function createConversationExportArtifact(input: ConversationExportInput)
     rowCount: messages.length,
     content,
     status: partial ? "partial" : "confirming",
-    warnings: partial ? ["当前只导出已加载消息。"] : [],
+    warnings: [
+      ...(partial ? ["当前只导出已加载消息。"] : []),
+      ...(filterSummary.length ? ["筛选只作用于当前已加载消息。"] : []),
+    ],
   });
 }
 

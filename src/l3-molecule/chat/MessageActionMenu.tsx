@@ -8,7 +8,8 @@ import {
   Search,
   UserRound,
 } from "lucide-react";
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   DisabledReason,
   IconButton,
@@ -56,6 +57,11 @@ export function MessageActionMenu({
   const generatedId = useId().replace(/:/g, "");
   const menuId = `message-action-menu-${generatedId}`;
 
+  const closeMenu = useCallback(() => {
+    if (!open) return;
+    onToggleOpen();
+  }, [onToggleOpen, open]);
+
   useEffect(() => {
     if (!open) return undefined;
     if (!restoreTargetRef.current && typeof document !== "undefined") {
@@ -83,17 +89,21 @@ export function MessageActionMenu({
       focusInitialOverlayTarget(menuRef.current);
     });
 
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Node ? event.target : null;
+      if (!target || containerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      closeMenu();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
     return () => {
       window.cancelAnimationFrame(frame);
+      document.removeEventListener("pointerdown", handlePointerDown);
       restoreFocusTarget(restoreTargetRef.current);
       restoreTargetRef.current = null;
     };
-  }, [open]);
-
-  const closeMenu = () => {
-    if (!open) return;
-    onToggleOpen();
-  };
+  }, [closeMenu, open]);
 
   const handleMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (trapOverlayFocus(menuRef.current, document.activeElement, event)) return;
@@ -103,6 +113,25 @@ export function MessageActionMenu({
     event.stopPropagation();
     closeMenu();
   };
+
+  const menu = (
+    <div
+      id={menuId}
+      ref={menuRef}
+      className="message-action-menu__items"
+      data-placement={placementRef.current}
+      role="menu"
+      aria-label="消息操作菜单"
+      hidden={!open}
+      onKeyDown={handleMenuKeyDown}
+    >
+      {model.actions.map((action) => renderAction(action, (actionId) => {
+        closeMenu();
+        onAction(actionId);
+        restoreFocusTarget(restoreTargetRef.current);
+      }))}
+    </div>
+  );
 
   return (
     <div ref={containerRef} className="message-action-menu" aria-label="消息操作">
@@ -120,21 +149,7 @@ export function MessageActionMenu({
           onToggleOpen();
         }}
       />
-      <div
-        id={menuId}
-        ref={menuRef}
-        className="message-action-menu__items"
-        data-placement={placementRef.current}
-        role="menu"
-        aria-label="消息操作菜单"
-        hidden={!open}
-        onKeyDown={handleMenuKeyDown}
-      >
-        {model.actions.map((action) => renderAction(action, (actionId) => {
-          onAction(actionId);
-          restoreFocusTarget(restoreTargetRef.current);
-        }))}
-      </div>
+      {typeof document === "undefined" ? menu : createPortal(menu, document.body)}
     </div>
   );
 }

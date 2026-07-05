@@ -14,6 +14,7 @@ export { Spinner } from "./Spinner";
 export { Avatar } from "./Avatar";
 export { Badge } from "./Badge";
 export { Input } from "./Input";
+export { DateInput } from "./DateInput";
 export { Field } from "./Field";
 export { Select } from "./Select";
 export { SegmentedControl } from "./SegmentedControl";
