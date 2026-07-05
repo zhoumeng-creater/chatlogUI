@@ -16,6 +16,7 @@ import type {
 import type { ApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 import type { ChatReadingState } from "@/l2-coordinator/commander/chatReadingState";
 import { MessageList } from "./MessageList";
+import { MessageSelectionToolbar } from "./MessageSelectionToolbar";
 import { TranscriptHeader } from "./TranscriptHeader";
 
 interface ChatViewProps {
@@ -127,7 +128,6 @@ export function ChatView({
         highlightedMessageId={highlightedMessageId}
         selectionMode={selectionMode}
         selectedMessageIds={selectedMessageIds}
-        selectionSummary={selectionSummary}
         selectionStatus={selectionStatus}
         privacyOn={privacyOn}
         onLoadHistory={onLoadHistory}
@@ -138,13 +138,25 @@ export function ChatView({
         onExitSelectionMode={onExitSelectionMode}
         onToggleMessageSelection={onToggleMessageSelection}
         onSelectVisibleMessages={onSelectVisibleMessages}
-        onCopySelectedMarkdown={onCopySelectedMarkdown}
-        onExportSelected={onExportSelected}
         onMessageAction={onMessageAction}
         onDeriveTranscriptPosition={onDeriveTranscriptPosition}
         getMessageActionModel={getMessageActionModel}
         getMessageSafeRawFieldRows={getMessageSafeRawFieldRows}
       />
+      {conversation && selectionMode && (
+        <div className="transcript__selection">
+          <MessageSelectionToolbar
+            selectedCount={selectedMessageIds.length}
+            privacyOn={privacyOn}
+            summary={selectionSummary}
+            exportDisabledReason={selectedMessageIds.length === 0 ? "先选择要导出的消息。" : null}
+            onSelectVisibleMessages={() => onSelectVisibleMessages(messages.map((message) => message.id))}
+            onCopyMarkdown={onCopySelectedMarkdown}
+            onExportSelected={onExportSelected}
+            onCancel={onExitSelectionMode}
+          />
+        </div>
+      )}
     </div>
   );
 }

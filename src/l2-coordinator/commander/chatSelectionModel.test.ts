@@ -94,8 +94,8 @@ describe("chatSelectionModel", () => {
 
     expect(summary).toContain("已选 3 条");
     expect(summary).toContain("2024-04-28 09:20 - 2024-04-28 09:22");
-    expect(summary).toContain("text 2 条");
-    expect(summary).toContain("image 1 条");
+    expect(summary).toContain("文本 2 条");
+    expect(summary).toContain("图片 1 条");
     expect(summary).not.toContain("Synthetic message");
     expect(summary).not.toContain("Synthetic Sender");
   });

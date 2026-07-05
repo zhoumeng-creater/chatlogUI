@@ -26,7 +26,6 @@ import type {
 } from "@/l2-coordinator/commander/messageActionModel";
 import { classNames } from "@/utils/classNames";
 import { MessageBubble } from "./MessageBubble";
-import { MessageSelectionToolbar } from "./MessageSelectionToolbar";
 import { TranscriptScrollControls } from "./TranscriptScrollControls";
 import {
   buildTranscriptRows,
@@ -55,7 +54,6 @@ interface MessageListProps {
   highlightedMessageId: string | null;
   selectionMode: boolean;
   selectedMessageIds: string[];
-  selectionSummary: string;
   selectionStatus: string | null;
   privacyOn: boolean;
   onLoadHistory: (chat: string) => void;
@@ -66,8 +64,6 @@ interface MessageListProps {
   onExitSelectionMode: () => void;
   onToggleMessageSelection: (messageId: string, range?: boolean) => void;
   onSelectVisibleMessages: (messageIds: string[]) => void;
-  onCopySelectedMarkdown: () => void;
-  onExportSelected: () => void;
   onMessageAction: (message: ChatMessage, actionId: MessageActionId) => void;
   onDeriveTranscriptPosition: (input: {
     rows: TranscriptPositionRow[];
@@ -98,7 +94,6 @@ export function MessageList({
   highlightedMessageId,
   selectionMode,
   selectedMessageIds,
-  selectionSummary,
   selectionStatus,
   privacyOn,
   onLoadHistory,
@@ -109,8 +104,6 @@ export function MessageList({
   onExitSelectionMode,
   onToggleMessageSelection,
   onSelectVisibleMessages,
-  onCopySelectedMarkdown,
-  onExportSelected,
   onMessageAction,
   onDeriveTranscriptPosition,
   getMessageActionModel,
@@ -297,21 +290,6 @@ export function MessageList({
         controls={transcriptPosition.controls}
         onAction={handleTranscriptControlAction}
       />
-      {selectionMode && (
-        <MessageSelectionToolbar
-          selectedCount={selectedMessageIds.length}
-          privacyOn={privacyOn}
-          summary={selectionSummary}
-          exportDisabledReason={selectedMessageIds.length === 0 ? "先选择要导出的消息。" : null}
-          aiDisabledReason="AI 暂未提供选中消息入口。"
-          graphDisabledReason="图谱暂未提供选中消息入口。"
-          onCopyMarkdown={onCopySelectedMarkdown}
-          onExportSelected={onExportSelected}
-          onSendToAi={() => undefined}
-          onCreateGraphContext={() => undefined}
-          onCancel={onExitSelectionMode}
-        />
-      )}
       {messagesError && messages.length > 0 && (
         <div className="message-list__inline-error" role="status">
           <Typography variant="caption" color="var(--text-secondary)">

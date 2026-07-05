@@ -241,14 +241,12 @@
     min-height: 44px;
   }
 
-  .transcript-scroll-controls,
-  .message-selection-toolbar {
+  .transcript-scroll-controls {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .transcript-scroll-controls__actions,
-  .message-selection-toolbar__actions {
+  .transcript-scroll-controls__actions {
     overflow-x: auto;
     justify-content: flex-start;
   }
@@ -337,21 +335,19 @@
   gap: var(--space-1);
 }
 
+.transcript__selection {
+  flex: 0 0 auto;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-raised) 98%, transparent);
+  box-shadow: 0 -8px 18px rgba(15, 23, 42, 0.06);
+}
+
 .message-selection-toolbar {
-  position: sticky;
-  z-index: 4;
-  top: 58px;
-  display: flex;
+  display: grid;
   min-width: 0;
-  align-items: center;
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
-  margin: 0 0 var(--space-3);
-  padding: var(--space-2);
-  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border-subtle));
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-raised);
 }
 
 .message-selection-toolbar__summary {
@@ -360,13 +356,24 @@
   gap: 2px;
 }
 
+.message-selection-toolbar__eyebrow,
+.message-selection-toolbar__meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .message-selection-toolbar__actions {
   display: flex;
   min-width: 0;
-  flex: 0 0 auto;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: var(--space-1);
+}
+
+.message-selection-toolbar__actions .ui-button {
+  white-space: nowrap;
 }
 
 .message-list__inline-error {
@@ -2672,15 +2679,29 @@
 }
 
 @media (max-width: 720px) {
-  .transcript-scroll-controls,
-  .message-selection-toolbar {
+  .transcript-scroll-controls {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .transcript-scroll-controls__actions,
-  .message-selection-toolbar__actions {
+  .transcript-scroll-controls__actions {
     overflow-x: auto;
     justify-content: flex-start;
+  }
+
+  .transcript__selection {
+    padding: var(--space-2);
+  }
+
+  .message-selection-toolbar__meta {
+    white-space: normal;
+  }
+
+  .message-selection-toolbar__actions .ui-button {
+    flex: 1 1 136px;
+  }
+
+  .message-selection-toolbar__actions .ui-icon-button {
+    flex: 0 0 36px;
   }
 }

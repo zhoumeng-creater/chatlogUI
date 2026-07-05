@@ -150,8 +150,22 @@ function getTimeRange(messages: ChatMessage[]): string {
 
 function getTypeCounts(messages: ChatMessage[]): Record<string, number> {
   return messages.reduce<Record<string, number>>((counts, message) => {
-    const type = message.mediaType || message.type || "unknown";
+    const type = getSelectionTypeLabel(message.mediaType || message.type || "unknown");
     counts[type] = (counts[type] ?? 0) + 1;
     return counts;
   }, {});
+}
+
+function getSelectionTypeLabel(type: string): string {
+  if (type === "text") return "文本";
+  if (type === "image") return "图片";
+  if (type === "video") return "视频";
+  if (type === "voice") return "语音";
+  if (type === "file") return "文件";
+  if (type === "link") return "链接";
+  if (type === "system") return "系统";
+  if (type === "revoke") return "撤回";
+  if (type === "red_packet") return "红包";
+  if (type === "location") return "位置";
+  return "其他";
 }
