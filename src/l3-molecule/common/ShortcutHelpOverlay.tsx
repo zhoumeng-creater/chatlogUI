@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { Keyboard, X } from "lucide-react";
+import { CircleHelp, X } from "lucide-react";
 import type { ShortcutHelpCatalog } from "@l2/commander/shortcutCatalog";
-import { Button, IconButton, Typography } from "@l4/ui";
+import { Typography } from "@l4/ui";
 import {
   focusInitialOverlayTarget,
   getOverlayDialogProps,
@@ -66,7 +66,7 @@ export function ShortcutHelpOverlay({ catalog, open, onClose }: ShortcutHelpOver
       >
         <div className="shortcut-help-overlay__header">
           <div className="shortcut-help-overlay__title">
-            <Keyboard size={18} aria-hidden="true" />
+            <CircleHelp size={18} aria-hidden="true" />
             <div>
               <Typography id={titleId} variant="h3">
                 {catalog.title}
@@ -76,14 +76,33 @@ export function ShortcutHelpOverlay({ catalog, open, onClose }: ShortcutHelpOver
               </Typography>
             </div>
           </div>
-          <IconButton
-            icon={<X size={16} />}
-            label="关闭快捷键帮助"
-            tooltip="关闭快捷键帮助"
+          <button
+            type="button"
+            className="ui-icon-button ui-icon-button--md"
+            aria-label="关闭帮助"
             onClick={onClose}
-          />
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
         </div>
+        <section className="shortcut-help-overview" aria-label="页面说明">
+          <Typography variant="label" weight={700}>
+            页面说明
+          </Typography>
+          <div className="shortcut-help-overview__copy">
+            <strong>{catalog.overview.title}</strong>
+            <p>{catalog.overview.description}</p>
+            <ul>
+              {catalog.overview.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
         <div className="shortcut-help-overlay__groups">
+          <Typography variant="label" weight={700}>
+            快捷键
+          </Typography>
           {catalog.groups.map((group) => (
             <section key={group.id} className="shortcut-help-group" aria-label={group.label}>
               <Typography variant="label" weight={700}>
@@ -109,11 +128,6 @@ export function ShortcutHelpOverlay({ catalog, open, onClose }: ShortcutHelpOver
               </div>
             </section>
           ))}
-        </div>
-        <div className="shortcut-help-overlay__footer">
-          <Button variant="secondary" size="md" onClick={onClose}>
-            关闭
-          </Button>
         </div>
       </div>
     </div>

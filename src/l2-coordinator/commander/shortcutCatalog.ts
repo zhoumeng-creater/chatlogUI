@@ -30,10 +30,17 @@ export interface ShortcutHelpGroup {
   shortcuts: ShortcutHelpShortcut[];
 }
 
+export interface ShortcutHelpOverview {
+  title: string;
+  description: string;
+  items: string[];
+}
+
 export interface ShortcutHelpCatalog {
   contextId: ShortcutContextId;
   title: string;
   description: string;
+  overview: ShortcutHelpOverview;
   groups: ShortcutHelpGroup[];
 }
 
@@ -67,8 +74,9 @@ export function buildShortcutHelpCatalog(input: ShortcutHelpCatalogInput): Short
   const contextId = getShortcutContextId(input.route);
   return {
     contextId,
-    title: `${contextLabel(contextId)}快捷键`,
-    description: "只显示当前页面可用的快捷键。",
+    title: `${contextLabel(contextId)}帮助`,
+    description: "查看当前页面说明、主要操作和可用快捷键。",
+    overview: contextOverview(contextId),
     groups: [
       buildGlobalGroup(input),
       buildContextGroup(contextId, input),
@@ -114,8 +122,8 @@ function buildGlobalGroup(input: ShortcutHelpCatalogInput): ShortcutHelpGroup {
         id: "help",
         keyLabel: "?",
         alternativeKeyLabel: "Ctrl / ⌘ + /",
-        actionLabel: "打开快捷键帮助",
-        description: "显示当前页面可用的快捷键。",
+        actionLabel: "打开页面帮助",
+        description: "显示当前页面说明和可用快捷键。",
       }),
       shortcut(input, {
         id: "close-overlay",
@@ -376,4 +384,92 @@ function contextLabel(contextId: ShortcutContextId): string {
   if (contextId === "graph") return "图谱";
   if (contextId === "settings") return "设置";
   return "设置中心";
+}
+
+function contextOverview(contextId: ShortcutContextId): ShortcutHelpOverview {
+  switch (contextId) {
+    case "setup":
+      return {
+        title: "连接本地聊天数据",
+        description: "设置中心用于连接本机 chatlog 服务并确认数据库可用，优先完成数据目录选择和配置验证。",
+        items: [
+          "先选择微信数据目录，应用会自动读取目录配置和密钥状态。",
+          "高级手动配置只用于迁移或排障，密钥覆盖应作为最后的补充手段。",
+          "保存并验证配置会检查目录、服务地址和数据库 readiness。",
+        ],
+      };
+    case "settings":
+      return {
+        title: "调整应用设置",
+        description: "设置页用于管理隐私、外观、AI、开发者工具等应用级选项。",
+        items: [
+          "先选择左侧设置分类，再修改对应选项。",
+          "涉及私密内容、外部服务或诊断导出的选项会在当前区域给出状态和恢复提示。",
+        ],
+      };
+    case "search":
+      return {
+        title: "搜索聊天记录",
+        description: "搜索页用于在聊天数据中查找关键词，并通过筛选、结果列表和上下文跳转定位原始消息。",
+        items: [
+          "先输入关键词，再按需要切换会话范围、时间或消息类型筛选。",
+          "搜索结果只显示必要摘要，隐私模式开启时会保留结构并遮罩具体内容。",
+          "点击结果可回到原始会话上下文，方便继续阅读前后消息。",
+        ],
+      };
+    case "media":
+      return {
+        title: "浏览媒体资源",
+        description: "媒体页用于查看图片、视频、语音和文件等聊天资源，并处理缺失或无法解密的资源状态。",
+        items: [
+          "先选择范围或会话，再查看对应媒体列表。",
+          "媒体缺失、未解密或隐私模式开启时，页面会保留结构并显示原因。",
+        ],
+      };
+    case "sns":
+      return {
+        title: "查看朋友圈内容",
+        description: "朋友圈页用于检查动态、评论、点赞、媒体和链接内容。",
+        items: [
+          "先浏览时间线或使用筛选定位内容。",
+          "缺失媒体、空文本和隐私遮罩会在条目内说明，不应显示原始路径或内部错误。",
+        ],
+      };
+    case "analytics":
+      return {
+        title: "查看统计摘要",
+        description: "统计页用于理解聊天数量、趋势和分布，不用于展示原始私密消息。",
+        items: [
+          "先确认统计范围，再查看趋势和分布。",
+          "数据为空或服务未准备好时，页面会给出原因和下一步。",
+        ],
+      };
+    case "ai":
+      return {
+        title: "使用 AI 问答和分析",
+        description: "AI 页用于配置模型、建立索引、提出问题，并检查回答证据。",
+        items: [
+          "先完成 AI 配置和索引准备，再提交问题。",
+          "生成中可以停止，回答完成后应查看证据来源判断可信度。",
+        ],
+      };
+    case "graph":
+      return {
+        title: "查看知识图谱",
+        description: "图谱页用于理解聊天中的实体、关系和事件，适合从结构上追踪上下文。",
+        items: [
+          "先加载或刷新图谱数据，再使用筛选、缩放和列表辅助定位。",
+          "图谱回答和跳转需要保留证据来源，避免把推断当成事实。",
+        ],
+      };
+    case "workbench":
+      return {
+        title: "阅读聊天会话",
+        description: "会话阅读页用于查看联系人、群聊和消息上下文，是连接数据库后的主要工作区。",
+        items: [
+          "先选择一个会话，再阅读消息、媒体、成员或相关模块。",
+          "隐私模式会遮罩具体内容，但会保留列表、时间和结构用于定位。",
+        ],
+      };
+  }
 }

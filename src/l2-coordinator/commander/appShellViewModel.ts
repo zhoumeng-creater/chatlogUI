@@ -43,8 +43,8 @@ export function deriveAppShellView(input: AppShellViewInput): AppShellView {
     privacyOn: input.privacyOn,
     windowMaterial: input.windowMaterial,
     shortcutHelpAction: {
-      label: "快捷键帮助",
-      tooltip: "查看当前页面快捷键",
+      label: "页面帮助",
+      tooltip: "查看当前页面说明",
     },
     developerConsoleAction: input.developerConsoleVisible
       ? {

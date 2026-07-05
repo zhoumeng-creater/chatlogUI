@@ -17,9 +17,19 @@ describe("shortcutCatalog", () => {
     });
 
     expect(catalog.contextId).toBe("search");
+    expect(catalog.title).toBe("搜索帮助");
+    expect(catalog.description).toBe("查看当前页面说明、主要操作和可用快捷键。");
+    expect(catalog.overview).toMatchObject({
+      title: "搜索聊天记录",
+      description: "搜索页用于在聊天数据中查找关键词，并通过筛选、结果列表和上下文跳转定位原始消息。",
+    });
+    expect(catalog.overview.items).toEqual(expect.arrayContaining([
+      "先输入关键词，再按需要切换会话范围、时间或消息类型筛选。",
+      "搜索结果只显示必要摘要，隐私模式开启时会保留结构并遮罩具体内容。",
+    ]));
     expect(catalog.groups.map((group) => group.id)).toEqual(["global", "search"]);
     expect(catalog.groups.flatMap((group) => group.shortcuts).map((item) => item.actionLabel)).toEqual(
-      expect.arrayContaining(["打开快捷键帮助", "执行搜索", "下一条搜索结果", "加载更多结果"]),
+      expect.arrayContaining(["打开页面帮助", "执行搜索", "下一条搜索结果", "加载更多结果"]),
     );
     expect(JSON.stringify(catalog)).not.toContain("Synthetic Private Query");
   });

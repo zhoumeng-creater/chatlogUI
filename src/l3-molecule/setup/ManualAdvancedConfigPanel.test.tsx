@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import panelSource from "./ManualAdvancedConfigPanel.tsx?raw";
 import { ManualAdvancedConfigPanel } from "./ManualAdvancedConfigPanel";
 
 describe("ManualAdvancedConfigPanel", () => {
@@ -173,7 +174,7 @@ describe("ManualAdvancedConfigPanel", () => {
     expect(html).not.toContain('aria-label="解密媒体缓存"');
   });
 
-  it("explains media key and work directory with accessible help tooltips", () => {
+  it("uses consistent accessible help affordances for status cards and directory fields", () => {
     const html = renderToStaticMarkup(
       <ManualAdvancedConfigPanel
         loading={false}
@@ -190,9 +191,18 @@ describe("ManualAdvancedConfigPanel", () => {
     expect(html).toContain('aria-label="工作目录说明"');
     expect(html).toContain('aria-label="数据密钥说明"');
     expect(html).toContain('aria-label="媒体密钥说明"');
+    expect(html).toContain('aria-label="目录配置说明"');
+    expect(html.match(/class="setup-manual-status-item__head"/g)).toHaveLength(3);
     expect(html).toContain("工作目录用于保存 chatlog 运行缓存");
     expect(html).toContain("数据密钥用于解密聊天数据库");
     expect(html).toContain("媒体密钥通常随数据目录配置自动读取");
+    expect(html).toContain("目录配置来自所选数据目录");
+  });
+
+  it("keeps the secret override disclosure user-controlled after validation errors clear", () => {
+    expect(panelSource).toContain("secretOverrideOpen");
+    expect(panelSource).toContain("onToggle");
+    expect(panelSource).not.toContain("open={hasSecretFieldErrors}");
   });
 
   it("keeps secret override rows aligned without misleading reveal buttons", () => {

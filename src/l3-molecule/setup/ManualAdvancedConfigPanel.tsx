@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CircleHelp } from "lucide-react";
 import type { ServerConfigDraft } from "@l4/system";
 import { Button, Field, Input, Tooltip, Typography } from "@l4/ui";
@@ -37,6 +37,7 @@ export function ManualAdvancedConfigPanel({
     dataKey: false,
     imgKey: false,
   });
+  const [secretOverrideOpen, setSecretOverrideOpen] = useState(false);
 
   function update(field: keyof ServerConfigDraft, value: string | number | boolean | null) {
     onDraftChange({ ...draft, [field]: value });
@@ -60,6 +61,13 @@ export function ManualAdvancedConfigPanel({
   const dataKeyError = dataKeyFormatError ?? fieldErrors.dataKey;
   const imgKeyError = imgKeyFormatError ?? fieldErrors.imgKey;
   const hasSecretFieldErrors = Boolean(dataKeyError || imgKeyError);
+
+  useEffect(() => {
+    if (hasSecretFieldErrors) {
+      setSecretOverrideOpen(true);
+    }
+  }, [hasSecretFieldErrors]);
+
   const dataKeyStatus = getSecretStatus({
     hasExistingValue: hasDataKey,
     touched: touchedSecretOverrides.dataKey,
@@ -113,7 +121,14 @@ export function ManualAdvancedConfigPanel({
 
           <div className="setup-manual-status-grid" aria-label="目录配置读取状态">
             <div className="setup-manual-status-item">
-              <Typography variant="caption" color="var(--text-secondary)">数据密钥</Typography>
+              <div className="setup-manual-status-item__head">
+                <Typography variant="caption" color="var(--text-secondary)">数据密钥</Typography>
+                <SetupHelpTooltip
+                  label="数据密钥说明"
+                  message="数据密钥用于解密聊天数据库，通常从所选数据目录的配置自动读取。缺失时请重新选择数据目录，或在下方密钥手动覆盖中粘贴已有密钥。"
+                  placement="right"
+                />
+              </div>
               <strong>{dataKeyStatus}</strong>
             </div>
             <div className="setup-manual-status-item">
@@ -128,7 +143,14 @@ export function ManualAdvancedConfigPanel({
               <strong>{imgKeyStatus}</strong>
             </div>
             <div className="setup-manual-status-item">
-              <Typography variant="caption" color="var(--text-secondary)">目录配置</Typography>
+              <div className="setup-manual-status-item__head">
+                <Typography variant="caption" color="var(--text-secondary)">目录配置</Typography>
+                <SetupHelpTooltip
+                  label="目录配置说明"
+                  message="目录配置来自所选数据目录的 chatlog.json，用于确认平台、版本和密钥读取状态。缺失时请重新选择包含有效配置的微信数据目录。"
+                  placement="left"
+                />
+              </div>
               <strong>{hasVersionMetadata ? "已读取" : "缺失"}</strong>
             </div>
           </div>
@@ -175,7 +197,11 @@ export function ManualAdvancedConfigPanel({
             />
           </Field>
 
-          <details className="setup-manual-technical" open={hasSecretFieldErrors}>
+          <details
+            className="setup-manual-technical"
+            open={secretOverrideOpen}
+            onToggle={(event) => setSecretOverrideOpen(event.currentTarget.open)}
+          >
             <summary>密钥手动覆盖</summary>
             <div className="form-grid">
               <Typography variant="caption" color="var(--text-secondary)">
@@ -198,7 +224,7 @@ export function ManualAdvancedConfigPanel({
                   />
                 </Field>
                 <SetupHelpTooltip
-                  label="数据密钥说明"
+                  label="数据密钥覆盖说明"
                   message="数据密钥用于解密聊天数据库，通常从所选数据目录的配置自动读取。只有自动读取失败，且你已有64位十六进制 data_key 时，才需要手动粘贴。"
                   placement="left"
                 />

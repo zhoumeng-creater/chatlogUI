@@ -5650,8 +5650,7 @@
   box-shadow: var(--shadow-overlay);
 }
 
-.shortcut-help-overlay__header,
-.shortcut-help-overlay__footer {
+.shortcut-help-overlay__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -5668,6 +5667,44 @@
 .shortcut-help-overlay__groups {
   display: grid;
   gap: var(--space-4);
+}
+
+.shortcut-help-overview {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.shortcut-help-overview__copy {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.shortcut-help-overview__copy strong {
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.shortcut-help-overview__copy p,
+.shortcut-help-overview__copy li {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.shortcut-help-overview__copy p {
+  margin: 0;
+}
+
+.shortcut-help-overview__copy ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: var(--space-4);
 }
 
 .shortcut-help-group {

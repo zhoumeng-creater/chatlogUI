@@ -61,7 +61,7 @@ describe("appShellViewModel", () => {
     });
   });
 
-  it("exposes a contextual shortcut help action in the shell contract", () => {
+  it("exposes a contextual page help action in the shell contract", () => {
     const view = deriveAppShellView({
       title: "搜索",
       privacyOn: false,
@@ -69,8 +69,8 @@ describe("appShellViewModel", () => {
     });
 
     expect(view.shortcutHelpAction).toEqual({
-      label: "快捷键帮助",
-      tooltip: "查看当前页面快捷键",
+      label: "页面帮助",
+      tooltip: "查看当前页面说明",
     });
   });
 
