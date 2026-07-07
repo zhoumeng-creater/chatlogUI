@@ -4,13 +4,13 @@ import type { Conversation } from "@l2/data-clerk/stores/useChatStore";
 import { ConversationRow } from "./ConversationRow";
 
 describe("ConversationRow", () => {
-  it("wraps compact type metadata in a bounded status slot", () => {
+  it("uses a compact type dot in the row instead of visible type text", () => {
     const html = renderToStaticMarkup(
       <ConversationRow
         conversation={conversation({
           displayName: "Very Long Group Name With Many Characters",
           summary: "这是一条很长的最新消息摘要，会和右侧类型标签竞争横向空间。",
-          chatType: "enterprise_contact",
+          chatType: "service_account",
           isGroup: false,
         })}
         selected={false}
@@ -25,8 +25,10 @@ describe("ConversationRow", () => {
     );
 
     expect(html).toContain("conversation-row__status");
-    expect(html).toContain("ui-status-indicator");
-    expect(html).toContain("企业微信");
+    expect(html).toContain("conversation-row__type-dot");
+    expect(html).toContain('data-tone="official"');
+    expect(html).not.toContain("ui-status-indicator");
+    expect(html).not.toContain(">服务号</span>");
   });
 });
 

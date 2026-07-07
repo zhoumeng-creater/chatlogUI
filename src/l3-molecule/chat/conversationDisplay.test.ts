@@ -87,30 +87,37 @@ describe("conversationDisplay", () => {
     expect(getConversationBadge(conversation({ source: "session", isGroup: false }))).toEqual({
       label: "最近",
       tone: "info",
+      dotTone: "private",
     });
     expect(getConversationBadge(conversation({ source: "contact", isGroup: false }))).toEqual({
       label: "联系人",
       tone: "neutral",
+      dotTone: "private",
     });
     expect(getConversationBadge(conversation({ source: "chatroom", isGroup: true }))).toEqual({
       label: "群聊",
       tone: "success",
+      dotTone: "group",
     });
     expect(getConversationBadge(conversation({ chatType: "official_account", source: "session" }))).toEqual({
       label: "公众号",
       tone: "info",
+      dotTone: "official",
     });
     expect(getConversationBadge(conversation({ chatType: "service_account", source: "session" }))).toEqual({
       label: "服务号",
       tone: "info",
+      dotTone: "official",
     });
     expect(getConversationBadge(conversation({ chatType: "enterprise_contact", source: "session" }))).toEqual({
       label: "企业微信",
       tone: "success",
+      dotTone: "enterprise",
     });
     expect(getConversationBadge(conversation({ chatType: "system", source: "session" }))).toEqual({
       label: "系统",
       tone: "neutral",
+      dotTone: "system",
     });
   });
 

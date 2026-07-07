@@ -123,8 +123,7 @@ export function MessageBubble({
                 key={model.id}
                 type="button"
                 className="message-attachment-card message-attachment-card--button"
-                disabled={!model.canPreview}
-                aria-label={model.canPreview ? `打开${model.kindLabel}附件` : `${model.kindLabel}附件不可预览`}
+                aria-label={model.canPreview ? `打开${model.kindLabel}附件` : `查看${model.kindLabel}附件状态`}
                 onClick={() => setPreviewModel(model)}
               >
                 {getAttachmentIcon(model.kind)}
@@ -184,54 +183,92 @@ function MessageAttachmentPreviewDialog({
   model: MessageAttachmentPreviewModel;
   onClose: () => void;
 }) {
+  const [mediaFailed, setMediaFailed] = useState(false);
   const titleId = `message-attachment-preview-${model.id}`;
   return (
     <SpringModal titleId={titleId} ariaLabel={`${model.kindLabel}预览`} onClose={onClose}>
       <div className="chat-media-preview">
         <div className="chat-media-preview__header">
-          <Typography id={titleId} variant="label" weight={800}>
-            {model.kindLabel}预览
-          </Typography>
+          <div className="chat-media-preview__title">
+            <Typography id={titleId} variant="label" weight={800}>
+              {model.kindLabel}预览
+            </Typography>
+            <Typography variant="caption" color="var(--text-secondary)">
+              {model.label}
+            </Typography>
+          </div>
           <Button variant="ghost" size="sm" aria-label="关闭附件预览" onClick={onClose}>
             <X size={15} aria-hidden="true" />
           </Button>
         </div>
-        {renderPreviewBody(model)}
+        <div className="chat-media-preview__body">
+          {renderPreviewBody(model, mediaFailed, () => setMediaFailed(true))}
+        </div>
+        <div className="chat-media-preview__meta" aria-label="附件预览状态">
+          <span>{model.kindLabel}</span>
+          <span>{model.canPreview ? "内嵌预览" : "仅显示状态"}</span>
+        </div>
       </div>
     </SpringModal>
   );
 }
 
-function renderPreviewBody(model: MessageAttachmentPreviewModel) {
-  if (!model.canPreview || !model.resourceUrl) {
+function renderPreviewBody(
+  model: MessageAttachmentPreviewModel,
+  mediaFailed: boolean,
+  onMediaError: () => void,
+) {
+  if (!model.canPreview || !model.resourceUrl || mediaFailed) {
     return (
-      <div className="chat-media-preview__fallback">
+      <div className="chat-media-preview__fallback" role={mediaFailed ? "alert" : "status"}>
+        <Typography variant="label" weight={800}>
+          {mediaFailed ? "媒体加载失败" : "当前附件不可预览"}
+        </Typography>
         <Typography variant="body" color="var(--text-secondary)">
-          {model.disabledReason ?? "当前附件不可预览。"}
+          {mediaFailed
+            ? "该资源可能尚未解密、已被移动，或当前格式不受系统播放器支持。"
+            : model.disabledReason ?? "当前附件没有可预览资源。"}
         </Typography>
       </div>
     );
   }
   if (model.kind === "image" || model.kind === "sticker") {
     return (
-      <img
-        className="chat-media-preview__image"
-        src={model.resourceUrl}
-        alt={`${model.kindLabel}预览`}
-      />
+      <div className="chat-media-preview__stage" data-kind={model.kind}>
+        <img
+          className="chat-media-preview__image"
+          src={model.resourceUrl}
+          alt={`${model.kindLabel}预览`}
+          onError={onMediaError}
+        />
+      </div>
     );
   }
   if (model.kind === "video") {
     return (
-      <video
-        className="chat-media-preview__media"
-        src={model.resourceUrl}
-        controls
-      />
+      <div className="chat-media-preview__stage" data-kind="video">
+        <video
+          className="chat-media-preview__media"
+          src={model.resourceUrl}
+          controls
+          preload="metadata"
+          onError={onMediaError}
+        />
+      </div>
     );
   }
   if (model.kind === "voice") {
-    return <audio className="chat-media-preview__audio" src={model.resourceUrl} controls />;
+    return (
+      <div className="chat-media-preview__stage" data-kind="voice">
+        <audio
+          className="chat-media-preview__audio"
+          src={model.resourceUrl}
+          controls
+          preload="metadata"
+          onError={onMediaError}
+        />
+      </div>
+    );
   }
   return (
     <div className="chat-media-preview__fallback">

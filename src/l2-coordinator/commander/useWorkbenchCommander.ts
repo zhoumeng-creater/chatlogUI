@@ -49,9 +49,16 @@ import {
   type MessageActionId,
 } from "./messageActionModel";
 import { buildMessageAttachmentPreviewModel } from "./messageAttachmentPreviewModel";
-import type { ChatMessage } from "@/l2-coordinator/data-clerk/stores/useChatStore";
+import {
+  useChatStore,
+  type ChatMessage,
+} from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import type { MediaAttachment } from "@/l2-coordinator/data-clerk/stores/useMediaStore";
 import { deriveTranscriptPositionModel } from "./transcriptPositionModel";
+import {
+  isTransientSelectionStatus,
+  SELECTION_STATUS_AUTO_CLEAR_MS,
+} from "./selectionStatusModel";
 import {
   getEffectiveRailMode,
   getWorkspaceRailWidth,
@@ -336,6 +343,19 @@ export function useWorkbenchCommander() {
   useEffect(() => {
     if (!preferencesLoaded) loadWorkspacePreferences();
   }, [loadWorkspacePreferences, preferencesLoaded]);
+
+  useEffect(() => {
+    if (!isTransientSelectionStatus(chat.selectionStatus)) return;
+    const capturedStatus = chat.selectionStatus;
+    const timer = window.setTimeout(() => {
+      const state = useChatStore.getState();
+      if (state.selectionStatus === capturedStatus) {
+        state.setSelectionStatus(null);
+      }
+    }, SELECTION_STATUS_AUTO_CLEAR_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [chat.selectionStatus]);
 
   useEffect(() => {
     if (preferencesLoaded) {

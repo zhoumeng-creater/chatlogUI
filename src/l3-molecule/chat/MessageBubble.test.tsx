@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
 import { MessageBubble } from "./MessageBubble";
+import messageBubbleSource from "./MessageBubble.tsx?raw";
 
 const message: ChatMessage = {
   id: "message-42",
@@ -95,5 +96,45 @@ describe("MessageBubble", () => {
     expect(html).toContain("message-attachment-card--button");
     expect(html).toContain('aria-label="打开图片附件"');
     expect(html).not.toContain("2 个附件：媒体");
+  });
+
+  it("keeps unsupported media chips clickable so the preview can explain the state", () => {
+    const html = renderToStaticMarkup(
+      <MessageBubble
+        message={{
+          ...message,
+          attachments: [{
+            id: "attachment-file",
+            kind: "file",
+            resourceKind: "file",
+            resourceKey: "",
+            label: "文件",
+            redactedEndpointLabel: "media:file",
+            source: "history",
+          }],
+        }}
+        privacyOn={false}
+        getAttachmentPreviewModel={(attachment) => ({
+          id: attachment.id,
+          label: "文件",
+          kind: "file",
+          kindLabel: "文件",
+          resourceUrl: "",
+          canPreview: false,
+          disabledReason: "当前附件没有可预览资源。",
+        })}
+      />,
+    );
+
+    expect(html).toContain("message-attachment-card--button");
+    expect(html).toContain('aria-label="查看文件附件状态"');
+    expect(html).not.toContain("disabled");
+  });
+
+  it("defines a designed video preview stage with failure recovery copy", () => {
+    expect(messageBubbleSource).toContain("chat-media-preview__stage");
+    expect(messageBubbleSource).toContain('preload="metadata"');
+    expect(messageBubbleSource).toContain("媒体加载失败");
+    expect(messageBubbleSource).toContain("该资源可能尚未解密、已被移动，或当前格式不受系统播放器支持。");
   });
 });

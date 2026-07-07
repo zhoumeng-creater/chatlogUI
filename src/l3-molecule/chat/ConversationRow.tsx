@@ -1,5 +1,5 @@
 import { forwardRef, type KeyboardEvent } from "react";
-import { Avatar, StatusIndicator } from "@l4/ui";
+import { Avatar } from "@l4/ui";
 import { classNames } from "@/utils/classNames";
 import type { Conversation, UnreadStatus } from "@l2/data-clerk/stores/useChatStore";
 import {
@@ -72,7 +72,11 @@ export const ConversationRow = forwardRef<HTMLButtonElement, ConversationRowProp
         <span className="conversation-row__bottom">
           <span className="conversation-row__summary">{summary || "没有消息摘要"}</span>
           <span className="conversation-row__status">
-            <StatusIndicator label={badge.label} tone={badge.tone} />
+            <span
+              className="conversation-row__type-dot"
+              data-tone={badge.dotTone}
+              aria-label={`会话类型：${badge.label}`}
+            />
           </span>
         </span>
         {showUnread && (

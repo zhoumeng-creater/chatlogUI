@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { SpringModal } from "./SpringModal";
+import springModalSource from "./SpringModal.tsx?raw";
 
 describe("SpringModal", () => {
   it("renders an accessible modal dialog without inline styling debt", () => {
@@ -34,5 +35,11 @@ describe("SpringModal", () => {
     expect(html).toContain('aria-labelledby="semantic-setup-title"');
     expect(html).toContain('data-close-on-backdrop="false"');
     expect(html).toContain('data-close-on-escape="false"');
+  });
+
+  it("portals browser modals to document body so nested surfaces cannot cover them", () => {
+    expect(springModalSource).toContain("createPortal");
+    expect(springModalSource).toContain("document.body");
+    expect(springModalSource).toContain('typeof document === "undefined"');
   });
 });

@@ -94,6 +94,12 @@ const finitePresetDays: Partial<Record<StatsTimePreset, number>> = {
   "90d": 90,
 };
 
+const statsTimeParams: Partial<Record<StatsTimePreset, string>> = {
+  "7d": "last-7d",
+  "30d": "last-30d",
+  "90d": "last-90d",
+};
+
 export function createDefaultStatsControlState(): StatsControlState {
   return { ...DEFAULT_CONTROL };
 }
@@ -171,7 +177,7 @@ export function resolveStatsRequest({ chat, control }: StatsRequestResolveInput)
     if (until !== null) params.until = until;
     return params;
   }
-  params.time = control.timePreset;
+  params.time = statsTimeParams[control.timePreset] ?? control.timePreset;
   return params;
 }
 

@@ -61,6 +61,7 @@ export function ConversationListToolbar({
             aria-pressed={filter === item.value}
             onClick={() => onFilterChange(item.value)}
           >
+            <span className="conversation-list__filter-dot" data-tone={item.dotTone} aria-hidden="true" />
             <span>{item.label}</span>
             <span aria-label={`${item.label} ${item.count} 个会话`}>
               {item.count.toLocaleString()}

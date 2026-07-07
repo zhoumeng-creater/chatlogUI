@@ -60,10 +60,11 @@
   display: inline-flex;
   min-height: 32px;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: flex-start;
+  gap: 6px;
   border: 0;
   border-radius: var(--radius-sm);
+  padding: 0 8px;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
@@ -72,7 +73,56 @@
   line-height: 1.2;
 }
 
+.conversation-list__filter-dot,
+.conversation-row__type-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--conversation-type-dot, var(--text-muted));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--conversation-type-dot, var(--text-muted)) 16%, transparent);
+}
+
+.conversation-list__filter-dot[data-tone="all"] {
+  --conversation-type-dot: #5b6b7d;
+}
+
+.conversation-list__filter-dot[data-tone="recent"] {
+  --conversation-type-dot: #2563eb;
+}
+
+.conversation-list__filter-dot[data-tone="private"],
+.conversation-row__type-dot[data-tone="private"] {
+  --conversation-type-dot: #2563eb;
+}
+
+.conversation-list__filter-dot[data-tone="group"],
+.conversation-row__type-dot[data-tone="group"] {
+  --conversation-type-dot: #059669;
+}
+
+.conversation-list__filter-dot[data-tone="official"],
+.conversation-row__type-dot[data-tone="official"] {
+  --conversation-type-dot: #d97706;
+}
+
+.conversation-list__filter-dot[data-tone="enterprise"],
+.conversation-row__type-dot[data-tone="enterprise"] {
+  --conversation-type-dot: #0f766e;
+}
+
+.conversation-list__filter-dot[data-tone="folded"],
+.conversation-row__type-dot[data-tone="folded"],
+.conversation-row__type-dot[data-tone="unknown"] {
+  --conversation-type-dot: #7a8794;
+}
+
+.conversation-row__type-dot[data-tone="system"] {
+  --conversation-type-dot: #64748b;
+}
+
 .conversation-list__filter span:last-child {
+  margin-left: auto;
   color: var(--text-muted);
   font-weight: 700;
 }
@@ -192,21 +242,10 @@
 .conversation-row__status {
   display: flex;
   min-width: 0;
-  max-width: min(96px, 34%);
+  max-width: 16px;
+  align-items: center;
   justify-content: flex-end;
   overflow: hidden;
-}
-
-.conversation-row__status .ui-status-indicator {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.conversation-row__status .ui-status-indicator > span:last-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .conversation-row__unread {

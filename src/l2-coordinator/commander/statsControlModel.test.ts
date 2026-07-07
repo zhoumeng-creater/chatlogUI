@@ -21,7 +21,7 @@ describe("statsControlModel", () => {
       control: { ...baseControl, timePreset: "30d" },
     })).toEqual({
       chat: "session_synthetic_001",
-      time: "30d",
+      time: "last-30d",
     });
 
     expect(resolveTrendRequest({

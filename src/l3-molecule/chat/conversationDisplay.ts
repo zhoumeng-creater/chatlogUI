@@ -9,10 +9,19 @@ export type ConversationFilter =
   | "enterprise_system"
   | "folded_unknown";
 export type ConversationBadgeTone = "neutral" | "info" | "success";
+export type ConversationDotTone =
+  | "private"
+  | "group"
+  | "official"
+  | "enterprise"
+  | "system"
+  | "folded"
+  | "unknown";
 
 export interface ConversationBadge {
   label: string;
   tone: ConversationBadgeTone;
+  dotTone: ConversationDotTone;
 }
 
 function normalize(value: string): string {
@@ -64,42 +73,42 @@ export function filterConversations(
 
 export function getConversationBadge(conversation: Conversation): ConversationBadge {
   if (conversation.chatType === "group" || conversation.isGroup || conversation.source === "chatroom") {
-    return { label: "群聊", tone: "success" };
+    return { label: "群聊", tone: "success", dotTone: "group" };
   }
 
   if (conversation.chatType === "subscription_account") {
-    return { label: "订阅号", tone: "info" };
+    return { label: "订阅号", tone: "info", dotTone: "official" };
   }
 
   if (conversation.chatType === "service_account") {
-    return { label: "服务号", tone: "info" };
+    return { label: "服务号", tone: "info", dotTone: "official" };
   }
 
   if (conversation.chatType === "official_account") {
-    return { label: "公众号", tone: "info" };
+    return { label: "公众号", tone: "info", dotTone: "official" };
   }
 
   if (conversation.chatType === "enterprise_contact" || conversation.chatType === "enterprise_account") {
-    return { label: "企业微信", tone: "success" };
+    return { label: "企业微信", tone: "success", dotTone: "enterprise" };
   }
 
   if (conversation.chatType === "system") {
-    return { label: "系统", tone: "neutral" };
+    return { label: "系统", tone: "neutral", dotTone: "system" };
   }
 
   if (conversation.chatType === "folded") {
-    return { label: "折叠", tone: "neutral" };
+    return { label: "折叠", tone: "neutral", dotTone: "folded" };
   }
 
   if (conversation.chatType === "unknown") {
-    return { label: "未知", tone: "neutral" };
+    return { label: "未知", tone: "neutral", dotTone: "unknown" };
   }
 
   if (conversation.source === "session") {
-    return { label: "最近", tone: "info" };
+    return { label: "最近", tone: "info", dotTone: "private" };
   }
 
-  return { label: "联系人", tone: "neutral" };
+  return { label: "联系人", tone: "neutral", dotTone: "private" };
 }
 
 export function shouldShowUnreadBadge(

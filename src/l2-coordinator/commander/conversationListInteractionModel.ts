@@ -25,19 +25,30 @@ export interface ConversationFilterOptionView {
   value: ConversationListFilter;
   label: string;
   count: number;
+  dotTone: ConversationFilterDotTone;
 }
+
+export type ConversationFilterDotTone =
+  | "all"
+  | "recent"
+  | "private"
+  | "group"
+  | "official"
+  | "enterprise"
+  | "folded";
 
 export const CONVERSATION_LIST_FILTER_OPTIONS: Array<{
   value: ConversationListFilter;
   label: string;
+  dotTone: ConversationFilterDotTone;
 }> = [
-  { value: "all", label: "全部" },
-  { value: "recent", label: "最近" },
-  { value: "private", label: "私聊" },
-  { value: "group", label: "群聊" },
-  { value: "official_service", label: "公众号/服务号" },
-  { value: "enterprise_system", label: "企业/系统" },
-  { value: "folded_unknown", label: "折叠/未知" },
+  { value: "all", label: "全部", dotTone: "all" },
+  { value: "recent", label: "最近", dotTone: "recent" },
+  { value: "private", label: "私聊", dotTone: "private" },
+  { value: "group", label: "群聊", dotTone: "group" },
+  { value: "official_service", label: "公众号/服务号", dotTone: "official" },
+  { value: "enterprise_system", label: "企业/系统", dotTone: "enterprise" },
+  { value: "folded_unknown", label: "折叠/未知", dotTone: "folded" },
 ];
 
 function normalize(value: string): string {

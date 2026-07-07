@@ -1,4 +1,5 @@
 import { useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   focusInitialOverlayTarget,
   getOverlayDialogProps,
@@ -51,7 +52,7 @@ export function SpringModal({
     }
   };
 
-  return (
+  const modal = (
     <div
       className="spring-modal__backdrop"
       data-close-on-backdrop={String(closeOnBackdrop)}
@@ -69,4 +70,7 @@ export function SpringModal({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return modal;
+  return createPortal(modal, document.body);
 }
