@@ -19,6 +19,7 @@ import {
   resolveTrendRequest,
   type StatsControlState,
 } from "./statsControlModel";
+import { toApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 
 let statsRequestSequence = 0;
 
@@ -77,8 +78,8 @@ export function useStatsCommander(options: StatsCommanderOptions = {}) {
       );
       useStatsStore.getState().completeStatsRequest(requestId, result);
       return result;
-    } catch {
-      useStatsStore.getState().failStatsRequest(requestId, "加载统计失败");
+    } catch (error) {
+      useStatsStore.getState().failStatsRequest(requestId, formatStatsErrorMessage(error));
       return null;
     }
   }, []);
@@ -109,8 +110,8 @@ export function useStatsCommander(options: StatsCommanderOptions = {}) {
       const warning = trendRequest.warning;
       useStatsStore.getState().setPartialWarnings(warning ? [warning] : []);
       useStatsStore.getState().completeTrendRequest(requestId, result.daily);
-    } catch {
-      useStatsStore.getState().failTrendRequest(requestId, "趋势加载失败");
+    } catch (error) {
+      useStatsStore.getState().failTrendRequest(requestId, formatStatsErrorMessage(error, "趋势加载失败"));
     }
   }, []);
 
@@ -148,8 +149,8 @@ export function useStatsCommander(options: StatsCommanderOptions = {}) {
         requestId,
         buildComparisonState(current, previous),
       );
-    } catch {
-      useStatsStore.getState().failComparisonRequest(requestId, "上一周期比较加载失败");
+    } catch (error) {
+      useStatsStore.getState().failComparisonRequest(requestId, formatStatsErrorMessage(error, "上一周期比较加载失败"));
     }
   }, []);
 
@@ -174,6 +175,15 @@ export function useStatsCommander(options: StatsCommanderOptions = {}) {
     loadComparison,
     loadAll,
   };
+}
+
+export function formatStatsErrorMessage(error: unknown, fallback = "统计加载失败"): string {
+  const model = toApiErrorModel(error);
+  if (model.category === "unsupported-endpoint") {
+    return "当前服务暂不支持统计接口。";
+  }
+  if (model.message && model.message !== "未知错误: ") return model.message;
+  return fallback;
 }
 
 function createStatsSnapshot(

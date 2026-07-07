@@ -9,6 +9,7 @@ import type {
 import type { MessageActionId } from "@l2/commander/messageActionModel";
 import type { ActionableEmptyStateView, EmptyStateActionId } from "@l2/commander/actionableEmptyStateModel";
 import type { MessageActionModel, SafeRawFieldRow } from "@l2/commander/messageActionModel";
+import type { MessageAttachmentPreviewModel } from "@l2/commander/messageAttachmentPreviewModel";
 import type {
   TranscriptPositionModel,
   TranscriptPositionRow,
@@ -19,6 +20,7 @@ import type {
   MessageSelectionFilterModel,
   MessageSelectionFilterState,
 } from "@/l2-coordinator/commander/conversationSelectionFilterModel";
+import type { MediaAttachment } from "@/l2-coordinator/data-clerk/stores/useMediaStore";
 import { MessageList } from "./MessageList";
 import { MessageSelectionToolbar } from "./MessageSelectionToolbar";
 import { TranscriptHeader } from "./TranscriptHeader";
@@ -73,6 +75,7 @@ interface ChatViewProps {
   }) => TranscriptPositionModel;
   getMessageActionModel: (message: ChatMessage) => MessageActionModel;
   getMessageSafeRawFieldRows: (message: ChatMessage) => SafeRawFieldRow[];
+  getMessageAttachmentPreviewModel: (attachment: MediaAttachment) => MessageAttachmentPreviewModel;
 }
 
 export function ChatView({
@@ -115,6 +118,7 @@ export function ChatView({
   onDeriveTranscriptPosition,
   getMessageActionModel,
   getMessageSafeRawFieldRows,
+  getMessageAttachmentPreviewModel,
 }: ChatViewProps) {
   return (
     <div className="transcript">
@@ -156,6 +160,7 @@ export function ChatView({
         onDeriveTranscriptPosition={onDeriveTranscriptPosition}
         getMessageActionModel={getMessageActionModel}
         getMessageSafeRawFieldRows={getMessageSafeRawFieldRows}
+        getMessageAttachmentPreviewModel={getMessageAttachmentPreviewModel}
       />
       {conversation && selectionMode && (
         <div className="transcript__selection">

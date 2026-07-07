@@ -24,6 +24,8 @@ import type {
   MessageActionModel,
   SafeRawFieldRow,
 } from "@/l2-coordinator/commander/messageActionModel";
+import type { MessageAttachmentPreviewModel } from "@/l2-coordinator/commander/messageAttachmentPreviewModel";
+import type { MediaAttachment } from "@/l2-coordinator/data-clerk/stores/useMediaStore";
 import { classNames } from "@/utils/classNames";
 import { MessageBubble } from "./MessageBubble";
 import { TranscriptScrollControls } from "./TranscriptScrollControls";
@@ -75,7 +77,11 @@ interface MessageListProps {
   }) => TranscriptPositionModel;
   getMessageActionModel: (message: ChatMessage) => MessageActionModel;
   getMessageSafeRawFieldRows: (message: ChatMessage) => SafeRawFieldRow[];
+  getMessageAttachmentPreviewModel: (attachment: MediaAttachment) => MessageAttachmentPreviewModel;
 }
+
+const AUTO_LOAD_TOP_THRESHOLD = 48;
+const AUTO_LOAD_RESET_THRESHOLD = 160;
 
 export function MessageList({
   conversation,
@@ -108,9 +114,11 @@ export function MessageList({
   onDeriveTranscriptPosition,
   getMessageActionModel,
   getMessageSafeRawFieldRows,
+  getMessageAttachmentPreviewModel,
 }: MessageListProps) {
   const activeChat = conversation?.username || "";
   const containerRef = useRef<HTMLDivElement>(null);
+  const historyAutoLoadPendingRef = useRef(false);
   const [nearLatest, setNearLatest] = useState(true);
   const rows = useMemo(() => buildTranscriptRows(messages), [messages]);
   const highlightedRowIndex = useMemo(() => {
@@ -190,14 +198,31 @@ export function MessageList({
   useEffect(() => {
     const element = containerRef.current;
     if (!element) return;
-    const updateNearLatest = () => {
+    const updateViewportState = () => {
       const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
       setNearLatest(distanceFromBottom < 120);
+      if (element.scrollTop > AUTO_LOAD_RESET_THRESHOLD || !messagesHasMore) {
+        historyAutoLoadPendingRef.current = false;
+      }
+      if (
+        activeChat &&
+        messagesHasMore &&
+        !messagesLoading &&
+        !historyAutoLoadPendingRef.current &&
+        element.scrollTop <= AUTO_LOAD_TOP_THRESHOLD
+      ) {
+        historyAutoLoadPendingRef.current = true;
+        onLoadMoreHistory(activeChat);
+      }
     };
-    updateNearLatest();
-    element.addEventListener("scroll", updateNearLatest, { passive: true });
-    return () => element.removeEventListener("scroll", updateNearLatest);
-  }, [rows.length]);
+    updateViewportState();
+    element.addEventListener("scroll", updateViewportState, { passive: true });
+    return () => element.removeEventListener("scroll", updateViewportState);
+  }, [activeChat, messagesHasMore, messagesLoading, onLoadMoreHistory, rows.length]);
+
+  useEffect(() => {
+    historyAutoLoadPendingRef.current = false;
+  }, [activeChat]);
 
   const scrollToLatest = () => {
     const index = findLastTranscriptMessageRowIndex(rows);
@@ -282,6 +307,11 @@ export function MessageList({
         privacyOn={privacyOn}
         privacySafeMessage={privacyOn && selectionStatus ? "消息选择状态已更新" : null}
       />
+      {selectionStatus && (
+        <div className="message-list__status-toast" role="status">
+          {privacyOn ? "消息选择状态已更新。" : selectionStatus}
+        </div>
+      )}
       <TranscriptScrollControls
         positionText={transcriptPosition.positionText}
         stickyDateLabel={transcriptPosition.stickyDateLabel}
@@ -305,15 +335,10 @@ export function MessageList({
         </div>
       )}
       {messagesHasMore && (
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={messagesLoading}
-            onClick={() => activeChat && onLoadMoreHistory(activeChat)}
-          >
-            加载更早消息
-          </Button>
+        <div className="message-list__history-status" role="status">
+          {messagesLoading && messages.length > 0
+            ? "正在载入更早消息..."
+            : "继续向上滚动可加载更早消息"}
         </div>
       )}
 
@@ -357,6 +382,7 @@ export function MessageList({
                     selected={selectedIds.has(row.message.id)}
                     actionModel={getMessageActionModel(row.message)}
                     safeRawFieldRows={getMessageSafeRawFieldRows(row.message)}
+                    getAttachmentPreviewModel={getMessageAttachmentPreviewModel}
                     onEnterSelectionMode={onEnterSelectionMode}
                     onToggleSelected={(range) => onToggleMessageSelection(row.message.id, range)}
                     onAction={(actionId) => onMessageAction(row.message, actionId)}

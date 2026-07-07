@@ -12,4 +12,14 @@ describe("useWorkbenchCommander", () => {
     expect(selectedExportBlock).toMatch(/createConversationExportArtifact\(\{\s*source:\s*"conversation_selection"/);
     expect(selectedExportBlock).toContain("createConversationExportArtifact");
   });
+
+  it("implements message time jump by highlighting and scrolling to the clicked row", () => {
+    const jumpBlock = commanderSource.slice(
+      commanderSource.indexOf('if (actionId === "jump-to-time")'),
+      commanderSource.indexOf('if (actionId === "find-similar")'),
+    );
+
+    expect(jumpBlock).toContain("chat.setAnchorHit(message.id)");
+    expect(jumpBlock).toContain("已定位到");
+  });
 });

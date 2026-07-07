@@ -29,9 +29,9 @@ describe("conversationSelectionFilterModel", () => {
     const model = buildMessageSelectionFilterModel({ messages, privacyOn: false });
 
     expect(model.typeOptions).toEqual([
-      { value: "all", label: "全部类型", count: 3 },
-      { value: "type-image", label: "图片", count: 1 },
-      { value: "type-text", label: "文本", count: 2 },
+      { value: "all", label: "全部类型", count: 3, tone: "neutral" },
+      { value: "type-image", label: "图片", count: 1, tone: "blue" },
+      { value: "type-text", label: "文本", count: 2, tone: "slate" },
     ]);
 
     expect(selectMessageIdsByFilter({

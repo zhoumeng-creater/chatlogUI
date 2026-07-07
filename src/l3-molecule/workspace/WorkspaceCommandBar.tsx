@@ -200,6 +200,9 @@ function CommandMenuItem({
       role="menuitem"
       className="workspace-command-bar__menu-item"
       disabled={action.disabled}
+      aria-label={action.disabled && action.disabledReason
+        ? `${action.label}（${action.disabledReason}）`
+        : action.label}
       onClick={() => onAction(action.id)}
     >
       {getCommandIcon(action.id)}
@@ -207,15 +210,7 @@ function CommandMenuItem({
     </button>
   );
 
-  if (!action.disabled || !action.disabledReason) {
-    return item;
-  }
-
-  return (
-    <DisabledReason reason={action.disabledReason}>
-      {item}
-    </DisabledReason>
-  );
+  return item;
 }
 
 function getCommandIcon(id: WorkspaceCommandId): ReactNode {

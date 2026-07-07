@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
+import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import { useWorkspacePreferenceStore } from "@l2/data-clerk/stores/useWorkspacePreferenceStore";
 import { useChatCommander } from "./useChatCommander";
 import { useStatsCommander } from "./useStatsCommander";
@@ -23,6 +24,7 @@ import {
 import { createConversationExportArtifact } from "./businessExportModel";
 import { useBusinessExportCommander } from "./useBusinessExportCommander";
 import { copyTextToClipboard } from "@/l4-atom/system";
+import { buildMediaResourceUrl } from "@l4/network";
 import {
   deriveSelectedMessages,
   getSelectionPrivacySummary,
@@ -46,7 +48,9 @@ import {
   serializeMessageAction,
   type MessageActionId,
 } from "./messageActionModel";
+import { buildMessageAttachmentPreviewModel } from "./messageAttachmentPreviewModel";
 import type { ChatMessage } from "@/l2-coordinator/data-clerk/stores/useChatStore";
+import type { MediaAttachment } from "@/l2-coordinator/data-clerk/stores/useMediaStore";
 import { deriveTranscriptPositionModel } from "./transcriptPositionModel";
 import {
   getEffectiveRailMode,
@@ -56,6 +60,7 @@ import {
   buildWorkspaceReturnContext,
   getWorkspaceReturnSourceForChatAnchor,
 } from "./workspaceReturnContextModel";
+import { getActiveChatlogServiceSummary } from "./chatlogRequestContext";
 import {
   bindActionableEmptyStateActions,
   buildActionableEmptyState,
@@ -80,6 +85,7 @@ export function useWorkbenchCommander() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
+  const setupProfile = useSetupStore((state) => state.profile);
   const preferences = useWorkspacePreferenceStore((state) => state.preferences);
   const preferencesLoaded = useWorkspacePreferenceStore((state) => state.loaded);
   const loadWorkspacePreferences = useWorkspacePreferenceStore((state) => state.loadFromStorage);
@@ -89,6 +95,10 @@ export function useWorkbenchCommander() {
   const stats = useStatsCommander();
   const { conversations, loadConversations, selectedConversationId } = chat;
   const { loadAll } = stats;
+  const activeService = useMemo(
+    () => getActiveChatlogServiceSummary(setupProfile),
+    [setupProfile],
+  );
   const selectedMessages = useMemo(() => deriveSelectedMessages({
     state: {
       mode: chat.selectionMode,
@@ -420,6 +430,7 @@ export function useWorkbenchCommander() {
 
   const handleMessageAction = useCallback(async (message: ChatMessage, actionId: MessageActionId) => {
     if (actionId === "jump-to-time") {
+      chat.setAnchorHit(message.id);
       chat.setSelectionStatus(message.time ? `已定位到 ${message.time} 附近。` : "这条消息没有可定位时间。");
       return;
     }
@@ -452,6 +463,12 @@ export function useWorkbenchCommander() {
 
   const getMessageSafeRawFieldRows = useCallback((message: ChatMessage) =>
     getSafeRawFieldRows(message), []);
+  const getMessageAttachmentPreviewModel = useCallback((attachment: MediaAttachment) =>
+    buildMessageAttachmentPreviewModel({
+      attachment,
+      resourceUrl: buildMediaResourceUrl(attachment, activeService.serviceBaseUrl),
+      privacyOn,
+    }), [activeService.serviceBaseUrl, privacyOn]);
 
   const commandBar = useMemo(() => buildWorkspaceCommandBar({
     hasConversation: Boolean(currentConversation),
@@ -662,6 +679,7 @@ export function useWorkbenchCommander() {
     deriveTranscriptPositionModel,
     getMessageActionModel,
     getMessageSafeRawFieldRows,
+    getMessageAttachmentPreviewModel,
   };
 }
 

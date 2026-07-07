@@ -63,4 +63,37 @@ describe("MessageBubble", () => {
     expect(html).not.toContain("message-bubble__select-mode");
     expect(html).not.toContain(">选择</button>");
   });
+
+  it("renders available attachments as clickable preview chips", () => {
+    const html = renderToStaticMarkup(
+      <MessageBubble
+        message={{
+          ...message,
+          attachments: [{
+            id: "attachment-1",
+            kind: "image",
+            resourceKind: "image",
+            resourceKey: "image-key",
+            label: "图片",
+            redactedEndpointLabel: "media:image",
+            source: "history",
+          }],
+        }}
+        privacyOn={false}
+        getAttachmentPreviewModel={(attachment) => ({
+          id: attachment.id,
+          label: "图片",
+          kind: "image",
+          kindLabel: "图片",
+          resourceUrl: "http://127.0.0.1:5030/image/image-key",
+          canPreview: true,
+          disabledReason: null,
+        })}
+      />,
+    );
+
+    expect(html).toContain("message-attachment-card--button");
+    expect(html).toContain('aria-label="打开图片附件"');
+    expect(html).not.toContain("2 个附件：媒体");
+  });
 });

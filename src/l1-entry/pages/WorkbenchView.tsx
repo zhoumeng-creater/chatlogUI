@@ -124,6 +124,7 @@ export function WorkbenchView() {
         onDeriveTranscriptPosition={workbench.deriveTranscriptPositionModel}
         getMessageActionModel={workbench.getMessageActionModel}
         getMessageSafeRawFieldRows={workbench.getMessageSafeRawFieldRows}
+        getMessageAttachmentPreviewModel={workbench.getMessageAttachmentPreviewModel}
       />
     );
 

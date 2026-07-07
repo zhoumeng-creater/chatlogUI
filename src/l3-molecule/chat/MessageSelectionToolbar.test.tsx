@@ -18,8 +18,8 @@ describe("MessageSelectionToolbar", () => {
             { value: "sender-1", label: "Alice", count: 7 },
           ],
           typeOptions: [
-            { value: "all", label: "全部类型", count: 12 },
-            { value: "type-image", label: "图片", count: 4 },
+            { value: "all", label: "全部类型", count: 12, tone: "neutral" },
+            { value: "type-image", label: "图片", count: 4, tone: "blue" },
           ],
         }}
         filterError={null}
@@ -40,6 +40,8 @@ describe("MessageSelectionToolbar", () => {
     expect(html).toContain("对象");
     expect(html).toContain("类型");
     expect(html).toContain("图片 · 4 条");
+    expect(html).toContain("message-option-select__dot");
+    expect(html).toContain('aria-label="选择消息类型"');
     expect(html).toContain("开始");
     expect(html).toContain("结束");
     expect(html).toContain("按范围选择");

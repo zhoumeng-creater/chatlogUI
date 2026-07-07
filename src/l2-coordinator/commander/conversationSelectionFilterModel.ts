@@ -1,5 +1,14 @@
 import type { ChatMessage } from "@l2/data-clerk/stores/useChatStore";
 
+export type MessageSelectionOptionTone =
+  | "neutral"
+  | "slate"
+  | "blue"
+  | "green"
+  | "amber"
+  | "rose"
+  | "violet";
+
 export interface MessageSelectionFilterState {
   sender: string;
   messageType: string;
@@ -11,6 +20,7 @@ export interface MessageSelectionSenderOption {
   value: string;
   label: string;
   count: number;
+  tone?: MessageSelectionOptionTone;
 }
 
 export interface MessageSelectionFilterModel {
@@ -46,11 +56,12 @@ export function buildMessageSelectionFilterModel({
       })),
     ],
     typeOptions: [
-      { value: "all", label: "全部类型", count: messages.length },
+      { value: "all", label: "全部类型", count: messages.length, tone: "neutral" },
       ...types.map((type) => ({
         value: `type-${type.key}`,
         label: type.label,
         count: type.count,
+        tone: getMessageTypeTone(type.key),
       })),
     ],
   };
@@ -166,6 +177,23 @@ function getMessageTypeLabel(type: string): string {
     unknown: "未知",
   };
   return labels[type] ?? type;
+}
+
+function getMessageTypeTone(type: string): MessageSelectionOptionTone {
+  const tones: Record<string, MessageSelectionOptionTone> = {
+    text: "slate",
+    image: "blue",
+    video: "violet",
+    voice: "green",
+    file: "amber",
+    link: "green",
+    system: "neutral",
+    revoke: "rose",
+    red_packet: "rose",
+    location: "blue",
+    unknown: "neutral",
+  };
+  return tones[type] ?? "neutral";
 }
 
 function isDateOnly(value: string): boolean {

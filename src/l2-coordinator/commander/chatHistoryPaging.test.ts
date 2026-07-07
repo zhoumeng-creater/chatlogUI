@@ -170,6 +170,13 @@ describe("chatHistoryPaging", () => {
   it("uses loaded count and page size to determine whether older pages exist", () => {
     expect(hasOlderHistory({ ...page, messages: [], count: 0 }, "offset-zero-latest")).toBe(false);
     expect(hasOlderHistory(page, "offset-zero-latest")).toBe(true);
+    expect(hasOlderHistory({
+      ...page,
+      totalCount: 120,
+      count: 9,
+      limit: 50,
+      messages: Array.from({ length: 9 }, (_, index) => ({ id: `sparse-${index}` })),
+    }, "offset-zero-latest")).toBe(true);
     expect(hasOlderHistory({ ...page, offset: 70 }, "offset-zero-oldest")).toBe(true);
     expect(hasOlderHistory({ ...page, offset: 0 }, "offset-zero-oldest")).toBe(false);
   });

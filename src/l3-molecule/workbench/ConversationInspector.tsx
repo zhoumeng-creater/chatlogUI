@@ -63,7 +63,7 @@ export function ConversationInspector({
             ) : stats.error ? (
               <div className="conversation-inspector__state" role="alert">
                 <Typography variant="body" color="var(--danger)">
-                  统计加载失败，请稍后重试。
+                  {stats.error}
                 </Typography>
                 <Button variant="secondary" size="sm" onClick={onRetryStats}>
                   重试统计

@@ -163,9 +163,10 @@ export function hasOlderHistory(
   contract: HistoryOrderingContract,
 ): boolean {
   const loadedCount = page.count || page.messages.length;
-  if (page.limit <= 0 || loadedCount <= 0 || loadedCount < page.limit) return false;
+  if (page.limit <= 0 || loadedCount <= 0) return false;
   if (contract === "offset-zero-oldest") return page.offset > 0;
-  return page.offset + loadedCount < page.totalCount || loadedCount >= page.limit;
+  if (page.offset + loadedCount < page.totalCount) return true;
+  return loadedCount >= page.limit;
 }
 
 function getMessageTimestamp(message: unknown): number | null {

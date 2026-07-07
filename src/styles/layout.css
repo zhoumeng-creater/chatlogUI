@@ -861,15 +861,15 @@
   top: var(--floating-menu-top, 0);
   left: var(--floating-menu-left, 0);
   display: flex;
-  min-width: 188px;
+  min-width: 220px;
   max-width: min(260px, calc(100vw - 16px));
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 1px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: var(--space-1);
+  padding: 6px;
   background: var(--surface-raised);
-  box-shadow: var(--shadow-overlay);
+  box-shadow: var(--shadow-floating);
 }
 
 .workspace-command-bar__menu[data-placement="bottom-end"] {
@@ -907,18 +907,23 @@
 .workspace-command-bar__menu-item {
   display: flex;
   width: 100%;
-  min-height: 36px;
+  min-height: 38px;
   align-items: center;
   gap: var(--space-2);
   border: 0;
   border-radius: var(--radius-sm);
-  padding: 0 var(--space-2);
+  padding: 0 10px;
   background: transparent;
   color: var(--text-primary);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
+  font-weight: 700;
   text-align: left;
+}
+
+.workspace-command-bar__menu-item svg {
+  color: var(--text-secondary);
 }
 
 .workspace-command-bar__menu-item:hover:not(:disabled),
@@ -4022,6 +4027,28 @@
   max-height: 70vh;
   border-radius: var(--radius-md);
   object-fit: contain;
+}
+
+.chat-media-preview__media {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: var(--radius-md);
+}
+
+.chat-media-preview__audio {
+  width: min(560px, 72vw);
+}
+
+.chat-media-preview__fallback {
+  display: grid;
+  width: min(420px, 72vw);
+  min-height: 120px;
+  place-items: center;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--surface-subtle);
+  text-align: center;
 }
 
 @keyframes spring-modal-backdrop-in {

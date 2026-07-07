@@ -15,6 +15,7 @@ import {
   Typography,
 } from "@/l4-atom/ui";
 import { StatusAnnouncer } from "@/l3-molecule/common/StatusAnnouncer";
+import { MessageOptionSelect } from "@/l3-molecule/common/MessageOptionSelect";
 
 interface BusinessExportRangeControls {
   summary: string;
@@ -179,17 +180,12 @@ export function BusinessExportDialog({
               </label>
               <label>
                 <span>消息类型</span>
-                <Select
-                  controlSize="sm"
+                <MessageOptionSelect
+                  ariaLabel="选择导出消息类型"
                   value={rangeControls.filters.messageType}
-                  onChange={(event) => rangeControls.onChange({ messageType: event.currentTarget.value })}
-                >
-                  {rangeControls.typeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label} · {option.count.toLocaleString()} 条
-                    </option>
-                  ))}
-                </Select>
+                  options={rangeControls.typeOptions}
+                  onChange={(messageType) => rangeControls.onChange({ messageType })}
+                />
               </label>
               <label>
                 <span>开始日期</span>

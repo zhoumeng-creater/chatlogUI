@@ -11,7 +11,6 @@ import {
 import { useCallback, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
-  DisabledReason,
   IconButton,
   focusInitialOverlayTarget,
   restoreFocusTarget,
@@ -155,30 +154,20 @@ export function MessageActionMenu({
 }
 
 function renderAction(action: MessageActionItem, onAction: (id: MessageActionId) => void) {
-  const button = (
+  return (
     <button
       key={action.id}
       type="button"
       role="menuitem"
       className="message-action-menu__item"
       disabled={!action.enabled}
+      aria-label={!action.enabled && action.disabledReason
+        ? `${action.label}（${action.disabledReason}）`
+        : action.label}
       onClick={() => onAction(action.id)}
     >
       <span aria-hidden="true">{ACTION_ICONS[action.id]}</span>
       <span>{action.label}</span>
     </button>
-  );
-
-  if (!action.disabledReason || action.enabled) return button;
-
-  return (
-    <DisabledReason
-      key={action.id}
-      reason={action.disabledReason}
-      variant="compact"
-      className="message-action-menu__disabled-reason"
-    >
-      {button}
-    </DisabledReason>
   );
 }

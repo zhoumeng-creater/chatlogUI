@@ -1,5 +1,6 @@
 import { CheckSquare, Copy, Download, X } from "lucide-react";
 import { Button, DateInput, DisabledReason, Select, Typography } from "@l4/ui";
+import { MessageOptionSelect } from "@l3/common/MessageOptionSelect";
 import type {
   MessageSelectionFilterModel,
   MessageSelectionFilterState,
@@ -71,17 +72,12 @@ export function MessageSelectionToolbar({
           </label>
           <label>
             <span>类型</span>
-            <Select
-              controlSize="sm"
+            <MessageOptionSelect
+              ariaLabel="选择消息类型"
               value={filters.messageType}
-              onChange={(event) => onFilterChange({ messageType: event.currentTarget.value })}
-            >
-              {filterModel.typeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label} · {option.count.toLocaleString()} 条
-                </option>
-              ))}
-            </Select>
+              options={filterModel.typeOptions}
+              onChange={(messageType) => onFilterChange({ messageType })}
+            />
           </label>
           <label>
             <span>开始</span>

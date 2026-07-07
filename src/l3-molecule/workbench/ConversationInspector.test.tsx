@@ -51,4 +51,25 @@ describe("ConversationInspector", () => {
 
     expect(html).toContain("选择会话后显示上下文");
   });
+
+  it("shows the actual stats failure reason instead of a generic retry-only message", () => {
+    const html = renderToStaticMarkup(
+      <ConversationInspector
+        conversationTitle="Synthetic Chat"
+        hasConversation
+        stats={{
+          loading: false,
+          error: "当前服务暂不支持统计接口。",
+          messageCount: null,
+          rangeLabel: null,
+        }}
+        privacyOn={false}
+        onRetryStats={vi.fn()}
+        onOpenAnalytics={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("当前服务暂不支持统计接口。");
+    expect(html).not.toContain("统计加载失败，请稍后重试。");
+  });
 });
