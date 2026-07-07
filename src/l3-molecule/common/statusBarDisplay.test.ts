@@ -52,4 +52,18 @@ describe("status bar display", () => {
     expect(html).not.toContain("HTTP");
     expect(html).not.toContain("DB");
   });
+
+  it("does not show a stopped service when readiness proves the local service is ready", () => {
+    const html = renderToStaticMarkup(createElement(StatusBar, {
+      status: "stopped",
+      serviceLabel: "应用管理的本机服务",
+      httpReady: true,
+      dbReady: true,
+    }));
+
+    expect(html).toContain("本机服务就绪");
+    expect(html).toContain("数据库就绪");
+    expect(html).toContain("应用管理的本机服务");
+    expect(html).not.toContain("本机服务已停止");
+  });
 });

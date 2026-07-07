@@ -98,6 +98,52 @@ describe("MessageBubble", () => {
     expect(html).not.toContain("2 个附件：媒体");
   });
 
+  it("renders repeated attachment candidates as one preview chip", () => {
+    const attachments = [
+      {
+        id: "attachment-1",
+        kind: "image" as const,
+        resourceKind: "image" as const,
+        resourceKey: "same-image-key",
+        label: "图片",
+        redactedEndpointLabel: "media:image",
+        source: "history" as const,
+        localId: 42,
+      },
+      {
+        id: "attachment-2",
+        kind: "image" as const,
+        resourceKind: "image" as const,
+        resourceKey: "same-image-key",
+        label: "图片",
+        redactedEndpointLabel: "media:image",
+        source: "history" as const,
+        localId: 42,
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <MessageBubble
+        message={{
+          ...message,
+          attachments,
+        }}
+        privacyOn={false}
+        getAttachmentPreviewModel={(attachment) => ({
+          id: attachment.id,
+          label: "图片",
+          kind: "image",
+          kindLabel: "图片",
+          resourceUrl: `http://127.0.0.1:5030/image/${attachment.resourceKey}`,
+          canPreview: true,
+          disabledReason: null,
+        })}
+      />,
+    );
+
+    expect(html.match(/message-attachment-card--button/g) ?? []).toHaveLength(1);
+  });
+
   it("keeps unsupported media chips clickable so the preview can explain the state", () => {
     const html = renderToStaticMarkup(
       <MessageBubble

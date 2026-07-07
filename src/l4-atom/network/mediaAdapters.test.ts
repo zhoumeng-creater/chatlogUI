@@ -39,6 +39,43 @@ describe("mediaAdapters", () => {
     expect(JSON.stringify(attachment)).not.toContain("C:/Users/Synthetic/private.jpg");
   });
 
+  it("collapses repeated media and image key aliases into one logical attachment", () => {
+    const attachments = adaptMediaAttachments({
+      local_id: 99,
+      timestamp: 1_780_000_001,
+      media_type: "image",
+      media_key: "same-image-key",
+      image_key: "same-image-key",
+      media_keys: ["same-image-key", "same-image-key"],
+      image_keys: ["same-image-key", "same-image-key"],
+    });
+
+    expect(attachments).toHaveLength(1);
+    expect(attachments[0]).toMatchObject({
+      kind: "image",
+      resourceKind: "image",
+      resourceKey: "same-image-key",
+    });
+  });
+
+  it("does not treat video cover image keys as extra video attachments", () => {
+    const attachments = adaptMediaAttachments({
+      local_id: 100,
+      timestamp: 1_780_000_002,
+      media_type: "video",
+      media_key: "video-resource-key",
+      image_key: "video-cover-key",
+      image_keys: ["video-cover-key", "video-cover-thumb-key"],
+    });
+
+    expect(attachments).toHaveLength(1);
+    expect(attachments[0]).toMatchObject({
+      kind: "video",
+      resourceKind: "video",
+      resourceKey: "video-resource-key",
+    });
+  });
+
   it("builds local sidecar media resource URLs without query strings", () => {
     const [attachment] = adaptMediaAttachments({
       media_type: "voice",

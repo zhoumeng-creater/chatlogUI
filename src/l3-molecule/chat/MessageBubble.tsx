@@ -62,7 +62,7 @@ export function MessageBubble({
   const content = privacyOn ? maskDisplayText(rawContent) : rawContent;
   const attachmentSummary = getMessageAttachmentSummary(message, privacyOn);
   const attachmentModels = getAttachmentPreviewModel
-    ? (message.attachments ?? []).map(getAttachmentPreviewModel)
+    ? getUniqueMessageAttachments(message.attachments ?? []).map(getAttachmentPreviewModel)
     : [];
   const hasLegacyMedia = Boolean(message.mediaUrl || message.imageUrl);
 
@@ -174,6 +174,48 @@ function getAttachmentIcon(kind: MediaAttachment["kind"]): ReactNode {
   if (kind === "video") return <Video size={14} aria-hidden="true" />;
   if (kind === "voice") return <Volume2 size={14} aria-hidden="true" />;
   return <FileText size={14} aria-hidden="true" />;
+}
+
+function getUniqueMessageAttachments(attachments: MediaAttachment[]): MediaAttachment[] {
+  const seen = new Set<string>();
+  return attachments.filter((attachment) => {
+    const key = getAttachmentIdentity(attachment);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getAttachmentIdentity(attachment: MediaAttachment): string {
+  const resource = getAttachmentResourceIdentity(attachment);
+  if (resource) return `${attachment.kind}:${resource}`;
+
+  const messageAnchor = attachment.messageId ?? attachment.localId ?? attachment.timestamp;
+  if (messageAnchor !== undefined && messageAnchor !== null) {
+    return [
+      attachment.source,
+      attachment.kind,
+      String(messageAnchor),
+      attachment.label,
+      attachment.fileName ?? "",
+    ].join(":");
+  }
+
+  return `${attachment.kind}:${attachment.id}`;
+}
+
+function getAttachmentResourceIdentity(attachment: MediaAttachment): string {
+  const resourceKey = attachment.resourceKey?.trim();
+  if (resourceKey) return `${attachment.resourceKind}:${resourceKey}`;
+
+  const directUrl = attachment.directUrl?.trim();
+  if (!directUrl) return "";
+  try {
+    const url = new URL(directUrl);
+    return `url:${url.origin}${url.pathname}`;
+  } catch {
+    return `url:${directUrl}`;
+  }
 }
 
 function MessageAttachmentPreviewDialog({

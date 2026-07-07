@@ -81,6 +81,12 @@ export interface AdaptedNewMessagesResponse {
   messages: AdaptedNewMessage[];
 }
 
+type MediaAttachmentCandidate = {
+  key: string;
+  resourceKind?: MediaResourceKind;
+  directUrl?: string;
+};
+
 const KIND_LABELS: Record<MediaAttachmentKind, string> = {
   image: "图片",
   video: "视频",
@@ -95,14 +101,16 @@ export function adaptMediaAttachments(
   source: MediaAttachmentSource = "history",
 ): AdaptedMediaAttachment[] {
   const explicitKind = normalizeAttachmentKind(raw.media_type ?? raw.type);
-  const candidates = [
-    ...keysFrom(raw.media_key),
-    ...keysFrom(raw.image_key),
-    ...keysFrom(raw.media_keys),
-    ...keysFrom(raw.image_keys),
-  ];
+  const candidates = selectKeyCandidates(raw, explicitKind);
 
-  const directUrl = safeDirectUrl(raw.media_url ?? raw.image_url);
+  const directUrl = safeDirectUrl(directUrlForKind(raw, explicitKind));
+  if (directUrl && candidates.length > 0) {
+    candidates[0] = {
+      ...candidates[0],
+      directUrl,
+      resourceKind: candidates[0].resourceKind ?? resourceKindFor(explicitKind),
+    };
+  }
   if (candidates.length === 0 && directUrl) {
     candidates.push({
       key: `${source}-${raw.local_id ?? raw.timestamp ?? "direct"}`,
@@ -135,6 +143,23 @@ export function adaptMediaAttachments(
       time: raw.time ?? formatTimestamp(raw.timestamp),
     };
   });
+}
+
+function selectKeyCandidates(raw: RawHistoryMessage, kind: MediaAttachmentKind): MediaAttachmentCandidate[] {
+  const mediaCandidates = uniqueCandidates([
+    ...keysFrom(raw.media_key),
+    ...keysFrom(raw.media_keys),
+  ]);
+  const imageCandidates = uniqueCandidates([
+    ...keysFrom(raw.image_key).map((candidate) => ({ ...candidate, resourceKind: "image" as MediaResourceKind })),
+    ...keysFrom(raw.image_keys).map((candidate) => ({ ...candidate, resourceKind: "image" as MediaResourceKind })),
+  ]);
+
+  const preferredCandidates =
+    kind === "image" || kind === "sticker" || kind === "unknown"
+      ? [...mediaCandidates, ...imageCandidates]
+      : mediaCandidates;
+  return uniqueCandidates(preferredCandidates).slice(0, 1);
 }
 
 export function buildMediaResourceUrl(
@@ -271,10 +296,32 @@ function containsUnsafeMediaDisplayText(value: string): boolean {
   ].some((pattern) => pattern.test(value));
 }
 
-function keysFrom(value?: string | string[]): Array<{ key: string; resourceKind?: MediaResourceKind; directUrl?: string }> {
+function keysFrom(value?: string | string[]): MediaAttachmentCandidate[] {
   if (!value) return [];
   const values = Array.isArray(value) ? value : [value];
-  return values.filter((item) => item.trim().length > 0).map((item) => ({ key: item }));
+  return values
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+    .map((item) => ({ key: item }));
+}
+
+function uniqueCandidates(candidates: MediaAttachmentCandidate[]): MediaAttachmentCandidate[] {
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    const key = candidate.directUrl
+      ? `url:${candidate.directUrl}`
+      : `key:${candidate.resourceKind ?? "auto"}:${candidate.key}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function directUrlForKind(raw: RawHistoryMessage, kind: MediaAttachmentKind): string | undefined {
+  if (kind === "image" || kind === "sticker" || kind === "unknown") {
+    return raw.media_url ?? raw.image_url;
+  }
+  return raw.media_url;
 }
 
 function safeDirectUrl(value?: string): string | undefined {

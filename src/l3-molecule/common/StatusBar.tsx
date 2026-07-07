@@ -58,18 +58,18 @@ const DB_STATUS_TONES: Record<DbStatus, StatusTone> = {
 };
 
 export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbReady, portStatus, serviceLabel, semanticStatus, copy = DEFAULT_STATUS_COPY }: StatusBarProps) {
-  const isStarting = status === "starting";
   const isDbBusy = dbStatus === "connecting" || dbStatus === "decrypting";
   const indexIndicator = semanticStatus ?? getIndexIndicator(indexStatus);
   const visibleServiceLabel = formatVisibleServiceLabel(serviceLabel, copy);
+  const serviceIndicator = getServiceIndicator(status, httpReady, copy);
 
   return (
     <footer className="app-statusbar">
       <div className="app-statusbar__cluster">
         <StatusIndicator
-          label={copy.service[status]}
-          tone={STATUS_TONES[status]}
-          busy={isStarting}
+          label={serviceIndicator.label}
+          tone={serviceIndicator.tone}
+          busy={serviceIndicator.busy}
         />
         {dbStatus && (
           <StatusIndicator
@@ -92,12 +92,6 @@ export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbR
             {portStatus}
           </Typography>
         )}
-        {httpReady !== undefined && (
-          <StatusIndicator
-            label={httpReady ? copy.service.ready : copy.service.notReady}
-            tone={httpReady ? "success" : "neutral"}
-          />
-        )}
         {dbReady !== undefined && (
           <StatusIndicator
             label={dbReady ? copy.database.ready : copy.database.initializing}
@@ -115,6 +109,30 @@ export function StatusBar({ status, error, dbStatus, indexStatus, httpReady, dbR
       </div>
     </footer>
   );
+}
+
+function getServiceIndicator(
+  status: SidecarStatus,
+  httpReady: boolean | undefined,
+  copy: StatusBarCopy,
+): { label: string; tone: StatusTone; busy?: boolean } {
+  if (httpReady === true) {
+    return { label: copy.service.ready, tone: "success" };
+  }
+
+  if (status === "starting") {
+    return { label: copy.service.starting, tone: STATUS_TONES.starting, busy: true };
+  }
+
+  if (status === "error") {
+    return { label: copy.service.error, tone: STATUS_TONES.error };
+  }
+
+  if (httpReady === false) {
+    return { label: copy.service.notReady, tone: "neutral" };
+  }
+
+  return { label: copy.service[status], tone: STATUS_TONES[status] };
 }
 
 function formatVisibleServiceLabel(label: string | undefined, copy: StatusBarCopy): string {
