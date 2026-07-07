@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { QAInput } from "./QAInput";
+import qaInputSource from "./QAInput.tsx?raw";
 
 describe("QAInput", () => {
   it("explains why send is disabled before a question is entered", () => {
@@ -107,5 +108,10 @@ describe("QAInput", () => {
 
     expect(html).toContain("实体：已隐藏");
     expect(html).not.toContain("Synthetic Secret Entity");
+  });
+
+  it("uses the shared Select atom for source controls", () => {
+    expect(qaInputSource).not.toContain("<select");
+    expect(qaInputSource.match(/<Select/g) ?? []).toHaveLength(2);
   });
 });

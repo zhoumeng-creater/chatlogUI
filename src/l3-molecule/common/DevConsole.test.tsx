@@ -4,6 +4,7 @@ import {
   getDevConsolePrivacyNotice,
   getDevConsoleSourceLabel,
 } from "./DevConsole";
+import devConsoleSource from "./DevConsole.tsx?raw";
 
 describe("DevConsole", () => {
   it("formats export success without leaking the full filesystem path", () => {
@@ -31,5 +32,10 @@ describe("DevConsole", () => {
     expect(getDevConsolePrivacyNotice()).toBe(
       "UX KPI 仅记录在本机内存；诊断导出继续受脱敏检查保护。",
     );
+  });
+
+  it("uses the shared Select atom for every diagnostic dropdown", () => {
+    expect(devConsoleSource).not.toContain("<select");
+    expect(devConsoleSource.match(/<Select/g) ?? []).toHaveLength(5);
   });
 });

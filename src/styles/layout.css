@@ -462,6 +462,146 @@
   background: var(--surface-subtle);
 }
 
+.ui-select {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.ui-select__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ui-select__trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  outline: none;
+  transition:
+    border-color var(--duration-fast) var(--easing-standard),
+    box-shadow var(--duration-fast) var(--easing-standard),
+    background-color var(--duration-fast) var(--easing-standard);
+}
+
+.ui-select--sm .ui-select__trigger {
+  min-height: 32px;
+  padding: 0 9px;
+}
+
+.ui-select--md .ui-select__trigger {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.ui-select__trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select__trigger:hover:not(:disabled),
+.ui-select__trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-subtle));
+  background: var(--surface-hover);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.ui-select__native[aria-invalid="true"] + .ui-select__trigger {
+  border-color: color-mix(in srgb, var(--danger) 58%, var(--border-subtle));
+  background: color-mix(in srgb, var(--danger) 4%, var(--surface-base));
+}
+
+.ui-select__native[aria-invalid="true"] + .ui-select__trigger:focus-visible {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.ui-select__trigger:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.ui-select__menu {
+  position: fixed;
+  z-index: 2200;
+  top: var(--floating-menu-top, 0);
+  left: var(--floating-menu-left, 0);
+  display: grid;
+  width: max(var(--floating-menu-width, 180px), min(180px, calc(100vw - 16px)));
+  min-width: min(180px, calc(100vw - 16px));
+  max-width: min(300px, calc(100vw - 16px));
+  max-height: min(320px, calc(100vh - 16px));
+  overflow: auto;
+  gap: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+
+.ui-select__menu[hidden] {
+  display: none;
+}
+
+.ui-select__option {
+  display: grid;
+  width: 100%;
+  min-height: 36px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0 9px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.ui-select__option:hover:not(:disabled),
+.ui-select__option:focus-visible,
+.ui-select__option--selected {
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.ui-select__option:disabled {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.ui-select__option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ui-field {
   display: grid;
   min-width: 0;
@@ -3274,12 +3414,11 @@
   color: var(--text-secondary);
 }
 
-.dev-console__filters select {
-  min-height: 28px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-base);
-  color: var(--text-primary);
+.dev-console__filters .ui-select {
+  width: min(150px, 26vw);
+}
+
+.dev-console__filters .ui-select__trigger {
   font-size: 12px;
 }
 
@@ -4471,7 +4610,6 @@
   font-size: 12px;
 }
 
-.qa-input__select,
 .qa-input__number {
   height: 28px;
   border: 1px solid var(--color-border);
@@ -4483,7 +4621,14 @@
 
 .qa-input__select {
   min-width: 82px;
-  padding: 0 6px;
+  width: auto;
+}
+
+.qa-input__select .ui-select__trigger {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 12px;
 }
 
 .qa-input__number {

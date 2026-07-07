@@ -454,27 +454,35 @@
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 0 9px;
   background: var(--surface-base);
   color: var(--text-primary);
   cursor: pointer;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 700;
+  letter-spacing: 0;
+  outline: none;
+  transition:
+    border-color var(--duration-fast) var(--easing-standard),
+    box-shadow var(--duration-fast) var(--easing-standard),
+    background-color var(--duration-fast) var(--easing-standard);
 }
 
 .message-option-select__trigger:hover:not(:disabled),
 .message-option-select__trigger:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 42%, var(--border-subtle));
   background: var(--surface-hover);
-  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .message-option-select__trigger:disabled {
   color: var(--text-muted);
   cursor: not-allowed;
+  opacity: 0.56;
 }
 
 .message-option-select__trigger > span:nth-child(2) {
@@ -486,11 +494,13 @@
 
 .message-option-select__menu {
   position: fixed;
-  z-index: 2100;
+  z-index: 2200;
   top: var(--floating-menu-top, 0);
   left: var(--floating-menu-left, 0);
   display: grid;
-  width: min(260px, calc(100vw - 16px));
+  width: max(var(--floating-menu-width, 180px), min(180px, calc(100vw - 16px)));
+  min-width: min(180px, calc(100vw - 16px));
+  max-width: min(300px, calc(100vw - 16px));
   max-height: min(320px, calc(100vh - 16px));
   overflow: auto;
   gap: 2px;
@@ -507,6 +517,7 @@
 
 .message-option-select__option {
   display: grid;
+  width: 100%;
   min-height: 36px;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
@@ -517,8 +528,10 @@
   background: transparent;
   color: var(--text-primary);
   cursor: pointer;
+  font: inherit;
   font-size: 13px;
   font-weight: 700;
+  letter-spacing: 0;
   text-align: left;
 }
 

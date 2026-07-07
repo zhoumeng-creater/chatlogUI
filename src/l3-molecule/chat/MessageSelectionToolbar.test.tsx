@@ -38,6 +38,8 @@ describe("MessageSelectionToolbar", () => {
     expect(html).toContain("2024-04-28 09:20 - 2024-04-28 09:22");
     expect(html).toContain("全选已加载");
     expect(html).toContain("对象");
+    expect(html).toContain("ui-select__trigger");
+    expect(html).toContain('aria-haspopup="listbox"');
     expect(html).toContain("类型");
     expect(html).toContain("图片 · 4 条");
     expect(html).toContain("message-option-select__dot");

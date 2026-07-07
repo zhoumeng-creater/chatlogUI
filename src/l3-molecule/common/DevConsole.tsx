@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Trash2, X } from "lucide-react";
 import { Typography } from "@l4/ui/Typography";
 import { Button } from "@l4/ui/Button";
+import { Select } from "@l4/ui/Select";
 import { formatExportPathSummary } from "@/utils/privacyDisplay";
 
 type DiagnosticSourceFilter = "all" | "http" | "sidecar" | "tauri" | "ui" | "ux" | "updater" | "release";
@@ -149,7 +150,8 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
       <div className="dev-console__filters" aria-label="诊断事件筛选">
         <label>
           来源
-          <select
+          <Select
+            controlSize="sm"
             value={view.filters.source}
             onChange={(event) =>
               actions.setSourceFilter(event.currentTarget.value as DiagnosticSourceFilter)
@@ -163,11 +165,12 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
             <option value="ux">UX KPI</option>
             <option value="updater">更新</option>
             <option value="release">发布</option>
-          </select>
+          </Select>
         </label>
         <label>
           等级
-          <select
+          <Select
+            controlSize="sm"
             value={view.filters.level}
             onChange={(event) =>
               actions.setLevelFilter(event.currentTarget.value as DiagnosticLevelFilter)
@@ -178,11 +181,12 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
             <option value="info">Info</option>
             <option value="warn">Warn</option>
             <option value="error">Error</option>
-          </select>
+          </Select>
         </label>
         <label>
           端点
-          <select
+          <Select
+            controlSize="sm"
             value={view.filters.endpointFamily}
             onChange={(event) =>
               actions.setEndpointFamilyFilter(event.currentTarget.value)
@@ -193,11 +197,12 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label>
           时间
-          <select
+          <Select
+            controlSize="sm"
             value={view.filters.timeRange}
             onChange={(event) =>
               actions.setTimeRangeFilter(event.currentTarget.value as DiagnosticTimeRangeFilter)
@@ -208,7 +213,7 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="dev-console__checkbox">
           <input
@@ -222,7 +227,8 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
         </label>
         <label>
           隐私
-          <select
+          <Select
+            controlSize="sm"
             value={view.filters.privacy}
             onChange={(event) =>
               actions.setPrivacyFilter(event.currentTarget.value as DiagnosticPrivacyFilter)
@@ -232,7 +238,7 @@ export function DevConsole({ view, actions }: DevConsoleProps) {
             <option value="safe">安全</option>
             <option value="redacted">已脱敏</option>
             <option value="blocked">已阻止</option>
-          </select>
+          </Select>
         </label>
       </div>
       <p className="dev-console__status" aria-live="polite">{statusMessage}</p>

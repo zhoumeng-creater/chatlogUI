@@ -80,6 +80,7 @@ export function MessageOptionSelect({
         menu.dataset.placement = placementRef.current;
         menu.style.setProperty("--floating-menu-left", `${Math.round(position.left)}px`);
         menu.style.setProperty("--floating-menu-top", `${Math.round(position.top)}px`);
+        menu.style.setProperty("--floating-menu-width", `${Math.max(root.offsetWidth, 180)}px`);
       }
       focusInitialOverlayTarget(menuRef.current);
     });

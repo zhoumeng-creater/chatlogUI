@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useState } from 'react';
 import { Send, Square, X } from 'lucide-react';
-import { Button, DisabledReason, IconButton } from '@l4/ui';
+import { Button, DisabledReason, IconButton, Select } from '@l4/ui';
 
 export interface QAComposerDraft {
   query: string;
@@ -185,9 +185,10 @@ export const QAInput = forwardRef<HTMLTextAreaElement, QAInputProps>(function QA
         </label>
         <label className="qa-input__select-label">
           时间窗
-          <select
+          <Select
+            controlSize="sm"
             value={window}
-            onChange={(event) => setWindow(event.target.value)}
+            onChange={(event) => setWindow(event.currentTarget.value)}
             className="qa-input__select"
             disabled={controlsDisabled}
             aria-describedby={controlsDisabledReasonId}
@@ -199,13 +200,14 @@ export const QAInput = forwardRef<HTMLTextAreaElement, QAInputProps>(function QA
             <option value="90d">近三月</option>
             <option value="1y">近一年</option>
             <option value="all">全部</option>
-          </select>
+          </Select>
         </label>
         <label className="qa-input__select-label">
           深度
-          <select
+          <Select
+            controlSize="sm"
             value={retrievalDepth}
-            onChange={(event) => setRetrievalDepth(event.target.value)}
+            onChange={(event) => setRetrievalDepth(event.currentTarget.value)}
             className="qa-input__select"
             disabled={controlsDisabled}
             aria-describedby={controlsDisabledReasonId}
@@ -213,7 +215,7 @@ export const QAInput = forwardRef<HTMLTextAreaElement, QAInputProps>(function QA
             <option value="standard">标准</option>
             <option value="deep">深入</option>
             <option value="wide">广泛</option>
-          </select>
+          </Select>
         </label>
         <label className="qa-input__select-label qa-input__limit-label">
           会话
