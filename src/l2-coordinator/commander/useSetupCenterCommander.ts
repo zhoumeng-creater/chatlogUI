@@ -3,6 +3,7 @@ import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import { useDiagnosticEventStore } from "@l2/data-clerk/stores/useDiagnosticEventStore";
 import type { DiagnosticEvent } from "@l4/network/diagnosticEvents";
 import { useSetupCommander } from "./useSetupCommander";
+import { runSetupAction } from "./setupActionDispatcher";
 import { useDiagnosticsCommander } from "./useDiagnosticsCommander";
 import { deriveSetupCenterView, type SetupActionId } from "./setupCenterViewModel";
 
@@ -93,32 +94,25 @@ export function useSetupCenterCommander() {
   );
 
   const performAction = async (actionId: SetupActionId) => {
-    switch (actionId) {
-      case "choose-data-directory":
-        await chooseAndImportDataDirectory();
-        return;
-      case "save-manual-config":
-        await saveManualConfig(manualDraft);
-        return;
-      case "start-managed-service":
-        await startManagedService();
-        return;
-      case "connect-external-service":
-        await connectExternalService(externalBaseUrlDraft);
-        return;
-      case "refresh-database":
-        await checkReadiness();
-        return;
-      case "inspect-service-port":
-        await inspectServicePort();
-        return;
-      case "stop-managed-service":
-        await stopManagedService();
-        return;
-      case "open-workbench":
-        openWorkbench();
-        return;
-    }
+    await runSetupAction(actionId, {
+      manualDraft,
+      externalBaseUrlDraft,
+      chooseAndImportDataDirectory,
+      saveManualConfig,
+      startManagedService,
+      connectExternalService,
+      checkReadiness,
+      inspectServicePort,
+      stopManagedService,
+      openWorkbench,
+      getReadiness: () => {
+        const state = useSetupStore.getState();
+        return {
+          httpReady: state.httpReady,
+          dbReady: state.dbReady,
+        };
+      },
+    });
   };
 
   return {
