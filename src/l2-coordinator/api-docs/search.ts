@@ -1,8 +1,10 @@
-import { HistoryMessage } from "./history";
+import type { HistoryMessage } from "./history";
 
+/** @deprecated Legacy-only five-way filter used by the pre-search.v2 UI. */
 export type SearchFilterType = "all" | "text" | "image" | "video" | "file";
 
-export interface SearchResult {
+/** @deprecated Incomplete offset response retained only for legacy sidecars. */
+export interface LegacySearchResult {
   query: string;
   chats: string[];
   totalCount: number;
@@ -15,6 +17,10 @@ export interface SearchResult {
   messages: HistoryMessage[];
 }
 
+/** @deprecated Use SearchSnapshotPage for enhanced search. */
+export type SearchResult = LegacySearchResult;
+
+/** @deprecated Raw legacy GET parameters. msgType is a numeric WeChat type. */
 export interface SearchQueryParams {
   keyword: string;
   limit?: number;
@@ -24,5 +30,85 @@ export interface SearchQueryParams {
   time?: string;
   since?: number;
   until?: number;
-  msgType?: string;
+  msgType?: number;
+}
+
+export const SEARCH_CATEGORIES = [
+  "text",
+  "image_emoji",
+  "video",
+  "voice",
+  "file",
+  "link_card",
+  "quote_forward",
+  "location",
+  "system_other",
+] as const;
+
+export type SearchCategory = (typeof SEARCH_CATEGORIES)[number];
+
+export interface SearchCapabilities {
+  mode: "v2" | "legacy";
+  contractVersion: "search.v2" | "legacy";
+  exactTotal: boolean;
+  completeScope: boolean;
+  senderFilter: boolean;
+  taxonomy: SearchCategory[];
+  snapshotCursor: boolean;
+  inclusiveTimeBoundaries: boolean;
+  defaultPageSize: number;
+  maxPageSize: number;
+  maxKeywordGraphemes: number;
+  maxKeywordTerms: number;
+  unavailableReason?: "not_supported" | "invalid_response";
+}
+
+export interface SearchMatchSegment {
+  text: string;
+  matched: boolean;
+}
+
+export interface SearchHit {
+  messageId: string;
+  seq: number;
+  sourceIndex: number;
+  conversationId: string;
+  conversationName: string;
+  senderId: string;
+  senderName: string;
+  timestamp: number;
+  type: number;
+  subType: number;
+  category: SearchCategory;
+  matchField: string;
+  snippet: string;
+  matchSegments: SearchMatchSegment[];
+}
+
+export interface SearchSnapshotPage {
+  snapshotId: string;
+  dataRevision: string;
+  exactTotal: boolean;
+  completeScope: boolean;
+  totalCount: number;
+  count: number;
+  windowStart: number;
+  previousCursor: string;
+  nextCursor: string;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  querySince?: number;
+  queryUntil?: number;
+  messages: SearchHit[];
+}
+
+export interface SearchV2Request {
+  keyword: string;
+  chats?: string[];
+  categories?: SearchCategory[];
+  senderIds?: string[];
+  since?: number;
+  until?: number;
+  limit?: number;
+  cursor?: string;
 }

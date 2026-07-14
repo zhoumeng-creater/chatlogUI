@@ -18,15 +18,15 @@ interface CreateSearchRequestInput {
   advancedFilters?: SearchAdvancedFiltersState;
 }
 
-const FILTER_TO_MSG_TYPE: Record<string, string | undefined> = {
+const FILTER_TO_MSG_TYPE: Record<string, number | undefined> = {
   all: undefined,
-  text: "1",
-  image: "3",
-  video: "43",
-  file: "49",
+  text: 1,
+  image: 3,
+  video: 43,
+  file: 49,
 };
 
-export function toSearchMessageType(filter: SearchFilterType): string | undefined {
+export function toSearchMessageType(filter: SearchFilterType): number | undefined {
   return FILTER_TO_MSG_TYPE[filter];
 }
 

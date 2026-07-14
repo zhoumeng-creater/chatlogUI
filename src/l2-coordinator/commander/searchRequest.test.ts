@@ -39,20 +39,20 @@ describe("search request helpers", () => {
       keyword: "图片",
       limit: 20,
       offset: 40,
-      msgType: "3",
+      msgType: 3,
     });
   });
 
   it("maps text filter to msg_type 1", () => {
-    expect(toSearchMessageType("text")).toBe("1");
+    expect(toSearchMessageType("text")).toBe(1);
   });
 
   it("maps video filter to msg_type 43", () => {
-    expect(toSearchMessageType("video")).toBe("43");
+    expect(toSearchMessageType("video")).toBe(43);
   });
 
   it("maps file filter to msg_type 49", () => {
-    expect(toSearchMessageType("file")).toBe("49");
+    expect(toSearchMessageType("file")).toBe(49);
   });
 
   it("uses loaded message count as the next offset for appended search results", () => {
@@ -102,7 +102,7 @@ describe("search request helpers", () => {
       keyword: "合同",
       limit: 20,
       offset: 0,
-      msgType: "1",
+      msgType: 1,
       chats: ["wxid_synthetic_a"],
     });
   });

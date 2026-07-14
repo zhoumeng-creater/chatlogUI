@@ -26,7 +26,12 @@ export { fetchHealth } from "./readiness";
 export { fetchDbReadiness } from "./readiness";
 export { fetchSessions, fetchContactsApi, fetchChatRoomsApi, fetchConversations } from "./fetchContacts";
 export { fetchHistory } from "./fetchHistory";
-export { fetchSearch } from "./fetchSearch";
+export {
+  fetchSearch,
+  fetchSearchCapabilities,
+  fetchSearchV2,
+  SearchProtocolError,
+} from "./fetchSearch";
 export { fetchStats, fetchDashboardTrend } from "./fetchStats";
 export { fetchFavorites } from "./fetchFavorites";
 export { fetchMembers } from "./fetchMembers";

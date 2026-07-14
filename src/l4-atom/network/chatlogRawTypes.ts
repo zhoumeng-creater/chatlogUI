@@ -265,6 +265,59 @@ export interface RawSearchResponse {
   messages: RawHistoryMessage[];
 }
 
+export interface RawSearchCapabilities {
+  contract_version: unknown;
+  exact_total: unknown;
+  complete_scope: unknown;
+  sender_filter: unknown;
+  taxonomy: unknown;
+  snapshot_cursor: unknown;
+  inclusive_time_boundaries: unknown;
+  default_page_size: unknown;
+  max_page_size: unknown;
+  max_keyword_graphemes: unknown;
+  max_keyword_terms: unknown;
+}
+
+export interface RawSearchMatchSegment {
+  text: unknown;
+  matched: unknown;
+}
+
+export interface RawSearchV2Hit {
+  message_id: unknown;
+  seq: unknown;
+  source_index: unknown;
+  conversation_id: unknown;
+  conversation_name: unknown;
+  sender_id: unknown;
+  sender_name: unknown;
+  timestamp: unknown;
+  type: unknown;
+  sub_type: unknown;
+  category: unknown;
+  match_field: unknown;
+  snippet: unknown;
+  match_segments: unknown;
+}
+
+export interface RawSearchV2Response {
+  snapshot_id: unknown;
+  data_revision: unknown;
+  exact_total: unknown;
+  complete_scope: unknown;
+  total_count: unknown;
+  count: unknown;
+  window_start: unknown;
+  previous_cursor: unknown;
+  next_cursor: unknown;
+  has_previous: unknown;
+  has_next: unknown;
+  query_since?: unknown;
+  query_until?: unknown;
+  messages: unknown;
+}
+
 export interface RawStatsTopSender {
   sender: string;
   count: number;

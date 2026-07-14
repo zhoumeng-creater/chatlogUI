@@ -10,8 +10,19 @@ import type {
   RawSearchResponse,
   RawStatsResponse,
   RawDashboardTrendResponse,
+  RawSearchCapabilities,
+  RawSearchV2Hit,
+  RawSearchV2Response,
 } from "./chatlogRawTypes";
 import { adaptMediaAttachments } from "./mediaAdapters";
+import {
+  SEARCH_CATEGORIES,
+  type SearchCapabilities,
+  type SearchCategory,
+  type SearchHit,
+  type SearchMatchSegment,
+  type SearchSnapshotPage,
+} from "@/l2-coordinator/api-docs/search";
 
 export function displayName(
   raw: Pick<RawContact, "display" | "remark" | "nickname" | "username">,
@@ -190,6 +201,183 @@ export function adaptSearchResponse(raw: RawSearchResponse) {
     queryRangeLabel: raw.query_range_label ?? "",
     messages: (raw.messages ?? []).map((message) => adaptHistoryMessage(message)),
   };
+}
+
+export function adaptSearchCapabilities(raw: unknown): SearchCapabilities | null {
+  if (!isRecord(raw)) return null;
+  const value = raw as unknown as RawSearchCapabilities;
+  if (
+    value.contract_version !== "search.v2" ||
+    typeof value.exact_total !== "boolean" ||
+    typeof value.complete_scope !== "boolean" ||
+    typeof value.sender_filter !== "boolean" ||
+    typeof value.snapshot_cursor !== "boolean" ||
+    typeof value.inclusive_time_boundaries !== "boolean" ||
+    !isExactSearchTaxonomy(value.taxonomy) ||
+    value.default_page_size !== 50 ||
+    value.max_page_size !== 50 ||
+    value.max_keyword_graphemes !== 200 ||
+    value.max_keyword_terms !== 20
+  ) {
+    return null;
+  }
+  return {
+    mode: "v2",
+    contractVersion: "search.v2",
+    exactTotal: value.exact_total,
+    completeScope: value.complete_scope,
+    senderFilter: value.sender_filter,
+    taxonomy: [...value.taxonomy],
+    snapshotCursor: value.snapshot_cursor,
+    inclusiveTimeBoundaries: value.inclusive_time_boundaries,
+    defaultPageSize: value.default_page_size,
+    maxPageSize: value.max_page_size,
+    maxKeywordGraphemes: value.max_keyword_graphemes,
+    maxKeywordTerms: value.max_keyword_terms,
+  };
+}
+
+export function adaptSearchV2Response(raw: unknown): SearchSnapshotPage | null {
+  if (!isRecord(raw)) return null;
+  const value = raw as unknown as RawSearchV2Response;
+  if (
+    !isNonEmptyString(value.snapshot_id) ||
+    !isNonEmptyString(value.data_revision) ||
+    typeof value.exact_total !== "boolean" ||
+    typeof value.complete_scope !== "boolean" ||
+    !isNonNegativeSafeInteger(value.total_count) ||
+    !isNonNegativeSafeInteger(value.count) ||
+    !isNonNegativeSafeInteger(value.window_start) ||
+    typeof value.previous_cursor !== "string" ||
+    typeof value.next_cursor !== "string" ||
+    typeof value.has_previous !== "boolean" ||
+    typeof value.has_next !== "boolean" ||
+    !isOptionalSafeInteger(value.query_since) ||
+    !isOptionalSafeInteger(value.query_until) ||
+    !Array.isArray(value.messages)
+  ) {
+    return null;
+  }
+  if (
+    value.count !== value.messages.length ||
+    value.count > 50 ||
+    value.window_start + value.count > value.total_count ||
+    (value.has_previous && value.previous_cursor.length === 0) ||
+    (!value.has_previous && value.previous_cursor.length > 0) ||
+    (value.has_next && value.next_cursor.length === 0) ||
+    (!value.has_next && value.next_cursor.length > 0) ||
+    (value.query_since !== undefined &&
+      value.query_until !== undefined &&
+      value.query_since > value.query_until)
+  ) {
+    return null;
+  }
+  const messages: SearchHit[] = [];
+  for (let index = 0; index < value.messages.length; index += 1) {
+    const hit = adaptSearchV2Hit(value.messages[index]);
+    if (!hit || hit.sourceIndex !== value.window_start + index) return null;
+    messages.push(hit);
+  }
+  return {
+    snapshotId: value.snapshot_id,
+    dataRevision: value.data_revision,
+    exactTotal: value.exact_total,
+    completeScope: value.complete_scope,
+    totalCount: value.total_count,
+    count: value.count,
+    windowStart: value.window_start,
+    previousCursor: value.previous_cursor,
+    nextCursor: value.next_cursor,
+    hasPrevious: value.has_previous,
+    hasNext: value.has_next,
+    querySince: value.query_since,
+    queryUntil: value.query_until,
+    messages,
+  };
+}
+
+function adaptSearchV2Hit(raw: unknown): SearchHit | null {
+  if (!isRecord(raw)) return null;
+  const value = raw as unknown as RawSearchV2Hit;
+  if (
+    !isNonEmptyString(value.message_id) ||
+    !isSafeInteger(value.seq) ||
+    !isNonNegativeSafeInteger(value.source_index) ||
+    !isNonEmptyString(value.conversation_id) ||
+    typeof value.conversation_name !== "string" ||
+    typeof value.sender_id !== "string" ||
+    typeof value.sender_name !== "string" ||
+    !isSafeInteger(value.timestamp) ||
+    !isSafeInteger(value.type) ||
+    !isSafeInteger(value.sub_type) ||
+    !isSearchCategory(value.category) ||
+    !isNonEmptyString(value.match_field) ||
+    typeof value.snippet !== "string" ||
+    !Array.isArray(value.match_segments)
+  ) {
+    return null;
+  }
+  const matchSegments: SearchMatchSegment[] = [];
+  let reconstructed = "";
+  let hasMatch = false;
+  for (const rawSegment of value.match_segments) {
+    if (!isRecord(rawSegment) || typeof rawSegment.text !== "string" || typeof rawSegment.matched !== "boolean") {
+      return null;
+    }
+    const segment = { text: rawSegment.text, matched: rawSegment.matched };
+    reconstructed += segment.text;
+    hasMatch ||= segment.matched && segment.text.length > 0;
+    matchSegments.push(segment);
+  }
+  if (reconstructed !== value.snippet || !hasMatch) return null;
+  return {
+    messageId: value.message_id,
+    seq: value.seq,
+    sourceIndex: value.source_index,
+    conversationId: value.conversation_id,
+    conversationName: value.conversation_name,
+    senderId: value.sender_id,
+    senderName: value.sender_name,
+    timestamp: value.timestamp,
+    type: value.type,
+    subType: value.sub_type,
+    category: value.category,
+    matchField: value.match_field,
+    snippet: value.snippet,
+    matchSegments,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value);
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return isSafeInteger(value) && value >= 0;
+}
+
+function isOptionalSafeInteger(value: unknown): value is number | undefined {
+  return value === undefined || isSafeInteger(value);
+}
+
+function isSearchCategory(value: unknown): value is SearchCategory {
+  return typeof value === "string" && (SEARCH_CATEGORIES as readonly string[]).includes(value);
+}
+
+function isExactSearchTaxonomy(value: unknown): value is SearchCategory[] {
+  return (
+    Array.isArray(value) &&
+    value.length === SEARCH_CATEGORIES.length &&
+    value.every((category, index) => category === SEARCH_CATEGORIES[index])
+  );
 }
 
 export function adaptStatsResponse(raw: RawStatsResponse) {
