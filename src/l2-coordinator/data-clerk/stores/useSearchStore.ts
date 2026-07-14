@@ -24,6 +24,10 @@ import {
   type SearchWindowBrowseMode,
   type SearchWindowOperationStatus,
 } from "@/l2-coordinator/commander/searchResultWindowModel";
+import {
+  restoreSearchReturnSnapshot,
+  type SearchReturnSnapshot,
+} from "@/l2-coordinator/commander/searchReturnSnapshot";
 
 /** @deprecated Compatibility shape for the UI while the v2 result rows are migrated. */
 export type SearchScope = "all" | "current";
@@ -86,6 +90,13 @@ export interface SearchReadiness {
   dbReady: boolean;
 }
 
+export interface SearchResultNavigationState {
+  status: "loading" | "error";
+  sourceIndex: number;
+  message: string | null;
+  nearbyFallbackAvailable: boolean;
+}
+
 export type SearchCapabilitiesState =
   | { status: "idle"; value: null }
   | { status: "loading"; value: SearchCapabilities | null }
@@ -145,6 +156,7 @@ interface SearchState {
   stale: boolean;
   capabilities: SearchCapabilitiesState;
   readiness: SearchReadiness;
+  navigationByMessageId: Record<string, SearchResultNavigationState>;
   setDraft: (draft: SearchDraft) => void;
   beginPending: (pending: PendingSearchRequest) => void;
   rejectSubmission: (errorCode: SearchRequestErrorCode) => void;
@@ -167,6 +179,14 @@ interface SearchState {
   markSnapshotStale: () => void;
   setCapabilitiesState: (state: SearchCapabilitiesState) => void;
   setReadiness: (readiness: Partial<SearchReadiness>) => void;
+  restoreReturnSnapshot: (snapshot: Readonly<SearchReturnSnapshot>) => void;
+  beginResultNavigation: (messageId: string, sourceIndex: number) => void;
+  failResultNavigation: (
+    messageId: string,
+    message: string,
+    nearbyFallbackAvailable: boolean,
+  ) => void;
+  clearResultNavigation: (messageId: string) => void;
   endSearch: () => void;
   reset: () => void;
 
@@ -213,6 +233,7 @@ function canonicalInitialState() {
     stale: false,
     capabilities: { status: "idle", value: null } as SearchCapabilitiesState,
     readiness: { httpReady: false, dbReady: false },
+    navigationByMessageId: {},
   };
 }
 
@@ -277,6 +298,7 @@ export const useSearchStore = create<SearchState>((set) => ({
         stale: false,
         firstRequest: wasFirst ? { status: "success" } : state.firstRequest,
         replacementRequest: wasFirst ? state.replacementRequest : { status: "success" },
+        navigationByMessageId: {},
       };
     });
     return committed;
@@ -330,6 +352,90 @@ export const useSearchStore = create<SearchState>((set) => ({
     set((state) => ({
       readiness: { ...state.readiness, ...readiness },
     })),
+  restoreReturnSnapshot: (snapshot) =>
+    set((state) => {
+      const restored = restoreSearchReturnSnapshot(snapshot);
+      const resultWindow = {
+        ...restored.resultWindow,
+        activeSourceIndex: restored.activeSourceIndex,
+        restoreScrollAnchor: restored.scrollAnchor,
+      };
+      const visibleHits =
+        resultWindow.browseMode === "paged"
+          ? resultWindow.currentPageHits
+          : resultWindow.retainedHits;
+      const activeResultId =
+        visibleHits.find((hit) => hit.sourceIndex === restored.activeSourceIndex)?.messageId ??
+        null;
+      return {
+        draft: restored.draft,
+        pending: null,
+        applied: {
+          ...restored.applied,
+          dateContext: restored.applied.dateContext ?? {
+            timeZone: null,
+            utcOffsetMinutes: 0,
+            ...(restored.applied.request.since !== undefined
+              ? { since: restored.applied.request.since }
+              : {}),
+            ...(restored.applied.request.until !== undefined
+              ? { until: restored.applied.request.until }
+              : {}),
+          },
+        },
+        resultWindow,
+        firstRequest: { status: "success" },
+        replacementRequest: idleLifecycle(),
+        retryCandidate: null,
+        stale: restored.stale,
+        navigationByMessageId: {},
+        query: restored.draft.keyword,
+        activeFilter: compatibilityFilterForDraft(restored.draft),
+        scope: compatibilityScopeForDraft(restored.draft),
+        advancedFilters: restoreAdvancedFilters(state.advancedFilters, restored),
+        activeResultId,
+        activeRequest: null,
+        results: null,
+        status: resultWindow.totalCount > 0 ? "ready" : "empty",
+        loading: false,
+        error: null,
+      };
+    }),
+  beginResultNavigation: (messageId, sourceIndex) =>
+    set((state) => ({
+      navigationByMessageId: {
+        ...state.navigationByMessageId,
+        [messageId]: {
+          status: "loading",
+          sourceIndex,
+          message: null,
+          nearbyFallbackAvailable: false,
+        },
+      },
+    })),
+  failResultNavigation: (messageId, message, nearbyFallbackAvailable) =>
+    set((state) => {
+      const current = state.navigationByMessageId[messageId];
+      if (!current) return {};
+      return {
+        navigationByMessageId: {
+          ...state.navigationByMessageId,
+          [messageId]: {
+            status: "error",
+            sourceIndex: current.sourceIndex,
+            message,
+            nearbyFallbackAvailable,
+          },
+        },
+      };
+    }),
+  clearResultNavigation: (messageId) =>
+    set((state) => {
+      if (!state.navigationByMessageId[messageId]) return {};
+      const navigationByMessageId = { ...state.navigationByMessageId };
+      delete navigationByMessageId[messageId];
+      return { navigationByMessageId };
+    }),
   endSearch: () =>
     set((state) => ({
       draft: { ...cloneDraft(state.draft), keyword: "" },
@@ -347,6 +453,7 @@ export const useSearchStore = create<SearchState>((set) => ({
       loading: false,
       error: null,
       query: "",
+      navigationByMessageId: {},
     })),
   reset: () => set({ ...canonicalInitialState(), ...compatibilityInitialState() }),
 
@@ -386,6 +493,7 @@ export const useSearchStore = create<SearchState>((set) => ({
       status: results ? (results.messages.length > 0 ? "ready" : "empty") : "idle",
       loading: false,
       error: null,
+      navigationByMessageId: {},
     }),
   setLoading: (loading) => set({ loading, status: loading ? "loading" : "idle" }),
   setError: (error) => set({ error, activeRequest: null, loading: false, status: "error" }),
@@ -454,4 +562,44 @@ function deepFreeze<T>(value: T, visited = new WeakSet<object>()): T {
   visited.add(value);
   for (const nested of Object.values(value)) deepFreeze(nested, visited);
   return Object.freeze(value);
+}
+
+function compatibilityScopeForDraft(draft: SearchDraft): SearchScope {
+  return draft.scope.kind === "current" ? "current" : "all";
+}
+
+function compatibilityFilterForDraft(draft: SearchDraft): SearchFilterType {
+  if (draft.categories.length !== 1) return "all";
+  if (draft.categories[0] === "text") return "text";
+  if (draft.categories[0] === "image_emoji") return "image";
+  if (draft.categories[0] === "video") return "video";
+  if (draft.categories[0] === "file") return "file";
+  return "all";
+}
+
+function restoreAdvancedFilters(
+  current: SearchAdvancedFiltersState,
+  snapshot: SearchReturnSnapshot,
+): SearchAdvancedFiltersState {
+  const dateRange =
+    snapshot.draft.dateRange.start || snapshot.draft.dateRange.end
+      ? { ...snapshot.draft.dateRange }
+      : null;
+  const selectedChats =
+    snapshot.draft.scope.kind === "selected"
+      ? snapshot.draft.scope.chatIds.map((id) => ({ id, label: id }))
+      : [];
+  return {
+    ...current,
+    dateRange,
+    selectedChats,
+    sender: snapshot.draft.senderIds[0] ?? "",
+    sortMode:
+      snapshot.sortMode === "oldest"
+        ? "time-asc"
+        : snapshot.sortMode === "newest"
+          ? "time-desc"
+          : "relevance",
+    groupMode: snapshot.groupingMode === "none" ? "flat" : snapshot.groupingMode,
+  };
 }

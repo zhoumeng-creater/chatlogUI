@@ -5,6 +5,7 @@ import type {
   Conversation,
 } from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import type { SearchScope } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
+import type { SearchReturnSnapshot } from "./searchReturnSnapshot";
 
 export interface SearchHitMessage {
   id?: string;
@@ -16,6 +17,7 @@ export interface SearchHitMessage {
   time?: string;
   content?: string;
   sender?: string;
+  isGroup?: boolean;
   username?: string;
   chat?: string;
   conversationId?: string;
@@ -39,6 +41,8 @@ export type SearchHitNavigationResult =
       ok: true;
       conversationId: string;
       chat: string;
+      conversationLabel: string;
+      isGroup: boolean;
       anchor: SearchHitAnchor;
       returnToSearch: SearchReturnContext;
       requiresConversationLoad: boolean;
@@ -54,6 +58,7 @@ interface ResolveSearchHitNavigationInput {
   conversations: Conversation[];
   returnRoute: string;
   querySnapshot: SearchQuerySnapshot;
+  returnSnapshot?: Readonly<SearchReturnSnapshot>;
 }
 
 function normalizeIdentifier(value: string | null | undefined): string {
@@ -61,15 +66,19 @@ function normalizeIdentifier(value: string | null | undefined): string {
 }
 
 function resolveTargetChat(message: SearchHitMessage): string {
-  return normalizeIdentifier(message.conversationId) ||
+  return (
+    normalizeIdentifier(message.conversationId) ||
     normalizeIdentifier(message.username) ||
-    normalizeIdentifier(message.chat);
+    normalizeIdentifier(message.chat)
+  );
 }
 
 function findConversation(conversations: Conversation[], targetChat: string): Conversation | null {
-  return conversations.find((conversation) =>
-    conversation.username === targetChat || conversation.id === targetChat,
-  ) ?? null;
+  return (
+    conversations.find(
+      (conversation) => conversation.username === targetChat || conversation.id === targetChat,
+    ) ?? null
+  );
 }
 
 export function resolveSearchHitNavigation({
@@ -77,6 +86,7 @@ export function resolveSearchHitNavigation({
   conversations,
   returnRoute,
   querySnapshot,
+  returnSnapshot,
 }: ResolveSearchHitNavigationInput): SearchHitNavigationResult {
   const chat = resolveTargetChat(message);
   if (!chat) {
@@ -88,7 +98,11 @@ export function resolveSearchHitNavigation({
   }
 
   const messageId = normalizeIdentifier(message.messageId) || normalizeIdentifier(message.id);
-  if (!messageId) {
+  const seq =
+    Number.isSafeInteger(message.seq) && (message.seq ?? 0) > 0 ? (message.seq ?? null) : null;
+  const localId =
+    seq === null && Number.isSafeInteger(message.localId) ? (message.localId ?? null) : null;
+  if (!messageId && seq === null && localId === null) {
     return {
       ok: false,
       reason: "missing-message",
@@ -97,25 +111,30 @@ export function resolveSearchHitNavigation({
   }
 
   const conversation = findConversation(conversations, chat);
+  const activeResultId = messageId || `${chat}:${seq ?? localId}`;
 
   return {
     ok: true,
     conversationId: conversation?.id ?? chat,
     chat,
+    conversationLabel: conversation?.displayName || normalizeIdentifier(message.chat) || chat,
+    isGroup: conversation?.isGroup ?? (Boolean(message.isGroup) || chat.endsWith("@chatroom")),
     requiresConversationLoad: !conversation,
     anchor: {
       source: "search",
       chat,
       messageId,
-      localId: typeof message.localId === "number" ? message.localId : null,
+      seq,
+      localId,
       timestamp: typeof message.timestamp === "number" ? message.timestamp : null,
       time: message.time ?? null,
     },
     returnToSearch: {
       returnRoute,
-      activeResultId: messageId,
+      activeResultId,
       querySnapshot,
       sourceConversationId: conversation?.id ?? chat,
+      ...(returnSnapshot ? { searchSnapshot: returnSnapshot } : {}),
     },
   };
 }

@@ -1,4 +1,7 @@
-import type { SearchResults as SearchResultsData, SearchStatus } from "@l2/data-clerk/stores/useSearchStore";
+import type {
+  SearchResults as SearchResultsData,
+  SearchStatus,
+} from "@l2/data-clerk/stores/useSearchStore";
 import type { BusinessExportActionView } from "@l2/commander/useBusinessExportCommander";
 import type {
   SearchActiveFilterChip,
@@ -27,6 +30,8 @@ interface SearchResultsProps {
   onMoveHit: (direction: "previous" | "next" | "first" | "last") => void;
   onClearAdvancedFilter: (field: SearchAdvancedFilterField) => void;
   onOpenResult: (message: SearchResultsData["messages"][number]) => void;
+  onRetryResult: (message: SearchResultsData["messages"][number]) => void;
+  onOpenNearbyResult: (message: SearchResultsData["messages"][number]) => void;
   onLoadMoreResults: () => void;
   onExecuteSearch: (query: string) => void;
   onClearSearch: () => void;
@@ -49,6 +54,8 @@ export function SearchResults({
   onMoveHit,
   onClearAdvancedFilter,
   onOpenResult,
+  onRetryResult,
+  onOpenNearbyResult,
   onLoadMoreResults,
   onExecuteSearch,
   onClearSearch,
@@ -74,6 +81,8 @@ export function SearchResults({
         onSetActiveResultId(message.id);
         onOpenResult(message);
       }}
+      onRetryResult={onRetryResult}
+      onOpenNearbyResult={onOpenNearbyResult}
       onLoadMore={onLoadMoreResults}
       onRetry={() => onExecuteSearch(query)}
       onClear={onClearSearch}

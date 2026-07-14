@@ -11,6 +11,8 @@ export function SearchView() {
     clearScopeChip,
     currentConversation,
     openResult,
+    retryResult,
+    openResultNearTime,
     privacyOn,
     resetScope,
     scopeController,
@@ -42,7 +44,10 @@ export function SearchView() {
         </div>
       </header>
 
-      <section className="workspace-page__surface search-workspace__surface" aria-label="搜索工作区">
+      <section
+        className="workspace-page__surface search-workspace__surface"
+        aria-label="搜索工作区"
+      >
         <WorkspaceScopeController
           model={scopeController}
           onSelectScope={selectScope}
@@ -67,10 +72,7 @@ export function SearchView() {
           onClearRecentQueries={clearRecentQueries}
           showScopeMenu={false}
         />
-        <SearchAdvancedFilters
-          filters={search.advancedFilters}
-          onChange={changeAdvancedFilters}
-        />
+        <SearchAdvancedFilters filters={search.advancedFilters} onChange={changeAdvancedFilters} />
         <div className="search-workspace__results">
           <SearchResults
             query={search.query}
@@ -88,6 +90,8 @@ export function SearchView() {
             onMoveHit={moveHit}
             onClearAdvancedFilter={clearAdvancedFilter}
             onOpenResult={(message) => void openResult(message)}
+            onRetryResult={(message) => void retryResult(message)}
+            onOpenNearbyResult={(message) => void openResultNearTime(message)}
             onLoadMoreResults={() => void search.loadMoreResults()}
             onExecuteSearch={executeSearch}
             onClearSearch={search.clearSearch}

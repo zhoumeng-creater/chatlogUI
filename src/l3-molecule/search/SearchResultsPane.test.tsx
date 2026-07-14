@@ -4,6 +4,7 @@ import type { SearchResults } from "@l2/data-clerk/stores/useSearchStore";
 import type { ActionableEmptyStateView } from "@l2/commander/actionableEmptyStateModel";
 import type { SearchResultsPaneViewModel } from "./SearchResultsPane";
 import { SearchResultsPane } from "./SearchResultsPane";
+import searchResultsPaneSource from "./SearchResultsPane.tsx?raw";
 
 const baseProps = {
   query: "",
@@ -23,9 +24,22 @@ const baseProps = {
   viewModel: null,
   activeFilterChips: [],
   emptyStates: {
-    notStarted: emptyState("search-not-started", "输入关键词开始搜索", "搜索不会向后端提交空白查询。", ["clear-filters"]),
-    noResults: emptyState("search-no-results", "没有搜索结果", "换一个关键词或放宽范围。", ["clear-filters", "refresh"]),
-    filteredNoResults: emptyState("filters-no-results", "筛选后没有结果", "当前筛选组合没有可显示内容。", ["clear-filters", "refresh"]),
+    notStarted: emptyState(
+      "search-not-started",
+      "输入关键词开始搜索",
+      "搜索不会向后端提交空白查询。",
+      ["clear-filters"],
+    ),
+    noResults: emptyState("search-no-results", "没有搜索结果", "换一个关键词或放宽范围。", [
+      "clear-filters",
+      "refresh",
+    ]),
+    filteredNoResults: emptyState(
+      "filters-no-results",
+      "筛选后没有结果",
+      "当前筛选组合没有可显示内容。",
+      ["clear-filters", "refresh"],
+    ),
   },
 };
 
@@ -68,31 +82,33 @@ const groupedViewModel: SearchResultsPaneViewModel = {
     hasPrevious: true,
     hasNext: false,
   },
-  groups: [{
-    key: "Synthetic Session",
-    label: "Synthetic Session",
-    items: [
-      {
-        message: results.messages[1],
-        senderLabel: "Synthetic Sender",
-        snippetSegments: [
-          { text: "Another ", highlight: false },
-          { text: "Synthetic", highlight: true },
-          { text: " search result", highlight: false },
-        ],
-        active: false,
-      },
-      {
-        message: results.messages[0],
-        senderLabel: "Synthetic Sender",
-        snippetSegments: [
-          { text: "Synthetic", highlight: true },
-          { text: " search result", highlight: false },
-        ],
-        active: true,
-      },
-    ],
-  }],
+  groups: [
+    {
+      key: "Synthetic Session",
+      label: "Synthetic Session",
+      items: [
+        {
+          message: results.messages[1],
+          senderLabel: "Synthetic Sender",
+          snippetSegments: [
+            { text: "Another ", highlight: false },
+            { text: "Synthetic", highlight: true },
+            { text: " search result", highlight: false },
+          ],
+          active: false,
+        },
+        {
+          message: results.messages[0],
+          senderLabel: "Synthetic Sender",
+          snippetSegments: [
+            { text: "Synthetic", highlight: true },
+            { text: " search result", highlight: false },
+          ],
+          active: true,
+        },
+      ],
+    },
+  ],
 };
 
 const privacyViewModel: SearchResultsPaneViewModel = {
@@ -103,16 +119,18 @@ const privacyViewModel: SearchResultsPaneViewModel = {
     hasPrevious: false,
     hasNext: true,
   },
-  groups: [{
-    key: "flat",
-    label: null,
-    items: results.messages.map((message, index) => ({
-      message,
-      senderLabel: "********* ******",
-      snippetSegments: [{ text: "********* ****** ******", highlight: false }],
-      active: index === 0,
-    })),
-  }],
+  groups: [
+    {
+      key: "flat",
+      label: null,
+      items: results.messages.map((message, index) => ({
+        message,
+        senderLabel: "********* ******",
+        snippetSegments: [{ text: "********* ****** ******", highlight: false }],
+        active: index === 0,
+      })),
+    },
+  ],
 };
 
 describe("SearchResultsPane", () => {
@@ -129,7 +147,12 @@ describe("SearchResultsPane", () => {
         {...baseProps}
         emptyStates={{
           ...baseProps.emptyStates,
-          notStarted: emptyState("search-not-started", "输入关键词开始搜索", "搜索不会向后端提交空白查询。", ["clear-filters"]),
+          notStarted: emptyState(
+            "search-not-started",
+            "输入关键词开始搜索",
+            "搜索不会向后端提交空白查询。",
+            ["clear-filters"],
+          ),
         }}
       />,
     );
@@ -140,17 +163,18 @@ describe("SearchResultsPane", () => {
 
   it("keeps result rows exposed as buttons inside list items", () => {
     const html = renderToStaticMarkup(
-      <SearchResultsPane
-        {...baseProps}
-        query="Synthetic"
-        results={results}
-        status="ready"
-      />,
+      <SearchResultsPane {...baseProps} query="Synthetic" results={results} status="ready" />,
     );
 
     expect(html).toContain('role="listitem"');
     expect(html).toContain("<button");
     expect(html).not.toContain('<button type="button" role="listitem"');
+  });
+
+  it("relies on the native button activation path so Enter opens a row only once", () => {
+    expect(searchResultsPaneSource).not.toMatch(
+      /event\.key === "Enter"[\s\S]{0,120}onOpenResult\(message\)/,
+    );
   });
 
   it("renders snippets, highlight segments, sorting, grouping, and hit navigation", () => {
@@ -229,6 +253,45 @@ describe("SearchResultsPane", () => {
     expect(html).toContain("搜索已取消");
     expect(html).toContain("已保留 2 / 共 2");
     expect(html).toContain("search result");
+  });
+
+  it("shows navigation failure and retry only on the selected row while other rows remain usable", () => {
+    const navigationViewModel: SearchResultsPaneViewModel = {
+      ...groupedViewModel,
+      groups: groupedViewModel.groups.map((group) => ({
+        ...group,
+        items: group.items.map((item, index) =>
+          index === 0
+            ? {
+                ...item,
+                navigation: {
+                  status: "error" as const,
+                  sourceIndex: 1,
+                  message: "无法精确定位这条消息。",
+                  nearbyFallbackAvailable: true,
+                },
+              }
+            : item,
+        ),
+      })),
+    };
+    const html = renderToStaticMarkup(
+      <SearchResultsPane
+        {...baseProps}
+        query="Synthetic"
+        results={results}
+        status="ready"
+        viewModel={navigationViewModel}
+        onRetryResult={vi.fn()}
+        onOpenNearbyResult={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("无法精确定位这条消息。");
+    expect(html).toContain("重试精确定位");
+    expect(html).toContain("按附近时间打开");
+    expect(html.match(/<button/g)).toHaveLength(6);
+    expect(html).toContain("<span>Another </span><mark>Synthetic</mark>");
   });
 });
 

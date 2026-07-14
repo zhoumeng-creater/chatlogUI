@@ -3,7 +3,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 import { maskDisplayText } from "@/utils/privacyDisplay";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
-import type { SearchReadiness, SearchResults } from "@l2/data-clerk/stores/useSearchStore";
+import {
+  useSearchStore,
+  type SearchReadiness,
+  type SearchResults,
+} from "@l2/data-clerk/stores/useSearchStore";
 import { useSearchPreferenceStore } from "@l2/data-clerk/stores/useSearchPreferenceStore";
 import {
   buildSearchAdvancedFilterChips,
@@ -24,6 +28,7 @@ import {
   type WorkspaceScopeKind,
 } from "./workspaceScopeModel";
 import { resolveSearchHitNavigation } from "./searchNavigation";
+import { createSearchReturnSnapshot } from "./searchReturnSnapshot";
 import { useScopedWorkspaceConversation } from "./useScopedWorkspaceConversation";
 import { useSearchCommander } from "./useSearchCommander";
 import { resolveSearchStoreScope } from "./searchWorkspaceContext";
@@ -63,7 +68,7 @@ export function useSearchWorkspaceCommander() {
       defaultScope: scopedScope === "all" ? "all" : "currentChat",
     });
   const search = useSearchCommander({ scopedChat: scopedChat ?? currentChat });
-  const { activeFilter, changeFilter, changeScope, scope, setError } = search;
+  const { activeFilter, changeFilter, changeScope, scope } = search;
   const routeSearchScope = resolveSearchStoreScope({
     routeScope: scopedScope,
     routeHasScopedChat: Boolean(scopedChat?.trim()),
@@ -186,8 +191,16 @@ export function useSearchWorkspaceCommander() {
         privacyOn,
         activeResultId: search.activeResultId,
         advancedFilters: search.advancedFilters,
+        navigationByMessageId: search.navigationByMessageId,
       }),
-    [privacyOn, search.activeResultId, search.advancedFilters, search.appliedQuery, search.results],
+    [
+      privacyOn,
+      search.activeResultId,
+      search.advancedFilters,
+      search.appliedQuery,
+      search.navigationByMessageId,
+      search.results,
+    ],
   );
   const moveHit = useCallback(
     (direction: "previous" | "next" | "first" | "last") => {
@@ -294,48 +307,58 @@ export function useSearchWorkspaceCommander() {
     [currentChat, privacyOn, scopedChat, search.readiness],
   );
 
-  const openResult = useCallback(
-    async (message: SearchResults["messages"][number]) => {
-      const resultScope = search.appliedScope ?? scope;
-      const scopeChat = resultScope === "current" ? (search.appliedScopeChat ?? null) : null;
-      const target = resolveSearchHitNavigation({
+  const navigateToResult = useCallback(
+    async (message: SearchResults["messages"][number], allowNearbyFallback: boolean) => {
+      const state = useSearchStore.getState();
+      if (state.navigationByMessageId[message.id]?.status === "loading") return;
+      const fallbackIndex =
+        search.results?.messages.findIndex((item) => item.id === message.id) ?? 0;
+      const sourceIndex = Number.isSafeInteger(message.sourceIndex)
+        ? (message.sourceIndex ?? 0)
+        : Math.max(0, fallbackIndex);
+      state.beginResultNavigation(message.id, sourceIndex);
+
+      const target = createSearchResultNavigationTarget({
         message,
         conversations: chat.conversations,
-        returnRoute: withSmokeQuery("/search"),
-        querySnapshot: {
-          query: search.appliedQuery,
-          filter: search.appliedFilter ?? activeFilter,
-          scope: resultScope,
-          scopeChat,
-        },
+        returnRoute: buildSearchReturnRoute(params),
+        scrollAnchor: message.id,
       });
       if (!target.ok) {
-        setError(target.message);
+        useSearchStore.getState().failResultNavigation(message.id, target.message, false);
         return;
       }
-      await chat.selectAndLoadAtAnchor(target);
+
+      const navigation = await chat.selectAndLoadAtAnchor(target, { allowNearbyFallback });
+      if (!navigation.ok) {
+        useSearchStore
+          .getState()
+          .failResultNavigation(message.id, navigation.message, navigation.nearbyFallbackAvailable);
+        return;
+      }
+
+      useSearchStore.getState().clearResultNavigation(message.id);
+      const resultScope = search.appliedScope ?? scope;
       recordSearchResultOpenedKpiEvent({
-        rankBucket: toSearchResultRankBucket(
-          search.results?.messages.findIndex((item) => item.id === message.id) ?? -1,
-        ),
+        rankBucket: toSearchResultRankBucket(fallbackIndex),
         scopeKind: resultScope === "current" ? "current" : "all",
-        hasAnchor: target.anchor.localId !== null || target.anchor.timestamp !== null,
+        hasAnchor:
+          target.anchor.seq !== null ||
+          target.anchor.localId !== null ||
+          target.anchor.timestamp !== null,
         outcome: "success",
       });
       navigate(withSmokeQuery("/workbench"));
     },
-    [
-      chat,
-      navigate,
-      activeFilter,
-      scope,
-      setError,
-      search.appliedFilter,
-      search.appliedQuery,
-      search.appliedScope,
-      search.appliedScopeChat,
-      search.results,
-    ],
+    [chat, navigate, params, scope, search.appliedScope, search.results],
+  );
+  const openResult = useCallback(
+    (message: SearchResults["messages"][number]) => navigateToResult(message, false),
+    [navigateToResult],
+  );
+  const openResultNearTime = useCallback(
+    (message: SearchResults["messages"][number]) => navigateToResult(message, true),
+    [navigateToResult],
   );
 
   return {
@@ -343,6 +366,8 @@ export function useSearchWorkspaceCommander() {
     currentConversation,
     hasCurrentConversation: Boolean(scopedChat?.trim() || currentChat),
     openResult,
+    retryResult: openResult,
+    openResultNearTime,
     privacyOn,
     search,
     scopeController,
@@ -363,6 +388,74 @@ export function useSearchWorkspaceCommander() {
     businessExport,
     searchEmptyStates,
   };
+}
+
+const SAFE_SEARCH_RETURN_PARAMS = ["scope", "chat", "source", "focus", "codex-smoke"] as const;
+
+export function buildSearchReturnRoute(params: URLSearchParams): string {
+  const safe = new URLSearchParams();
+  for (const key of SAFE_SEARCH_RETURN_PARAMS) {
+    const value = params.get(key)?.trim();
+    if (value) safe.set(key, value);
+  }
+  const query = safe.toString();
+  return query ? `/search?${query}` : "/search";
+}
+
+export function createSearchResultNavigationTarget({
+  message,
+  conversations,
+  returnRoute,
+  scrollAnchor,
+}: {
+  message: SearchResults["messages"][number];
+  conversations: Parameters<typeof resolveSearchHitNavigation>[0]["conversations"];
+  returnRoute: string;
+  scrollAnchor: string | null;
+}) {
+  const state = useSearchStore.getState();
+  const preferences = useSearchPreferenceStore.getState();
+  const appliedScope = state.applied?.draft.scope;
+  const scope = appliedScope?.kind === "current" ? "current" : "all";
+  const activeSourceIndex = Number.isSafeInteger(message.sourceIndex)
+    ? (message.sourceIndex ?? null)
+    : (state.resultWindow?.activeSourceIndex ?? null);
+  const returnSnapshot =
+    state.applied && state.resultWindow
+      ? createSearchReturnSnapshot({
+          draft: state.draft,
+          applied: state.applied,
+          resultWindow: state.resultWindow,
+          stale: state.stale,
+          activeSourceIndex,
+          scrollAnchor,
+          sortMode: preferences.sortMode,
+          groupingMode: preferences.groupingMode,
+          capturedAt: Date.now(),
+        })
+      : undefined;
+
+  return resolveSearchHitNavigation({
+    message,
+    conversations,
+    returnRoute,
+    querySnapshot: {
+      query: state.applied?.draft.keyword ?? "",
+      filter: compatibilityFilterForReturn(state.applied?.draft.categories ?? []),
+      scope,
+      scopeChat: appliedScope?.kind === "current" ? appliedScope.chatId : null,
+    },
+    returnSnapshot,
+  });
+}
+
+function compatibilityFilterForReturn(categories: readonly string[]): SearchFilterType {
+  if (categories.length !== 1) return "all";
+  if (categories[0] === "text") return "text";
+  if (categories[0] === "image_emoji") return "image";
+  if (categories[0] === "video") return "video";
+  if (categories[0] === "file") return "file";
+  return "all";
 }
 
 export function buildSearchEmptyStateReadiness(
@@ -417,12 +510,14 @@ function buildSearchResultsPresentation({
   privacyOn,
   activeResultId,
   advancedFilters,
+  navigationByMessageId,
 }: {
   results: SearchResults | null;
   query: string;
   privacyOn: boolean;
   activeResultId: string | null;
   advancedFilters: SearchAdvancedFiltersState;
+  navigationByMessageId: ReturnType<typeof useSearchStore.getState>["navigationByMessageId"];
 }) {
   if (!results) {
     return { viewModel: null, orderedMessages: [] as SearchResults["messages"] };
@@ -446,6 +541,7 @@ function buildSearchResultsPresentation({
           privacyOn,
         }).segments,
         active: message.id === activeResultId || (!activeResultId && message.id === firstId),
+        navigation: navigationByMessageId[message.id] ?? null,
       })),
     }),
   );

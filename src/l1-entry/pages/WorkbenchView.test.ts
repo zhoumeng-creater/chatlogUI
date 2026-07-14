@@ -14,5 +14,8 @@ describe("WorkbenchView return context status copy", () => {
     expect(getReturnContextStatusText("来自搜索结果", "missing")).toBe(
       "已打开会话，但未能精确定位命中消息",
     );
+    expect(getReturnContextStatusText("来自搜索结果", "nearby")).toBe(
+      "已按明确选择打开命中附近时间，未声称精确定位",
+    );
   });
 });

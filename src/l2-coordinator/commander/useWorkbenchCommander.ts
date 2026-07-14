@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
 import { useWorkspacePreferenceStore } from "@l2/data-clerk/stores/useWorkspacePreferenceStore";
+import { useSearchPreferenceStore } from "@l2/data-clerk/stores/useSearchPreferenceStore";
+import { useSearchStore } from "@l2/data-clerk/stores/useSearchStore";
 import { useChatCommander } from "./useChatCommander";
 import { useStatsCommander } from "./useStatsCommander";
 import { getWorkbenchLayout, type WorkbenchPanel } from "./workbenchLayout";
@@ -17,18 +19,12 @@ import {
   type SinglePaneView,
 } from "./workbenchViewModel";
 import { buildChatReadingState } from "./chatReadingState";
-import {
-  buildWorkspaceCommandBar,
-  type WorkspaceCommandId,
-} from "./workspaceCommandBarModel";
+import { buildWorkspaceCommandBar, type WorkspaceCommandId } from "./workspaceCommandBarModel";
 import { createConversationExportArtifact } from "./businessExportModel";
 import { useBusinessExportCommander } from "./useBusinessExportCommander";
 import { copyTextToClipboard } from "@/l4-atom/system";
 import { buildMediaResourceUrl } from "@l4/network";
-import {
-  deriveSelectedMessages,
-  getSelectionPrivacySummary,
-} from "./chatSelectionModel";
+import { deriveSelectedMessages, getSelectionPrivacySummary } from "./chatSelectionModel";
 import {
   buildConversationInlineSearchModel,
   getNextConversationSearchIndex,
@@ -52,17 +48,12 @@ import { buildMessageAttachmentPreviewModel } from "./messageAttachmentPreviewMo
 import {
   useChatStore,
   type ChatMessage,
+  type ChatReturnToSearch,
 } from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import type { MediaAttachment } from "@/l2-coordinator/data-clerk/stores/useMediaStore";
 import { deriveTranscriptPositionModel } from "./transcriptPositionModel";
-import {
-  isTransientSelectionStatus,
-  SELECTION_STATUS_AUTO_CLEAR_MS,
-} from "./selectionStatusModel";
-import {
-  getEffectiveRailMode,
-  getWorkspaceRailWidth,
-} from "./workspacePreferenceModel";
+import { isTransientSelectionStatus, SELECTION_STATUS_AUTO_CLEAR_MS } from "./selectionStatusModel";
+import { getEffectiveRailMode, getWorkspaceRailWidth } from "./workspacePreferenceModel";
 import {
   buildWorkspaceReturnContext,
   getWorkspaceReturnSourceForChatAnchor,
@@ -102,63 +93,75 @@ export function useWorkbenchCommander() {
   const stats = useStatsCommander();
   const { conversations, loadConversations, selectedConversationId } = chat;
   const { loadAll } = stats;
-  const activeService = useMemo(
-    () => getActiveChatlogServiceSummary(setupProfile),
-    [setupProfile],
+  const activeService = useMemo(() => getActiveChatlogServiceSummary(setupProfile), [setupProfile]);
+  const selectedMessages = useMemo(
+    () =>
+      deriveSelectedMessages({
+        state: {
+          mode: chat.selectionMode,
+          selectedMessageIds: chat.selectedMessageIds,
+          lastSelectedMessageId: chat.lastSelectedMessageId,
+          status: chat.selectionStatus,
+        },
+        messages: chat.messages,
+      }),
+    [
+      chat.lastSelectedMessageId,
+      chat.messages,
+      chat.selectedMessageIds,
+      chat.selectionMode,
+      chat.selectionStatus,
+    ],
   );
-  const selectedMessages = useMemo(() => deriveSelectedMessages({
-    state: {
-      mode: chat.selectionMode,
-      selectedMessageIds: chat.selectedMessageIds,
-      lastSelectedMessageId: chat.lastSelectedMessageId,
-      status: chat.selectionStatus,
-    },
-    messages: chat.messages,
-  }), [
-    chat.lastSelectedMessageId,
-    chat.messages,
-    chat.selectedMessageIds,
-    chat.selectionMode,
-    chat.selectionStatus,
-  ]);
-  const selectionSummary = useMemo(() => getSelectionPrivacySummary({
-    state: {
-      mode: chat.selectionMode,
-      selectedMessageIds: chat.selectedMessageIds,
-      lastSelectedMessageId: chat.lastSelectedMessageId,
-      status: chat.selectionStatus,
-    },
-    messages: chat.messages,
-    privacyOn,
-  }), [
-    chat.lastSelectedMessageId,
-    chat.messages,
-    chat.selectedMessageIds,
-    chat.selectionMode,
-    chat.selectionStatus,
-    privacyOn,
-  ]);
+  const selectionSummary = useMemo(
+    () =>
+      getSelectionPrivacySummary({
+        state: {
+          mode: chat.selectionMode,
+          selectedMessageIds: chat.selectedMessageIds,
+          lastSelectedMessageId: chat.lastSelectedMessageId,
+          status: chat.selectionStatus,
+        },
+        messages: chat.messages,
+        privacyOn,
+      }),
+    [
+      chat.lastSelectedMessageId,
+      chat.messages,
+      chat.selectedMessageIds,
+      chat.selectionMode,
+      chat.selectionStatus,
+      privacyOn,
+    ],
+  );
   const [conversationSearchOpen, setConversationSearchOpen] = useState(false);
   const [conversationSearchQuery, setConversationSearchQuery] = useState("");
   const [conversationSearchActiveIndex, setConversationSearchActiveIndex] = useState(0);
-  const conversationSearch = useMemo(() => buildConversationInlineSearchModel({
-    query: conversationSearchQuery,
-    messages: chat.messages,
-    activeIndex: conversationSearchActiveIndex,
-  }), [chat.messages, conversationSearchActiveIndex, conversationSearchQuery]);
+  const conversationSearch = useMemo(
+    () =>
+      buildConversationInlineSearchModel({
+        query: conversationSearchQuery,
+        messages: chat.messages,
+        activeIndex: conversationSearchActiveIndex,
+      }),
+    [chat.messages, conversationSearchActiveIndex, conversationSearchQuery],
+  );
   const [dateJumpOpen, setDateJumpOpen] = useState(false);
   const [dateJumpValue, setDateJumpValue] = useState("");
   const [dateJumpError, setDateJumpError] = useState<string | null>(null);
   const [selectionFilters, setSelectionFilters] = useState<MessageSelectionFilterState>(
     DEFAULT_MESSAGE_SELECTION_FILTERS,
   );
-  const [conversationExportFilters, setConversationExportFilters] = useState<MessageSelectionFilterState>(
-    DEFAULT_MESSAGE_SELECTION_FILTERS,
+  const [conversationExportFilters, setConversationExportFilters] =
+    useState<MessageSelectionFilterState>(DEFAULT_MESSAGE_SELECTION_FILTERS);
+  const selectionFilterModel = useMemo(
+    () =>
+      buildMessageSelectionFilterModel({
+        messages: chat.messages,
+        privacyOn,
+      }),
+    [chat.messages, privacyOn],
   );
-  const selectionFilterModel = useMemo(() => buildMessageSelectionFilterModel({
-    messages: chat.messages,
-    privacyOn,
-  }), [chat.messages, privacyOn]);
   const conversationExportFilterModel = selectionFilterModel;
   const selectionFilterError = useMemo(
     () => validateMessageSelectionFilter(selectionFilters),
@@ -168,21 +171,30 @@ export function useWorkbenchCommander() {
     () => validateMessageSelectionFilter(conversationExportFilters),
     [conversationExportFilters],
   );
-  const conversationExportMessages = useMemo(() => filterMessagesBySelectionFilter({
-    messages: chat.messages,
-    filters: conversationExportFilters,
-  }), [chat.messages, conversationExportFilters]);
-  const conversationExportFilterSummary = useMemo(() => buildConversationExportFilterSummary({
-    filters: conversationExportFilters,
-    senderOptions: conversationExportFilterModel.senderOptions,
-    typeOptions: conversationExportFilterModel.typeOptions,
-  }), [
-    conversationExportFilterModel.senderOptions,
-    conversationExportFilterModel.typeOptions,
-    conversationExportFilters,
-  ]);
-  const conversationExportConfirmDisabledReason = conversationExportFilterError
-    ?? (conversationExportMessages.length === 0 ? "当前筛选没有可导出的消息。" : null);
+  const conversationExportMessages = useMemo(
+    () =>
+      filterMessagesBySelectionFilter({
+        messages: chat.messages,
+        filters: conversationExportFilters,
+      }),
+    [chat.messages, conversationExportFilters],
+  );
+  const conversationExportFilterSummary = useMemo(
+    () =>
+      buildConversationExportFilterSummary({
+        filters: conversationExportFilters,
+        senderOptions: conversationExportFilterModel.senderOptions,
+        typeOptions: conversationExportFilterModel.typeOptions,
+      }),
+    [
+      conversationExportFilterModel.senderOptions,
+      conversationExportFilterModel.typeOptions,
+      conversationExportFilters,
+    ],
+  );
+  const conversationExportConfirmDisabledReason =
+    conversationExportFilterError ??
+    (conversationExportMessages.length === 0 ? "当前筛选没有可导出的消息。" : null);
   const [singlePaneView, setSinglePaneView] = useState<SinglePaneView>("detail");
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const conversationExportRefreshKeyRef = useRef("");
@@ -211,7 +223,13 @@ export function useWorkbenchCommander() {
     formats: ["markdown", "json"],
     defaultFormat: "markdown",
     disabledReason: conversationExportDisabledReason,
-    buildArtifact: ({ format, privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+    buildArtifact: ({
+      format,
+      privacyOn: exportPrivacyOn,
+      requestedUnredacted,
+      unredactedConfirmed,
+      generatedAt,
+    }) =>
       createConversationExportArtifact({
         format,
         privacyOn: exportPrivacyOn,
@@ -224,7 +242,8 @@ export function useWorkbenchCommander() {
         filterSummary: conversationExportFilterSummary,
         messages: conversationExportMessages.map((message) => ({
           id: message.id,
-          sender: message.senderName || message.sender || message.talkerName || message.talker || "",
+          sender:
+            message.senderName || message.sender || message.talkerName || message.talker || "",
           content: message.content || "",
           time: message.time,
           type: message.type,
@@ -236,7 +255,13 @@ export function useWorkbenchCommander() {
     formats: ["markdown", "json"],
     defaultFormat: "markdown",
     disabledReason: selectedMessages.length === 0 ? "先选择要导出的消息。" : null,
-    buildArtifact: ({ format, privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+    buildArtifact: ({
+      format,
+      privacyOn: exportPrivacyOn,
+      requestedUnredacted,
+      unredactedConfirmed,
+      generatedAt,
+    }) =>
       createConversationExportArtifact({
         source: "conversation_selection",
         format,
@@ -249,7 +274,8 @@ export function useWorkbenchCommander() {
         loadedCount: selectedMessages.length,
         messages: selectedMessages.map((message) => ({
           id: message.id,
-          sender: message.senderName || message.sender || message.talkerName || message.talker || "",
+          sender:
+            message.senderName || message.sender || message.talkerName || message.talker || "",
           content: message.content || "",
           time: message.time,
           type: message.mediaType || message.type,
@@ -258,32 +284,40 @@ export function useWorkbenchCommander() {
   });
   const conversationExportOpen = conversationExport.isOpen;
   const refreshConversationExportArtifact = conversationExport.refreshArtifact;
-  const conversationExportRefreshKey = useMemo(() => JSON.stringify({
-    filters: conversationExportFilters,
-    messageIds: conversationExportMessages.map((message) => message.id),
-    loadedCount: chat.messages.length,
-    totalCount: chat.messagesTotalCount,
-    filterError: conversationExportFilterError,
-  }), [
-    chat.messages.length,
-    chat.messagesTotalCount,
-    conversationExportFilterError,
-    conversationExportFilters,
-    conversationExportMessages,
-  ]);
-  const chatReadingState = useMemo(() => buildChatReadingState({
-    conversation: currentConversation,
-    messagesStatus: chat.messagesStatus,
-    messagesError: chat.messagesError,
-    messagesHasMore: chat.messagesHasMore,
-    messagesCount: chat.messages.length,
-  }), [
-    chat.messages.length,
-    chat.messagesError,
-    chat.messagesHasMore,
-    chat.messagesStatus,
-    currentConversation,
-  ]);
+  const conversationExportRefreshKey = useMemo(
+    () =>
+      JSON.stringify({
+        filters: conversationExportFilters,
+        messageIds: conversationExportMessages.map((message) => message.id),
+        loadedCount: chat.messages.length,
+        totalCount: chat.messagesTotalCount,
+        filterError: conversationExportFilterError,
+      }),
+    [
+      chat.messages.length,
+      chat.messagesTotalCount,
+      conversationExportFilterError,
+      conversationExportFilters,
+      conversationExportMessages,
+    ],
+  );
+  const chatReadingState = useMemo(
+    () =>
+      buildChatReadingState({
+        conversation: currentConversation,
+        messagesStatus: chat.messagesStatus,
+        messagesError: chat.messagesError,
+        messagesHasMore: chat.messagesHasMore,
+        messagesCount: chat.messages.length,
+      }),
+    [
+      chat.messages.length,
+      chat.messagesError,
+      chat.messagesHasMore,
+      chat.messagesStatus,
+      currentConversation,
+    ],
+  );
   const returnToSearchRoute = chat.returnToSearch?.returnRoute ?? "";
   const returnContext = chat.returnToSearch
     ? buildWorkspaceReturnContext({
@@ -294,37 +328,51 @@ export function useWorkbenchCommander() {
         source: params.get("source"),
         returnRoute: params.get("returnRoute"),
       });
-  const conversationListEmptyState = useMemo(() => bindActionableEmptyStateActions(
-    buildActionableEmptyState({
-      variant: chat.conversationListQuery.trim() || chat.conversationListFilter !== "all"
-        ? "filters-no-results"
-        : "no-conversation-selected",
-      readiness: readyWorkbenchEmptyStateReadiness(false),
-      privacyOn,
+  const conversationListEmptyState = useMemo(
+    () =>
+      bindActionableEmptyStateActions(
+        buildActionableEmptyState({
+          variant:
+            chat.conversationListQuery.trim() || chat.conversationListFilter !== "all"
+              ? "filters-no-results"
+              : "no-conversation-selected",
+          readiness: readyWorkbenchEmptyStateReadiness(false),
+          privacyOn,
+        }),
+        chat.conversationListQuery.trim() || chat.conversationListFilter !== "all"
+          ? ["clear-filters", "refresh"]
+          : ["refresh"],
+      ),
+    [chat.conversationListFilter, chat.conversationListQuery, privacyOn],
+  );
+  const messageListEmptyStates = useMemo(
+    () => ({
+      noConversation: {
+        ...bindActionableEmptyStateActions(
+          buildActionableEmptyState({
+            variant: "no-conversation-selected",
+            readiness: readyWorkbenchEmptyStateReadiness(false),
+            privacyOn,
+          }),
+          ["choose-conversation"],
+        ),
+        description: chatReadingState.description,
+      },
+      conversationEmpty: {
+        ...bindActionableEmptyStateActions(
+          buildActionableEmptyState({
+            variant: "conversation-empty",
+            readiness: readyWorkbenchEmptyStateReadiness(true),
+            privacyOn,
+          }),
+          ["refresh", "choose-conversation"],
+        ),
+        title: chatReadingState.title,
+        reason: chatReadingState.description,
+      },
     }),
-    chat.conversationListQuery.trim() || chat.conversationListFilter !== "all"
-      ? ["clear-filters", "refresh"]
-      : ["refresh"],
-  ), [chat.conversationListFilter, chat.conversationListQuery, privacyOn]);
-  const messageListEmptyStates = useMemo(() => ({
-    noConversation: {
-      ...bindActionableEmptyStateActions(buildActionableEmptyState({
-        variant: "no-conversation-selected",
-        readiness: readyWorkbenchEmptyStateReadiness(false),
-        privacyOn,
-      }), ["choose-conversation"]),
-      description: chatReadingState.description,
-    },
-    conversationEmpty: {
-      ...bindActionableEmptyStateActions(buildActionableEmptyState({
-        variant: "conversation-empty",
-        readiness: readyWorkbenchEmptyStateReadiness(true),
-        privacyOn,
-      }), ["refresh", "choose-conversation"]),
-      title: chatReadingState.title,
-      reason: chatReadingState.description,
-    },
-  }), [chatReadingState.description, chatReadingState.title, privacyOn]);
+    [chatReadingState.description, chatReadingState.title, privacyOn],
+  );
   const resolvedSinglePaneView = resolveSinglePaneView(
     layout.mode,
     selectedConversationId,
@@ -407,9 +455,10 @@ export function useWorkbenchCommander() {
 
   const openScopedWorkspace = useCallback(
     (destination: "search" | "analytics" | "media" | "ai" | "graph") => {
-      const graphFocus = destination === "graph"
-        ? (currentConversation?.displayName ?? currentChat) || undefined
-        : undefined;
+      const graphFocus =
+        destination === "graph"
+          ? (currentConversation?.displayName ?? currentChat) || undefined
+          : undefined;
       const route = buildScopedWorkspaceRoute(destination, {
         scope: currentChat ? "currentChat" : "all",
         chat: currentChat || undefined,
@@ -423,17 +472,20 @@ export function useWorkbenchCommander() {
 
   const returnToSearchResults = useCallback(() => {
     if (!returnContext?.returnRoute) return;
+    restoreSearchWorkspaceFromChatReturn(useChatStore.getState().returnToSearch);
     navigate(returnContext.returnRoute);
   }, [navigate, returnContext?.returnRoute]);
 
   const copySelectedMessagesAsMarkdown = useCallback(async () => {
     const fragments = selectedMessages
-      .map((message) => serializeMessageAction({
-        actionId: "copy-markdown-quote",
-        message,
-        privacyOn,
-        unmaskedConfirmed: false,
-      }))
+      .map((message) =>
+        serializeMessageAction({
+          actionId: "copy-markdown-quote",
+          message,
+          privacyOn,
+          unmaskedConfirmed: false,
+        }),
+      )
       .filter((result) => result.ok)
       .map((result) => result.text);
 
@@ -443,69 +495,95 @@ export function useWorkbenchCommander() {
     }
 
     const copied = await copyTextToClipboard(fragments.join("\n\n"));
-    chat.setSelectionStatus(copied
-      ? `已复制 ${fragments.length.toLocaleString()} 条选中消息。`
-      : "复制失败，请检查剪贴板权限。");
+    chat.setSelectionStatus(
+      copied
+        ? `已复制 ${fragments.length.toLocaleString()} 条选中消息。`
+        : "复制失败，请检查剪贴板权限。",
+    );
   }, [chat, privacyOn, selectedMessages]);
 
-  const handleMessageAction = useCallback(async (message: ChatMessage, actionId: MessageActionId) => {
-    if (actionId === "jump-to-time") {
-      chat.setAnchorHit(message.id);
-      chat.setSelectionStatus(message.time ? `已定位到 ${message.time} 附近。` : "这条消息没有可定位时间。");
-      return;
-    }
-    if (actionId === "find-similar") {
-      chat.setSelectionStatus("当前后端暂不支持同类消息搜索。");
-      return;
-    }
-    if (actionId === "view-safe-raw-fields") return;
+  const handleMessageAction = useCallback(
+    async (message: ChatMessage, actionId: MessageActionId) => {
+      if (actionId === "jump-to-time") {
+        chat.setAnchorHit(message.id);
+        chat.setSelectionStatus(
+          message.time ? `已定位到 ${message.time} 附近。` : "这条消息没有可定位时间。",
+        );
+        return;
+      }
+      if (actionId === "find-similar") {
+        chat.setSelectionStatus("当前后端暂不支持同类消息搜索。");
+        return;
+      }
+      if (actionId === "view-safe-raw-fields") return;
 
-    const serialized = serializeMessageAction({
-      actionId,
-      message,
-      privacyOn,
-      unmaskedConfirmed: false,
-    });
-    if (!serialized.ok) {
-      chat.setSelectionStatus(serialized.disabledReason ?? "当前消息操作不可用。");
-      return;
-    }
+      const serialized = serializeMessageAction({
+        actionId,
+        message,
+        privacyOn,
+        unmaskedConfirmed: false,
+      });
+      if (!serialized.ok) {
+        chat.setSelectionStatus(serialized.disabledReason ?? "当前消息操作不可用。");
+        return;
+      }
 
-    const copied = await copyTextToClipboard(serialized.text);
-    chat.setSelectionStatus(copied ? "已复制消息内容。" : "复制失败，请检查剪贴板权限。");
-  }, [chat, privacyOn]);
+      const copied = await copyTextToClipboard(serialized.text);
+      chat.setSelectionStatus(copied ? "已复制消息内容。" : "复制失败，请检查剪贴板权限。");
+    },
+    [chat, privacyOn],
+  );
 
-  const getMessageActionModel = useCallback((message: ChatMessage) => buildMessageActionModel({
-    message,
-    privacyOn,
-    similarSearchSupported: false,
-  }), [privacyOn]);
+  const getMessageActionModel = useCallback(
+    (message: ChatMessage) =>
+      buildMessageActionModel({
+        message,
+        privacyOn,
+        similarSearchSupported: false,
+      }),
+    [privacyOn],
+  );
 
-  const getMessageSafeRawFieldRows = useCallback((message: ChatMessage) =>
-    getSafeRawFieldRows(message), []);
-  const getMessageAttachmentPreviewModel = useCallback((attachment: MediaAttachment) =>
-    buildMessageAttachmentPreviewModel({
-      attachment,
-      resourceUrl: buildMediaResourceUrl(attachment, activeService.serviceBaseUrl),
-      privacyOn,
-    }), [activeService.serviceBaseUrl, privacyOn]);
+  const getMessageSafeRawFieldRows = useCallback(
+    (message: ChatMessage) => getSafeRawFieldRows(message),
+    [],
+  );
+  const getMessageAttachmentPreviewModel = useCallback(
+    (attachment: MediaAttachment) =>
+      buildMessageAttachmentPreviewModel({
+        attachment,
+        resourceUrl: buildMediaResourceUrl(attachment, activeService.serviceBaseUrl),
+        privacyOn,
+      }),
+    [activeService.serviceBaseUrl, privacyOn],
+  );
 
-  const commandBar = useMemo(() => buildWorkspaceCommandBar({
-    hasConversation: Boolean(currentConversation),
-    inspectorMode: layout.inspectorMode,
-    exportDisabledReason: conversationExportDisabledReason,
-  }), [conversationExportDisabledReason, currentConversation, layout.inspectorMode]);
+  const commandBar = useMemo(
+    () =>
+      buildWorkspaceCommandBar({
+        hasConversation: Boolean(currentConversation),
+        inspectorMode: layout.inspectorMode,
+        exportDisabledReason: conversationExportDisabledReason,
+      }),
+    [conversationExportDisabledReason, currentConversation, layout.inspectorMode],
+  );
 
-  const resizePanel = useCallback((panel: WorkbenchPanel, value: number) => {
-    setPanelWidths({ [panel]: value });
-  }, [setPanelWidths]);
+  const resizePanel = useCallback(
+    (panel: WorkbenchPanel, value: number) => {
+      setPanelWidths({ [panel]: value });
+    },
+    [setPanelWidths],
+  );
 
-  const resetPanel = useCallback((panel: WorkbenchPanel) => {
-    const splitter = layout.splitters.find((item) => item.panel === panel);
-    if (splitter) {
-      setPanelWidths({ [panel]: splitter.defaultValue });
-    }
-  }, [layout.splitters, setPanelWidths]);
+  const resetPanel = useCallback(
+    (panel: WorkbenchPanel) => {
+      const splitter = layout.splitters.find((item) => item.panel === panel);
+      if (splitter) {
+        setPanelWidths({ [panel]: splitter.defaultValue });
+      }
+    },
+    [layout.splitters, setPanelWidths],
+  );
 
   const openInspector = useCallback(() => {
     setInspectorOpen(true);
@@ -530,20 +608,28 @@ export function useWorkbenchCommander() {
     setConversationSearchQuery(query);
     setConversationSearchActiveIndex(0);
   }, []);
-  const moveConversationSearch = useCallback((direction: "previous" | "next") => {
-    setConversationSearchActiveIndex((currentIndex) => getNextConversationSearchIndex({
-      currentIndex,
-      matchCount: conversationSearch.matchCount,
-      direction,
-    }));
-  }, [conversationSearch.matchCount]);
+  const moveConversationSearch = useCallback(
+    (direction: "previous" | "next") => {
+      setConversationSearchActiveIndex((currentIndex) =>
+        getNextConversationSearchIndex({
+          currentIndex,
+          matchCount: conversationSearch.matchCount,
+          direction,
+        }),
+      );
+    },
+    [conversationSearch.matchCount],
+  );
   const openFullSearch = useCallback(() => openScopedWorkspace("search"), [openScopedWorkspace]);
   const updateSelectionFilters = useCallback((filters: Partial<MessageSelectionFilterState>) => {
     setSelectionFilters((current) => ({ ...current, ...filters }));
   }, []);
-  const updateConversationExportFilters = useCallback((filters: Partial<MessageSelectionFilterState>) => {
-    setConversationExportFilters((current) => ({ ...current, ...filters }));
-  }, []);
+  const updateConversationExportFilters = useCallback(
+    (filters: Partial<MessageSelectionFilterState>) => {
+      setConversationExportFilters((current) => ({ ...current, ...filters }));
+    },
+    [],
+  );
   const resetConversationExportFilters = useCallback(() => {
     setConversationExportFilters(DEFAULT_MESSAGE_SELECTION_FILTERS);
   }, []);
@@ -590,32 +676,37 @@ export function useWorkbenchCommander() {
     }
     setDateJumpOpen(false);
     setDateJumpError(null);
-    chat.setSelectionStatus(count > 0
-      ? `已跳转到 ${dateJumpValue}，加载 ${count.toLocaleString()} 条附近消息。`
-      : `${dateJumpValue} 没有找到消息。`);
+    chat.setSelectionStatus(
+      count > 0
+        ? `已跳转到 ${dateJumpValue}，加载 ${count.toLocaleString()} 条附近消息。`
+        : `${dateJumpValue} 没有找到消息。`,
+    );
   }, [chat, currentChat, dateJumpValue]);
   const openAnalytics = useCallback(() => openScopedWorkspace("analytics"), [openScopedWorkspace]);
   const openMedia = useCallback(() => openScopedWorkspace("media"), [openScopedWorkspace]);
   const openAi = useCallback(() => openScopedWorkspace("ai"), [openScopedWorkspace]);
   const openGraph = useCallback(() => openScopedWorkspace("graph"), [openScopedWorkspace]);
 
-  const handleCommandBarAction = useCallback((id: WorkspaceCommandId) => {
-    if (id === "search-current") {
-      openSearch();
-      return;
-    }
-    if (id === "details") {
-      openInspector();
-      return;
-    }
-    if (id === "export-current") {
-      conversationExport.action.onClick();
-      return;
-    }
-    if (id === "jump-date") {
-      openDateJump();
-    }
-  }, [conversationExport.action, openDateJump, openInspector, openSearch]);
+  const handleCommandBarAction = useCallback(
+    (id: WorkspaceCommandId) => {
+      if (id === "search-current") {
+        openSearch();
+        return;
+      }
+      if (id === "details") {
+        openInspector();
+        return;
+      }
+      if (id === "export-current") {
+        conversationExport.action.onClick();
+        return;
+      }
+      if (id === "jump-date") {
+        openDateJump();
+      }
+    },
+    [conversationExport.action, openDateJump, openInspector, openSearch],
+  );
 
   return {
     chat,
@@ -629,7 +720,9 @@ export function useWorkbenchCommander() {
     privacyOn,
     currentChat,
     inspectorOpen,
-    inspectorTitle: getConversationInspectorTitle({ hasConversation: Boolean(currentConversation) }),
+    inspectorTitle: getConversationInspectorTitle({
+      hasConversation: Boolean(currentConversation),
+    }),
     commandBar,
     conversationListEmptyState,
     messageListEmptyStates,
@@ -703,6 +796,17 @@ export function useWorkbenchCommander() {
   };
 }
 
+export function restoreSearchWorkspaceFromChatReturn(context: ChatReturnToSearch | null): boolean {
+  const snapshot = context?.searchSnapshot;
+  if (!snapshot) return false;
+  useSearchStore.getState().restoreReturnSnapshot(snapshot);
+  const preferences = useSearchPreferenceStore.getState();
+  preferences.setBrowseMode(snapshot.resultWindow.browseMode);
+  preferences.setSortMode(snapshot.sortMode);
+  preferences.setGroupingMode(snapshot.groupingMode);
+  return true;
+}
+
 function readyWorkbenchEmptyStateReadiness(hasCurrentConversation: boolean) {
   return {
     serviceConfigured: true,
@@ -740,11 +844,13 @@ function buildConversationExportFilterSummary({
 }): string[] {
   const summary: string[] = [];
   if (filters.sender !== "all") {
-    const label = senderOptions.find((option) => option.value === filters.sender)?.label ?? "已选对象";
+    const label =
+      senderOptions.find((option) => option.value === filters.sender)?.label ?? "已选对象";
     summary.push(`对象：${label}`);
   }
   if (filters.messageType !== "all") {
-    const label = typeOptions.find((option) => option.value === filters.messageType)?.label ?? "已选类型";
+    const label =
+      typeOptions.find((option) => option.value === filters.messageType)?.label ?? "已选类型";
     summary.push(`类型：${label}`);
   }
   if (filters.startDate || filters.endDate) {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Conversation } from "@/l2-coordinator/data-clerk/stores/useChatStore";
+import type { SearchReturnSnapshot } from "./searchReturnSnapshot";
 import { resolveSearchHitNavigation } from "./searchNavigation";
 
 const baseConversation: Conversation = {
@@ -16,7 +17,9 @@ const baseConversation: Conversation = {
   source: "session",
 };
 
-function searchMessage(overrides: Partial<Parameters<typeof resolveSearchHitNavigation>[0]["message"]> = {}) {
+function searchMessage(
+  overrides: Partial<Parameters<typeof resolveSearchHitNavigation>[0]["message"]> = {},
+) {
   return {
     id: "wxid_synthetic_user-42",
     localId: 42,
@@ -39,7 +42,11 @@ describe("resolveSearchHitNavigation", () => {
       }),
       conversations: [
         { ...baseConversation, id: "display-conversation", username: "Display label only" },
-        { ...baseConversation, id: "backend-conversation", username: "wxid_synthetic_backend_target" },
+        {
+          ...baseConversation,
+          id: "backend-conversation",
+          username: "wxid_synthetic_backend_target",
+        },
       ],
       returnRoute: "/search",
       querySnapshot: {
@@ -151,10 +158,36 @@ describe("resolveSearchHitNavigation", () => {
       anchor: {
         source: "search",
         messageId: "opaque-message-id",
+        seq: 987,
         localId: null,
         timestamp: 1_714_288_000,
       },
     });
+  });
+
+  it("carries the privacy-safe in-memory return snapshot without serializing it into the route", () => {
+    const returnSnapshot = Object.freeze({ capturedAt: 123 }) as SearchReturnSnapshot;
+    const result = resolveSearchHitNavigation({
+      message: searchMessage(),
+      conversations: [baseConversation],
+      returnRoute: "/search?scope=currentChat&chat=wxid_synthetic_user",
+      querySnapshot: {
+        query: "Synthetic private query",
+        filter: "all",
+        scope: "current",
+        scopeChat: "wxid_synthetic_user",
+      },
+      returnSnapshot,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      returnToSearch: {
+        searchSnapshot: returnSnapshot,
+      },
+    });
+    expect(result.ok && result.returnToSearch.returnRoute).not.toContain("Synthetic private query");
+    expect(result.ok && result.returnToSearch.returnRoute).not.toContain("capturedAt");
   });
 
   it("does not write the private query into the return route", () => {

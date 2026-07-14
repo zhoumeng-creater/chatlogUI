@@ -1,4 +1,5 @@
 import type { SearchV2Request } from "@/l2-coordinator/api-docs/search";
+import type { SearchDateContext } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
 import type { SearchDraft } from "./searchDraftModel";
 import type {
   SearchPresentationGroupingMode,
@@ -9,6 +10,7 @@ import type { SearchResultWindow } from "./searchResultWindowModel";
 export interface SearchAppliedReturnSnapshot {
   draft: SearchDraft;
   request: SearchV2Request;
+  dateContext?: SearchDateContext;
   succeededAt: number;
 }
 
@@ -17,6 +19,7 @@ export interface SearchReturnSnapshot {
   pending: null;
   applied: SearchAppliedReturnSnapshot;
   resultWindow: SearchResultWindow;
+  stale: boolean;
   activeSourceIndex: number | null;
   scrollAnchor: string | null;
   sortMode: SearchPresentationSortMode;
@@ -43,9 +46,11 @@ function cloneSnapshot(snapshot: Readonly<SearchReturnSnapshot>): SearchReturnSn
     applied: {
       draft: cloneDraft(snapshot.applied.draft),
       request: cloneRequest(snapshot.applied.request),
+      ...(snapshot.applied.dateContext ? { dateContext: { ...snapshot.applied.dateContext } } : {}),
       succeededAt: snapshot.applied.succeededAt,
     },
     resultWindow: cloneWindow(snapshot.resultWindow),
+    stale: snapshot.stale,
     activeSourceIndex: snapshot.activeSourceIndex,
     scrollAnchor: snapshot.scrollAnchor,
     sortMode: snapshot.sortMode,
@@ -55,11 +60,12 @@ function cloneSnapshot(snapshot: Readonly<SearchReturnSnapshot>): SearchReturnSn
 }
 
 function cloneDraft(draft: SearchDraft): SearchDraft {
-  const scope = draft.scope.kind === "all"
-    ? { kind: "all" as const }
-    : draft.scope.kind === "current"
-      ? { kind: "current" as const, chatId: draft.scope.chatId }
-      : { kind: "selected" as const, chatIds: [...draft.scope.chatIds] };
+  const scope =
+    draft.scope.kind === "all"
+      ? { kind: "all" as const }
+      : draft.scope.kind === "current"
+        ? { kind: "current" as const, chatId: draft.scope.chatId }
+        : { kind: "selected" as const, chatIds: [...draft.scope.chatIds] };
   return {
     keyword: draft.keyword,
     scope,
