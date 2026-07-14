@@ -54,7 +54,7 @@ describe("MessageActionMenu", () => {
   });
 
   it("closes before dispatching an action so parent close handlers cannot toggle it open again", () => {
-    expect(actionMenuSource.indexOf("closeMenu();\n        onAction(actionId);")).toBeGreaterThan(-1);
+    expect(actionMenuSource).toMatch(/closeMenu\(\);\r?\n[ \t]+onAction\(actionId\);/);
   });
 
   it("does not attach visible hover tooltip copy to the standard ellipsis trigger", () => {
