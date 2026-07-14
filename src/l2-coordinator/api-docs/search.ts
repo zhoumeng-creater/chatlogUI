@@ -110,5 +110,7 @@ export interface SearchV2Request {
   since?: number;
   until?: number;
   limit?: number;
+  snapshotId?: string;
+  dataRevision?: string;
   cursor?: string;
 }

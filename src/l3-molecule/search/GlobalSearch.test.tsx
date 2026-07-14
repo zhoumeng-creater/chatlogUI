@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { GlobalSearch } from "./GlobalSearch";
+import { GlobalSearch, shouldSubmitSearchKey } from "./GlobalSearch";
 
 const props = {
   query: "invoice",
@@ -38,5 +38,14 @@ describe("GlobalSearch", () => {
 
     expect(html).not.toContain("private query");
     expect(html).not.toContain("最近搜索");
+  });
+
+  it("ignores Enter while an IME composition is active", () => {
+    expect(shouldSubmitSearchKey({ key: "Enter", nativeEvent: { isComposing: true } })).toBe(false);
+    expect(shouldSubmitSearchKey({ key: "Enter", keyCode: 229 })).toBe(false);
+    expect(shouldSubmitSearchKey({ key: "Enter", nativeEvent: { isComposing: false } })).toBe(true);
+    expect(shouldSubmitSearchKey({ key: "Escape", nativeEvent: { isComposing: false } })).toBe(
+      false,
+    );
   });
 });

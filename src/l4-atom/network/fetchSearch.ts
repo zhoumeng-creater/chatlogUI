@@ -32,7 +32,11 @@ export class SearchProtocolError extends Error {
   readonly code: "invalid_search_request" | "invalid_search_response";
 
   constructor(code: SearchProtocolError["code"]) {
-    super(code === "invalid_search_request" ? "Search request is invalid" : "Search response is invalid");
+    super(
+      code === "invalid_search_request"
+        ? "Search request is invalid"
+        : "Search response is invalid",
+    );
     this.name = "SearchProtocolError";
     this.code = code;
   }
@@ -101,6 +105,8 @@ export async function fetchSearchV2(
   if (request.since !== undefined) body.since = request.since;
   if (request.until !== undefined) body.until = request.until;
   if (request.limit !== undefined) body.limit = request.limit;
+  if (request.snapshotId) body.snapshot_id = request.snapshotId;
+  if (request.dataRevision) body.data_revision = request.dataRevision;
   if (request.cursor) body.cursor = request.cursor;
 
   const raw = await requestJson<unknown>(
@@ -133,14 +139,25 @@ function validateSearchV2Request(request: SearchV2Request): void {
     !isOptionalPrivateIDList(request.chats) ||
     !isOptionalPrivateIDList(request.senderIds) ||
     !isOptionalCategoryList(request.categories) ||
-    (request.cursor !== undefined && typeof request.cursor !== "string")
+    !isOptionalNonEmptyString(request.snapshotId) ||
+    !isOptionalNonEmptyString(request.dataRevision) ||
+    !isOptionalNonEmptyString(request.cursor) ||
+    (request.snapshotId === undefined) !== (request.dataRevision === undefined) ||
+    (request.cursor !== undefined && request.snapshotId === undefined)
   ) {
     throw new SearchProtocolError("invalid_search_request");
   }
 }
 
+function isOptionalNonEmptyString(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && value.length > 0);
+}
+
 function isOptionalIntegerInRange(value: unknown, minimum: number, maximum: number): boolean {
-  return value === undefined || (Number.isSafeInteger(value) && Number(value) >= minimum && Number(value) <= maximum);
+  return (
+    value === undefined ||
+    (Number.isSafeInteger(value) && Number(value) >= minimum && Number(value) <= maximum)
+  );
 }
 
 function isOptionalSafeInteger(value: unknown): boolean {
@@ -148,18 +165,20 @@ function isOptionalSafeInteger(value: unknown): boolean {
 }
 
 function isOptionalPrivateIDList(value: unknown): boolean {
-  return value === undefined || (
-    Array.isArray(value) &&
-    value.every((item) => typeof item === "string" && item.length > 0)
+  return (
+    value === undefined ||
+    (Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0))
   );
 }
 
 function isOptionalCategoryList(value: unknown): boolean {
-  return value === undefined || (
-    Array.isArray(value) &&
-    value.every(
-      (item) => typeof item === "string" && (SEARCH_CATEGORIES as readonly string[]).includes(item),
-    )
+  return (
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.every(
+        (item) =>
+          typeof item === "string" && (SEARCH_CATEGORIES as readonly string[]).includes(item),
+      ))
   );
 }
 

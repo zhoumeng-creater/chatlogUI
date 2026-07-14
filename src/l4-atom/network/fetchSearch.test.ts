@@ -103,6 +103,8 @@ describe("fetchSearch", () => {
           since: 1767254400,
           until: 1767340800,
           limit: 50,
+          snapshotId: "snapshot-input",
+          dataRevision: "revision-input",
           cursor: "cursor-input",
         },
         { serviceBaseUrl: "http://127.0.0.1:6041" },
@@ -128,7 +130,10 @@ describe("fetchSearch", () => {
             subType: 0,
             category: "text",
             snippet: "Synthetic needle",
-            matchSegments: [{ text: "Synthetic ", matched: false }, { text: "needle", matched: true }],
+            matchSegments: [
+              { text: "Synthetic ", matched: false },
+              { text: "needle", matched: true },
+            ],
           },
         ],
       });
@@ -154,6 +159,8 @@ describe("fetchSearch", () => {
       since: 1767254400,
       until: 1767340800,
       limit: 50,
+      snapshot_id: "snapshot-input",
+      data_revision: "revision-input",
       cursor: "cursor-input",
     });
   });
@@ -187,7 +194,9 @@ describe("fetchSearch", () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (_input, init) =>
       new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        init?.signal?.addEventListener("abort", () =>
+          reject(new DOMException("aborted", "AbortError")),
+        );
       });
     try {
       const outcome = fetchSearchV2(

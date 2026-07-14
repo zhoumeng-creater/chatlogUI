@@ -63,7 +63,7 @@ export function GlobalSearch({
   }, []);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
+    if (shouldSubmitSearchKey(event)) {
       onExecuteSearch(event.currentTarget.value);
     }
     if (event.key === "Escape") {
@@ -119,7 +119,6 @@ export function GlobalSearch({
                       onClick={() => {
                         onUseRecentQuery?.(term);
                         onSearch(term);
-                        onExecuteSearch(term);
                       }}
                     >
                       {term}
@@ -147,9 +146,9 @@ export function GlobalSearch({
         {showScopeMenu && (
           <SearchScopeMenu
             scope={scope}
-            currentConversationName={privacyOn
-              ? maskDisplayText(currentConversationName)
-              : currentConversationName}
+            currentConversationName={
+              privacyOn ? maskDisplayText(currentConversationName) : currentConversationName
+            }
             currentConversationAvailable={Boolean(currentConversation)}
             onChange={onChangeScope}
           />
@@ -162,6 +161,14 @@ export function GlobalSearch({
       )}
     </div>
   );
+}
+
+export function shouldSubmitSearchKey(event: {
+  key: string;
+  keyCode?: number;
+  nativeEvent?: { isComposing?: boolean };
+}): boolean {
+  return event.key === "Enter" && event.keyCode !== 229 && !event.nativeEvent?.isComposing;
 }
 
 function isTextEditingTarget(target: EventTarget | null): boolean {

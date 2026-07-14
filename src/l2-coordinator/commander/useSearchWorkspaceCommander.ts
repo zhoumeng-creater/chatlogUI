@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 import { maskDisplayText } from "@/utils/privacyDisplay";
 import { useSettingsStore } from "@l2/data-clerk/stores/useSettingsStore";
-import type { SearchResults } from "@l2/data-clerk/stores/useSearchStore";
+import type { SearchReadiness, SearchResults } from "@l2/data-clerk/stores/useSearchStore";
 import { useSearchPreferenceStore } from "@l2/data-clerk/stores/useSearchPreferenceStore";
 import {
   buildSearchAdvancedFilterChips,
@@ -54,22 +54,16 @@ export function useSearchWorkspaceCommander() {
   const loadRecentQueries = useSearchPreferenceStore((state) => state.loadFromStorage);
   const deleteRecentQuery = useSearchPreferenceStore((state) => state.deleteRecentQuery);
   const clearRecentQueries = useSearchPreferenceStore((state) => state.clearRecentQueries);
-  const { chat, currentConversation, currentChat, workspaceRouteScope } = useScopedWorkspaceConversation({
-    scope: scopedScope,
-    scopedChat,
-    source: routeSource,
-    focus: routeFocus,
-    defaultScope: scopedScope === "all" ? "all" : "currentChat",
-  });
+  const { chat, currentConversation, currentChat, workspaceRouteScope } =
+    useScopedWorkspaceConversation({
+      scope: scopedScope,
+      scopedChat,
+      source: routeSource,
+      focus: routeFocus,
+      defaultScope: scopedScope === "all" ? "all" : "currentChat",
+    });
   const search = useSearchCommander({ scopedChat: scopedChat ?? currentChat });
-  const {
-    activeFilter,
-    changeFilter,
-    changeScope,
-    query,
-    scope,
-    setError,
-  } = search;
+  const { activeFilter, changeFilter, changeScope, scope, setError } = search;
   const routeSearchScope = resolveSearchStoreScope({
     routeScope: scopedScope,
     routeHasScopedChat: Boolean(scopedChat?.trim()),
@@ -84,52 +78,67 @@ export function useSearchWorkspaceCommander() {
     loadRecentQueries(privacyOn);
   }, [loadRecentQueries, privacyOn]);
 
-  const updateRouteScopeParams = useCallback((update: (next: URLSearchParams) => void) => {
-    setParams((previous) => {
-      const next = new URLSearchParams(previous);
-      update(next);
-      return next;
-    }, { replace: true });
-  }, [setParams]);
+  const updateRouteScopeParams = useCallback(
+    (update: (next: URLSearchParams) => void) => {
+      setParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          update(next);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setParams],
+  );
 
-  const selectScope = useCallback((kind: WorkspaceScopeKind) => {
-    if (kind === "currentConversation") {
-      changeScope("current");
-      updateRouteScopeParams((next) => {
-        next.set("scope", "currentChat");
-        if (currentChat) next.set("chat", currentChat);
-      });
-      return;
-    }
-    if (kind === "allConversations") {
-      changeScope("all");
-      updateRouteScopeParams((next) => {
-        next.set("scope", "all");
-        next.delete("chat");
-      });
-    }
-  }, [changeScope, currentChat, updateRouteScopeParams]);
+  const selectScope = useCallback(
+    (kind: WorkspaceScopeKind) => {
+      if (kind === "currentConversation") {
+        changeScope("current");
+        updateRouteScopeParams((next) => {
+          next.set("scope", "currentChat");
+          if (currentChat) next.set("chat", currentChat);
+        });
+        return;
+      }
+      if (kind === "allConversations") {
+        changeScope("all");
+        updateRouteScopeParams((next) => {
+          next.set("scope", "all");
+          next.delete("chat");
+        });
+      }
+    },
+    [changeScope, currentChat, updateRouteScopeParams],
+  );
 
-  const selectMessageType = useCallback((type: SearchFilterType) => {
-    changeFilter(type);
-  }, [changeFilter]);
+  const selectMessageType = useCallback(
+    (type: SearchFilterType) => {
+      changeFilter(type);
+    },
+    [changeFilter],
+  );
 
-  const clearScopeChip = useCallback((action: WorkspaceScopeClearAction) => {
-    if (action.type === "setScope" && action.scopeKind) {
-      selectScope(action.scopeKind);
-      return;
-    }
-    if (action.field === "messageType") {
-      changeFilter("all");
-      return;
-    }
-    if (action.field === "focusMessage" || action.field === "sourceRoute") {
-      updateRouteScopeParams((next) => {
-        if (action.field === "focusMessage") next.delete("focus");
-        if (action.field === "sourceRoute") next.delete("source");
-      });
-    }
-  }, [changeFilter, selectScope, updateRouteScopeParams]);
+  const clearScopeChip = useCallback(
+    (action: WorkspaceScopeClearAction) => {
+      if (action.type === "setScope" && action.scopeKind) {
+        selectScope(action.scopeKind);
+        return;
+      }
+      if (action.field === "messageType") {
+        changeFilter("all");
+        return;
+      }
+      if (action.field === "focusMessage" || action.field === "sourceRoute") {
+        updateRouteScopeParams((next) => {
+          if (action.field === "focusMessage") next.delete("focus");
+          if (action.field === "sourceRoute") next.delete("source");
+        });
+      }
+    },
+    [changeFilter, selectScope, updateRouteScopeParams],
+  );
 
   const resetScope = useCallback(() => {
     changeScope("all");
@@ -142,17 +151,26 @@ export function useSearchWorkspaceCommander() {
     });
   }, [changeFilter, changeScope, updateRouteScopeParams]);
 
-  const changeAdvancedFilters = useCallback((filters: SearchAdvancedFiltersState) => {
-    search.changeAdvancedFilters(filters);
-  }, [search]);
+  const changeAdvancedFilters = useCallback(
+    (filters: SearchAdvancedFiltersState) => {
+      search.changeAdvancedFilters(filters);
+    },
+    [search],
+  );
 
-  const clearAdvancedFilter = useCallback((field: SearchAdvancedFilterField) => {
-    search.changeAdvancedFilters(clearSearchAdvancedFilter(search.advancedFilters, field));
-  }, [search]);
+  const clearAdvancedFilter = useCallback(
+    (field: SearchAdvancedFilterField) => {
+      search.changeAdvancedFilters(clearSearchAdvancedFilter(search.advancedFilters, field));
+    },
+    [search],
+  );
 
-  const executeSearch = useCallback((keyword: string) => {
-    search.executeSearch(keyword);
-  }, [search]);
+  const executeSearch = useCallback(
+    (keyword: string) => {
+      search.executeSearch(keyword);
+    },
+    [search],
+  );
 
   const useRecentQuery = useCallback(() => {}, []);
 
@@ -160,27 +178,45 @@ export function useSearchWorkspaceCommander() {
     () => buildSearchAdvancedFilterChips(search.advancedFilters),
     [search.advancedFilters],
   );
-  const searchResultsPresentation = useMemo(() => buildSearchResultsPresentation({
-    results: search.results,
-    query,
-    privacyOn,
-    activeResultId: search.activeResultId,
-    advancedFilters: search.advancedFilters,
-  }), [privacyOn, query, search.activeResultId, search.advancedFilters, search.results]);
-  const moveHit = useCallback((direction: "previous" | "next" | "first" | "last") => {
-    const nextId = moveSearchHit({
-      messages: searchResultsPresentation.orderedMessages,
-      activeResultId: search.activeResultId,
-      direction,
-    });
-    search.setActiveResultId(nextId);
-  }, [search, searchResultsPresentation.orderedMessages]);
-  const filterSummary = useMemo(() => buildSearchExportFilterSummary({
-    activeFilter,
-    scope,
-    advancedFilters: search.advancedFilters,
-    activeFilterCount: activeFilterChips.length,
-  }), [activeFilter, activeFilterChips.length, scope, search.advancedFilters]);
+  const searchResultsPresentation = useMemo(
+    () =>
+      buildSearchResultsPresentation({
+        results: search.results,
+        query: search.appliedQuery,
+        privacyOn,
+        activeResultId: search.activeResultId,
+        advancedFilters: search.advancedFilters,
+      }),
+    [privacyOn, search.activeResultId, search.advancedFilters, search.appliedQuery, search.results],
+  );
+  const moveHit = useCallback(
+    (direction: "previous" | "next" | "first" | "last") => {
+      const nextId = moveSearchHit({
+        messages: searchResultsPresentation.orderedMessages,
+        activeResultId: search.activeResultId,
+        direction,
+      });
+      search.setActiveResultId(nextId);
+    },
+    [search, searchResultsPresentation.orderedMessages],
+  );
+  const filterSummary = useMemo(
+    () =>
+      buildSearchExportFilterSummary({
+        activeFilter: search.appliedFilter ?? activeFilter,
+        scope: search.appliedScope ?? scope,
+        advancedFilters: search.advancedFilters,
+        activeFilterCount: activeFilterChips.length,
+      }),
+    [
+      activeFilter,
+      activeFilterChips.length,
+      scope,
+      search.advancedFilters,
+      search.appliedFilter,
+      search.appliedScope,
+    ],
+  );
 
   const scopeController = buildWorkspaceScopeModel({
     moduleId: "search",
@@ -198,52 +234,78 @@ export function useSearchWorkspaceCommander() {
     formats: ["markdown", "csv", "json"],
     defaultFormat: "markdown",
     disabledReason: search.results ? null : "先完成一次搜索后再导出。",
-    buildArtifact: ({ format, privacyOn: exportPrivacyOn, requestedUnredacted, unredactedConfirmed, generatedAt }) =>
+    buildArtifact: ({
+      format,
+      privacyOn: exportPrivacyOn,
+      requestedUnredacted,
+      unredactedConfirmed,
+      generatedAt,
+    }) =>
       createSearchExportArtifact({
         format,
         privacyOn: exportPrivacyOn,
         requestedUnredacted,
         unredactedConfirmed,
         generatedAt,
-        query,
-        scopeSummary: scope === "current" ? "当前会话" : "全部会话",
+        query: search.appliedQuery,
+        scopeSummary: search.appliedScope === "current" ? "当前会话" : "全部会话",
         filterSummary,
         totalCount: search.results?.totalCount ?? 0,
         loadedCount: search.results?.messages.length ?? 0,
         messages: search.results?.messages ?? [],
       }),
   });
-  const searchEmptyStates = useMemo(() => ({
-    notStarted: bindActionableEmptyStateActions(buildActionableEmptyState({
-      variant: "search-not-started",
-      readiness: buildReadySearchEmptyStateReadiness(Boolean(scopedChat?.trim() || currentChat)),
-      privacyOn,
-    }), ["clear-filters"]),
-    noResults: bindActionableEmptyStateActions(buildActionableEmptyState({
-      variant: "search-no-results",
-      readiness: buildReadySearchEmptyStateReadiness(Boolean(scopedChat?.trim() || currentChat)),
-      privacyOn,
-    }), ["clear-filters", "refresh"]),
-    filteredNoResults: bindActionableEmptyStateActions(buildActionableEmptyState({
-      variant: "filters-no-results",
-      readiness: buildReadySearchEmptyStateReadiness(Boolean(scopedChat?.trim() || currentChat)),
-      privacyOn,
-    }), ["clear-filters", "refresh"]),
-  }), [currentChat, privacyOn, scopedChat]);
+  const searchEmptyStates = useMemo(
+    () => ({
+      notStarted: bindActionableEmptyStateActions(
+        buildActionableEmptyState({
+          variant: "search-not-started",
+          readiness: buildSearchEmptyStateReadiness(
+            Boolean(scopedChat?.trim() || currentChat),
+            search.readiness,
+          ),
+          privacyOn,
+        }),
+        ["clear-filters"],
+      ),
+      noResults: bindActionableEmptyStateActions(
+        buildActionableEmptyState({
+          variant: "search-no-results",
+          readiness: buildSearchEmptyStateReadiness(
+            Boolean(scopedChat?.trim() || currentChat),
+            search.readiness,
+          ),
+          privacyOn,
+        }),
+        ["clear-filters", "refresh"],
+      ),
+      filteredNoResults: bindActionableEmptyStateActions(
+        buildActionableEmptyState({
+          variant: "filters-no-results",
+          readiness: buildSearchEmptyStateReadiness(
+            Boolean(scopedChat?.trim() || currentChat),
+            search.readiness,
+          ),
+          privacyOn,
+        }),
+        ["clear-filters", "refresh"],
+      ),
+    }),
+    [currentChat, privacyOn, scopedChat, search.readiness],
+  );
 
   const openResult = useCallback(
     async (message: SearchResults["messages"][number]) => {
-      const scopeChat = scope === "current"
-        ? ((scopedChat ?? currentChat) || null)
-        : null;
+      const resultScope = search.appliedScope ?? scope;
+      const scopeChat = resultScope === "current" ? (search.appliedScopeChat ?? null) : null;
       const target = resolveSearchHitNavigation({
         message,
         conversations: chat.conversations,
         returnRoute: withSmokeQuery("/search"),
         querySnapshot: {
-          query,
-          filter: activeFilter,
-          scope,
+          query: search.appliedQuery,
+          filter: search.appliedFilter ?? activeFilter,
+          scope: resultScope,
           scopeChat,
         },
       });
@@ -253,8 +315,10 @@ export function useSearchWorkspaceCommander() {
       }
       await chat.selectAndLoadAtAnchor(target);
       recordSearchResultOpenedKpiEvent({
-        rankBucket: toSearchResultRankBucket(search.results?.messages.findIndex((item) => item.id === message.id) ?? -1),
-        scopeKind: scope === "current" ? "current" : "all",
+        rankBucket: toSearchResultRankBucket(
+          search.results?.messages.findIndex((item) => item.id === message.id) ?? -1,
+        ),
+        scopeKind: resultScope === "current" ? "current" : "all",
         hasAnchor: target.anchor.localId !== null || target.anchor.timestamp !== null,
         outcome: "success",
       });
@@ -262,13 +326,14 @@ export function useSearchWorkspaceCommander() {
     },
     [
       chat,
-      currentChat,
       navigate,
       activeFilter,
-      query,
-      scopedChat,
       scope,
       setError,
+      search.appliedFilter,
+      search.appliedQuery,
+      search.appliedScope,
+      search.appliedScopeChat,
       search.results,
     ],
   );
@@ -300,11 +365,14 @@ export function useSearchWorkspaceCommander() {
   };
 }
 
-function buildReadySearchEmptyStateReadiness(hasCurrentConversation: boolean) {
+export function buildSearchEmptyStateReadiness(
+  hasCurrentConversation: boolean,
+  readiness: SearchReadiness,
+) {
   return {
     serviceConfigured: true,
-    httpReady: true,
-    dbReady: true,
+    httpReady: readiness.httpReady,
+    dbReady: readiness.dbReady,
     hasCurrentConversation,
   };
 }
@@ -363,15 +431,15 @@ function buildSearchResultsPresentation({
   const orderedMessages = sortSearchMessages(results.messages, advancedFilters.sortMode);
   const navigator = resolveSearchHitNavigator({ messages: orderedMessages, activeResultId });
   const firstId = orderedMessages[0]?.id ?? null;
-  const groups = groupSearchMessages(orderedMessages, advancedFilters.groupMode, privacyOn)
-    .map((group) => ({
+  const groups = groupSearchMessages(orderedMessages, advancedFilters.groupMode, privacyOn).map(
+    (group) => ({
       key: group.key,
       label: group.label,
       items: group.messages.map((message) => ({
         message,
         senderLabel: privacyOn
           ? maskDisplayText(message.sender || message.chat || message.username || "未知发送者")
-          : (message.sender || message.chat || message.username),
+          : message.sender || message.chat || message.username,
         snippetSegments: createSearchSnippet({
           content: message.content,
           query,
@@ -379,7 +447,8 @@ function buildSearchResultsPresentation({
         }).segments,
         active: message.id === activeResultId || (!activeResultId && message.id === firstId),
       })),
-    }));
+    }),
+  );
 
   return {
     orderedMessages,
@@ -416,9 +485,10 @@ function groupSearchMessages(
 
   const groups = new Map<string, SearchResults["messages"]>();
   for (const message of messages) {
-    const key = groupMode === "conversation"
-      ? (message.chat || message.username || "未知会话")
-      : formatSearchDateGroup(message);
+    const key =
+      groupMode === "conversation"
+        ? message.chat || message.username || "未知会话"
+        : formatSearchDateGroup(message);
     groups.set(key, [...(groups.get(key) ?? []), message]);
   }
 
