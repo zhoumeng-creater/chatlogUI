@@ -52,7 +52,6 @@ export function useSearchWorkspaceCommander() {
   const privacyOn = useSettingsStore((state) => state.settings.privacyOn);
   const recentQueries = useSearchPreferenceStore((state) => state.recentQueries);
   const loadRecentQueries = useSearchPreferenceStore((state) => state.loadFromStorage);
-  const addRecentQuery = useSearchPreferenceStore((state) => state.addRecentQuery);
   const deleteRecentQuery = useSearchPreferenceStore((state) => state.deleteRecentQuery);
   const clearRecentQueries = useSearchPreferenceStore((state) => state.clearRecentQueries);
   const { chat, currentConversation, currentChat, workspaceRouteScope } = useScopedWorkspaceConversation({
@@ -152,13 +151,10 @@ export function useSearchWorkspaceCommander() {
   }, [search]);
 
   const executeSearch = useCallback((keyword: string) => {
-    addRecentQuery(keyword, privacyOn);
     search.executeSearch(keyword);
-  }, [addRecentQuery, privacyOn, search]);
+  }, [search]);
 
-  const useRecentQuery = useCallback((keyword: string) => {
-    addRecentQuery(keyword, privacyOn);
-  }, [addRecentQuery, privacyOn]);
+  const useRecentQuery = useCallback(() => {}, []);
 
   const activeFilterChips = useMemo(
     () => buildSearchAdvancedFilterChips(search.advancedFilters),
