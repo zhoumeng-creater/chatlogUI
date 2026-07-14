@@ -26,4 +26,16 @@ describe("searchHitNavigator", () => {
     expect(moveSearchHit({ messages, activeResultId: "two", direction: "next" })).toBe("three");
     expect(moveSearchHit({ messages, activeResultId: "one", direction: "previous" })).toBe("one");
   });
+
+  it("uses stable v2 message identities without treating coverage rows as hits", () => {
+    const v2Hits = [{ messageId: "message-10" }, { messageId: "message-11" }];
+    expect(resolveSearchHitNavigator({ messages: v2Hits, activeResultId: "message-11" })).toMatchObject({
+      activeIndex: 1,
+      total: 2,
+      previousId: "message-10",
+      nextId: null,
+    });
+    expect(moveSearchHit({ messages: v2Hits, activeResultId: "message-10", direction: "next" }))
+      .toBe("message-11");
+  });
 });

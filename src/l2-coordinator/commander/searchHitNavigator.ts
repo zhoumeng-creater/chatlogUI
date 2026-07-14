@@ -1,5 +1,6 @@
 export interface SearchHitLike {
-  id: string;
+  id?: string;
+  messageId?: string;
 }
 
 export interface SearchHitNavigatorState {
@@ -23,10 +24,10 @@ export function resolveSearchHitNavigator({
   const fallbackIndex = total > 0 ? 0 : -1;
   const activeIndex = Math.max(
     fallbackIndex,
-    messages.findIndex((message) => message.id === activeResultId),
+    messages.findIndex((message) => searchHitID(message) === activeResultId),
   );
-  const previousId = activeIndex > 0 ? messages[activeIndex - 1]?.id ?? null : null;
-  const nextId = activeIndex >= 0 && activeIndex < total - 1 ? messages[activeIndex + 1]?.id ?? null : null;
+  const previousId = activeIndex > 0 ? searchHitID(messages[activeIndex - 1]) : null;
+  const nextId = activeIndex >= 0 && activeIndex < total - 1 ? searchHitID(messages[activeIndex + 1]) : null;
 
   return {
     activeIndex,
@@ -49,10 +50,14 @@ export function moveSearchHit({
   direction: "previous" | "next" | "first" | "last";
 }): string | null {
   if (messages.length === 0) return null;
-  const currentIndex = messages.findIndex((message) => message.id === activeResultId);
+  const currentIndex = messages.findIndex((message) => searchHitID(message) === activeResultId);
   const index = currentIndex >= 0 ? currentIndex : 0;
-  if (direction === "first") return messages[0]?.id ?? null;
-  if (direction === "last") return messages[messages.length - 1]?.id ?? null;
-  if (direction === "previous") return messages[Math.max(0, index - 1)]?.id ?? null;
-  return messages[Math.min(messages.length - 1, index + 1)]?.id ?? null;
+  if (direction === "first") return searchHitID(messages[0]);
+  if (direction === "last") return searchHitID(messages[messages.length - 1]);
+  if (direction === "previous") return searchHitID(messages[Math.max(0, index - 1)]);
+  return searchHitID(messages[Math.min(messages.length - 1, index + 1)]);
+}
+
+function searchHitID(message: SearchHitLike | undefined): string | null {
+  return message?.messageId ?? message?.id ?? null;
 }
