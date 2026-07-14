@@ -47,6 +47,54 @@ export const SEARCH_CATEGORIES = [
 
 export type SearchCategory = (typeof SEARCH_CATEGORIES)[number];
 
+export const SEARCH_DIRECTORY_SELF_SENDER_ID = "chatlog:sender:self:v1" as const;
+
+export type SearchDirectoryScope = "all" | "current" | "selected";
+
+export interface SearchConversationDirectoryItem {
+  conversationId: string;
+  displayName: string;
+  kind: "direct" | "group";
+  disambiguator: string;
+}
+
+export interface SearchSenderDirectoryItem {
+  senderId: string;
+  displayName: string;
+  isSelf: boolean;
+  conversationCount: number;
+  contextLabel: string;
+  disambiguator: string;
+}
+
+export interface SearchDirectoryPage<Item> {
+  dataRevision: string;
+  exactTotal: true;
+  complete: true;
+  totalCount: number;
+  count: number;
+  hasMore: boolean;
+  nextCursor: string;
+  items: Item[];
+}
+
+export type SearchConversationDirectoryPage =
+  SearchDirectoryPage<SearchConversationDirectoryItem>;
+
+export type SearchSenderDirectoryPage = SearchDirectoryPage<SearchSenderDirectoryItem>;
+
+export interface SearchConversationDirectoryRequest {
+  query: string;
+  limit?: number;
+  cursor?: string;
+  dataRevision?: string;
+}
+
+export interface SearchSenderDirectoryRequest extends SearchConversationDirectoryRequest {
+  scope: SearchDirectoryScope;
+  chats: string[];
+}
+
 export interface SearchCapabilities {
   mode: "v2" | "legacy";
   contractVersion: "search.v2" | "legacy";
@@ -60,6 +108,13 @@ export interface SearchCapabilities {
   maxPageSize: number;
   maxKeywordGraphemes: number;
   maxKeywordTerms: number;
+  directoryVersion: "search.directory.v1" | "legacy";
+  conversationDirectory: boolean;
+  senderDirectory: boolean;
+  directorySelfSenderId: typeof SEARCH_DIRECTORY_SELF_SENDER_ID | "";
+  directoryDefaultPageSize: number;
+  directoryMaxPageSize: number;
+  directoryMaxQueryGraphemes: number;
   unavailableReason?: "not_supported" | "invalid_response";
 }
 

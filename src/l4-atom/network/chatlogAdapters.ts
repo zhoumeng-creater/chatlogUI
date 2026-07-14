@@ -17,6 +17,7 @@ import type {
 import { adaptMediaAttachments } from "./mediaAdapters";
 import {
   SEARCH_CATEGORIES,
+  SEARCH_DIRECTORY_SELF_SENDER_ID,
   type SearchCapabilities,
   type SearchCategory,
   type SearchHit,
@@ -217,7 +218,14 @@ export function adaptSearchCapabilities(raw: unknown): SearchCapabilities | null
     value.default_page_size !== 50 ||
     value.max_page_size !== 50 ||
     value.max_keyword_graphemes !== 200 ||
-    value.max_keyword_terms !== 20
+    value.max_keyword_terms !== 20 ||
+    value.directory_version !== "search.directory.v1" ||
+    value.conversation_directory !== true ||
+    value.sender_directory !== true ||
+    value.directory_self_sender_id !== SEARCH_DIRECTORY_SELF_SENDER_ID ||
+    value.directory_default_page_size !== 50 ||
+    value.directory_max_page_size !== 100 ||
+    value.directory_max_query_graphemes !== 200
   ) {
     return null;
   }
@@ -234,6 +242,13 @@ export function adaptSearchCapabilities(raw: unknown): SearchCapabilities | null
     maxPageSize: value.max_page_size,
     maxKeywordGraphemes: value.max_keyword_graphemes,
     maxKeywordTerms: value.max_keyword_terms,
+    directoryVersion: "search.directory.v1",
+    conversationDirectory: true,
+    senderDirectory: true,
+    directorySelfSenderId: value.directory_self_sender_id,
+    directoryDefaultPageSize: value.directory_default_page_size,
+    directoryMaxPageSize: value.directory_max_page_size,
+    directoryMaxQueryGraphemes: value.directory_max_query_graphemes,
   };
 }
 

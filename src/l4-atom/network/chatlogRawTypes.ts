@@ -277,6 +277,13 @@ export interface RawSearchCapabilities {
   max_page_size: unknown;
   max_keyword_graphemes: unknown;
   max_keyword_terms: unknown;
+  directory_version: unknown;
+  conversation_directory: unknown;
+  sender_directory: unknown;
+  directory_self_sender_id: unknown;
+  directory_default_page_size: unknown;
+  directory_max_page_size: unknown;
+  directory_max_query_graphemes: unknown;
 }
 
 export interface RawSearchMatchSegment {

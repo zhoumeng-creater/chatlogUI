@@ -137,5 +137,12 @@ function v2Capabilities(): SearchCapabilities {
     maxPageSize: 50,
     maxKeywordGraphemes: 200,
     maxKeywordTerms: 20,
+    directoryVersion: "search.directory.v1",
+    conversationDirectory: true,
+    senderDirectory: true,
+    directorySelfSenderId: "chatlog:sender:self:v1",
+    directoryDefaultPageSize: 50,
+    directoryMaxPageSize: 100,
+    directoryMaxQueryGraphemes: 200,
   };
 }

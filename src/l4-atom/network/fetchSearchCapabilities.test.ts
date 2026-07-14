@@ -30,6 +30,13 @@ describe("fetchSearchCapabilities", () => {
           max_page_size: 50,
           max_keyword_graphemes: 200,
           max_keyword_terms: 20,
+          directory_version: "search.directory.v1",
+          conversation_directory: true,
+          sender_directory: true,
+          directory_self_sender_id: "chatlog:sender:self:v1",
+          directory_default_page_size: 50,
+          directory_max_page_size: 100,
+          directory_max_query_graphemes: 200,
         }),
         { status: 200 },
       );
@@ -61,6 +68,13 @@ describe("fetchSearchCapabilities", () => {
         maxPageSize: 50,
         maxKeywordGraphemes: 200,
         maxKeywordTerms: 20,
+        directoryVersion: "search.directory.v1",
+        conversationDirectory: true,
+        senderDirectory: true,
+        directorySelfSenderId: "chatlog:sender:self:v1",
+        directoryDefaultPageSize: 50,
+        directoryMaxPageSize: 100,
+        directoryMaxQueryGraphemes: 200,
       });
     } finally {
       globalThis.fetch = originalFetch;
@@ -84,6 +98,8 @@ describe("fetchSearchCapabilities", () => {
         completeScope: false,
         senderFilter: false,
         snapshotCursor: false,
+        conversationDirectory: false,
+        senderDirectory: false,
         unavailableReason: "not_supported",
       });
     } finally {
@@ -110,9 +126,52 @@ describe("fetchSearchCapabilities", () => {
         completeScope: false,
         senderFilter: false,
         snapshotCursor: false,
+        conversationDirectory: false,
+        senderDirectory: false,
         unavailableReason: "invalid_response",
       });
       expect(JSON.stringify(result)).not.toContain("PRIVATE");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("does not advertise v2 when the complete directory capability block is absent", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          contract_version: "search.v2",
+          exact_total: true,
+          complete_scope: true,
+          sender_filter: true,
+          taxonomy: [
+            "text",
+            "image_emoji",
+            "video",
+            "voice",
+            "file",
+            "link_card",
+            "quote_forward",
+            "location",
+            "system_other",
+          ],
+          snapshot_cursor: true,
+          inclusive_time_boundaries: true,
+          default_page_size: 50,
+          max_page_size: 50,
+          max_keyword_graphemes: 200,
+          max_keyword_terms: 20,
+        }),
+        { status: 200 },
+      );
+    try {
+      await expect(fetchSearchCapabilities()).resolves.toMatchObject({
+        mode: "legacy",
+        conversationDirectory: false,
+        senderDirectory: false,
+        unavailableReason: "invalid_response",
+      });
     } finally {
       globalThis.fetch = originalFetch;
     }

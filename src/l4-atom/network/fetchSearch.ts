@@ -198,6 +198,13 @@ function legacySearchCapabilities(
     maxPageSize: 50,
     maxKeywordGraphemes: 0,
     maxKeywordTerms: 0,
+    directoryVersion: "legacy",
+    conversationDirectory: false,
+    senderDirectory: false,
+    directorySelfSenderId: "",
+    directoryDefaultPageSize: 0,
+    directoryMaxPageSize: 0,
+    directoryMaxQueryGraphemes: 0,
     unavailableReason,
   };
 }
