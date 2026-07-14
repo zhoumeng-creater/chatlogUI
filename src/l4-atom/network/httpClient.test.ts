@@ -50,6 +50,25 @@ describe("requestJson", () => {
     expect(capturedUrl.split("format=json").length).toBe(2);
   });
 
+  it("can preserve an exact URL for privacy-sensitive POST contracts", async () => {
+    let capturedUrl = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        capturedUrl = url;
+        return new Response("{}", { status: 200 });
+      }),
+    );
+
+    await requestJson("http://127.0.0.1:5030/api/v1/history/context/query", {
+      method: "POST",
+      appendJsonFormat: false,
+    });
+
+    expect(capturedUrl).toBe("http://127.0.0.1:5030/api/v1/history/context/query");
+    expect(new URL(capturedUrl).search).toBe("");
+  });
+
   it("rejects with timeout error for aborted requests", async () => {
     vi.stubGlobal(
       "fetch",

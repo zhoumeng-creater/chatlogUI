@@ -37,6 +37,14 @@ describe("fetchSearchCapabilities", () => {
           directory_default_page_size: 50,
           directory_max_page_size: 100,
           directory_max_query_graphemes: 200,
+          history_context_version: "history.context.v1",
+          history_context_query: true,
+          history_context_revision_binding: true,
+          history_context_default_limit: 51,
+          history_context_max_limit: 101,
+          history_context_max_exact_candidates: 4096,
+          history_context_max_exact_batches: 32,
+          history_context_max_shards: 256,
         }),
         { status: 200 },
       );
@@ -75,6 +83,14 @@ describe("fetchSearchCapabilities", () => {
         directoryDefaultPageSize: 50,
         directoryMaxPageSize: 100,
         directoryMaxQueryGraphemes: 200,
+        historyContextVersion: "history.context.v1",
+        historyContextQuery: true,
+        historyContextRevisionBinding: true,
+        historyContextDefaultLimit: 51,
+        historyContextMaxLimit: 101,
+        historyContextMaxExactCandidates: 4096,
+        historyContextMaxExactBatches: 32,
+        historyContextMaxShards: 256,
       });
     } finally {
       globalThis.fetch = originalFetch;
@@ -170,6 +186,54 @@ describe("fetchSearchCapabilities", () => {
         mode: "legacy",
         conversationDirectory: false,
         senderDirectory: false,
+        unavailableReason: "invalid_response",
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("does not advertise v2 when the complete exact-context capability block is absent", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          contract_version: "search.v2",
+          exact_total: true,
+          complete_scope: true,
+          sender_filter: true,
+          taxonomy: [
+            "text",
+            "image_emoji",
+            "video",
+            "voice",
+            "file",
+            "link_card",
+            "quote_forward",
+            "location",
+            "system_other",
+          ],
+          snapshot_cursor: true,
+          inclusive_time_boundaries: true,
+          default_page_size: 50,
+          max_page_size: 50,
+          max_keyword_graphemes: 200,
+          max_keyword_terms: 20,
+          directory_version: "search.directory.v1",
+          conversation_directory: true,
+          sender_directory: true,
+          directory_self_sender_id: "chatlog:sender:self:v1",
+          directory_default_page_size: 50,
+          directory_max_page_size: 100,
+          directory_max_query_graphemes: 200,
+        }),
+        { status: 200 },
+      );
+    try {
+      await expect(fetchSearchCapabilities()).resolves.toMatchObject({
+        mode: "legacy",
+        historyContextQuery: false,
+        historyContextRevisionBinding: false,
         unavailableReason: "invalid_response",
       });
     } finally {

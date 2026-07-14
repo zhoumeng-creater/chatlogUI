@@ -46,6 +46,8 @@ export type SearchHitNavigationResult =
       anchor: SearchHitAnchor;
       returnToSearch: SearchReturnContext;
       requiresConversationLoad: boolean;
+      dataRevision?: string;
+      historyContextAvailable?: boolean;
     }
   | {
       ok: false;
@@ -57,6 +59,8 @@ interface ResolveSearchHitNavigationInput {
   message: SearchHitMessage;
   conversations: Conversation[];
   returnRoute: string;
+  dataRevision?: string;
+  historyContextAvailable?: boolean;
   querySnapshot: SearchQuerySnapshot;
   returnSnapshot?: Readonly<SearchReturnSnapshot>;
 }
@@ -85,6 +89,8 @@ export function resolveSearchHitNavigation({
   message,
   conversations,
   returnRoute,
+  dataRevision,
+  historyContextAvailable,
   querySnapshot,
   returnSnapshot,
 }: ResolveSearchHitNavigationInput): SearchHitNavigationResult {
@@ -120,6 +126,8 @@ export function resolveSearchHitNavigation({
     conversationLabel: conversation?.displayName || normalizeIdentifier(message.chat) || chat,
     isGroup: conversation?.isGroup ?? (Boolean(message.isGroup) || chat.endsWith("@chatroom")),
     requiresConversationLoad: !conversation,
+    ...(dataRevision ? { dataRevision } : {}),
+    ...(typeof historyContextAvailable === "boolean" ? { historyContextAvailable } : {}),
     anchor: {
       source: "search",
       chat,

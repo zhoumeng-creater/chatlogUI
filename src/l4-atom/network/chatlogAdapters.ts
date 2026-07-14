@@ -225,7 +225,15 @@ export function adaptSearchCapabilities(raw: unknown): SearchCapabilities | null
     value.directory_self_sender_id !== SEARCH_DIRECTORY_SELF_SENDER_ID ||
     value.directory_default_page_size !== 50 ||
     value.directory_max_page_size !== 100 ||
-    value.directory_max_query_graphemes !== 200
+    value.directory_max_query_graphemes !== 200 ||
+    value.history_context_version !== "history.context.v1" ||
+    value.history_context_query !== true ||
+    value.history_context_revision_binding !== true ||
+    value.history_context_default_limit !== 51 ||
+    value.history_context_max_limit !== 101 ||
+    value.history_context_max_exact_candidates !== 4096 ||
+    value.history_context_max_exact_batches !== 32 ||
+    value.history_context_max_shards !== 256
   ) {
     return null;
   }
@@ -249,6 +257,14 @@ export function adaptSearchCapabilities(raw: unknown): SearchCapabilities | null
     directoryDefaultPageSize: value.directory_default_page_size,
     directoryMaxPageSize: value.directory_max_page_size,
     directoryMaxQueryGraphemes: value.directory_max_query_graphemes,
+    historyContextVersion: "history.context.v1",
+    historyContextQuery: true,
+    historyContextRevisionBinding: true,
+    historyContextDefaultLimit: 51,
+    historyContextMaxLimit: 101,
+    historyContextMaxExactCandidates: 4096,
+    historyContextMaxExactBatches: 32,
+    historyContextMaxShards: 256,
   };
 }
 

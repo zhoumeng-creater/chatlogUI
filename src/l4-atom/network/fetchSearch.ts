@@ -205,6 +205,14 @@ function legacySearchCapabilities(
     directoryDefaultPageSize: 0,
     directoryMaxPageSize: 0,
     directoryMaxQueryGraphemes: 0,
+    historyContextVersion: "legacy",
+    historyContextQuery: false,
+    historyContextRevisionBinding: false,
+    historyContextDefaultLimit: 0,
+    historyContextMaxLimit: 0,
+    historyContextMaxExactCandidates: 0,
+    historyContextMaxExactBatches: 0,
+    historyContextMaxShards: 0,
     unavailableReason,
   };
 }

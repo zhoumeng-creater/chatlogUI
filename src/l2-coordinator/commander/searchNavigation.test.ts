@@ -143,6 +143,8 @@ describe("resolveSearchHitNavigation", () => {
       },
       conversations: [],
       returnRoute: "/search",
+      dataRevision: "revision-private",
+      historyContextAvailable: true,
       querySnapshot: {
         query: "Synthetic private query",
         filter: "all",
@@ -162,7 +164,10 @@ describe("resolveSearchHitNavigation", () => {
         localId: null,
         timestamp: 1_714_288_000,
       },
+      dataRevision: "revision-private",
+      historyContextAvailable: true,
     });
+    expect(result.ok && result.returnToSearch.returnRoute).not.toContain("revision-private");
   });
 
   it("carries the privacy-safe in-memory return snapshot without serializing it into the route", () => {

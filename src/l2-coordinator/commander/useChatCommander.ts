@@ -1,10 +1,17 @@
 import { useCallback, useRef } from "react";
 import {
   useChatStore,
+  type ChatMessage,
   type ChatMessageAnchor,
   type ChatReturnToSearch,
 } from "@/l2-coordinator/data-clerk/stores/useChatStore";
-import { ChatlogHttpError, fetchConversations, fetchHistory, fetchUnread } from "@l4/network";
+import {
+  ChatlogHttpError,
+  fetchConversations,
+  fetchHistory,
+  fetchHistoryContext,
+  fetchUnread,
+} from "@l4/network";
 import { toApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 import {
   buildNearbyAnchorHistoryRequest,
@@ -23,6 +30,11 @@ import {
   pageNeedsLatestTimestampFallback,
 } from "./chatHistoryPaging";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
+import {
+  classifyExactHistoryContextError,
+  executeAnchorLoad,
+  toChatHistoryContext,
+} from "./historyContextNavigation";
 
 const HISTORY_PAGE_SIZE = 50;
 const ANCHOR_WINDOW_SECONDS = 300;
@@ -31,11 +43,19 @@ interface LoadHistoryOptions {
   latestTimestamp?: number | null;
 }
 
+interface LegacyAnchorLoad {
+  page: Awaited<ReturnType<typeof fetchHistory>>;
+  hit: ChatMessage | null;
+  nearby: ChatMessage | null;
+}
+
 export interface AnchoredChatNavigationTarget {
   conversationId: string;
   chat: string;
   conversationLabel?: string;
   isGroup?: boolean;
+  dataRevision?: string;
+  historyContextAvailable?: boolean;
   anchor: ChatMessageAnchor;
   returnToSearch: ChatReturnToSearch;
 }
@@ -356,23 +376,63 @@ export function useChatCommander() {
       useChatStore.getState().selectConversation(target.conversationId);
       useChatStore.getState().setAnchorLoading(target.anchor, target.returnToSearch);
       useChatStore.getState().setMessagesLoading(true);
+      const exactSearchIntent = target.anchor.source === "search" && !options.allowNearbyFallback;
 
       try {
-        const fetchAnchorPage = (historyRequest: Parameters<typeof fetchHistory>[0]) =>
-          fetchHistory(historyRequest, {
-            ...createDiagnosticHttpOptions({
-              endpointFamily: "history",
-              method: "GET",
-              recoveryHint: "retry",
+        const loaded = await executeAnchorLoad<LegacyAnchorLoad>({
+          target,
+          options,
+          signal: request.controller.signal,
+          fetchExact: (contextRequest, signal) =>
+            fetchHistoryContext(contextRequest, {
+              ...createDiagnosticHttpOptions({
+                endpointFamily: "history_context",
+                method: "POST",
+                recoveryHint: "retry",
+              }),
+              signal,
             }),
-            signal: request.controller.signal,
-          });
-        const exact = await findExactAnchorPage({
-          anchor: target.anchor,
-          limit: HISTORY_PAGE_SIZE,
-          windowSeconds: ANCHOR_WINDOW_SECONDS,
-          maxMessages: 1_000,
-          fetchPage: fetchAnchorPage,
+          fetchLegacyExact: async (signal) => {
+            const fetchAnchorPage = (historyRequest: Parameters<typeof fetchHistory>[0]) =>
+              fetchHistory(historyRequest, {
+                ...createDiagnosticHttpOptions({
+                  endpointFamily: "history",
+                  method: "GET",
+                  recoveryHint: "retry",
+                }),
+                signal,
+              });
+            const exactOptions = {
+              anchor: target.anchor,
+              limit: HISTORY_PAGE_SIZE,
+              windowSeconds: ANCHOR_WINDOW_SECONDS,
+              maxMessages: Number.MAX_SAFE_INTEGER,
+              fetchPage: fetchAnchorPage,
+            };
+            const exact = await findExactAnchorPage(exactOptions);
+            return { page: exact.page, hit: exact.hit, nearby: null };
+          },
+          fetchLegacyNearby: async (signal) => {
+            const page = await fetchHistory(
+              buildNearbyAnchorHistoryRequest(target.anchor, {
+                limit: HISTORY_PAGE_SIZE,
+                windowSeconds: ANCHOR_WINDOW_SECONDS,
+              }),
+              {
+                ...createDiagnosticHttpOptions({
+                  endpointFamily: "history",
+                  method: "GET",
+                  recoveryHint: "retry",
+                }),
+                signal,
+              },
+            );
+            return {
+              page,
+              hit: null,
+              nearby: findNearbyAnchoredMessage(page.messages, target.anchor),
+            };
+          },
         });
         if (!isCurrentHistoryRequest(request.requestId)) {
           return {
@@ -383,27 +443,22 @@ export function useChatCommander() {
           };
         }
 
-        let result = exact.page;
-        const hit = exact.hit;
-        let nearby = null;
-        if (!hit && options.allowNearbyFallback) {
-          result = await fetchAnchorPage(
-            buildNearbyAnchorHistoryRequest(target.anchor, {
-              limit: HISTORY_PAGE_SIZE,
-              windowSeconds: ANCHOR_WINDOW_SECONDS,
-            }),
-          );
-          if (!isCurrentHistoryRequest(request.requestId)) {
-            return {
-              ok: false,
-              reason: "cancelled",
-              message: "定位请求已被新的聊天记录请求替换。",
-              nearbyFallbackAvailable: false,
-            };
-          }
-          nearby = findNearbyAnchoredMessage(result.messages, target.anchor);
+        if (loaded.kind === "exact") {
+          const context = toChatHistoryContext(loaded.page, target.isGroup ?? false);
+          useChatStore
+            .getState()
+            .setMessages(
+              context.messages,
+              context.totalCount,
+              context.offset,
+              context.hasMore,
+              "anchor",
+            );
+          useChatStore.getState().setAnchorHit(context.anchorMessageId);
+          return { ok: true, matchKind: "exact", messageId: context.anchorMessageId };
         }
 
+        const { page: result, hit, nearby } = loaded.page;
         useChatStore
           .getState()
           .setMessages(
@@ -441,6 +496,18 @@ export function useChatCommander() {
             message: "定位请求已被新的聊天记录请求替换。",
             nearbyFallbackAvailable: false,
           };
+        }
+        if (exactSearchIntent) {
+          const failure = classifyExactHistoryContextError(error, target);
+          useChatStore.getState().setMessages([], 0, 0, false, "anchor");
+          if (failure.reason === "cancelled") {
+            useChatStore.getState().setAnchorCancelled();
+          } else if (failure.reason === "missing") {
+            useChatStore.getState().setAnchorMissing();
+          } else {
+            useChatStore.getState().setAnchorError(failure.message);
+          }
+          return { ok: false, ...failure };
         }
         if (isCancelledHistoryError(error)) {
           useChatStore.getState().setAnchorCancelled();

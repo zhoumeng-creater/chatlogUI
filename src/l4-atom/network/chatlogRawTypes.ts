@@ -284,6 +284,14 @@ export interface RawSearchCapabilities {
   directory_default_page_size: unknown;
   directory_max_page_size: unknown;
   directory_max_query_graphemes: unknown;
+  history_context_version: unknown;
+  history_context_query: unknown;
+  history_context_revision_binding: unknown;
+  history_context_default_limit: unknown;
+  history_context_max_limit: unknown;
+  history_context_max_exact_candidates: unknown;
+  history_context_max_exact_batches: unknown;
+  history_context_max_shards: unknown;
 }
 
 export interface RawSearchMatchSegment {

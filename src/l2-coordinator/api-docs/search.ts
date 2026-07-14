@@ -115,6 +115,14 @@ export interface SearchCapabilities {
   directoryDefaultPageSize: number;
   directoryMaxPageSize: number;
   directoryMaxQueryGraphemes: number;
+  historyContextVersion: "history.context.v1" | "legacy";
+  historyContextQuery: boolean;
+  historyContextRevisionBinding: boolean;
+  historyContextDefaultLimit: number;
+  historyContextMaxLimit: number;
+  historyContextMaxExactCandidates: number;
+  historyContextMaxExactBatches: number;
+  historyContextMaxShards: number;
   unavailableReason?: "not_supported" | "invalid_response";
 }
 

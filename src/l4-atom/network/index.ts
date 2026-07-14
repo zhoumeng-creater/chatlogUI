@@ -27,6 +27,12 @@ export { fetchDbReadiness } from "./readiness";
 export { fetchSessions, fetchContactsApi, fetchChatRoomsApi, fetchConversations } from "./fetchContacts";
 export { fetchHistory } from "./fetchHistory";
 export {
+  fetchHistoryContext,
+  HistoryContextProtocolError,
+  HistoryContextRequestError,
+} from "./fetchHistoryContext";
+export type { HistoryContextRequestErrorCode } from "./fetchHistoryContext";
+export {
   fetchSearch,
   fetchSearchCapabilities,
   fetchSearchV2,

@@ -144,5 +144,13 @@ function v2Capabilities(): SearchCapabilities {
     directoryDefaultPageSize: 50,
     directoryMaxPageSize: 100,
     directoryMaxQueryGraphemes: 200,
+    historyContextVersion: "history.context.v1",
+    historyContextQuery: true,
+    historyContextRevisionBinding: true,
+    historyContextDefaultLimit: 51,
+    historyContextMaxLimit: 101,
+    historyContextMaxExactCandidates: 4096,
+    historyContextMaxExactBatches: 32,
+    historyContextMaxShards: 256,
   };
 }
