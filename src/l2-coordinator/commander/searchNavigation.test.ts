@@ -100,7 +100,7 @@ describe("resolveSearchHitNavigation", () => {
     });
   });
 
-  it("returns a privacy-safe error when the conversation cannot be resolved", () => {
+  it("opens by backend chat identity even when the conversation list has not loaded", () => {
     const result = resolveSearchHitNavigation({
       message: searchMessage({
         username: "wxid_synthetic_private_missing",
@@ -117,12 +117,44 @@ describe("resolveSearchHitNavigation", () => {
     });
 
     expect(result).toMatchObject({
-      ok: false,
-      reason: "missing-conversation",
-      message: "无法打开搜索结果对应的会话，请刷新会话列表后重试。",
+      ok: true,
+      conversationId: "wxid_synthetic_private_missing",
+      chat: "wxid_synthetic_private_missing",
+      requiresConversationLoad: true,
+      anchor: { messageId: "wxid_synthetic_user-42" },
     });
-    expect(JSON.stringify(result)).not.toContain("wxid_synthetic_private_missing");
-    expect(JSON.stringify(result)).not.toContain("Private Missing Display");
+  });
+
+  it("uses canonical v2 conversation and message identities for exact navigation", () => {
+    const result = resolveSearchHitNavigation({
+      message: {
+        messageId: "opaque-message-id",
+        seq: 987,
+        sourceIndex: 12,
+        timestamp: 1_714_288_000,
+        conversationId: "room_synthetic@chatroom",
+      },
+      conversations: [],
+      returnRoute: "/search",
+      querySnapshot: {
+        query: "Synthetic private query",
+        filter: "all",
+        scope: "all",
+        scopeChat: null,
+      },
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      conversationId: "room_synthetic@chatroom",
+      chat: "room_synthetic@chatroom",
+      requiresConversationLoad: true,
+      anchor: {
+        source: "search",
+        messageId: "opaque-message-id",
+        localId: null,
+        timestamp: 1_714_288_000,
+      },
+    });
   });
 
   it("does not write the private query into the return route", () => {

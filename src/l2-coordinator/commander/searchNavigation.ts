@@ -7,14 +7,18 @@ import type {
 import type { SearchScope } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
 
 export interface SearchHitMessage {
-  id: string;
+  id?: string;
+  messageId?: string;
+  seq?: number;
+  sourceIndex?: number;
   localId?: number;
   timestamp: number;
   time?: string;
-  content: string;
-  sender: string;
-  username: string;
-  chat: string;
+  content?: string;
+  sender?: string;
+  username?: string;
+  chat?: string;
+  conversationId?: string;
 }
 
 export interface SearchQuerySnapshot {
@@ -37,10 +41,11 @@ export type SearchHitNavigationResult =
       chat: string;
       anchor: SearchHitAnchor;
       returnToSearch: SearchReturnContext;
+      requiresConversationLoad: boolean;
     }
   | {
       ok: false;
-      reason: "missing-chat" | "missing-conversation";
+      reason: "missing-chat" | "missing-message";
       message: string;
     };
 
@@ -56,7 +61,9 @@ function normalizeIdentifier(value: string | null | undefined): string {
 }
 
 function resolveTargetChat(message: SearchHitMessage): string {
-  return normalizeIdentifier(message.username) || normalizeIdentifier(message.chat);
+  return normalizeIdentifier(message.conversationId) ||
+    normalizeIdentifier(message.username) ||
+    normalizeIdentifier(message.chat);
 }
 
 function findConversation(conversations: Conversation[], targetChat: string): Conversation | null {
@@ -80,32 +87,35 @@ export function resolveSearchHitNavigation({
     };
   }
 
-  const conversation = findConversation(conversations, chat);
-  if (!conversation) {
+  const messageId = normalizeIdentifier(message.messageId) || normalizeIdentifier(message.id);
+  if (!messageId) {
     return {
       ok: false,
-      reason: "missing-conversation",
-      message: "无法打开搜索结果对应的会话，请刷新会话列表后重试。",
+      reason: "missing-message",
+      message: "无法定位这条搜索结果，请刷新搜索后重试。",
     };
   }
 
+  const conversation = findConversation(conversations, chat);
+
   return {
     ok: true,
-    conversationId: conversation.id,
+    conversationId: conversation?.id ?? chat,
     chat,
+    requiresConversationLoad: !conversation,
     anchor: {
       source: "search",
       chat,
-      messageId: message.id,
+      messageId,
       localId: typeof message.localId === "number" ? message.localId : null,
       timestamp: typeof message.timestamp === "number" ? message.timestamp : null,
       time: message.time ?? null,
     },
     returnToSearch: {
       returnRoute,
-      activeResultId: message.id,
+      activeResultId: messageId,
       querySnapshot,
-      sourceConversationId: conversation.id,
+      sourceConversationId: conversation?.id ?? chat,
     },
   };
 }
