@@ -57,6 +57,39 @@ pub async fn export_business_file(
 }
 
 #[tauri::command]
+pub async fn begin_business_export_stream(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
+    payload: crate::business_export::BeginBusinessExportStreamPayload,
+) -> Result<crate::business_export::BeginBusinessExportStreamResponse, String> {
+    crate::business_export::begin_business_export_stream(&state, payload)
+}
+
+#[tauri::command]
+pub async fn append_business_export_stream(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
+    session_id: String,
+    chunk: String,
+) -> Result<crate::business_export::AppendBusinessExportStreamResponse, String> {
+    crate::business_export::append_business_export_stream(&state, &session_id, &chunk)
+}
+
+#[tauri::command]
+pub async fn complete_business_export_stream(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
+    session_id: String,
+) -> Result<crate::business_export::BusinessExportResponse, String> {
+    crate::business_export::complete_business_export_stream(&state, &session_id)
+}
+
+#[tauri::command]
+pub async fn cancel_business_export_stream(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
+    session_id: String,
+) -> Result<(), String> {
+    crate::business_export::cancel_business_export_stream(&state, &session_id)
+}
+
+#[tauri::command]
 pub async fn import_data_dir_config(
     data_dir: String,
 ) -> Result<config_store::ConfigSummary, String> {

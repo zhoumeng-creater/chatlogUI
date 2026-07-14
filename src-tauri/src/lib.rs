@@ -18,6 +18,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(configure_updater().build())
         .manage(sidecar::SidecarState::new())
+        .manage(business_export::BusinessExportStreamState::new())
         .setup(|_app| {
             #[cfg(debug_assertions)]
             {
@@ -30,6 +31,8 @@ pub fn run() {
             if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
                 let state = window.state::<sidecar::SidecarState>();
                 sidecar::shutdown_sidecar_for_app_exit(&state);
+                let export_state = window.state::<business_export::BusinessExportStreamState>();
+                export_state.cleanup_all();
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -41,6 +44,10 @@ pub fn run() {
             commands::export_diagnostics_report,
             commands::export_diagnostics_report_to_path,
             commands::export_business_file,
+            commands::begin_business_export_stream,
+            commands::append_business_export_stream,
+            commands::complete_business_export_stream,
+            commands::cancel_business_export_stream,
             material::apply_window_material,
             commands::import_data_dir_config,
             commands::read_data_dir_config_draft,

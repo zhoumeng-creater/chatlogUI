@@ -15,8 +15,11 @@ export type {
   ExportDiagnosticsPayload,
   ExportDiagnosticsResult,
 } from "./exportDiagnostics";
-export { exportBusinessFile } from "./exportBusinessFile";
+export { beginBusinessExportStream, exportBusinessFile } from "./exportBusinessFile";
 export type {
+  BeginBusinessExportStreamRequest,
+  BeginBusinessExportStreamResult,
+  BusinessExportStream,
   ExportBusinessFileCompleted,
   ExportBusinessFileCancelled,
   ExportBusinessFileResult,
