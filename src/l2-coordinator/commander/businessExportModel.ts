@@ -112,6 +112,54 @@ export interface SearchExportInput {
   messages: SearchExportMessage[];
 }
 
+export interface SearchExportStreamRange {
+  start: number;
+  end: number;
+}
+
+export interface SearchExportStreamRow {
+  sourceIndex: number;
+  timestamp: number;
+  chat: string;
+  sender: string;
+  type: string;
+  content: string;
+  groupKey: string | null;
+  groupLabel: string | null;
+}
+
+export interface SearchExportStreamInput {
+  format: BusinessExportFormat;
+  privacyOn: boolean;
+  requestedUnredacted: boolean;
+  unredactedConfirmed: boolean;
+  generatedAt: Date;
+  snapshotId: string;
+  dataRevision: string;
+  revisionState: "current" | "stale";
+  query: string;
+  scopeSummary: string;
+  filterSummary: string[];
+  exportScope: "partial" | "all";
+  exportedCount: number;
+  totalCount: number;
+  ranges: readonly SearchExportStreamRange[];
+  gaps: readonly SearchExportStreamRange[];
+  browseMode: "manual" | "infinite" | "paged";
+  sortMode: "baseline" | "newest" | "oldest";
+  groupingMode: "none" | "conversation" | "date";
+  timeZone: string | null;
+  utcOffsetMinutes: number | null;
+  querySince: number | null;
+  queryUntil: number | null;
+}
+
+export interface SearchExportStreamEncoder {
+  start: () => string;
+  append: (rows: readonly SearchExportStreamRow[]) => string;
+  finish: () => string;
+}
+
 export interface StatsExportInput {
   format: BusinessExportFormat;
   privacyOn: boolean;
@@ -443,6 +491,177 @@ export function createSearchExportArtifact(input: SearchExportInput): BusinessEx
     status: partial ? "partial" : "confirming",
     warnings: partial ? ["当前只导出已加载数据。"] : [],
   });
+}
+
+export function createSearchExportStreamEncoder(
+  input: SearchExportStreamInput,
+): SearchExportStreamEncoder {
+  let started = false;
+  let finished = false;
+  let firstJsonRow = true;
+  let markdownTableStarted = false;
+  let previousMarkdownGroupKey: string | null = null;
+  const privateGroups = new Map<string, { key: string; label: string }>();
+  const redactContent = shouldRedactExportContent(input);
+  const metadata = {
+    title: "搜索结果",
+    generatedAt: input.generatedAt.toISOString(),
+    snapshotId: input.snapshotId,
+    dataRevision: input.dataRevision,
+    revisionState: input.revisionState,
+    scope: exportText(input.scopeSummary, redactContent, "已隐藏范围"),
+    query: exportText(input.query, redactContent, "已隐藏查询"),
+    filters:
+      redactContent && input.filterSummary.length > 0
+        ? ["已隐藏筛选条件"]
+        : [...input.filterSummary],
+    exportScope: input.exportScope,
+    exportedCount: input.exportedCount,
+    totalCount: input.totalCount,
+    partial: input.exportScope === "partial",
+    ranges: input.ranges.map((range) => ({ ...range })),
+    gaps: input.gaps.map((range) => ({ ...range })),
+    browseMode: input.browseMode,
+    sortMode: input.sortMode,
+    groupingMode: input.groupingMode,
+    timeZone: input.timeZone ?? "local",
+    utcOffsetMinutes: input.utcOffsetMinutes,
+    querySince: input.querySince,
+    queryUntil: input.queryUntil,
+  };
+
+  const safeGroup = (row: SearchExportStreamRow): { key: string; label: string } => {
+    if (!row.groupKey) return { key: "", label: "" };
+    if (!redactContent) {
+      return { key: row.groupKey, label: row.groupLabel ?? row.groupKey };
+    }
+    const existing = privateGroups.get(row.groupKey);
+    if (existing) return existing;
+    const number = privateGroups.size + 1;
+    const next = { key: `group-${number}`, label: `分组 ${number}` };
+    privateGroups.set(row.groupKey, next);
+    return next;
+  };
+
+  const safeRow = (row: SearchExportStreamRow) => {
+    const group = safeGroup(row);
+    return {
+      sourceIndex: row.sourceIndex,
+      time: formatMessageTime({
+        id: "",
+        sender: "",
+        chat: "",
+        content: "",
+        timestamp: row.timestamp,
+      }),
+      chat: exportText(row.chat, redactContent, "已隐藏会话"),
+      sender: exportText(row.sender, redactContent, "已隐藏发送者"),
+      type: row.type || "unknown",
+      groupKey: group.key,
+      groupLabel: group.label,
+      content: exportText(row.content || "[空消息]", redactContent, "已隐藏消息内容"),
+    };
+  };
+
+  return {
+    start: () => {
+      if (started || finished) throw new Error("Search export encoder state is invalid");
+      started = true;
+      if (input.format === "json") {
+        return `${JSON.stringify({ metadata }).slice(0, -1)},"messages":[`;
+      }
+      if (input.format === "csv") {
+        return `${toCsv([
+          [
+            "recordType",
+            "sourceIndex",
+            "time",
+            "chat",
+            "sender",
+            "type",
+            "groupKey",
+            "groupLabel",
+            "content",
+            "metadata",
+          ],
+          ["metadata", "", "", "", "", "", "", "", "", JSON.stringify(metadata)],
+        ])}\n`;
+      }
+      return [
+        "# 搜索结果",
+        "",
+        `生成时间: ${metadata.generatedAt}`,
+        `范围: ${metadata.scope}`,
+        `查询: ${metadata.query}`,
+        `筛选: ${metadata.filters.length ? metadata.filters.join("、") : "无"}`,
+        `导出记录: ${metadata.exportedCount} / 共 ${metadata.totalCount}`,
+        `部分导出: ${metadata.partial ? "是" : "否"}`,
+        `数据版本状态: ${metadata.revisionState === "stale" ? "已过期" : "当前"}`,
+        `快照标识: ${metadata.snapshotId}`,
+        `数据版本: ${metadata.dataRevision}`,
+        `已加载范围: ${formatStreamRanges(metadata.ranges)}`,
+        `未加载缺口: ${formatStreamRanges(metadata.gaps)}`,
+        `时区: ${metadata.timeZone}`,
+        `UTC 偏移（分钟）: ${metadata.utcOffsetMinutes ?? "未知"}`,
+        `查询时间边界: ${formatEpochRange(metadata.querySince, metadata.queryUntil)}`,
+        "",
+        "",
+      ].join("\n");
+    },
+    append: (rows) => {
+      if (!started || finished) throw new Error("Search export encoder state is invalid");
+      if (rows.length === 0) return "";
+      const safeRows = rows.map(safeRow);
+      if (input.format === "json") {
+        const prefix = firstJsonRow ? "" : ",";
+        firstJsonRow = false;
+        return `${prefix}${safeRows.map((row) => JSON.stringify(row)).join(",")}`;
+      }
+      if (input.format === "csv") {
+        return `${toCsv(
+          safeRows.map((row) => [
+            "message",
+            row.sourceIndex,
+            row.time,
+            row.chat,
+            row.sender,
+            row.type,
+            row.groupKey,
+            row.groupLabel,
+            row.content,
+            "",
+          ]),
+        )}\n`;
+      }
+      const lines: string[] = [];
+      for (const row of safeRows) {
+        const groupChanged = row.groupKey && row.groupKey !== previousMarkdownGroupKey;
+        if (groupChanged) {
+          if (markdownTableStarted) lines.push("");
+          lines.push(`## ${escapeMarkdownCell(row.groupLabel)}`, "");
+          markdownTableStarted = false;
+          previousMarkdownGroupKey = row.groupKey;
+        }
+        if (!markdownTableStarted) {
+          lines.push(
+            "| 来源位置 | 时间 | 会话 | 发送者 | 类型 | 内容 |",
+            "| --- | --- | --- | --- | --- | --- |",
+          );
+          markdownTableStarted = true;
+        }
+        lines.push(
+          `| ${row.sourceIndex} | ${escapeMarkdownCell(row.time)} | ${escapeMarkdownCell(row.chat)} | ${escapeMarkdownCell(row.sender)} | ${escapeMarkdownCell(row.type)} | ${escapeMarkdownCell(row.content)} |`,
+        );
+      }
+      return `${lines.join("\n")}\n`;
+    },
+    finish: () => {
+      if (!started || finished) throw new Error("Search export encoder state is invalid");
+      finished = true;
+      if (input.format === "json") return "]}";
+      return input.format === "markdown" ? "\n" : "";
+    },
+  };
 }
 
 export function createStatsExportArtifact(input: StatsExportInput): BusinessExportArtifact {
@@ -1152,17 +1371,43 @@ function serializeByFormat(format: BusinessExportFormat, serializers: Record<Bus
 
 function toCsv(rows: Array<Array<string | number | boolean>>): string {
   return rows
-    .map((row) => row.map((cell) => escapeCsvCell(String(cell))).join(","))
+    .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
     .join("\n");
 }
 
-function escapeCsvCell(value: string): string {
-  if (!/[",\n\r]/.test(value)) return value;
-  return `"${value.replace(/"/g, '""')}"`;
+function escapeCsvCell(value: string | number | boolean): string {
+  const serialized = String(value);
+  const spreadsheetSafe = typeof value === "string" && isSpreadsheetFormulaCandidate(value)
+    ? `'${serialized}`
+    : serialized;
+  if (!/[",\n\r]/.test(spreadsheetSafe)) return spreadsheetSafe;
+  return `"${spreadsheetSafe.replace(/"/g, '""')}"`;
+}
+
+function isSpreadsheetFormulaCandidate(value: string): boolean {
+  const firstCode = value.charCodeAt(0);
+  if (firstCode === 0x09 || firstCode === 0x0d) return true;
+
+  let index = 0;
+  while (index < value.length) {
+    const character = value[index];
+    const code = value.charCodeAt(index);
+    const ignorablePrefix =
+      code <= 0x20
+      || code === 0x7f
+      || code === 0x85
+      || code === 0xa0
+      || code === 0xfeff
+      || character.trim() === "";
+    if (!ignorablePrefix) break;
+    index += 1;
+  }
+  const candidate = value[index];
+  return candidate !== undefined && "=+-@".includes(candidate);
 }
 
 function escapeMarkdownCell(value: string): string {
-  return value.replace(/\|/g, "\\|").replace(/\n/g, " ");
+  return value.replace(/\|/g, "\\|").replace(/\r\n|\r|\n/g, " ");
 }
 
 function formatMessageTime(message: SearchExportMessage): string {
@@ -1170,6 +1415,16 @@ function formatMessageTime(message: SearchExportMessage): string {
   const timestamp = message.timestamp ?? 0;
   const date = new Date(timestamp > 1_000_000_000_000 ? timestamp : timestamp * 1000);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function formatStreamRanges(ranges: readonly SearchExportStreamRange[]): string {
+  if (ranges.length === 0) return "无";
+  return ranges.map((range) => `${range.start + 1}–${range.end}`).join("、");
+}
+
+function formatEpochRange(since: number | null, until: number | null): string {
+  if (since === null && until === null) return "未限制";
+  return `${since ?? "未限制"} – ${until ?? "未限制"}`;
 }
 
 function formatExportDelta(deltaPercent: number | null): string {

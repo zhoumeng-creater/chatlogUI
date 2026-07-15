@@ -26,7 +26,25 @@ export { fetchHealth } from "./readiness";
 export { fetchDbReadiness } from "./readiness";
 export { fetchSessions, fetchContactsApi, fetchChatRoomsApi, fetchConversations } from "./fetchContacts";
 export { fetchHistory } from "./fetchHistory";
-export { fetchSearch } from "./fetchSearch";
+export {
+  fetchHistoryContext,
+  HistoryContextProtocolError,
+  HistoryContextRequestError,
+} from "./fetchHistoryContext";
+export type { HistoryContextRequestErrorCode } from "./fetchHistoryContext";
+export {
+  fetchSearch,
+  fetchSearchCapabilities,
+  fetchSearchV2,
+  SearchProtocolError,
+} from "./fetchSearch";
+export {
+  fetchSearchConversationDirectory,
+  fetchSearchSenderDirectory,
+  SearchDirectoryProtocolError,
+  SearchDirectoryRequestError,
+} from "./fetchSearchDirectories";
+export type { SearchDirectoryRequestErrorCode } from "./fetchSearchDirectories";
 export { fetchStats, fetchDashboardTrend } from "./fetchStats";
 export { fetchFavorites } from "./fetchFavorites";
 export { fetchMembers } from "./fetchMembers";

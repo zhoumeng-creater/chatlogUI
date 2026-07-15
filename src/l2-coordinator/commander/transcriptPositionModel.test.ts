@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ChatMessageAnchor } from "@l2/data-clerk/stores/useChatStore";
 import {
   deriveTranscriptPositionModel,
+  resolveTranscriptControlAction,
   type TranscriptPositionRow,
 } from "./transcriptPositionModel";
 
@@ -35,6 +36,7 @@ describe("transcriptPositionModel", () => {
       rows,
       visibleIndexes: [2, 3],
       messagesHasMore: true,
+      messagesHasNewer: false,
       nearLatest: false,
       activeAnchor: null,
       anchorStatus: "idle",
@@ -51,6 +53,7 @@ describe("transcriptPositionModel", () => {
       rows,
       visibleIndexes: [0, 1],
       messagesHasMore: false,
+      messagesHasNewer: false,
       nearLatest: false,
       activeAnchor: null,
       anchorStatus: "idle",
@@ -60,6 +63,7 @@ describe("transcriptPositionModel", () => {
       rows,
       visibleIndexes: [2, 3],
       messagesHasMore: false,
+      messagesHasNewer: false,
       nearLatest: true,
       activeAnchor: null,
       anchorStatus: "idle",
@@ -71,10 +75,36 @@ describe("transcriptPositionModel", () => {
       rows,
       visibleIndexes: [2, 3],
       messagesHasMore: true,
+      messagesHasNewer: false,
       nearLatest: true,
       activeAnchor: null,
       anchorStatus: "idle",
     }).bottomTerminalText).toBe("已到最新消息");
+  });
+
+  it("does not call a partial anchor window latest and routes the latest command to a real load", () => {
+    const model = deriveTranscriptPositionModel({
+      rows,
+      visibleIndexes: [2, 3],
+      messagesHasMore: true,
+      messagesHasNewer: true,
+      nearLatest: true,
+      activeAnchor: searchAnchor,
+      anchorStatus: "hit",
+    });
+
+    expect(model.bottomTerminalText).toBeNull();
+    expect(model.controls.find((control) => control.id === "latest")).toMatchObject({
+      disabled: false,
+      disabledReason: null,
+    });
+    expect(model.controls.find((control) => control.id === "bottom")).toMatchObject({
+      disabled: true,
+      disabledReason: "已经在底部。",
+    });
+    expect(resolveTranscriptControlAction("latest", true)).toBe("load-latest");
+    expect(resolveTranscriptControlAction("latest", false)).toBe("scroll-latest");
+    expect(resolveTranscriptControlAction("bottom", true)).toBe("scroll-latest");
   });
 
   it("exposes search anchor return controls and honest disabled previous-next state", () => {
@@ -82,6 +112,7 @@ describe("transcriptPositionModel", () => {
       rows,
       visibleIndexes: [3],
       messagesHasMore: false,
+      messagesHasNewer: false,
       nearLatest: false,
       activeAnchor: searchAnchor,
       anchorStatus: "hit",
@@ -103,6 +134,7 @@ describe("transcriptPositionModel", () => {
       rows,
       visibleIndexes: [3],
       messagesHasMore: false,
+      messagesHasNewer: false,
       nearLatest: false,
       activeAnchor: { ...searchAnchor, source: "ai" },
       anchorStatus: "missing",

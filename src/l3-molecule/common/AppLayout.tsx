@@ -12,6 +12,7 @@ interface AppShellView {
   productName: string;
   title: string;
   privacyOn: boolean;
+  exportCleanupNotice?: string | null;
   shortcutHelpAction?: {
     label: string;
     tooltip: string;
@@ -96,6 +97,12 @@ export function AppLayout({ children, shell, actions }: AppLayoutProps) {
           />
         )}
       />
+
+      {shell.exportCleanupNotice && (
+        <div className="app-export-cleanup-notice" role="alert" aria-live="assertive">
+          {shell.exportCleanupNotice}
+        </div>
+      )}
 
       <main id="app-main" className="app-main" tabIndex={-1}>{children}</main>
       {shell.shortcutHelp && actions.closeShortcutHelp && (

@@ -1,434 +1,156 @@
-import { useCallback, useRef } from "react";
-import { useSearchStore } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
-import type { SearchScope } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
-import type { SearchResults } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
-import { useChatStore } from "@/l2-coordinator/data-clerk/stores/useChatStore";
-import { ChatlogHttpError, fetchSearch } from "@l4/network";
-import { debounce } from "@/l2-coordinator/diplomat/debounce";
-import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
+import { useCallback, useEffect } from "react";
 import {
-  mapSearchAdvancedFiltersToRequest,
-  type SearchAdvancedFiltersState,
-} from "./searchAdvancedFilters";
+  useSearchStore,
+  type SearchScope,
+} from "@/l2-coordinator/data-clerk/stores/useSearchStore";
+import { useSetupStore } from "@/l2-coordinator/data-clerk/stores/useSetupStore";
 import {
-  canMergeSearchPage,
-  createSearchRequest,
-  createSearchRequestSnapshot,
-  getNextSearchOffset,
-  getSearchInputStatus,
-  isSearchSnapshotCurrent,
-  mergeSearchResults,
-} from "./searchRequest";
-import { clearSearchSession } from "./searchSession";
-import { resolveSearchScopeChat } from "./searchWorkspaceContext";
-import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
-import {
-  createUxKpiTimer,
-  recordSearchExecutedKpiEvent,
-  recordSearchFilterChangedKpiEvent,
-  type UxKpiScopeKind,
-} from "./uxKpiEvents";
-
-const SEARCH_PAGE_SIZE = 20;
-
-function getScopedChat(scopedChat?: string | null): string | null {
-  const { scope } = useSearchStore.getState();
-  const { conversations, selectedConversationId } = useChatStore.getState();
-  return resolveSearchScopeChat({
-    scope,
-    scopedChat,
-    conversations,
-    selectedConversationId,
-  });
-}
-
-function getCurrentRequestState(scopedChat?: string | null) {
-  const state = useSearchStore.getState();
-  return {
-    query: state.query,
-    activeFilter: state.activeFilter,
-    scope: state.scope,
-    scopeChat: getScopedChat(scopedChat),
-    advancedFilters: state.advancedFilters,
-  };
-}
-
-function isCancelledSearchError(error: unknown): boolean {
-  return error instanceof ChatlogHttpError && error.status === null && error.message === "请求已取消";
-}
+  replaceSearchDraftScope,
+  type SearchDraft,
+} from "./searchDraftModel";
+import { shouldProbeSearchCapabilities, useSearchRequest } from "./useSearchRequest";
+import type { SearchLoadedRange } from "./searchResultWindowModel";
 
 interface SearchCommanderOptions {
   scopedChat?: string | null;
 }
 
+/**
+ * Canonical search-page coordinator. Network execution is owned by
+ * useSearchRequest; edit actions below mutate only the canonical draft.
+ */
 export function useSearchCommander(options: SearchCommanderOptions = {}) {
   const store = useSearchStore();
-  const scopedChat = options.scopedChat ?? null;
-  const activeControllerRef = useRef<AbortController | null>(null);
-  const requestCounterRef = useRef(0);
+  const request = useSearchRequest();
+  const httpReady = useSetupStore((state) => state.httpReady);
+  const dbReady = useSetupStore((state) => state.dbReady);
 
-  const createRequestId = useCallback((kind: "search" | "loadMore") => {
-    requestCounterRef.current += 1;
-    return `${kind}-${requestCounterRef.current}`;
-  }, []);
-
-  const cancelActiveRequest = useCallback(() => {
-    const controller = activeControllerRef.current;
-    activeControllerRef.current = null;
-    const activeRequestId = useSearchStore.getState().activeRequest?.requestId;
-    if (activeRequestId) {
-      useSearchStore.getState().clearActiveRequest(activeRequestId);
+  useEffect(() => {
+    const state = useSearchStore.getState();
+    state.setReadiness({ httpReady, dbReady });
+    if (
+      httpReady &&
+      shouldProbeSearchCapabilities({
+        restoredFromNavigation: state.restoredFromNavigation,
+        capabilitiesStatus: state.capabilities.status,
+      })
+    ) {
+      void request.probeCapabilities();
     }
-    controller?.abort();
-  }, []);
+  }, [dbReady, httpReady, request]);
 
-  const executeSearchFn = useCallback(async (
-    keyword: string,
-    filter = useSearchStore.getState().activeFilter,
-    advancedFilters = useSearchStore.getState().advancedFilters,
-  ) => {
-    if (getSearchInputStatus(keyword) === "invalid") {
-      cancelActiveRequest();
-      useSearchStore.getState().setInvalid();
+  useEffect(() => {
+    const state = useSearchStore.getState();
+    const chatId = normalizePrivateId(options.scopedChat);
+    if (
+      !shouldSynchronizeScopedChat(
+        state.restoredFromNavigation,
+        state.draft.scope.kind,
+        state.draft.scope.kind === "current" ? state.draft.scope.chatId : null,
+        chatId,
+      )
+    ) {
       return;
     }
-    cancelActiveRequest();
-    const scopeChat = getScopedChat(scopedChat);
-    const requestId = createRequestId("search");
-    const controller = new AbortController();
-    const { scope } = useSearchStore.getState();
-    const snapshot = createSearchRequestSnapshot({
-      requestId,
-      kind: "search",
-      query: keyword,
-      filter,
-      scope,
-      scopeChat,
-      advancedFilters,
-      limit: SEARCH_PAGE_SIZE,
-      offset: 0,
-    });
-
-    activeControllerRef.current = controller;
-    useSearchStore.getState().setActiveRequest(snapshot);
-    useSearchStore.getState().setLoading(true);
-    const timer = createUxKpiTimer();
-
-    try {
-      const result = await fetchSearch(
-        createSearchRequest({
-          keyword,
-          filter,
-          limit: SEARCH_PAGE_SIZE,
-          offset: 0,
-          scopeChat: scopeChat ?? undefined,
-          advancedFilters,
-        }),
-        {
-          ...createDiagnosticHttpOptions({
-            endpointFamily: "search",
-            method: "GET",
-            recoveryHint: "retry",
-          }),
-          signal: controller.signal,
-        },
-      );
-      if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(scopedChat), useSearchStore.getState().activeRequest?.requestId)) {
-        return;
-      }
-      const searchResult = result as unknown as SearchResults;
-      useSearchStore.getState().setResults(searchResult);
-      recordSearchExecutedKpiEvent({
-        resultCount: searchResult.totalCount,
-        filterCount: countSearchFilters({
-          filter,
-          advancedFilters,
-          scope,
-          scopeChat,
-        }),
-        scopeKind: toSearchKpiScopeKind(scope),
-        durationMs: timer.durationMs(),
-        outcome: "success",
-      });
-    } catch (error) {
-      if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(scopedChat), useSearchStore.getState().activeRequest?.requestId)) {
-        return;
-      }
-      if (isCancelledSearchError(error)) {
-        useSearchStore.getState().setCancelled();
-        recordSearchExecutedKpiEvent({
-          resultCount: 0,
-          filterCount: countSearchFilters({
-            filter,
-            advancedFilters,
-            scope,
-            scopeChat,
-          }),
-          scopeKind: toSearchKpiScopeKind(scope),
-          durationMs: timer.durationMs(),
-          outcome: "cancelled",
-        });
-        return;
-      }
-      useSearchStore.getState().setError("搜索失败，请检查网络连接");
-      recordSearchExecutedKpiEvent({
-        resultCount: 0,
-        filterCount: countSearchFilters({
-          filter,
-          advancedFilters,
-          scope,
-          scopeChat,
-        }),
-        scopeKind: toSearchKpiScopeKind(scope),
-        durationMs: timer.durationMs(),
-        outcome: "failed",
-        errorKind: toSearchKpiErrorKind(error),
-      });
-    } finally {
-      if (activeControllerRef.current === controller) {
-        activeControllerRef.current = null;
-      }
-    }
-  }, [cancelActiveRequest, createRequestId, scopedChat]);
-
-  const debouncedSearchRef = useRef(
-    debounce((keyword: string) => {
-      executeSearchFn(keyword);
-    }, 300),
-  );
-
-  const executeSearch = useCallback(
-    (keyword: string) => {
-      debouncedSearchRef.current.cancel();
-      useSearchStore.getState().setQuery(keyword);
-      executeSearchFn(keyword);
-    },
-    [executeSearchFn],
-  );
+    state.setDraft(applySearchRouteScopeDraft(state.draft, "current", chatId));
+  }, [options.scopedChat]);
 
   const search = useCallback((keyword: string) => {
-    useSearchStore.getState().setQuery(keyword);
-    if (getSearchInputStatus(keyword) === "invalid") {
-      debouncedSearchRef.current.cancel();
-      cancelActiveRequest();
-      useSearchStore.getState().setInvalid();
-      return;
-    }
-    cancelActiveRequest();
-    debouncedSearchRef.current(keyword);
-  }, [cancelActiveRequest]);
-
-  const changeFilter = useCallback((filter: SearchFilterType) => {
-    const { query } = useSearchStore.getState();
-    debouncedSearchRef.current.cancel();
-    cancelActiveRequest();
-    useSearchStore.getState().setFilter(filter);
-    recordSearchFilterChangedKpiEvent({
-      filterCount: countSearchFilters({
-        filter,
-        advancedFilters: useSearchStore.getState().advancedFilters,
-        scope: useSearchStore.getState().scope,
-        scopeChat: getScopedChat(scopedChat),
-      }),
-      scopeKind: toSearchKpiScopeKind(useSearchStore.getState().scope),
-    });
-    if (query.trim()) {
-      executeSearchFn(query, filter);
-    }
-  }, [cancelActiveRequest, executeSearchFn, scopedChat]);
-
-  const changeScope = useCallback((scope: SearchScope) => {
-    const { query } = useSearchStore.getState();
-    debouncedSearchRef.current.cancel();
-    cancelActiveRequest();
-    useSearchStore.getState().setScope(scope);
-    recordSearchFilterChangedKpiEvent({
-      filterCount: countSearchFilters({
-        filter: useSearchStore.getState().activeFilter,
-        advancedFilters: useSearchStore.getState().advancedFilters,
-        scope,
-        scopeChat: getScopedChat(scopedChat),
-      }),
-      scopeKind: toSearchKpiScopeKind(scope),
-    });
-    if (query.trim()) {
-      executeSearchFn(query);
-    }
-  }, [cancelActiveRequest, executeSearchFn, scopedChat]);
-
-  const changeAdvancedFilters = useCallback((advancedFilters: SearchAdvancedFiltersState) => {
-    const { query, activeFilter, advancedFilters: previousAdvancedFilters } = useSearchStore.getState();
-    const backendFiltersChanged = getBackendFilterKey(previousAdvancedFilters) !== getBackendFilterKey(advancedFilters);
-    debouncedSearchRef.current.cancel();
-    cancelActiveRequest();
-    useSearchStore.getState().setAdvancedFilters(advancedFilters);
-    recordSearchFilterChangedKpiEvent({
-      filterCount: countSearchFilters({
-        filter: activeFilter,
-        advancedFilters,
-        scope: useSearchStore.getState().scope,
-        scopeChat: getScopedChat(scopedChat),
-      }),
-      scopeKind: toSearchKpiScopeKind(useSearchStore.getState().scope),
-    });
-    if (query.trim() && backendFiltersChanged) {
-      executeSearchFn(query, activeFilter, advancedFilters);
-    }
-  }, [cancelActiveRequest, executeSearchFn, scopedChat]);
-
-  const cancelSearch = useCallback(() => {
-    const controller = activeControllerRef.current;
-    activeControllerRef.current = null;
-    controller?.abort();
-    useSearchStore.getState().setCancelled();
+    const state = useSearchStore.getState();
+    state.setDraft({ ...state.draft, keyword });
   }, []);
 
+  const executeSearch = useCallback(
+    async (keyword: string) => {
+      search(keyword);
+      return request.submit();
+    },
+    [request, search],
+  );
+
+  const changeScope = useCallback(
+    (scope: SearchScope) => {
+      const state = useSearchStore.getState();
+      state.setDraft(applySearchRouteScopeDraft(state.draft, scope, options.scopedChat));
+    },
+    [options.scopedChat],
+  );
+
+  const cancelSearch = useCallback(() => request.cancelPending(), [request]);
+
   const clearSearch = useCallback(() => {
-    cancelActiveRequest();
-    clearSearchSession(debouncedSearchRef.current, useSearchStore.getState().clear);
-  }, [cancelActiveRequest]);
+    const state = useSearchStore.getState();
+    state.setDraft({ ...state.draft, keyword: "" });
+  }, []);
 
-  const loadMoreResults = useCallback(async () => {
-    const { query, activeFilter, advancedFilters, results, loading, scope } = useSearchStore.getState();
-    if (loading || !results || results.messages.length >= results.totalCount) return;
+  const endSearch = useCallback(() => {
+    request.cancelPending();
+    request.cancelAllWindowOperations();
+    useSearchStore.getState().endSearch();
+  }, [request]);
 
-    const nextOffset = getNextSearchOffset(results);
-    const scopeChat = getScopedChat(scopedChat);
-    const requestId = createRequestId("loadMore");
-    const controller = new AbortController();
-    const snapshot = createSearchRequestSnapshot({
-      requestId,
-      kind: "loadMore",
-      query,
-      filter: activeFilter,
-      scope,
-      scopeChat,
-      advancedFilters,
-      offset: nextOffset,
-      limit: SEARCH_PAGE_SIZE,
-    });
-
-    activeControllerRef.current = controller;
-    useSearchStore.getState().setActiveRequest(snapshot);
-    useSearchStore.getState().setLoading(true);
-
-    try {
-      const newResult = await fetchSearch(
-        createSearchRequest({
-          keyword: query,
-          filter: activeFilter,
-          limit: SEARCH_PAGE_SIZE,
-          offset: nextOffset,
-          scopeChat: scopeChat ?? undefined,
-          advancedFilters,
-        }),
-        {
-          ...createDiagnosticHttpOptions({
-            endpointFamily: "search",
-            method: "GET",
-            recoveryHint: "retry",
-          }),
-          signal: controller.signal,
-        },
-      );
-      useSearchStore.setState((state) => {
-        const canMerge = canMergeSearchPage(
-          snapshot,
-          {
-            query: state.query,
-            activeFilter: state.activeFilter,
-            scope: state.scope,
-            scopeChat: getScopedChat(scopedChat),
-            advancedFilters: state.advancedFilters,
-            results: state.results,
-          },
-          newResult as unknown as SearchResults,
-          state.activeRequest?.requestId,
-        );
-        if (canMerge) {
-          return {
-            results: state.results
-              ? mergeSearchResults(state.results, newResult as unknown as SearchResults)
-              : (newResult as unknown as SearchResults),
-            activeRequest: null,
-            loading: false,
-            error: null,
-            status: "ready" as const,
-          };
-        }
-        if (state.activeRequest?.requestId !== snapshot.requestId) {
-          return {};
-        }
-        return {
-          activeRequest: null,
-          loading: false,
-          status: state.results
-            ? (state.results.messages.length > 0 ? "ready" as const : "empty" as const)
-            : "idle" as const,
-        };
-      });
-    } catch (error) {
-      if (!isSearchSnapshotCurrent(snapshot, getCurrentRequestState(scopedChat), useSearchStore.getState().activeRequest?.requestId)) {
-        return;
-      }
-      if (isCancelledSearchError(error)) {
-        useSearchStore.getState().setCancelled();
-        return;
-      }
-      useSearchStore.getState().setError("加载更多结果失败");
-    } finally {
-      if (activeControllerRef.current === controller) {
-        activeControllerRef.current = null;
-      }
-    }
-  }, [createRequestId, scopedChat]);
+  const loadMoreResults = useCallback(() => request.load("forward"), [request]);
+  const loadPreviousResults = useCallback(() => request.load("backward"), [request]);
+  const loadPageResults = useCallback(
+    (cursor: string, targetPageStart: number) =>
+      request.load("page", { cursor, targetPageStart }),
+    [request],
+  );
+  const loadGapResults = useCallback(
+    (gap: SearchLoadedRange) => request.load("gap", { gap }),
+    [request],
+  );
+  const cancelWindowOperation = useCallback(
+    (target: "forward" | "backward" | "page" | "gap", gap?: SearchLoadedRange) =>
+      request.cancelWindowOperation(target, gap),
+    [request],
+  );
+  const retrySearch = useCallback(() => request.retry(), [request]);
+  const refreshSearch = useCallback(() => request.refresh(), [request]);
+  const reprobeCapabilities = useCallback(() => request.probeCapabilities(), [request]);
 
   return {
     ...store,
     search,
     executeSearch,
-    changeFilter,
     changeScope,
-    changeAdvancedFilters,
     cancelSearch,
     clearSearch,
+    endSearch,
     loadMoreResults,
+    loadPreviousResults,
+    loadPageResults,
+    loadGapResults,
+    cancelWindowOperation,
+    retrySearch,
+    refreshSearch,
+    reprobeCapabilities,
   };
 }
 
-function getBackendFilterKey(filters: SearchAdvancedFiltersState): string {
-  return JSON.stringify(mapSearchAdvancedFiltersToRequest(filters));
+export function shouldSynchronizeScopedChat(
+  restoredFromNavigation: boolean,
+  scopeKind: ReturnType<typeof useSearchStore.getState>["draft"]["scope"]["kind"],
+  currentChatId: string | null,
+  scopedChatId: string | null,
+): boolean {
+  return !restoredFromNavigation && scopeKind === "current" && currentChatId !== scopedChatId;
 }
 
-function toSearchKpiScopeKind(scope: SearchScope): UxKpiScopeKind {
-  return scope === "current" ? "current" : "all";
+export function applySearchRouteScopeDraft(
+  draft: SearchDraft,
+  scope: SearchScope,
+  scopedChat?: string | null,
+): SearchDraft {
+  return replaceSearchDraftScope(
+    draft,
+    scope === "all"
+      ? { kind: "all" }
+      : { kind: "current", chatId: normalizePrivateId(scopedChat) },
+  );
 }
 
-function countSearchFilters(input: {
-  filter: SearchFilterType;
-  advancedFilters: SearchAdvancedFiltersState;
-  scope: SearchScope;
-  scopeChat: string | null;
-}): number {
-  let count = 0;
-  if (input.scope === "current" && input.scopeChat) count += 1;
-  if (input.filter !== "all") count += 1;
-  if (input.advancedFilters.dateRange?.start || input.advancedFilters.dateRange?.end) {
-    count += 1;
-  }
-  count += input.advancedFilters.selectedChats.length;
-  if (input.advancedFilters.sender.trim()) count += 1;
-  if (input.advancedFilters.favoriteOnly) count += 1;
-  if (input.advancedFilters.attachmentOnly) count += 1;
-  if (input.advancedFilters.sortMode !== "time-desc") count += 1;
-  if (input.advancedFilters.groupMode !== "flat") count += 1;
-  return count;
-}
-
-function toSearchKpiErrorKind(error: unknown): string {
-  if (error instanceof ChatlogHttpError) {
-    if (error.status === null) return "network";
-    return error.status >= 500 ? "server" : "client";
-  }
-  return "unknown";
+function normalizePrivateId(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }

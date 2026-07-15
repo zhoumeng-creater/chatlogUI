@@ -33,7 +33,7 @@ export function useShortcutHelpCommander({
   const [open, setOpen] = useState(false);
   const route = `${location.pathname}${location.search}`;
   const contextId = getShortcutContextId(route);
-  const searchResults = useSearchStore((state) => state.results);
+  const searchResultWindow = useSearchStore((state) => state.resultWindow);
   const chatSelectedConversationId = useChatStore((state) => state.selectedConversationId);
   const chatActiveAnchor = useChatStore((state) => state.activeAnchor);
   const chatSelectionMode = useChatStore((state) => state.selectionMode);
@@ -43,10 +43,9 @@ export function useShortcutHelpCommander({
   const aiStreaming = useAiStore((state) => state.qaStreaming);
   const graphData = useGraphStore((state) => state.data);
   const graphLoadStatus = useGraphStore((state) => state.loadStatus);
-  const hasSearchResults = Boolean(searchResults?.messages.length);
-  const canLoadMoreSearchResults = Boolean(
-    searchResults && searchResults.offset + searchResults.count < searchResults.totalCount,
-  );
+  const searchShortcutFacts = deriveSearchShortcutFacts(searchResultWindow);
+  const hasSearchResults = searchShortcutFacts.hasResults;
+  const canLoadMoreSearchResults = searchShortcutFacts.canLoadMore;
   const hasCurrentConversation = Boolean(chatSelectedConversationId);
   const aiReady = aiPhase === "index_ready" || aiIndexStatus?.state === "ready" || aiIndexStatus?.status === "ready" || aiIndexStatus?.ready === true;
   const graphReady = Boolean(graphData?.nodes.length || graphData?.edges.length) || graphLoadStatus === "loaded";
@@ -118,6 +117,23 @@ export function useShortcutHelpCommander({
       openHelp,
       closeHelp,
     },
+  };
+}
+
+export function deriveSearchShortcutFacts(
+  window: {
+    browseMode: "manual" | "infinite" | "paged";
+    retainedHits: readonly unknown[];
+    currentPageHits: readonly unknown[];
+    hasPrevious: boolean;
+    hasNext: boolean;
+  } | null,
+): { hasResults: boolean; canLoadMore: boolean } {
+  if (!window) return { hasResults: false, canLoadMore: false };
+  const visibleHits = window.browseMode === "paged" ? window.currentPageHits : window.retainedHits;
+  return {
+    hasResults: visibleHits.length > 0,
+    canLoadMore: window.hasPrevious || window.hasNext,
   };
 }
 

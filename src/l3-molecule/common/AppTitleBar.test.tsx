@@ -16,6 +16,9 @@ describe("AppTitleBar", () => {
     );
 
     expect(html).toContain("chatlogUI");
+    expect(html).toContain('class="app-titlebar__product-full"');
+    expect(html).toContain('class="app-titlebar__product-compact"');
+    expect(html).toContain(">C<");
     expect(html).not.toContain("chatlog_alpha");
   });
 });

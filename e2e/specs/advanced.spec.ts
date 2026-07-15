@@ -69,22 +69,22 @@ test.describe("advanced synthetic modules", () => {
     await expect(page.getByRole("dialog", { name: "确认删除语义索引？" })).toBeVisible();
     await page.getByRole("button", { name: "确认" }).click();
 
-    await expect(page.getByRole("button", { name: "搜索", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "搜索", exact: true }).click();
+    await expect(page.getByRole("button", { name: "语义搜索结果", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "语义搜索结果", exact: true }).click();
     await page.getByLabel("语义搜索").fill("synthetic semantic discovery");
     await expect(page.getByText("1 条结果 / 2 条候选 / 7d / standard / rerank 已应用")).toBeVisible();
     const semanticResult = page.locator(".semantic-search__results").getByRole("button", { name: /Synthetic Session Alpha/ });
     await expect(semanticResult).toBeVisible();
 
-    await page.getByRole("button", { name: "分析" }).click();
+    await page.getByRole("button", { name: "会话分析视图" }).click();
     await expect(page.getByText("Synthetic topics summary")).toBeVisible();
     await expect(page.getByText("synthetic topic summary warning")).toBeVisible();
     await expect(page.getByText("Synthetic profiles summary")).toBeVisible();
     await expect(page.getByText("synthetic profile summary warning")).toBeVisible();
     await expect(page.getByRole("button", { name: "询问此发送者" })).toBeVisible();
 
-    await expect(page.getByRole("button", { name: "预览" })).toBeVisible();
-    await page.getByRole("button", { name: "预览" }).click();
+    await expect(page.getByRole("button", { name: "索引预览数据" })).toBeVisible();
+    await page.getByRole("button", { name: "索引预览数据" }).click();
     const preview = page.getByLabel("语义索引预览");
     await expect(preview).toBeVisible();
     await expect(page.getByText("synthetic-embedding-model")).toBeVisible();
@@ -190,7 +190,7 @@ test.describe("advanced synthetic modules", () => {
     await expect(page.getByText("Synthetic answer with evidence")).toBeVisible();
     await expect(page.getByText("证据 1")).toBeVisible();
     await page.getByRole("button", { name: "证据" }).click();
-    await expect(page.getByRole("complementary", { name: "问答证据" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "问答证据" })).toBeVisible();
     await expect(page.getByText("Synthetic evidence summary for QA fixture only")).toBeVisible();
     await expect(page.getByText("Synthetic Candidate")).toBeVisible();
     await page.getByRole("button", { name: "关闭证据" }).click();

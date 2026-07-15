@@ -71,9 +71,29 @@ describe("release workflow governance", () => {
     const workflow = await readWorkflow(".github/workflows/release.yml");
 
     expect(workflow).toContain("repository: zhoumeng-creater/chatlog_alpha");
-    expect(workflow).toContain("ref: 5b979cc666418c41467b1f9959cfdc6b3abbb86b");
+    expect(workflow).toContain("ref: be771738055a3cd65f62f167bd4534f5c843444c");
     expect(workflow).toContain("path: output/sidecar-source/chatlog_alpha");
     expect(workflow).toContain("SIDECAR_SOURCE_DIR: output/sidecar-source/chatlog_alpha");
+  });
+
+  it("pins the sidecar manifest to the same root-package backend source", async () => {
+    const manifest = JSON.parse(await readWorkflow("scripts/release/sidecar-artifacts.json"));
+    const windowsTarget = manifest.targets.find(
+      (entry) => entry.target === "x86_64-pc-windows-msvc",
+    );
+
+    expect(windowsTarget).toMatchObject({
+      version:
+        "github.com/zhoumeng-creater/chatlog_alpha@be771738055a3cd65f62f167bd4534f5c843444c",
+      source: {
+        ref: "be771738055a3cd65f62f167bd4534f5c843444c",
+        path: "output/sidecar-source/chatlog_alpha",
+        root: "output/sidecar-source/chatlog_alpha",
+      },
+      artifact: {
+        sha256: "",
+      },
+    });
   });
 
   it("pins the Tauri release action to an immutable version tag", async () => {

@@ -30,6 +30,7 @@ interface ChatViewProps {
   messages: ChatMessage[];
   messagesLoading: boolean;
   messagesHasMore: boolean;
+  messagesHasNewer: boolean;
   messagesStatus: LoadStatus;
   messagesError: string | ApiErrorModel | null;
   readingState: ChatReadingState;
@@ -69,6 +70,7 @@ interface ChatViewProps {
     rows: TranscriptPositionRow[];
     visibleIndexes: number[];
     messagesHasMore: boolean;
+    messagesHasNewer: boolean;
     nearLatest: boolean;
     activeAnchor: ChatMessageAnchor | null;
     anchorStatus: ChatAnchorStatus;
@@ -83,6 +85,7 @@ export function ChatView({
   messages,
   messagesLoading,
   messagesHasMore,
+  messagesHasNewer,
   messagesStatus,
   messagesError,
   readingState,
@@ -134,6 +137,7 @@ export function ChatView({
         messages={messages}
         messagesLoading={messagesLoading}
         messagesHasMore={messagesHasMore}
+        messagesHasNewer={messagesHasNewer}
         messagesStatus={messagesStatus}
         messagesError={messagesError}
         readingState={readingState}

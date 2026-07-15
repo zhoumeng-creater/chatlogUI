@@ -18,7 +18,9 @@ describe("AdvancedSettings", () => {
         }}
         saveStatus="idle"
         saveMessage={null}
+        rememberRecentSearches
         onChange={vi.fn()}
+        onRememberRecentSearchesChange={vi.fn()}
       />,
     );
 
@@ -26,6 +28,9 @@ describe("AdvancedSettings", () => {
     expect(html).toContain("隐私模式默认状态");
     expect(html).toContain("默认开启");
     expect(html).toContain("默认关闭");
+    expect(html).toContain("记住最近搜索");
+    expect(html).toContain("关闭后会立即删除现有最近搜索，并停止保存新的搜索记录。");
+    expect(html).toContain("关闭并删除");
     expect(html).not.toContain("高级诊断</");
   });
 });
@@ -36,6 +41,10 @@ const advancedCopy = {
   privacyDefaultHint: "控制新打开工作区时是否默认隐藏私人内容。",
   privacyDefaultOff: "默认关闭",
   privacyDefaultOn: "默认开启",
+  recentSearchesLabel: "记住最近搜索",
+  recentSearchesHint: "关闭后会立即删除现有最近搜索，并停止保存新的搜索记录。",
+  recentSearchesDisabled: "关闭并删除",
+  recentSearchesEnabled: "开启",
   developerEntryLabel: "开发者工具入口",
   developerHint: "仅控制本机高级诊断入口；复制和导出诊断仍会脱敏。",
   developerDisabled: "隐藏",

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
 import type { ConversationListFilter } from "@/l2-coordinator/commander/conversationListInteractionModel";
 import type { ApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
+import type { SearchReturnSnapshot } from "@/l2-coordinator/commander/searchReturnSnapshot";
 import type { MediaAttachment } from "./useMediaStore";
 
 export type ConversationChatType =
@@ -63,13 +64,21 @@ export interface ChatMessage {
 export type LoadStatus = "idle" | "loading" | "ready" | "empty" | "error";
 export type UnreadStatus = "idle" | "loading" | "ready" | "unavailable" | "error";
 export type TranscriptScrollIntent = "none" | "latest" | "anchor" | "preserve";
-export type ChatAnchorStatus = "idle" | "loading" | "hit" | "missing" | "error" | "cancelled";
+export type ChatAnchorStatus =
+  | "idle"
+  | "loading"
+  | "hit"
+  | "nearby"
+  | "missing"
+  | "error"
+  | "cancelled";
 export type ChatAnchorSource = "search" | "media" | "ai" | "graph" | "sns";
 
 export interface ChatMessageAnchor {
   source: ChatAnchorSource;
   chat: string;
   messageId: string;
+  seq?: number | null;
   localId: number | null;
   timestamp: number | null;
   time: string | null;
@@ -85,6 +94,14 @@ export interface ChatReturnToSearch {
     scopeChat: string | null;
   };
   sourceConversationId: string | null;
+  searchSnapshot?: Readonly<SearchReturnSnapshot>;
+}
+
+export interface NavigationConversationIdentity {
+  id: string;
+  username: string;
+  displayName: string;
+  isGroup: boolean;
 }
 
 interface ChatState {
@@ -102,6 +119,7 @@ interface ChatState {
   messages: ChatMessage[];
   messagesLoading: boolean;
   messagesHasMore: boolean;
+  messagesHasNewer: boolean;
   messagesTotalCount: number;
   messagesOffset: number;
   messagesStatus: LoadStatus;
@@ -128,6 +146,7 @@ interface ChatActions {
   ) => void;
   setConversationsLoading: () => void;
   setConversationsError: (error: string) => void;
+  ensureNavigationConversation: (identity: NavigationConversationIdentity) => void;
   setConversationListQuery: (query: string) => void;
   setConversationListFilter: (filter: ConversationListFilter) => void;
   setConversationListActiveId: (id: string | null) => void;
@@ -143,6 +162,7 @@ interface ChatActions {
     offset: number,
     hasMore?: boolean,
     scrollIntent?: TranscriptScrollIntent,
+    hasNewer?: boolean,
   ) => void;
   appendMessages: (messages: ChatMessage[], offset: number, hasMore?: boolean) => void;
   setMessagesLoading: (loading: boolean) => void;
@@ -150,6 +170,7 @@ interface ChatActions {
   clearScrollIntent: () => void;
   setAnchorLoading: (anchor: ChatMessageAnchor, returnToSearch: ChatReturnToSearch) => void;
   setAnchorHit: (messageId: string) => void;
+  setAnchorNearby: (messageId: string) => void;
   setAnchorMissing: () => void;
   setAnchorError: (error: string) => void;
   setAnchorCancelled: () => void;
@@ -181,6 +202,7 @@ const initialState: ChatState = {
   messages: [],
   messagesLoading: false,
   messagesHasMore: false,
+  messagesHasNewer: false,
   messagesTotalCount: 0,
   messagesOffset: 0,
   messagesStatus: "idle",
@@ -217,25 +239,62 @@ const clearedSelectionState = {
 export const useChatStore = create<ChatStore>((set) => ({
   ...initialState,
   setConversations: (conversations, contactsByUsername, chatRoomsByName) =>
-    set({
-      conversations,
-      contactsByUsername,
-      chatRoomsByName,
-      conversationsStatus: conversations.length === 0 ? "empty" : "ready",
-      conversationsError: null,
-      unreadStatus: "idle",
-      unreadError: null,
+    set((state) => {
+      const loadedIdentities = new Set(
+        conversations.flatMap((conversation) => [conversation.id, conversation.username]),
+      );
+      const retainedNavigationConversation = state.conversations.filter(
+        (conversation) =>
+          conversation.source === "navigation" &&
+          conversation.id === state.selectedConversationId &&
+          !loadedIdentities.has(conversation.id) &&
+          !loadedIdentities.has(conversation.username),
+      );
+      const mergedConversations = [...conversations, ...retainedNavigationConversation];
+      return {
+        conversations: mergedConversations,
+        contactsByUsername,
+        chatRoomsByName,
+        conversationsStatus: mergedConversations.length === 0 ? "empty" : "ready",
+        conversationsError: null,
+        unreadStatus: "idle",
+        unreadError: null,
+      };
     }),
-  setConversationsLoading: () =>
-    set({ conversationsStatus: "loading", conversationsError: null }),
+  setConversationsLoading: () => set({ conversationsStatus: "loading", conversationsError: null }),
   setConversationsError: (error) =>
     set({ conversationsStatus: "error", conversationsError: error }),
+  ensureNavigationConversation: (identity) =>
+    set((state) => {
+      const exists = state.conversations.some(
+        (conversation) =>
+          conversation.id === identity.id || conversation.username === identity.username,
+      );
+      if (exists) return {};
+      return {
+        conversations: [
+          ...state.conversations,
+          {
+            id: identity.id,
+            username: identity.username,
+            displayName: identity.displayName || identity.username,
+            chatType: identity.isGroup ? "group" : "private",
+            isGroup: identity.isGroup,
+            summary: "",
+            timestamp: 0,
+            timeLabel: "",
+            unread: 0,
+            lastSender: "",
+            source: "navigation",
+          },
+        ],
+      };
+    }),
   setConversationListQuery: (conversationListQuery) =>
     set({ conversationListQuery, conversationListActiveId: null }),
   setConversationListFilter: (conversationListFilter) =>
     set({ conversationListFilter, conversationListActiveId: null }),
-  setConversationListActiveId: (conversationListActiveId) =>
-    set({ conversationListActiveId }),
+  setConversationListActiveId: (conversationListActiveId) => set({ conversationListActiveId }),
   clearConversationListFilters: () =>
     set({
       conversationListQuery: "",
@@ -259,6 +318,7 @@ export const useChatStore = create<ChatStore>((set) => ({
       selectedConversationId: id,
       messages: [],
       messagesHasMore: false,
+      messagesHasNewer: false,
       messagesOffset: 0,
       messagesStatus: "idle",
       messagesError: null,
@@ -268,7 +328,14 @@ export const useChatStore = create<ChatStore>((set) => ({
       ...clearedSelectionState,
       ...clearedAnchorState,
     }),
-  setMessages: (messages, totalCount, offset, hasMore = false, scrollIntent = "latest") =>
+  setMessages: (
+    messages,
+    totalCount,
+    offset,
+    hasMore = false,
+    scrollIntent = "latest",
+    hasNewer = false,
+  ) =>
     set(() => {
       const anchorMessage = scrollIntent === "latest" ? messages[messages.length - 1] : null;
       return {
@@ -276,6 +343,7 @@ export const useChatStore = create<ChatStore>((set) => ({
         messagesTotalCount: totalCount,
         messagesOffset: offset,
         messagesHasMore: hasMore,
+        messagesHasNewer: hasNewer,
         messagesLoading: false,
         messagesStatus: messages.length === 0 ? "empty" : "ready",
         messagesError: null,
@@ -296,8 +364,10 @@ export const useChatStore = create<ChatStore>((set) => ({
         messagesStatus: messages.length === 0 ? "empty" : "ready",
         messagesError: null,
         scrollIntent: previousFirstMessage ? "preserve" : "latest",
-        scrollAnchorMessageId: previousFirstMessage?.id ?? messages[messages.length - 1]?.id ?? null,
-        scrollAnchorLocalId: previousFirstMessage?.localId ?? messages[messages.length - 1]?.localId ?? null,
+        scrollAnchorMessageId:
+          previousFirstMessage?.id ?? messages[messages.length - 1]?.id ?? null,
+        scrollAnchorLocalId:
+          previousFirstMessage?.localId ?? messages[messages.length - 1]?.localId ?? null,
       };
     }),
   setMessagesLoading: (loading) =>
@@ -331,6 +401,12 @@ export const useChatStore = create<ChatStore>((set) => ({
       highlightedMessageId,
       anchorError: null,
     }),
+  setAnchorNearby: (highlightedMessageId) =>
+    set({
+      anchorStatus: "nearby",
+      highlightedMessageId,
+      anchorError: null,
+    }),
   setAnchorMissing: () =>
     set({
       anchorStatus: "missing",
@@ -357,7 +433,11 @@ export const useChatStore = create<ChatStore>((set) => ({
     set((state) => {
       const selected = new Set(state.selectedMessageIds);
       if (range && state.lastSelectedMessageId) {
-        for (const id of getMessageIdRange(state.messages, state.lastSelectedMessageId, messageId)) {
+        for (const id of getMessageIdRange(
+          state.messages,
+          state.lastSelectedMessageId,
+          messageId,
+        )) {
           selected.add(id);
         }
       } else if (selected.has(messageId)) {
@@ -377,9 +457,10 @@ export const useChatStore = create<ChatStore>((set) => ({
     set((state) => ({
       selectionMode: messageIds.length > 0,
       selectedMessageIds: orderMessageIds(messageIds, state.messages),
-      lastSelectedMessageId: messageIds.length > 0
-        ? messageIds[messageIds.length - 1] ?? null
-        : state.lastSelectedMessageId,
+      lastSelectedMessageId:
+        messageIds.length > 0
+          ? (messageIds[messageIds.length - 1] ?? null)
+          : state.lastSelectedMessageId,
       selectionStatus: null,
     })),
   clearMessageSelection: () => set(clearedSelectionState),
@@ -389,6 +470,7 @@ export const useChatStore = create<ChatStore>((set) => ({
       selectedConversationId: null,
       messages: [],
       messagesHasMore: false,
+      messagesHasNewer: false,
       messagesTotalCount: 0,
       messagesOffset: 0,
       messagesStatus: "idle",
@@ -411,7 +493,9 @@ function getMessageIdRange(messages: ChatMessage[], startId: string, endId: stri
 
 function orderMessageIds(messageIds: string[], messages: ChatMessage[]): string[] {
   const selected = new Set(messageIds);
-  const ordered = messages.filter((message) => selected.has(message.id)).map((message) => message.id);
+  const ordered = messages
+    .filter((message) => selected.has(message.id))
+    .map((message) => message.id);
   for (const id of messageIds) {
     if (!ordered.includes(id)) ordered.push(id);
   }

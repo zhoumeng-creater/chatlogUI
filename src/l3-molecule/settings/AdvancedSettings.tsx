@@ -8,7 +8,9 @@ interface AdvancedSettingsProps {
   settings: SettingsState;
   saveStatus: SettingsSaveStatus;
   saveMessage: string | null;
+  rememberRecentSearches: boolean;
   onChange: (partial: Partial<SettingsState>) => void;
+  onRememberRecentSearchesChange: (enabled: boolean) => void;
 }
 
 export function AdvancedSettings({
@@ -16,7 +18,9 @@ export function AdvancedSettings({
   settings,
   saveStatus,
   saveMessage,
+  rememberRecentSearches,
   onChange,
+  onRememberRecentSearchesChange,
 }: AdvancedSettingsProps) {
   return (
     <div className="settings-stack">
@@ -36,6 +40,21 @@ export function AdvancedSettings({
               { value: "enabled", label: copy.privacyDefaultOn },
             ]}
             onChange={(value) => onChange({ privacyOn: value === "enabled" })}
+          />
+        </Field>
+        <Field
+          id="settings-recent-searches"
+          label={copy.recentSearchesLabel}
+          hint={copy.recentSearchesHint}
+        >
+          <SegmentedControl
+            label={copy.recentSearchesLabel}
+            value={rememberRecentSearches ? "enabled" : "disabled"}
+            options={[
+              { value: "disabled", label: copy.recentSearchesDisabled },
+              { value: "enabled", label: copy.recentSearchesEnabled },
+            ]}
+            onChange={(value) => onRememberRecentSearchesChange(value === "enabled")}
           />
         </Field>
         <Field

@@ -77,6 +77,13 @@ describe("check-runtime-performance-budgets", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("fails closed when no measured runtime metrics artifact is provided", async () => {
+    await expect(loadRuntimePerformanceMetrics()).rejects.toThrow(
+      "RUNTIME_PERF_METRICS_FILE",
+    );
+    expect(checkRuntimePerformanceBudgets().ok).toBe(false);
+  });
 });
 
 function createFixtureBudgets(maxDurationMs) {

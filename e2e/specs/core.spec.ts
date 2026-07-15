@@ -26,7 +26,7 @@ test.describe("core synthetic routes", () => {
     await expect(page.getByText("选择由应用管理本机聊天服务，或连接已有")).toBeVisible();
     await expect(setupPathButton(page, /推荐自动导入/)).toBeVisible();
     await expect(setupPathButton(page, /连接已有服务/)).toBeVisible();
-    await expect(setupPathButton(page, /专家手动配置/)).toBeVisible();
+    await expect(setupPathButton(page, /高级手动配置/)).toBeVisible();
     await expect(page.getByText(/隐私保护(待验证|已应用)/)).toBeVisible();
     await expect(page.getByText("默认只显示状态摘要；需要排查时再展开脱敏诊断。")).toBeVisible();
     await expect(page.getByRole("button", { name: "查看脱敏诊断" })).toBeVisible();
@@ -41,7 +41,7 @@ test.describe("core synthetic routes", () => {
 
     await expect(setupPathButton(page, /推荐自动导入/)).toBeVisible();
     await expect(setupPathButton(page, /连接已有服务/)).toBeVisible();
-    await expect(setupPathButton(page, /专家手动配置/)).toBeVisible();
+    await expect(setupPathButton(page, /高级手动配置/)).toBeVisible();
     await expect(page.getByText("状态摘要", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "查看脱敏诊断" })).toBeVisible();
     await expect(page.getByRole("button", { name: "打开工作台" })).toHaveCount(0);
@@ -53,17 +53,17 @@ test.describe("core synthetic routes", () => {
       };
 
       return {
-        status: top(".setup-shell__aside"),
+        status: top(".setup-status-summary"),
         progress: top(".setup-stepper"),
-        actionBarBottom: document.querySelector(".setup-flow__actions")?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY,
+        actionBarBottom: document.querySelector(".setup-action-panel__actions")?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY,
         action: top(".setup-flow__panel"),
         diagnostics: top(".setup-diagnostics-disclosure"),
         viewportHeight: window.innerHeight,
       };
     });
-    expect(narrowOrder.status).toBeLessThan(narrowOrder.progress);
     expect(narrowOrder.progress).toBeLessThan(narrowOrder.action);
-    expect(narrowOrder.action).toBeLessThan(narrowOrder.diagnostics);
+    expect(narrowOrder.action).toBeLessThan(narrowOrder.status);
+    expect(narrowOrder.status).toBeLessThan(narrowOrder.diagnostics);
     expect(narrowOrder.actionBarBottom).toBeLessThan(narrowOrder.viewportHeight);
     await expectStableSyntheticPage(page);
   });
@@ -123,11 +123,11 @@ test.describe("core synthetic routes", () => {
     await setDesktop(page);
     await openSyntheticWorkbench(page);
 
-    const helpButton = page.getByRole("button", { name: "快捷键帮助" });
+    const helpButton = page.getByRole("button", { name: "页面帮助" });
     await helpButton.focus();
     await helpButton.click();
 
-    const workbenchDialog = page.getByRole("dialog", { name: "会话阅读快捷键" });
+    const workbenchDialog = page.getByRole("dialog", { name: "会话阅读帮助" });
     await expect(workbenchDialog).toBeVisible();
     await expect(workbenchDialog).toContainText("关闭浮层");
     await expect(workbenchDialog).toContainText("回到最新消息");
@@ -138,12 +138,12 @@ test.describe("core synthetic routes", () => {
 
     await page.keyboard.press("Shift+/");
     await expect(workbenchDialog).toBeVisible();
-    await workbenchDialog.getByRole("button", { name: "关闭快捷键帮助" }).click();
+    await workbenchDialog.getByRole("button", { name: "关闭帮助" }).click();
     await expect(workbenchDialog).toHaveCount(0);
 
     await page.goto("/ai?codex-smoke=workbench-ready");
     await page.keyboard.press("Control+/");
-    const aiDialog = page.getByRole("dialog", { name: "AI快捷键" });
+    const aiDialog = page.getByRole("dialog", { name: "AI帮助" });
     await expect(aiDialog).toBeVisible();
     await expect(aiDialog).toContainText("聚焦问题输入");
     await expect(aiDialog).not.toContainText("Synthetic Session Alpha");
@@ -157,10 +157,15 @@ test.describe("core synthetic routes", () => {
     });
     await page.goto("/search?codex-smoke=workbench-ready");
 
-    const emptyState = page.locator('[data-empty-state="search-not-started"]');
+    const emptyState = page.getByRole("region", { name: "搜索尚未开始" });
     await expect(emptyState).toBeVisible();
-    await expect(emptyState).toContainText("输入关键词开始搜索");
-    await expect(emptyState).not.toContainText("搜索当前会话");
+    await expect(emptyState).toContainText("输入关键词并检查搜索条件");
+    await expect(emptyState).toContainText("搜索只会在你明确提交后执行。");
+    await expect(
+      page
+        .getByRole("region", { name: "搜索工作区" })
+        .getByRole("button", { name: "搜索", exact: true }),
+    ).toBeDisabled();
 
     const coachMark = page.locator('[data-coach-mark="search-scope"]');
     await expect(coachMark).toBeVisible();
@@ -261,11 +266,23 @@ test.describe("core synthetic routes", () => {
     await expect(media.getByText("语音 1")).toBeVisible();
     await expect(media.getByText("文件 1")).toBeVisible();
 
-    await page.getByRole("combobox", { name: "媒体状态" }).selectOption("missing");
+    await page.getByRole("button", { name: "媒体状态", exact: true }).click();
+    await page
+      .getByRole("listbox", { name: "媒体状态" })
+      .getByRole("option", { name: "资源缺失" })
+      .click();
     await expect(media.locator(".media-library__row--attachment").filter({ hasText: "资源缺失" })).toBeVisible();
-    await page.getByRole("combobox", { name: "媒体状态" }).selectOption("all");
+    await page.getByRole("button", { name: "媒体状态", exact: true }).click();
+    await page
+      .getByRole("listbox", { name: "媒体状态" })
+      .getByRole("option", { name: "全部状态" })
+      .click();
 
-    await page.getByRole("combobox", { name: "媒体类型" }).selectOption("video");
+    await page.getByRole("button", { name: "媒体类型", exact: true }).click();
+    await page
+      .getByRole("listbox", { name: "媒体类型" })
+      .getByRole("option", { name: "视频" })
+      .click();
     const videoRow = media.locator(".media-library__row--attachment").filter({ hasText: "视频" });
     await expect(videoRow).toBeVisible();
     await videoRow.getByRole("button", { name: "预览媒体" }).click();
@@ -273,7 +290,11 @@ test.describe("core synthetic routes", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog", { name: /视频/ })).toHaveCount(0);
 
-    await page.getByRole("combobox", { name: "媒体类型" }).selectOption("image");
+    await page.getByRole("button", { name: "媒体类型", exact: true }).click();
+    await page
+      .getByRole("listbox", { name: "媒体类型" })
+      .getByRole("option", { name: "图片" })
+      .click();
     const imageRow = media.locator(".media-library__row--attachment").filter({ hasText: "图片" }).first();
     await expect(imageRow).toBeVisible();
     const copySummaryButton = imageRow.getByRole("button", { name: "复制媒体摘要" });
@@ -358,7 +379,7 @@ test.describe("core synthetic routes", () => {
 
     await page.getByRole("button", { name: "近 30 天" }).click();
     await expect(page.getByText("当前导出范围：近 30 天 · 按日 · 全部成员")).toBeVisible();
-    await expect.poll(() => statsRequests.some((url) => new URL(url).searchParams.get("time") === "30d")).toBe(true);
+    await expect.poll(() => statsRequests.some((url) => new URL(url).searchParams.get("time") === "last-30d")).toBe(true);
     await expect.poll(() => trendRequests.some((url) => new URL(url).searchParams.get("window") === "30d")).toBe(true);
 
     await page.getByRole("button", { name: "与上一周期比较" }).click();
@@ -375,25 +396,26 @@ test.describe("core synthetic routes", () => {
     await expectStableSyntheticPage(page);
   });
 
-  test("renders unified workspace scope controls at desktop and narrow widths", async ({ page }) => {
+  test("renders the search condition bar at desktop and narrow widths", async ({ page }) => {
     await setDesktop(page);
-    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+    await page.goto("/search?codex-smoke=workbench-ready");
 
-    const controller = page.getByRole("region", { name: "搜索范围", exact: true });
-    await expect(controller).toBeVisible();
-    await expect(controller.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话：Synthetic Session Alpha");
-    await expect(controller.locator('[data-scope-field="sourceRoute"]')).toContainText("来源：来自搜索结果");
-    await expect(controller.locator('[data-scope-field="focusMessage"]')).toContainText("定位：上下文定位");
-    await expect(controller).not.toContainText("focus=1001");
+    const conditions = page.getByRole("region", { name: "搜索条件", exact: true });
+    const scopeTrigger = conditions.getByRole("button", { name: "全部会话", exact: true });
+    await expect(conditions).toBeVisible();
+    await expect(scopeTrigger).toBeVisible();
+    await expect(conditions.getByRole("button", { name: "全部消息类型" })).toBeVisible();
+    await expect(conditions.getByRole("button", { name: "打开日期范围选择器" })).toBeVisible();
 
-    await controller.getByRole("button", { name: "打开范围设置" }).click();
-    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeVisible();
+    await scopeTrigger.click();
+    await expect(conditions.getByRole("menu", { name: "搜索范围" })).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeHidden();
+    await expect(conditions.getByRole("menu", { name: "搜索范围" })).toHaveCount(0);
+    await expect(scopeTrigger).toBeFocused();
 
     await setNarrow(page);
-    await expect(controller).toBeVisible();
-    await expect(controller.getByRole("button", { name: "打开范围设置" })).toBeVisible();
+    await expect(conditions).toBeVisible();
+    await expect(scopeTrigger).toBeVisible();
     await expectStableSyntheticPage(page);
   });
 
@@ -415,7 +437,13 @@ test.describe("core synthetic routes", () => {
     await expect(page.getByRole("button", { name: "更多当前会话操作" })).toBeVisible();
     await page.getByRole("button", { name: "更多当前会话操作" }).click();
     await expect(page.getByRole("menuitem", { name: "导出当前会话" })).toBeEnabled();
-    await expect(page.getByRole("menuitem", { name: "跳转日期" })).toBeDisabled();
+    const jumpDate = page.getByRole("menuitem", { name: "跳转日期" });
+    await expect(jumpDate).toBeEnabled();
+    await jumpDate.click();
+    const jumpDateDialog = page.getByRole("dialog", { name: "跳转到日期" });
+    await expect(jumpDateDialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(jumpDateDialog).toHaveCount(0);
 
     const inspector = page.locator(".conversation-inspector");
     await expect(inspector).toContainText("建议下一步");
@@ -428,7 +456,7 @@ test.describe("core synthetic routes", () => {
 
   test("keeps scoped current-chat search constrained before conversations finish loading", async ({ page }) => {
     await setDesktop(page);
-    const searchRequests: string[] = [];
+    const searchRequests: Array<Record<string, unknown>> = [];
     const sessionsResponse = page.waitForResponse("**/api/v1/sessions**");
 
     await page.route("**/api/v1/sessions**", async (route) => {
@@ -436,17 +464,24 @@ test.describe("core synthetic routes", () => {
       await route.continue();
     });
     await page.route("**/api/v1/search**", async (route) => {
-      searchRequests.push(route.request().url());
+      const request = route.request();
+      const url = new URL(request.url());
+      if (request.method() === "POST" && url.pathname === "/api/v1/search") {
+        searchRequests.push(request.postDataJSON() as Record<string, unknown>);
+      }
       await route.continue();
     });
 
     await page.goto("/search?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
-    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
-    await input.fill("Synthetic search result");
+    const input = page.getByLabel("搜索聊天记录", { exact: true });
+    await input.fill("Synthetic");
     await input.press("Enter");
 
     await expect.poll(() => searchRequests.length).toBe(1);
-    expect(new URL(searchRequests[0]).searchParams.get("chats")).toBe("session_synthetic_001");
+    expect(searchRequests[0]).toMatchObject({
+      keyword: "Synthetic",
+      chats: ["session_synthetic_001"],
+    });
     await sessionsResponse;
   });
 
@@ -454,11 +489,13 @@ test.describe("core synthetic routes", () => {
     await setDesktop(page);
     await page.goto("/search?codex-smoke=workbench-ready");
 
-    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
-    await input.fill("Synthetic search result");
+    const input = page.getByLabel("搜索聊天记录", { exact: true });
+    await input.fill("Synthetic");
     await input.press("Enter");
 
-    const result = page.getByRole("button", { name: /Synthetic search result for UI state only/ });
+    const result = page
+      .locator(".search-result-row")
+      .filter({ hasText: "Synthetic project kickoff notes" });
     await expect(result).toBeVisible();
     await result.focus();
     await page.keyboard.press("Enter");
@@ -467,29 +504,53 @@ test.describe("core synthetic routes", () => {
     await expect(page.getByText("已定位搜索命中")).toBeVisible();
   });
 
-  test("keeps late search responses from replacing the latest query", async ({ page }) => {
+  test("blocks duplicate pending submission and keeps a cancelled late response stale", async ({
+    page,
+  }) => {
     await setDesktop(page);
+    const searchKeywords: string[] = [];
     await page.route("**/api/v1/search**", async (route) => {
-      const url = new URL(route.request().url());
-      const keyword = url.searchParams.get("keyword") ?? "";
-      if (keyword.includes("old")) {
-        await page.waitForTimeout(900);
-        await route.fulfill({ json: searchResponse([
-          searchMessage({ localId: 3001, content: "Synthetic old stale result" }),
-        ]) }).catch(() => undefined);
+      const request = route.request();
+      const url = new URL(request.url());
+      if (request.method() !== "POST" || url.pathname !== "/api/v1/search") {
+        await route.continue();
         return;
       }
-      await route.fulfill({ json: searchResponse([
-        searchMessage({ localId: 3002, content: "Synthetic latest result" }),
-      ]) });
+      const body = request.postDataJSON() as Record<string, unknown>;
+      const keyword = typeof body.keyword === "string" ? body.keyword : "";
+      searchKeywords.push(keyword);
+      if (keyword.includes("old")) {
+        await page.waitForTimeout(900);
+        await route.fulfill({
+          json: strictSearchResponse([
+            strictSearchMessage({ seq: 3001, snippet: "Synthetic old stale result" }),
+          ]),
+        }).catch(() => undefined);
+        return;
+      }
+      await route.fulfill({
+        json: strictSearchResponse([
+          strictSearchMessage({ seq: 3002, snippet: "Synthetic latest result" }),
+        ]),
+      });
     });
 
     await page.goto("/search?codex-smoke=workbench-ready");
-    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
+    const input = page.getByLabel("搜索聊天记录", { exact: true });
     await input.fill("old");
     await input.press("Enter");
+    await expect.poll(() => searchKeywords).toEqual(["old"]);
+    await expect(page.getByRole("region", { name: "正在搜索" })).toBeVisible();
+
     await input.fill("latest");
     await input.press("Enter");
+    await page.waitForTimeout(250);
+    expect(searchKeywords).toEqual(["old"]);
+
+    await page.getByRole("button", { name: "取消搜索" }).click();
+    await expect(page.getByRole("region", { name: "搜索已取消" })).toBeVisible();
+    await input.press("Enter");
+    await expect.poll(() => searchKeywords).toEqual(["old", "latest"]);
 
     await expect(page.getByText("Synthetic latest result")).toBeVisible();
     await page.waitForTimeout(1_000);
@@ -499,67 +560,99 @@ test.describe("core synthetic routes", () => {
   test("does not append a stale load-more page after changing filters", async ({ page }) => {
     await setDesktop(page);
     await page.route("**/api/v1/search**", async (route) => {
-      const url = new URL(route.request().url());
-      const offset = Number(url.searchParams.get("offset") ?? "0");
-      const msgType = url.searchParams.get("msg_type");
-      if (msgType === "3") {
-        await route.fulfill({ json: searchResponse([
-          searchMessage({ localId: 4101, content: "Synthetic image filtered result" }),
-        ]) });
+      const request = route.request();
+      const url = new URL(request.url());
+      if (request.method() !== "POST" || url.pathname !== "/api/v1/search") {
+        await route.continue();
         return;
       }
-      if (offset === 20) {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      if (Array.isArray(body.categories) && body.categories.includes("image_emoji")) {
+        await route.fulfill({
+          json: strictSearchResponse([
+            strictSearchMessage({
+              seq: 4101,
+              snippet: "Synthetic image filtered result",
+              category: "image_emoji",
+              type: 3,
+            }),
+          ]),
+        });
+        return;
+      }
+      if (body.cursor === "cursor-core-forward") {
         await page.waitForTimeout(900);
-        await route.fulfill({ json: searchResponse([
-          searchMessage({ localId: 4020, content: "Synthetic stale page result" }),
-        ], { totalCount: 40, offset: 20 }) }).catch(() => undefined);
+        await route.fulfill({
+          json: strictSearchResponse(
+            [strictSearchMessage({ seq: 4020, snippet: "Synthetic stale page result" })],
+            {
+              totalCount: 2,
+              windowStart: 1,
+              hasPrevious: true,
+              previousCursor: "cursor-core-backward",
+            },
+          ),
+        }).catch(() => undefined);
         return;
       }
       await route.fulfill({
-        json: searchResponse(
-          Array.from({ length: 20 }, (_, index) =>
-            searchMessage({ localId: 4000 + index, content: `Synthetic first page result ${index}` }),
-          ),
-          { totalCount: 40 },
+        json: strictSearchResponse(
+          [strictSearchMessage({ seq: 4000, snippet: "Synthetic first page result" })],
+          {
+            totalCount: 2,
+            hasNext: true,
+            nextCursor: "cursor-core-forward",
+          },
         ),
       });
     });
 
     await page.goto("/search?codex-smoke=workbench-ready");
-    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
-    await input.fill("paged");
+    const scopeCoach = page.locator('[data-coach-mark="search-scope"]');
+    await expect(scopeCoach).toBeVisible();
+    await scopeCoach.getByRole("button", { name: "知道了" }).click();
+    const input = page.getByLabel("搜索聊天记录", { exact: true });
+    await input.fill("Synthetic paged");
     await input.press("Enter");
-    await expect(page.getByText("Synthetic first page result 0")).toBeVisible();
+    await expect(page.getByText("Synthetic first page result", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "加载更多搜索结果" }).click();
-    await page.getByRole("button", { name: "图片" }).click();
+    await page.getByRole("button", { name: "加载剩余 1 条" }).click();
+    await page.getByRole("button", { name: "全部消息类型" }).click();
+    const categoryMenu = page.getByRole("menu", { name: "消息类型" });
+    await categoryMenu.getByRole("menuitemcheckbox", { name: "图片与表情" }).click();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "应用筛选", exact: true }).click();
 
-    await expect(page.getByText("Synthetic image filtered result")).toBeVisible();
+    await expect(page.getByText("Synthetic image filtered result", { exact: true })).toBeVisible();
     await page.waitForTimeout(1_000);
     await expect(page.getByText("Synthetic stale page result")).toHaveCount(0);
   });
 
   test("shows a recoverable message when the search anchor is missing from history", async ({ page }) => {
     await setDesktop(page);
-    await page.route("**/api/v1/history**", async (route) => {
-      await route.fulfill({ json: historyResponse([
-        historyMessage({
-          localId: 9001,
-          timestamp: 1767254999,
-          content: "Synthetic nearby nonmatching message",
-        }),
-      ]) });
+    await page.route("**/api/v1/history/context/query", async (route) => {
+      await route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({ code: "history_context_message_not_found" }),
+      });
     });
 
     await page.goto("/search?codex-smoke=workbench-ready");
-    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
-    await input.fill("Synthetic search result");
+    const input = page.getByLabel("搜索聊天记录", { exact: true });
+    await input.fill("Synthetic");
     await input.press("Enter");
-    await page.locator(".search-result-row").filter({ hasText: "Synthetic search result for UI state only" }).click();
+    const result = page
+      .locator(".search-result-row")
+      .filter({ hasText: "Synthetic project kickoff notes" });
+    await result.click();
 
-    await expect(page).toHaveURL(/\/workbench/);
-    await expect(page.getByText("已打开会话，但未能精确定位命中消息")).toBeVisible();
-    await expect(page.getByRole("button", { name: "返回搜索结果" })).toBeVisible();
+    await expect(page).toHaveURL(/\/search/);
+    const navigationError = page.getByRole("alert").filter({
+      hasText: "原消息已不存在；可选择打开其时间附近的记录。",
+    });
+    await expect(navigationError).toBeVisible();
+    await expect(navigationError.getByRole("button", { name: "按附近时间打开" })).toBeVisible();
   });
 
   test("keeps privacy-on search snippets and hit context masked", async ({ page }) => {
@@ -567,17 +660,17 @@ test.describe("core synthetic routes", () => {
     await page.goto("/search?codex-smoke=workbench-ready");
     await enablePrivacyMode(page);
 
-    const input = page.getByRole("textbox", { name: "搜索聊天记录" });
-    await input.fill("合同");
+    const input = page.getByLabel("搜索聊天记录", { exact: true });
+    await input.fill("Synthetic");
     await input.press("Enter");
 
-    await expect(page.getByText("Synthetic search result for UI state only")).toHaveCount(0);
+    await expect(page.getByText("Synthetic project kickoff notes")).toHaveCount(0);
     const result = page.locator(".search-result-row").first();
-    await expect(result).toContainText(/\*{3,}/);
+    await expect(result).toContainText(/[•*]{3,}/);
     await result.click();
 
     await expect(page).toHaveURL(/\/workbench/);
-    await expect(page.getByText("Synthetic message for UI state only")).toHaveCount(0);
+    await expect(page.getByText("Synthetic project kickoff notes")).toHaveCount(0);
     await expect(page.locator(".message-row--search-hit")).toBeVisible();
     await assertNoForbiddenVisibleText(page);
   });
@@ -616,19 +709,22 @@ test.describe("core synthetic routes", () => {
 async function expectSearchClosedLoop(page: import("@playwright/test").Page) {
   await page.goto("/search?codex-smoke=workbench-ready");
 
-  const input = page.getByRole("textbox", { name: "搜索聊天记录" });
-  await input.fill("Synthetic search result");
+  const input = page.getByLabel("搜索聊天记录", { exact: true });
+  await input.fill("Synthetic");
   await input.press("Enter");
 
-  const result = page.locator(".search-result-row").filter({ hasText: "Synthetic search result for UI state only" });
+  const result = page
+    .locator(".search-result-row")
+    .filter({ hasText: "Synthetic project kickoff notes" });
   await expect(result).toBeVisible();
   await result.click();
 
   await expect(page).toHaveURL(/\/workbench/);
   await expect(page.getByText("来自搜索结果")).toBeVisible();
   await expect(page.getByText("已定位搜索命中")).toBeVisible();
-  await expect(page.locator(".message-row--search-hit")).toBeVisible();
-  await expect(page.locator("[data-local-id='1001']")).toBeVisible();
+  await expect(
+    page.locator("[data-message-id='history-context:1101'] .message-row--search-hit"),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "返回搜索结果" }).click();
   await expect(page).toHaveURL(/\/search/);
@@ -637,58 +733,65 @@ async function expectSearchClosedLoop(page: import("@playwright/test").Page) {
   await expectStableSyntheticPage(page);
 }
 
-function searchResponse(
-  messages: ReturnType<typeof searchMessage>[],
-  options: { totalCount?: number; offset?: number; limit?: number } = {},
+function strictSearchResponse(
+  messages: ReturnType<typeof strictSearchMessage>[],
+  options: {
+    totalCount?: number;
+    windowStart?: number;
+    hasPrevious?: boolean;
+    previousCursor?: string;
+    hasNext?: boolean;
+    nextCursor?: string;
+  } = {},
 ) {
-  const limit = options.limit ?? 20;
-  const offset = options.offset ?? 0;
+  const windowStart = options.windowStart ?? 0;
   return {
+    snapshot_id: "snapshot-core-search-v2",
+    data_revision: "revision-core-search-v2",
+    exact_total: true,
+    complete_scope: true,
     total_count: options.totalCount ?? messages.length,
     count: messages.length,
-    limit,
-    offset,
-    messages,
+    window_start: windowStart,
+    previous_cursor: options.previousCursor ?? "",
+    next_cursor: options.nextCursor ?? "",
+    has_previous: options.hasPrevious ?? false,
+    has_next: options.hasNext ?? false,
+    messages: messages.map((message, index) => ({
+      ...message,
+      source_index: windowStart + index,
+    })),
   };
 }
 
-function searchMessage(overrides: { localId?: number; content?: string } = {}) {
-  return {
-    ...historyMessage({
-      localId: 1001,
-      content: "Synthetic search result for UI state only",
-      ...overrides,
-    }),
-    chat: "session_synthetic_001",
-    username: "session_synthetic_001",
-  };
-}
-
-function historyResponse(messages: ReturnType<typeof historyMessage>[]) {
-  return {
-    chat: "session_synthetic_001",
-    username: "session_synthetic_001",
-    is_group: false,
-    chat_type: "private",
-    total_count: messages.length,
-    count: messages.length,
-    limit: 50,
-    offset: 0,
-    messages,
-  };
-}
-
-function historyMessage(
-  overrides: { localId?: number; timestamp?: number; content?: string } = {},
+function strictSearchMessage(
+  overrides: {
+    seq?: number;
+    snippet?: string;
+    category?: "text" | "image_emoji";
+    type?: number;
+  } = {},
 ) {
-  const timestamp = overrides.timestamp ?? 1767254400;
+  const seq = overrides.seq ?? 1001;
+  const snippet = overrides.snippet ?? "Synthetic core search result";
   return {
-    local_id: overrides.localId ?? 1001,
-    timestamp,
-    time: timestamp === 1767254400 ? "2026-01-01 08:00" : "2026-01-01 08:09",
-    sender: "contact_synthetic_001",
-    type: "text",
-    content: overrides.content ?? "Synthetic message for UI state only",
+    message_id: `core-search-message-${seq}`,
+    seq,
+    source_index: 0,
+    conversation_id: "session_synthetic_001",
+    conversation_name: "Synthetic Session Alpha",
+    sender_id: "contact_synthetic_001",
+    sender_name: "Synthetic Contact Alpha",
+    timestamp: 1767254400 + seq,
+    type: overrides.type ?? 1,
+    sub_type: 0,
+    category: overrides.category ?? "text",
+    match_field: "content",
+    snippet,
+    match_segments: [
+      { text: "Synthetic", matched: true },
+      { text: snippet.slice("Synthetic".length), matched: false },
+    ],
   };
 }
 

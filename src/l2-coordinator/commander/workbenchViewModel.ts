@@ -2,6 +2,7 @@ import type { SetupProfileSummary } from "@l2/data-clerk/types/setup";
 import type { GraphModuleView } from "./graphViewModel";
 import type { WorkbenchLayout, WorkbenchMode } from "./workbenchLayout";
 import type { CompactSemanticStatus } from "./semanticViewModel";
+import type { PrimaryWorkspaceId } from "./primaryWorkspaceNavigation";
 import { buildActionableEmptyState, type ActionableEmptyStateView } from "./actionableEmptyStateModel";
 import { settingsMessagesZhCN } from "./messages.zh-CN";
 
@@ -20,6 +21,7 @@ export type MediaModuleBadgeStatus = "idle" | "loading" | "ready" | "empty" | "e
 export type SnsModuleBadgeStatus = "idle" | "loading" | "ready" | "empty" | "error";
 
 export interface WorkbenchShellViewInput {
+  activeWorkspace: PrimaryWorkspaceId;
   profile: SetupProfileSummary | null;
   httpReady: boolean;
   dbReady: boolean;
@@ -28,6 +30,7 @@ export interface WorkbenchShellViewInput {
 
 export interface WorkbenchShellViewModel {
   renderWorkbench: boolean;
+  renderWorkspaceContent: boolean;
   effectiveHttpReady: boolean;
   effectiveDbReady: boolean;
   statusText: string;
@@ -127,7 +130,8 @@ export function buildWorkbenchModuleBadges(input: {
 }
 
 export function deriveWorkbenchShellView(input: WorkbenchShellViewInput): WorkbenchShellViewModel {
-  const renderWorkbench = input.dbReady || input.devSmokeReady === true;
+  const renderWorkbench = (input.httpReady && input.dbReady) || input.devSmokeReady === true;
+  const renderWorkspaceContent = renderWorkbench || input.activeWorkspace === "search";
   const effectiveHttpReady = input.httpReady || input.devSmokeReady === true;
   const effectiveDbReady = input.dbReady || input.devSmokeReady === true;
   const externalMode = input.profile?.mode === "external";
@@ -144,6 +148,7 @@ export function deriveWorkbenchShellView(input: WorkbenchShellViewInput): Workbe
 
   return {
     renderWorkbench,
+    renderWorkspaceContent,
     effectiveHttpReady,
     effectiveDbReady,
     statusText,

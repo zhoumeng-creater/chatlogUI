@@ -1,14 +1,22 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   useChatStore,
+  type ChatMessage,
   type ChatMessageAnchor,
   type ChatReturnToSearch,
 } from "@/l2-coordinator/data-clerk/stores/useChatStore";
-import { ChatlogHttpError, fetchConversations, fetchHistory, fetchUnread } from "@l4/network";
+import {
+  ChatlogHttpError,
+  fetchConversations,
+  fetchHistory,
+  fetchHistoryContext,
+  fetchUnread,
+} from "@l4/network";
 import { toApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 import {
-  buildAnchorHistoryRequest,
-  findAnchoredMessage,
+  buildNearbyAnchorHistoryRequest,
+  findExactAnchorPage,
+  findNearbyAnchoredMessage,
 } from "./chatHistoryAnchor";
 import { buildDateJumpHistoryRequest } from "./conversationDateJumpModel";
 import {
@@ -22,6 +30,11 @@ import {
   pageNeedsLatestTimestampFallback,
 } from "./chatHistoryPaging";
 import { createDiagnosticHttpOptions } from "./diagnosticEventBridge";
+import {
+  classifyExactHistoryContextError,
+  executeAnchorLoad,
+  toChatHistoryContext,
+} from "./historyContextNavigation";
 
 const HISTORY_PAGE_SIZE = 50;
 const ANCHOR_WINDOW_SECONDS = 300;
@@ -30,17 +43,42 @@ interface LoadHistoryOptions {
   latestTimestamp?: number | null;
 }
 
+interface LegacyAnchorLoad {
+  page: Awaited<ReturnType<typeof fetchHistory>>;
+  hit: ChatMessage | null;
+  nearby: ChatMessage | null;
+}
+
 export interface AnchoredChatNavigationTarget {
   conversationId: string;
   chat: string;
+  conversationLabel?: string;
+  isGroup?: boolean;
+  dataRevision?: string;
+  historyContextAvailable?: boolean;
   anchor: ChatMessageAnchor;
   returnToSearch: ChatReturnToSearch;
+}
+
+export type AnchoredChatNavigationResult =
+  | { ok: true; matchKind: "exact" | "nearby"; messageId: string }
+  | {
+      ok: false;
+      reason: "missing" | "load-failed" | "cancelled";
+      message: string;
+      nearbyFallbackAvailable: boolean;
+    };
+
+export interface AnchoredChatNavigationOptions {
+  allowNearbyFallback?: boolean;
 }
 
 export function useChatCommander() {
   const store = useChatStore();
   const loadingRef = useRef(false);
-  const activeHistoryRequestRef = useRef<{ requestId: string; controller: AbortController } | null>(null);
+  const activeHistoryRequestRef = useRef<{ requestId: string; controller: AbortController } | null>(
+    null,
+  );
   const historyRequestCounterRef = useRef(0);
 
   const cancelActiveHistoryRequest = useCallback(() => {
@@ -48,6 +86,13 @@ export function useChatCommander() {
     activeHistoryRequestRef.current = null;
     request?.controller.abort();
   }, []);
+
+  useEffect(
+    () => () => {
+      cancelActiveHistoryRequest();
+    },
+    [cancelActiveHistoryRequest],
+  );
 
   const startHistoryRequest = useCallback(() => {
     cancelActiveHistoryRequest();
@@ -60,17 +105,25 @@ export function useChatCommander() {
     return request;
   }, [cancelActiveHistoryRequest]);
 
-  const isCurrentHistoryRequest = useCallback((requestId: string) =>
-    activeHistoryRequestRef.current?.requestId === requestId, []);
+  const isCurrentHistoryRequest = useCallback(
+    (requestId: string) => activeHistoryRequestRef.current?.requestId === requestId,
+    [],
+  );
 
-  const clearCurrentHistoryRequest = useCallback((requestId: string) => {
-    if (isCurrentHistoryRequest(requestId)) {
-      activeHistoryRequestRef.current = null;
-    }
-  }, [isCurrentHistoryRequest]);
+  const clearCurrentHistoryRequest = useCallback(
+    (requestId: string) => {
+      if (isCurrentHistoryRequest(requestId)) {
+        activeHistoryRequestRef.current = null;
+      }
+    },
+    [isCurrentHistoryRequest],
+  );
 
-  const isCancelledHistoryError = useCallback((error: unknown) =>
-    error instanceof ChatlogHttpError && error.status === null && error.message === "请求已取消", []);
+  const isCancelledHistoryError = useCallback(
+    (error: unknown) =>
+      error instanceof ChatlogHttpError && error.status === null && error.message === "请求已取消",
+    [],
+  );
 
   const loadConversations = useCallback(async () => {
     if (loadingRef.current) return;
@@ -87,23 +140,25 @@ export function useChatCommander() {
       );
 
       const contactsByUsername: Record<string, unknown> = {};
-      for (const c of (contacts.contacts ?? [])) {
+      for (const c of contacts.contacts ?? []) {
         contactsByUsername[c.username] = c;
       }
 
       const chatRoomsByName: Record<string, unknown> = {};
-      for (const r of (chatrooms.chatrooms ?? [])) {
+      for (const r of chatrooms.chatrooms ?? []) {
         chatRoomsByName[r.name] = r;
       }
 
       useChatStore.getState().setConversations(conversations, contactsByUsername, chatRoomsByName);
       useChatStore.getState().setUnreadLoading();
       try {
-        const unread = await fetchUnread(createDiagnosticHttpOptions({
-          endpointFamily: "unread",
-          method: "GET",
-          recoveryHint: "retry",
-        }));
+        const unread = await fetchUnread(
+          createDiagnosticHttpOptions({
+            endpointFamily: "unread",
+            method: "GET",
+            recoveryHint: "retry",
+          }),
+        );
         const unreadByChat = Object.fromEntries(
           unread.chats.map((item) => [item.chat, item.count]),
         );
@@ -123,31 +178,18 @@ export function useChatCommander() {
     }
   }, []);
 
-  const loadHistory = useCallback(async (chat: string, options: LoadHistoryOptions = {}) => {
-    const request = startHistoryRequest();
-    useChatStore.getState().clearAnchor();
-    useChatStore.getState().setMessagesLoading(true);
-    try {
-      const historyRequest = buildLatestHistoryRequest({
-        chat,
-        limit: HISTORY_PAGE_SIZE,
-        latestTimestamp: options.latestTimestamp,
-      });
-      let result = await fetchHistory(
-        historyRequest,
-        {
-          ...createDiagnosticHttpOptions({
-            endpointFamily: "history",
-            method: "GET",
-            recoveryHint: "retry",
-          }),
-          signal: request.controller.signal,
-        },
-      );
-      if (!isCurrentHistoryRequest(request.requestId)) return;
-      const latestFollowup = getLatestPageFollowupRequest(result, CHAT_HISTORY_ORDERING_CONTRACT);
-      if (latestFollowup) {
-        result = await fetchHistory(latestFollowup, {
+  const loadHistory = useCallback(
+    async (chat: string, options: LoadHistoryOptions = {}) => {
+      const request = startHistoryRequest();
+      useChatStore.getState().clearAnchor();
+      useChatStore.getState().setMessagesLoading(true);
+      try {
+        const historyRequest = buildLatestHistoryRequest({
+          chat,
+          limit: HISTORY_PAGE_SIZE,
+          latestTimestamp: options.latestTimestamp,
+        });
+        let result = await fetchHistory(historyRequest, {
           ...createDiagnosticHttpOptions({
             endpointFamily: "history",
             method: "GET",
@@ -156,14 +198,127 @@ export function useChatCommander() {
           signal: request.controller.signal,
         });
         if (!isCurrentHistoryRequest(request.requestId)) return;
+        const latestFollowup = getLatestPageFollowupRequest(result, CHAT_HISTORY_ORDERING_CONTRACT);
+        if (latestFollowup) {
+          result = await fetchHistory(latestFollowup, {
+            ...createDiagnosticHttpOptions({
+              endpointFamily: "history",
+              method: "GET",
+              recoveryHint: "retry",
+            }),
+            signal: request.controller.signal,
+          });
+          if (!isCurrentHistoryRequest(request.requestId)) return;
+        }
+        const hasMore = hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT);
+        if (pageNeedsLatestTimestampFallback(result, options.latestTimestamp)) {
+          const fallback = await fetchHistory(
+            buildLatestTimestampWindowRequest({
+              chat,
+              limit: HISTORY_PAGE_SIZE,
+              latestTimestamp: options.latestTimestamp,
+            }),
+            {
+              ...createDiagnosticHttpOptions({
+                endpointFamily: "history",
+                method: "GET",
+                recoveryHint: "retry",
+              }),
+              signal: request.controller.signal,
+            },
+          );
+          if (!isCurrentHistoryRequest(request.requestId)) return;
+          result = mergeLatestTimestampWindowPage({ primary: result, supplemental: fallback });
+        }
+        useChatStore
+          .getState()
+          .setMessages(result.messages, result.totalCount, result.offset, hasMore, "latest");
+      } catch (error) {
+        if (!isCurrentHistoryRequest(request.requestId)) return;
+        if (isCancelledHistoryError(error)) {
+          useChatStore.getState().setAnchorCancelled();
+          return;
+        }
+        useChatStore.getState().setMessagesError(toApiErrorModel(error));
+      } finally {
+        clearCurrentHistoryRequest(request.requestId);
       }
-      const hasMore = hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT);
-      if (pageNeedsLatestTimestampFallback(result, options.latestTimestamp)) {
-        const fallback = await fetchHistory(
-          buildLatestTimestampWindowRequest({
+    },
+    [
+      clearCurrentHistoryRequest,
+      isCancelledHistoryError,
+      isCurrentHistoryRequest,
+      startHistoryRequest,
+    ],
+  );
+
+  const loadMoreHistory = useCallback(
+    async (chat: string) => {
+      const { messages, messagesLoading, messagesHasMore, messagesOffset } =
+        useChatStore.getState();
+      if (messagesLoading || !messagesHasMore) return;
+
+      const request = startHistoryRequest();
+      useChatStore.getState().setMessagesLoading(true);
+      const olderRequest = getOlderHistoryRequest({
+        chat,
+        contract: CHAT_HISTORY_ORDERING_CONTRACT,
+        currentOffset: messagesOffset,
+        loadedCount: messages.length,
+        limit: HISTORY_PAGE_SIZE,
+        oldestLoadedTimestamp: messages[0]?.timestamp ?? null,
+      });
+      if (!olderRequest) {
+        useChatStore.getState().appendMessages([], messagesOffset, false);
+        clearCurrentHistoryRequest(request.requestId);
+        return;
+      }
+
+      try {
+        const result = await fetchHistory(olderRequest, {
+          ...createDiagnosticHttpOptions({
+            endpointFamily: "history",
+            method: "GET",
+            recoveryHint: "retry",
+          }),
+          signal: request.controller.signal,
+        });
+        if (!isCurrentHistoryRequest(request.requestId)) return;
+        useChatStore
+          .getState()
+          .appendMessages(
+            result.messages,
+            result.offset,
+            hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
+          );
+      } catch (error) {
+        if (!isCurrentHistoryRequest(request.requestId)) return;
+        if (isCancelledHistoryError(error)) return;
+        useChatStore.getState().setMessagesError(toApiErrorModel(error));
+      } finally {
+        clearCurrentHistoryRequest(request.requestId);
+      }
+    },
+    [
+      clearCurrentHistoryRequest,
+      isCancelledHistoryError,
+      isCurrentHistoryRequest,
+      startHistoryRequest,
+    ],
+  );
+
+  const loadHistoryAtDate = useCallback(
+    async (chat: string, date: string): Promise<number | null> => {
+      const request = startHistoryRequest();
+      useChatStore.getState().clearAnchor();
+      useChatStore.getState().setMessagesLoading(true);
+
+      try {
+        const result = await fetchHistory(
+          buildDateJumpHistoryRequest({
             chat,
+            date,
             limit: HISTORY_PAGE_SIZE,
-            latestTimestamp: options.latestTimestamp,
           }),
           {
             ...createDiagnosticHttpOptions({
@@ -174,117 +329,36 @@ export function useChatCommander() {
             signal: request.controller.signal,
           },
         );
-        if (!isCurrentHistoryRequest(request.requestId)) return;
-        result = mergeLatestTimestampWindowPage({ primary: result, supplemental: fallback });
-      }
-      useChatStore.getState().setMessages(
-        result.messages,
-        result.totalCount,
-        result.offset,
-        hasMore,
-        "latest",
-      );
-    } catch (error) {
-      if (!isCurrentHistoryRequest(request.requestId)) return;
-      if (isCancelledHistoryError(error)) {
-        useChatStore.getState().setAnchorCancelled();
-        return;
-      }
-      useChatStore.getState().setMessagesError(toApiErrorModel(error));
-    } finally {
-      clearCurrentHistoryRequest(request.requestId);
-    }
-  }, [clearCurrentHistoryRequest, isCancelledHistoryError, isCurrentHistoryRequest, startHistoryRequest]);
-
-  const loadMoreHistory = useCallback(async (chat: string) => {
-    const { messages, messagesLoading, messagesHasMore, messagesOffset } = useChatStore.getState();
-    if (messagesLoading || !messagesHasMore) return;
-
-    const request = startHistoryRequest();
-    useChatStore.getState().setMessagesLoading(true);
-    const olderRequest = getOlderHistoryRequest({
-      chat,
-      contract: CHAT_HISTORY_ORDERING_CONTRACT,
-      currentOffset: messagesOffset,
-      loadedCount: messages.length,
-      limit: HISTORY_PAGE_SIZE,
-      oldestLoadedTimestamp: messages[0]?.timestamp ?? null,
-    });
-    if (!olderRequest) {
-      useChatStore.getState().appendMessages([], messagesOffset, false);
-      clearCurrentHistoryRequest(request.requestId);
-      return;
-    }
-
-    try {
-      const result = await fetchHistory(
-        olderRequest,
-        {
-          ...createDiagnosticHttpOptions({
-            endpointFamily: "history",
-            method: "GET",
-            recoveryHint: "retry",
-          }),
-          signal: request.controller.signal,
-        },
-      );
-      if (!isCurrentHistoryRequest(request.requestId)) return;
-      useChatStore.getState().appendMessages(
-        result.messages,
-        result.offset,
-        hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
-      );
-    } catch (error) {
-      if (!isCurrentHistoryRequest(request.requestId)) return;
-      if (isCancelledHistoryError(error)) return;
-      useChatStore.getState().setMessagesError(toApiErrorModel(error));
-    } finally {
-      clearCurrentHistoryRequest(request.requestId);
-    }
-  }, [clearCurrentHistoryRequest, isCancelledHistoryError, isCurrentHistoryRequest, startHistoryRequest]);
-
-  const loadHistoryAtDate = useCallback(async (chat: string, date: string): Promise<number | null> => {
-    const request = startHistoryRequest();
-    useChatStore.getState().clearAnchor();
-    useChatStore.getState().setMessagesLoading(true);
-
-    try {
-      const result = await fetchHistory(
-        buildDateJumpHistoryRequest({
-          chat,
-          date,
-          limit: HISTORY_PAGE_SIZE,
-        }),
-        {
-          ...createDiagnosticHttpOptions({
-            endpointFamily: "history",
-            method: "GET",
-            recoveryHint: "retry",
-          }),
-          signal: request.controller.signal,
-        },
-      );
-      if (!isCurrentHistoryRequest(request.requestId)) return null;
-      useChatStore.getState().setMessages(
-        result.messages,
-        result.totalCount,
-        result.offset,
-        result.messages.length > 0,
-        "latest",
-      );
-      return result.messages.length;
-    } catch (error) {
-      if (!isCurrentHistoryRequest(request.requestId)) return null;
-      if (isCancelledHistoryError(error)) {
-        useChatStore.getState().setAnchorCancelled();
+        if (!isCurrentHistoryRequest(request.requestId)) return null;
+        useChatStore
+          .getState()
+          .setMessages(
+            result.messages,
+            result.totalCount,
+            result.offset,
+            result.messages.length > 0,
+            "latest",
+          );
+        return result.messages.length;
+      } catch (error) {
+        if (!isCurrentHistoryRequest(request.requestId)) return null;
+        if (isCancelledHistoryError(error)) {
+          useChatStore.getState().setAnchorCancelled();
+          return null;
+        }
+        useChatStore.getState().setMessagesError(toApiErrorModel(error));
         return null;
+      } finally {
+        clearCurrentHistoryRequest(request.requestId);
       }
-      useChatStore.getState().setMessagesError(toApiErrorModel(error));
-      return null;
-    } finally {
-      clearCurrentHistoryRequest(request.requestId);
-    }
-  }, [clearCurrentHistoryRequest, isCancelledHistoryError, isCurrentHistoryRequest, startHistoryRequest]);
+    },
+    [
+      clearCurrentHistoryRequest,
+      isCancelledHistoryError,
+      isCurrentHistoryRequest,
+      startHistoryRequest,
+    ],
+  );
 
   const selectAndLoad = useCallback(
     async (convId: string, chat: string, latestTimestamp?: number | null) => {
@@ -295,55 +369,183 @@ export function useChatCommander() {
   );
 
   const selectAndLoadAtAnchor = useCallback(
-    async (target: AnchoredChatNavigationTarget) => {
+    async (
+      target: AnchoredChatNavigationTarget,
+      options: AnchoredChatNavigationOptions = {},
+    ): Promise<AnchoredChatNavigationResult> => {
       const request = startHistoryRequest();
-      useChatStore.getState().selectConversation(target.conversationId);
-      useChatStore.getState().setAnchorLoading(target.anchor, target.returnToSearch);
-      useChatStore.getState().setMessagesLoading(true);
+      const exactSearchIntent = target.anchor.source === "search" && !options.allowNearbyFallback;
+      const activateAnchoredConversation = () => {
+        useChatStore.getState().ensureNavigationConversation({
+          id: target.conversationId,
+          username: target.chat,
+          displayName: target.conversationLabel || target.chat,
+          isGroup: target.isGroup ?? target.chat.endsWith("@chatroom"),
+        });
+        useChatStore.getState().selectConversation(target.conversationId);
+        useChatStore.getState().setAnchorLoading(target.anchor, target.returnToSearch);
+        useChatStore.getState().setMessagesLoading(true);
+      };
+      if (!exactSearchIntent) activateAnchoredConversation();
 
       try {
-        const result = await fetchHistory(
-          buildAnchorHistoryRequest(target.anchor, {
-            limit: HISTORY_PAGE_SIZE,
-            windowSeconds: ANCHOR_WINDOW_SECONDS,
-          }),
-          {
-            ...createDiagnosticHttpOptions({
-              endpointFamily: "history",
-              method: "GET",
-              recoveryHint: "retry",
+        const loaded = await executeAnchorLoad<LegacyAnchorLoad>({
+          target,
+          options,
+          signal: request.controller.signal,
+          fetchExact: (contextRequest, signal) =>
+            fetchHistoryContext(contextRequest, {
+              ...createDiagnosticHttpOptions({
+                endpointFamily: "history_context",
+                method: "POST",
+                recoveryHint: "retry",
+              }),
+              signal,
             }),
-            signal: request.controller.signal,
+          fetchLegacyExact: async (signal) => {
+            const fetchAnchorPage = (historyRequest: Parameters<typeof fetchHistory>[0]) =>
+              fetchHistory(historyRequest, {
+                ...createDiagnosticHttpOptions({
+                  endpointFamily: "history",
+                  method: "GET",
+                  recoveryHint: "retry",
+                }),
+                signal,
+              });
+            const exactOptions = {
+              anchor: target.anchor,
+              limit: HISTORY_PAGE_SIZE,
+              windowSeconds: ANCHOR_WINDOW_SECONDS,
+              maxMessages: Number.MAX_SAFE_INTEGER,
+              fetchPage: fetchAnchorPage,
+            };
+            const exact = await findExactAnchorPage(exactOptions);
+            return { page: exact.page, hit: exact.hit, nearby: null };
           },
-        );
-        if (!isCurrentHistoryRequest(request.requestId)) return;
-
-        useChatStore.getState().setMessages(
-          result.messages,
-          result.totalCount,
-          result.offset,
-          hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
-          "anchor",
-        );
-        const hit = findAnchoredMessage(result.messages, target.anchor);
-        if (hit) {
-          useChatStore.getState().setAnchorHit(hit.id);
-        } else {
-          useChatStore.getState().setAnchorMissing();
+          fetchLegacyNearby: async (signal) => {
+            const page = await fetchHistory(
+              buildNearbyAnchorHistoryRequest(target.anchor, {
+                limit: HISTORY_PAGE_SIZE,
+                windowSeconds: ANCHOR_WINDOW_SECONDS,
+              }),
+              {
+                ...createDiagnosticHttpOptions({
+                  endpointFamily: "history",
+                  method: "GET",
+                  recoveryHint: "retry",
+                }),
+                signal,
+              },
+            );
+            return {
+              page,
+              hit: null,
+              nearby: findNearbyAnchoredMessage(page.messages, target.anchor),
+            };
+          },
+        });
+        if (!isCurrentHistoryRequest(request.requestId)) {
+          return {
+            ok: false,
+            reason: "cancelled",
+            message: "定位请求已被新的聊天记录请求替换。",
+            nearbyFallbackAvailable: false,
+          };
         }
+
+        if (loaded.kind === "exact") {
+          const context = toChatHistoryContext(loaded.page, target.isGroup ?? false);
+          if (exactSearchIntent) activateAnchoredConversation();
+          useChatStore
+            .getState()
+            .setMessages(
+              context.messages,
+              context.totalCount,
+              context.offset,
+              context.hasMore,
+              "anchor",
+              context.hasNewer,
+            );
+          useChatStore.getState().setAnchorHit(context.anchorMessageId);
+          return { ok: true, matchKind: "exact", messageId: context.anchorMessageId };
+        }
+
+        const { page: result, hit, nearby } = loaded.page;
+        const commitLegacyPage = () => {
+          if (exactSearchIntent) activateAnchoredConversation();
+          useChatStore
+            .getState()
+            .setMessages(
+              result.messages,
+              result.totalCount,
+              result.offset,
+              hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
+              "anchor",
+            );
+        };
+        if (!exactSearchIntent) commitLegacyPage();
+        if (hit) {
+          if (exactSearchIntent) commitLegacyPage();
+          useChatStore.getState().setAnchorHit(hit.id);
+          return { ok: true, matchKind: "exact", messageId: hit.id };
+        }
+
+        if (nearby) {
+          if (exactSearchIntent) commitLegacyPage();
+          useChatStore.getState().setAnchorNearby(nearby.id);
+          return { ok: true, matchKind: "nearby", messageId: nearby.id };
+        }
+
+        if (!exactSearchIntent) useChatStore.getState().setAnchorMissing();
+        return {
+          ok: false,
+          reason: "missing",
+          message: "已加载来源会话，但无法精确定位这条消息。",
+          nearbyFallbackAvailable:
+            !options.allowNearbyFallback &&
+            typeof target.anchor.timestamp === "number" &&
+            target.anchor.timestamp > 0,
+        };
       } catch (error) {
-        if (!isCurrentHistoryRequest(request.requestId)) return;
+        if (!isCurrentHistoryRequest(request.requestId)) {
+          return {
+            ok: false,
+            reason: "cancelled",
+            message: "定位请求已被新的聊天记录请求替换。",
+            nearbyFallbackAvailable: false,
+          };
+        }
+        if (exactSearchIntent) {
+          const failure = classifyExactHistoryContextError(error, target);
+          return { ok: false, ...failure };
+        }
         if (isCancelledHistoryError(error)) {
           useChatStore.getState().setAnchorCancelled();
-          return;
+          return {
+            ok: false,
+            reason: "cancelled",
+            message: "定位请求已取消。",
+            nearbyFallbackAvailable: false,
+          };
         }
         useChatStore.getState().setMessagesError(toApiErrorModel(error));
         useChatStore.getState().setAnchorError("已打开会话，但无法加载搜索命中附近的聊天记录。");
+        return {
+          ok: false,
+          reason: "load-failed",
+          message: "无法加载这条消息所在的聊天记录，请重试。",
+          nearbyFallbackAvailable: false,
+        };
       } finally {
         clearCurrentHistoryRequest(request.requestId);
       }
     },
-    [clearCurrentHistoryRequest, isCancelledHistoryError, isCurrentHistoryRequest, startHistoryRequest],
+    [
+      clearCurrentHistoryRequest,
+      isCancelledHistoryError,
+      isCurrentHistoryRequest,
+      startHistoryRequest,
+    ],
   );
 
   return {
@@ -352,6 +554,7 @@ export function useChatCommander() {
     loadHistory,
     loadMoreHistory,
     loadHistoryAtDate,
+    cancelActiveHistoryRequest,
     selectAndLoad,
     selectAndLoadAtAnchor,
   };

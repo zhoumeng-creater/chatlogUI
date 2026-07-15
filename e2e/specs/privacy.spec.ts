@@ -82,12 +82,23 @@ test.describe("privacy mode synthetic browser gate", () => {
     await enablePrivacyMode(page);
     await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
 
-    const controller = page.getByRole("region", { name: "搜索范围", exact: true });
-    await expect(controller).toBeVisible();
-    await expect(controller.locator('[data-scope-field="scopeKind"]')).toContainText("范围：当前会话（已隐藏）");
-    await expect(controller.locator('[data-scope-field="focusMessage"]')).toContainText("定位：上下文定位");
-    await expect(controller).not.toContainText("Synthetic Session Alpha");
-    await expect(controller).not.toContainText("1001");
+    const routedUrl = new URL(page.url());
+    expect(routedUrl.searchParams.get("chat")).toBe("session_synthetic_001");
+    expect(routedUrl.searchParams.get("focus")).toBe("1001");
+
+    const conditions = page.getByRole("region", { name: "搜索条件", exact: true });
+    await expect(conditions).toBeVisible();
+    await expect(
+      conditions.getByRole("button", { name: "当前会话", exact: true }),
+    ).toBeVisible();
+
+    const visibleAndAccessibleText = [
+      await page.locator("body").innerText(),
+      await page.locator("body").ariaSnapshot(),
+    ].join("\n");
+    for (const forbidden of ["session_synthetic_001", "1001", "Synthetic Session Alpha"]) {
+      expect(visibleAndAccessibleText).not.toContain(forbidden);
+    }
 
     await assertNoForbiddenVisibleText(page);
     privacyGuard.assertNoLeaks();
@@ -101,13 +112,13 @@ test.describe("privacy mode synthetic browser gate", () => {
     await enablePrivacyMode(page);
     await page.goto("/search?scope=currentChat&chat=session_synthetic_001&codex-smoke=workbench-ready");
 
-    const emptyState = page.locator('[data-empty-state="search-not-started"]');
+    const emptyState = page.getByRole("region", { name: "搜索尚未开始" });
     await expect(emptyState).toBeVisible();
-    await expect(emptyState).toContainText("输入关键词开始搜索");
+    await expect(emptyState).toContainText("输入关键词并检查搜索条件");
     await expect(emptyState).not.toContainText("Synthetic Session Alpha");
 
-    await page.getByRole("button", { name: "快捷键帮助" }).click();
-    const dialog = page.getByRole("dialog", { name: "搜索快捷键" });
+    await page.getByRole("button", { name: "页面帮助" }).click();
+    const dialog = page.getByRole("dialog", { name: "搜索帮助" });
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("搜索");
     await expect(dialog).not.toContainText("Synthetic Session Alpha");

@@ -13,6 +13,12 @@
       "privacySensitivity": "medium"
     },
     {
+      "id": "search-page",
+      "path": "search-page.json",
+      "routeFamilies": ["search_v2", "search_directory", "history_context"],
+      "privacySensitivity": "medium"
+    },
+    {
       "id": "advanced",
       "path": "advanced-capabilities.json",
       "routeFamilies": [
@@ -43,6 +49,11 @@
     { "id": "chatrooms.ready", "method": "GET", "path": "/api/v1/chatrooms", "fixture": "core", "section": "routes./api/v1/chatrooms" },
     { "id": "history.ready", "method": "GET", "path": "/api/v1/history", "fixture": "core", "section": "routes./api/v1/history" },
     { "id": "search.ready", "method": "GET", "path": "/api/v1/search", "fixture": "core", "section": "routes./api/v1/search" },
+    { "id": "search-v2.capabilities", "method": "GET", "path": "/api/v1/search/capabilities", "fixture": "search-page", "section": "routes./api/v1/search/capabilities", "family": "search_v2", "state": "success" },
+    { "id": "search-v2.query", "method": "POST", "path": "/api/v1/search", "fixture": "search-page", "section": "routes./api/v1/search", "family": "search_v2", "state": "success" },
+    { "id": "search-directory.conversations", "method": "POST", "path": "/api/v1/search/conversations/query", "fixture": "search-page", "section": "routes./api/v1/search/conversations/query", "family": "search_directory", "state": "success" },
+    { "id": "search-directory.senders", "method": "POST", "path": "/api/v1/search/senders/query", "fixture": "search-page", "section": "routes./api/v1/search/senders/query", "family": "search_directory", "state": "success" },
+    { "id": "history-context.query", "method": "POST", "path": "/api/v1/history/context/query", "fixture": "search-page", "section": "routes./api/v1/history/context/query", "family": "history_context", "state": "success" },
     { "id": "stats.ready", "method": "GET", "path": "/api/v1/stats", "fixture": "core", "section": "routes./api/v1/stats" },
     { "id": "dashboard-trend.ready", "method": "GET", "path": "/api/v1/dashboard/trend", "fixture": "core", "section": "routes./api/v1/dashboard/trend" },
     { "id": "unread.ready", "method": "GET", "path": "/api/v1/unread", "fixture": "advanced", "section": "routes./api/v1/unread", "family": "chat_extensions", "state": "success" },

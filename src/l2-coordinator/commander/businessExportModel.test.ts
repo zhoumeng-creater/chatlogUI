@@ -8,6 +8,7 @@ import {
   createGraphExportArtifact,
   createMediaManifestExportArtifact,
   createSearchExportArtifact,
+  createSearchExportStreamEncoder,
   createSnsExportArtifact,
   createStatsExportArtifact,
   validateBusinessExportArtifact,
@@ -16,6 +17,277 @@ import {
 const generatedAt = new Date("2026-01-02T03:04:05.000Z");
 
 describe("businessExportModel", () => {
+  it("serializes bounded search chunks into one valid privacy-safe JSON document", () => {
+    const encoder = createSearchExportStreamEncoder({
+      format: "json",
+      privacyOn: true,
+      requestedUnredacted: false,
+      unredactedConfirmed: false,
+      generatedAt,
+      snapshotId: "snapshot-safe",
+      dataRevision: "revision-safe",
+      revisionState: "stale",
+      query: "PRIVATE QUERY",
+      scopeSummary: "PRIVATE CHAT",
+      filterSummary: ["PRIVATE SENDER"],
+      exportScope: "partial",
+      exportedCount: 2,
+      totalCount: 9,
+      ranges: [
+        { start: 0, end: 1 },
+        { start: 8, end: 9 },
+      ],
+      gaps: [{ start: 1, end: 8 }],
+      browseMode: "manual",
+      sortMode: "newest",
+      groupingMode: "conversation",
+      timeZone: "Asia/Shanghai",
+      utcOffsetMinutes: 480,
+      querySince: 1_767_290_400,
+      queryUntil: 1_767_376_799,
+    });
+    const content = [
+      encoder.start(),
+      encoder.append([streamRow(0, "PRIVATE GROUP A")]),
+      encoder.append([streamRow(8, "PRIVATE GROUP B")]),
+      encoder.finish(),
+    ].join("");
+    const parsed = JSON.parse(content) as {
+      metadata: {
+        partial: boolean;
+        exportedCount: number;
+        ranges: Array<{ start: number; end: number }>;
+        gaps: Array<{ start: number; end: number }>;
+        timeZone: string;
+        utcOffsetMinutes: number;
+        querySince: number;
+        queryUntil: number;
+        revisionState: string;
+        snapshotId: string;
+        dataRevision: string;
+      };
+      messages: Array<{
+        sourceIndex: number;
+        groupKey: string;
+        groupLabel: string;
+        content: string;
+      }>;
+    };
+
+    expect(parsed.metadata).toMatchObject({
+      partial: true,
+      exportedCount: 2,
+      ranges: [
+        { start: 0, end: 1 },
+        { start: 8, end: 9 },
+      ],
+      gaps: [{ start: 1, end: 8 }],
+      timeZone: "Asia/Shanghai",
+      utcOffsetMinutes: 480,
+      querySince: 1_767_290_400,
+      queryUntil: 1_767_376_799,
+      revisionState: "stale",
+      snapshotId: "snapshot-safe",
+      dataRevision: "revision-safe",
+    });
+    expect(parsed.messages.map((row) => row.sourceIndex)).toEqual([0, 8]);
+    expect(parsed.messages.map((row) => row.groupLabel)).toEqual(["分组 1", "分组 2"]);
+    expect(content).not.toContain("PRIVATE");
+  });
+
+  it("keeps CSV headers singular and preserves explicit group columns across chunks", () => {
+    const encoder = createSearchExportStreamEncoder({
+      format: "csv",
+      privacyOn: false,
+      requestedUnredacted: true,
+      unredactedConfirmed: true,
+      generatedAt,
+      snapshotId: "snapshot-safe",
+      dataRevision: "revision-safe",
+      revisionState: "current",
+      query: "needle",
+      scopeSummary: "全部会话",
+      filterSummary: [],
+      exportScope: "all",
+      exportedCount: 2,
+      totalCount: 2,
+      ranges: [{ start: 0, end: 2 }],
+      gaps: [],
+      browseMode: "manual",
+      sortMode: "baseline",
+      groupingMode: "none",
+      timeZone: "UTC",
+      utcOffsetMinutes: 0,
+      querySince: null,
+      queryUntil: null,
+    });
+    const content = [
+      encoder.start(),
+      encoder.append([streamRow(0, null)]),
+      encoder.append([streamRow(1, null)]),
+      encoder.finish(),
+    ].join("");
+
+    expect(
+      content.match(
+        /recordType,sourceIndex,time,chat,sender,type,groupKey,groupLabel,content,metadata/g,
+      ),
+    ).toHaveLength(1);
+    expect(content).toContain("metadata,,,,,,,,,");
+    expect(content).toContain('""partial"":false');
+    expect(content).toContain(
+      "message,0,2026-01-02T03:04:05.000Z,Synthetic Chat,Synthetic Sender,text,,,Synthetic content 0,",
+    );
+    expect(content).toContain(
+      "message,1,2026-01-02T03:04:05.000Z,Synthetic Chat,Synthetic Sender,text,,,Synthetic content 1,",
+    );
+  });
+
+  it("neutralizes spreadsheet formulas in streamed and materialized CSV cells", () => {
+    const encoder = createSearchExportStreamEncoder({
+      format: "csv",
+      privacyOn: false,
+      requestedUnredacted: true,
+      unredactedConfirmed: true,
+      generatedAt,
+      snapshotId: "snapshot-safe",
+      dataRevision: "revision-safe",
+      revisionState: "current",
+      query: "needle",
+      scopeSummary: "全部会话",
+      filterSummary: [],
+      exportScope: "all",
+      exportedCount: 1,
+      totalCount: 1,
+      ranges: [{ start: 0, end: 1 }],
+      gaps: [],
+      browseMode: "manual",
+      sortMode: "baseline",
+      groupingMode: "none",
+      timeZone: "UTC",
+      utcOffsetMinutes: 0,
+      querySince: null,
+      queryUntil: null,
+    });
+    encoder.start();
+    const streamed = encoder.append([{
+      ...streamRow(0, null),
+      chat: "=1+1",
+      sender: "   @SUM(A1)",
+      content: "\t=HYPERLINK",
+    }]);
+    const materialized = createSearchExportArtifact({
+      format: "csv",
+      privacyOn: false,
+      requestedUnredacted: true,
+      unredactedConfirmed: true,
+      generatedAt,
+      query: "needle",
+      scopeSummary: "全部会话",
+      filterSummary: [],
+      totalCount: 1,
+      loadedCount: 1,
+      messages: [{
+        id: "formula-message",
+        chat: "+cmd",
+        sender: "-2+3",
+        content: "\r@external",
+        timestamp: generatedAt.getTime() / 1000,
+        type: "text",
+      }],
+    }).content;
+
+    expect(streamed).toContain("'=1+1");
+    expect(streamed).toContain("'   @SUM(A1)");
+    expect(streamed).toContain("'\t=HYPERLINK");
+    expect(materialized).toContain("'+cmd");
+    expect(materialized).toContain("'-2+3");
+    expect(materialized).toContain("'\r@external");
+  });
+
+  it("emits Markdown group headings only when the frozen presentation group changes", () => {
+    const encoder = createSearchExportStreamEncoder({
+      format: "markdown",
+      privacyOn: false,
+      requestedUnredacted: true,
+      unredactedConfirmed: true,
+      generatedAt,
+      snapshotId: "snapshot-safe",
+      dataRevision: "revision-safe",
+      revisionState: "current",
+      query: "needle",
+      scopeSummary: "全部会话",
+      filterSummary: [],
+      exportScope: "partial",
+      exportedCount: 3,
+      totalCount: 3,
+      ranges: [{ start: 0, end: 3 }],
+      gaps: [],
+      browseMode: "infinite",
+      sortMode: "oldest",
+      groupingMode: "conversation",
+      timeZone: "UTC",
+      utcOffsetMinutes: 0,
+      querySince: 1_767_225_600,
+      queryUntil: 1_767_311_999,
+    });
+    const content = [
+      encoder.start(),
+      encoder.append([streamRow(0, "Group A")]),
+      encoder.append([streamRow(1, "Group A"), streamRow(2, "Group B")]),
+      encoder.finish(),
+    ].join("");
+
+    expect(content.match(/## Group A/g)).toHaveLength(1);
+    expect(content.match(/## Group B/g)).toHaveLength(1);
+    expect(content).toContain("部分导出: 是");
+    expect(content).toContain("数据版本状态: 当前");
+    expect(content).toContain("查询时间边界: 1767225600 – 1767311999");
+    expect(content).toContain("来源位置");
+    expect(content).toContain("时区: UTC\nUTC 偏移（分钟）: 0\n查询时间边界: 1767225600 – 1767311999\n\n## Group A");
+    expect(content).toContain("Synthetic content 1 |\n\n## Group B");
+  });
+
+  it("keeps streamed search content redacted until unredacted export is explicitly confirmed", () => {
+    const encoder = createSearchExportStreamEncoder({
+      format: "json",
+      privacyOn: false,
+      requestedUnredacted: false,
+      unredactedConfirmed: false,
+      generatedAt,
+      snapshotId: "snapshot-safe",
+      dataRevision: "revision-safe",
+      revisionState: "current",
+      query: "PRIVATE QUERY",
+      scopeSummary: "PRIVATE CHAT",
+      filterSummary: [],
+      exportScope: "partial",
+      exportedCount: 1,
+      totalCount: 1,
+      ranges: [{ start: 0, end: 1 }],
+      gaps: [],
+      browseMode: "manual",
+      sortMode: "baseline",
+      groupingMode: "none",
+      timeZone: "UTC",
+      utcOffsetMinutes: 0,
+      querySince: null,
+      queryUntil: null,
+    });
+    const content = `${encoder.start()}${encoder.append([
+      {
+        ...streamRow(0, null),
+        chat: "PRIVATE CHAT",
+        sender: "PRIVATE SENDER",
+        content: "PRIVATE CONTENT",
+      },
+    ])}${encoder.finish()}`;
+
+    expect(content).toContain("已隐藏查询");
+    expect(content).toContain("已隐藏消息内容");
+    expect(content).not.toContain("PRIVATE");
+  });
+
   it("defines the shared job contract with safe filename previews and redacted privacy defaults", () => {
     expect(BUSINESS_EXPORT_FORMATS).toEqual(["markdown", "csv", "json"]);
     expect(BUSINESS_EXPORT_STATUSES).toEqual([
@@ -154,7 +426,7 @@ describe("businessExportModel", () => {
     expect(stats.content).toContain("trend,2026-01-02,6");
     expect(stats.content).toContain("metadata,control,近 7 天 · 按日 · 全部成员");
     expect(stats.content).toContain("definition,消息总数,当前统计范围内的消息数量。");
-    expect(stats.content).toContain("comparison,消息总数,+100%");
+    expect(stats.content).toContain("comparison,消息总数,'+100%");
     expect(stats.warnings).toContain("趋势按当前返回数据本地汇总。");
     expect(stats.content).toContain("top_sender,已隐藏对象,24");
     expect(stats.content).not.toContain("Synthetic Sender");
@@ -583,3 +855,16 @@ describe("businessExportModel", () => {
     expect(validation.error?.category).toBe("redaction-blocked");
   });
 });
+
+function streamRow(sourceIndex: number, groupLabel: string | null) {
+  return {
+    sourceIndex,
+    timestamp: generatedAt.getTime() / 1000,
+    chat: "Synthetic Chat",
+    sender: "Synthetic Sender",
+    type: "text",
+    content: `Synthetic content ${sourceIndex}`,
+    groupKey: groupLabel ? `private:${groupLabel}` : null,
+    groupLabel,
+  };
+}

@@ -24,6 +24,7 @@ export class ChatlogHttpError extends Error {
 export interface RequestJsonOptions extends RequestInit {
   timeoutMs?: number;
   serviceBaseUrl?: string;
+  appendJsonFormat?: boolean;
   diagnostics?: {
     endpointFamily?: string;
     method?: string;
@@ -52,6 +53,7 @@ export async function requestJson<T = unknown>(
 ): Promise<T> {
   const {
     timeoutMs = 15000,
+    appendJsonFormat = true,
     diagnostics,
     onDiagnosticEvent,
     signal: callerSignal,
@@ -72,7 +74,7 @@ export async function requestJson<T = unknown>(
   } else {
     callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
   }
-  const finalUrl = withJsonFormat(url);
+  const finalUrl = appendJsonFormat ? withJsonFormat(url) : url;
   const startedAt = nowMs();
   const method = (
     diagnostics?.method ??

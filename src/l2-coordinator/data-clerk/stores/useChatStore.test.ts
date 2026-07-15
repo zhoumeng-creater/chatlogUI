@@ -74,22 +74,46 @@ describe("useChatStore history pagination state", () => {
     });
   });
 
+  it("preserves an anchored window's newer-context fact until a real latest page succeeds", () => {
+    const anchoredPage = [message(1), message(2)];
+
+    useChatStore.getState().setMessages(anchoredPage, 100, 0, true, "anchor", true);
+    expect(useChatStore.getState()).toMatchObject({
+      messagesHasNewer: true,
+      scrollIntent: "anchor",
+    });
+
+    useChatStore.getState().setMessagesLoading(true);
+    useChatStore.getState().setMessagesError("最新消息加载失败");
+    expect(useChatStore.getState().messagesHasNewer).toBe(true);
+
+    useChatStore.getState().setMessages([message(99), message(100)], 100, 0, true, "latest");
+    expect(useChatStore.getState()).toMatchObject({
+      messagesHasNewer: false,
+      scrollIntent: "latest",
+    });
+  });
+
   it("tracks unread availability separately from conversation data", () => {
-    useChatStore.getState().setConversations([
-      {
-        id: "a",
-        username: "a",
-        displayName: "A",
-        chatType: "private",
-        isGroup: false,
-        summary: "",
-        timestamp: 0,
-        timeLabel: "",
-        unread: 0,
-        lastSender: "",
-        source: "session",
-      },
-    ], {}, {});
+    useChatStore.getState().setConversations(
+      [
+        {
+          id: "a",
+          username: "a",
+          displayName: "A",
+          chatType: "private",
+          isGroup: false,
+          summary: "",
+          timestamp: 0,
+          timeLabel: "",
+          unread: 0,
+          lastSender: "",
+          source: "session",
+        },
+      ],
+      {},
+      {},
+    );
 
     expect(useChatStore.getState().unreadStatus).toBe("idle");
     useChatStore.getState().setUnreadLoading();
@@ -106,6 +130,7 @@ describe("useChatStore history pagination state", () => {
       source: "search" as const,
       chat: "room_synthetic@chatroom",
       messageId: "message-42",
+      seq: 42,
       localId: 42,
       timestamp: 1_714_288_000,
       time: "2024-04-28 09:20",
@@ -143,25 +168,93 @@ describe("useChatStore history pagination state", () => {
     });
   });
 
-  it("clears stale anchor state when selecting a normal conversation", () => {
-    useChatStore.getState().setAnchorLoading({
-      source: "search",
-      chat: "room_synthetic@chatroom",
-      messageId: "message-42",
-      localId: 42,
-      timestamp: 1_714_288_000,
-      time: "2024-04-28 09:20",
-    }, {
-      returnRoute: "/search",
-      activeResultId: "message-42",
-      querySnapshot: {
-        query: "Synthetic private query",
-        filter: "all",
-        scope: "all",
-        scopeChat: null,
-      },
-      sourceConversationId: "room_synthetic@chatroom",
+  it("materializes a navigation-only conversation by stable id without requiring a preloaded row", () => {
+    useChatStore.getState().setConversations([], {}, {});
+    useChatStore.getState().ensureNavigationConversation({
+      id: "room_missing@chatroom",
+      username: "room_missing@chatroom",
+      displayName: "Missing Room",
+      isGroup: true,
     });
+
+    expect(useChatStore.getState().conversations).toContainEqual(
+      expect.objectContaining({
+        id: "room_missing@chatroom",
+        username: "room_missing@chatroom",
+        displayName: "Missing Room",
+        source: "navigation",
+      }),
+    );
+
+    useChatStore.getState().ensureNavigationConversation({
+      id: "room_missing@chatroom",
+      username: "room_missing@chatroom",
+      displayName: "Changed label",
+      isGroup: true,
+    });
+    expect(useChatStore.getState().conversations).toHaveLength(1);
+    expect(useChatStore.getState().conversations[0].displayName).toBe("Missing Room");
+  });
+
+  it("keeps the selected navigation conversation when a bounded session refresh omits it", () => {
+    useChatStore.getState().setConversations([], {}, {});
+    useChatStore.getState().ensureNavigationConversation({
+      id: "outside-session-window",
+      username: "outside-session-window",
+      displayName: "Loaded by stable id",
+      isGroup: false,
+    });
+    useChatStore.getState().selectConversation("outside-session-window");
+
+    useChatStore.getState().setConversations(
+      [
+        {
+          id: "visible-session",
+          username: "visible-session",
+          displayName: "Visible Session",
+          chatType: "private",
+          isGroup: false,
+          summary: "",
+          timestamp: 0,
+          timeLabel: "",
+          unread: 0,
+          lastSender: "",
+          source: "session",
+        },
+      ],
+      {},
+      {},
+    );
+
+    expect(useChatStore.getState().conversations.map((item) => item.id)).toEqual([
+      "visible-session",
+      "outside-session-window",
+    ]);
+  });
+
+  it("clears stale anchor state when selecting a normal conversation", () => {
+    useChatStore.getState().setAnchorLoading(
+      {
+        source: "search",
+        chat: "room_synthetic@chatroom",
+        messageId: "message-42",
+        seq: 42,
+        localId: 42,
+        timestamp: 1_714_288_000,
+        time: "2024-04-28 09:20",
+      },
+      {
+        returnRoute: "/search",
+        activeResultId: "message-42",
+        querySnapshot: {
+          query: "Synthetic private query",
+          filter: "all",
+          scope: "all",
+          scopeChat: null,
+        },
+        sourceConversationId: "room_synthetic@chatroom",
+      },
+    );
 
     useChatStore.getState().selectConversation("conversation-2");
 

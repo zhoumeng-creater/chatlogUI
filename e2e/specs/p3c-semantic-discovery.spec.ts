@@ -9,7 +9,7 @@ test("P3-C semantic discovery sends filters, navigates by backend chat, and filt
   await openWorkbenchModule(page, "AI");
   const semanticPanel = page.getByLabel("语义发现");
 
-  await page.getByRole("button", { name: "搜索", exact: true }).click();
+  await page.getByRole("button", { name: "语义搜索结果", exact: true }).click();
   await semanticPanel.getByLabel("范围").selectOption("selected");
   await semanticPanel.getByLabel("窗口").selectOption("30d");
   await semanticPanel.getByLabel("深度").selectOption("deep");
@@ -37,7 +37,7 @@ test("P3-C semantic discovery sends filters, navigates by backend chat, and filt
   expect(historyUrl.searchParams.get("chat")).toBe("session_synthetic_001");
   expect(historyUrl.searchParams.get("chat")).not.toBe("Synthetic Session Alpha");
 
-  await page.getByRole("button", { name: "预览", exact: true }).click();
+  await page.getByRole("button", { name: "索引预览数据", exact: true }).click();
   const previewRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
     return url.pathname.endsWith("/api/v1/semantic/index/preview") && url.searchParams.get("talker") === "session_synthetic_001";
@@ -111,12 +111,12 @@ test("P3-C semantic discovery shows edge states at narrow width without page ove
   await openWorkbenchModule(page, "AI");
   const semanticPanel = page.getByLabel("语义发现");
 
-  await page.getByRole("button", { name: "搜索", exact: true }).click();
+  await page.getByRole("button", { name: "语义搜索结果", exact: true }).click();
   await semanticPanel.getByLabel("语义搜索").fill("missing");
   await expect(page.getByText(/没有找到语义匹配结果。/)).toBeVisible();
   await expect(page.getByText(/重排失败：synthetic rerank unavailable/)).toBeVisible();
 
-  await page.getByRole("button", { name: "分析", exact: true }).click();
+  await page.getByRole("button", { name: "会话分析视图", exact: true }).click();
   await expect(page.getByText("摘要生成失败：synthetic summary unavailable")).toBeVisible();
   await expect(page.getByText("摘要生成失败：synthetic profile summary unavailable")).toBeVisible();
   await expect(page.getByText("已截断").first()).toBeVisible();

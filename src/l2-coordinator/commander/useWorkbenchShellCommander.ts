@@ -6,8 +6,9 @@ import { useSetupCommander } from "./useSetupCommander";
 import { getActiveChatlogServiceSummary } from "./chatlogRequestContext";
 import { getEffectiveRailMode } from "./workspacePreferenceModel";
 import { deriveWorkbenchShellView } from "./workbenchViewModel";
+import type { PrimaryWorkspaceId } from "./primaryWorkspaceNavigation";
 
-export function useWorkbenchShellCommander() {
+export function useWorkbenchShellCommander(activeWorkspace: PrimaryWorkspaceId) {
   const { loadExistingProfile, checkReadiness } = useSetupCommander();
   const dbReady = useSetupStore((state) => state.dbReady);
   const httpReady = useSetupStore((state) => state.httpReady);
@@ -31,8 +32,14 @@ export function useWorkbenchShellCommander() {
   }, [loadWorkspacePreferences, preferencesLoaded]);
 
   const view = useMemo(
-    () => deriveWorkbenchShellView({ profile, httpReady, dbReady, devSmokeReady }),
-    [profile, httpReady, dbReady, devSmokeReady],
+    () => deriveWorkbenchShellView({
+      activeWorkspace,
+      profile,
+      httpReady,
+      dbReady,
+      devSmokeReady,
+    }),
+    [activeWorkspace, profile, httpReady, dbReady, devSmokeReady],
   );
   const activeService = useMemo(
     () => getActiveChatlogServiceSummary(profile),

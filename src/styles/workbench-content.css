@@ -796,7 +796,7 @@
 .message-row--self .message-bubble {
   border-color: transparent;
   background: var(--accent);
-  color: var(--text-inverse);
+  color: var(--accent-contrast-text);
 }
 
 .message-row--neutral .message-bubble {
@@ -1040,87 +1040,6 @@
   color: var(--text-primary);
 }
 
-.search-advanced-filters {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-subtle);
-}
-
-.search-advanced-filters__header {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.search-advanced-filters__grid {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.search-advanced-filters__field {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.search-advanced-filters__unsupported {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.search-advanced-filters__unsupported span,
-.search-active-filter-chips__chip {
-  min-width: 0;
-  padding: 4px var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--surface-base);
-}
-
-.search-active-filter-chips {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3) 0;
-}
-
-.search-active-filter-chips__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.search-scope-menu,
-.search-filter-bar {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.search-scope-menu .ui-button {
-  max-width: 160px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .search-result-pane {
   max-height: 240px;
   min-height: 0;
@@ -1134,45 +1053,6 @@
   max-height: none;
   min-height: 0;
   flex: 1;
-}
-
-.search-result-pane__header {
-  position: sticky;
-  z-index: 1;
-  top: 0;
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-raised);
-}
-
-.search-result-pane__meta,
-.search-result-pane__header-actions {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.search-result-pane__meta {
-  margin-top: 2px;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.search-hit-navigator {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
 }
 
 .search-result-group__label {
@@ -1191,6 +1071,11 @@
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
+  user-select: text;
+}
+
+.search-result-row[aria-busy="true"] {
+  cursor: progress;
 }
 
 .search-result-row:hover,
@@ -1232,34 +1117,9 @@
   flex: 0 0 auto;
 }
 
-.search-result-pane__actions {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.search-result-pane__load-more {
-  width: 100%;
-  border-radius: 0;
-}
-
 @media (max-width: 720px) {
   .search-panel__controls {
     grid-template-columns: 1fr;
-  }
-
-  .search-advanced-filters__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .search-hit-navigator,
-  .search-result-pane__header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .search-scope-menu .ui-button,
-  .search-filter-bar .ui-button {
-    min-height: 40px;
   }
 }
 
@@ -1624,6 +1484,20 @@
 .media-open-prompt {
   border-color: color-mix(in srgb, var(--accent) 24%, var(--border-subtle));
   background: color-mix(in srgb, var(--accent) 6%, var(--surface-raised));
+}
+
+.spring-modal__panel:has(.media-open-prompt) {
+  width: min(100%, 520px);
+  overflow: hidden;
+  padding: 0;
+}
+
+.spring-modal__panel .media-open-prompt {
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-4);
+  background: var(--surface-base);
+  box-shadow: none;
 }
 
 .media-open-prompt__actions {

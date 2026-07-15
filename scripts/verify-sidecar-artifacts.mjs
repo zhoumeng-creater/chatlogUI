@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { createReadStream, existsSync } from "node:fs";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, normalize } from "node:path";
+import { basename, dirname, isAbsolute, join, normalize, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const DEFAULT_MANIFEST_PATH = join("scripts", "release", "sidecar-artifacts.json");
@@ -68,6 +69,9 @@ async function verifyTarget(rootDir, entry, mode, errors, warnings, options = {}
   const releaseAllowed = entry?.releaseAllowed === true;
   const checkModeAllowed = entry?.checkModeAllowed === true;
   const sourcePath = safeRelativePath(entry?.source?.path);
+  const sourceRoot = safeRelativePath(entry?.source?.root);
+  const sourceRepository = stringValue(entry?.source?.repository);
+  const sourceRef = stringValue(entry?.source?.ref).toLowerCase();
   const sourceReleaseAllowed = entry?.source?.releaseAllowed === true;
   let artifactPath = safeRelativePath(entry?.artifact?.path);
   const expectedSha = stringValue(entry?.artifact?.sha256).toLowerCase();
@@ -83,6 +87,12 @@ async function verifyTarget(rootDir, entry, mode, errors, warnings, options = {}
     releaseAllowed,
     sourceKind: "missing",
     sourcePath,
+    sourceRoot,
+    sourceRepository,
+    sourceRef,
+    sourceHead: "",
+    sourceRemote: "",
+    sourceClean: false,
     artifactPath,
     artifactUrl,
     sha256: "",
@@ -104,6 +114,9 @@ async function verifyTarget(rootDir, entry, mode, errors, warnings, options = {}
   if (entry?.source?.path && !sourcePath) {
     errors.push(`${target}: source.path must be a safe relative path`);
   }
+  if (entry?.source?.root && !sourceRoot) {
+    errors.push(`${target}: source.root must be a safe relative path`);
+  }
   if (entry?.artifact?.path && !artifactPath) {
     errors.push(`${target}: artifact.path must be a safe relative path`);
   }
@@ -115,6 +128,7 @@ async function verifyTarget(rootDir, entry, mode, errors, warnings, options = {}
   }
 
   const sourceExists = sourcePath ? await directoryExists(join(rootDir, sourcePath)) : false;
+  let sourceVerified = false;
   let artifact = artifactPath ? await inspectArtifact(join(rootDir, artifactPath)) : null;
   let artifactChecksumMismatch = false;
   if (artifact?.exists) {
@@ -156,7 +170,20 @@ async function verifyTarget(rootDir, entry, mode, errors, warnings, options = {}
       errors.push(`${target}: target is not allowed for release`);
       return evidence;
     }
-    if (sourceExists && sourceReleaseAllowed) {
+    if (sourceReleaseAllowed) {
+      sourceVerified = await verifyReleaseSourceCheckout({
+        rootDir,
+        target,
+        source: entry?.source,
+        sourcePath,
+        sourceRoot,
+        sourceRepository,
+        sourceRef,
+        evidence,
+        errors,
+      });
+    }
+    if (sourceExists && sourceReleaseAllowed && sourceVerified) {
       evidence.sourceKind = "source";
       return evidence;
     }
@@ -193,6 +220,96 @@ async function verifyTarget(rootDir, entry, mode, errors, warnings, options = {}
 
   errors.push(`${target}: check mode needs source, artifact, or checkModeAllowed=true`);
   return evidence;
+}
+
+async function verifyReleaseSourceCheckout({
+  rootDir,
+  target,
+  source,
+  sourcePath,
+  sourceRoot,
+  sourceRepository,
+  sourceRef,
+  evidence,
+  errors,
+}) {
+  const initialErrorCount = errors.length;
+  if (stringValue(source?.type) !== "repo") {
+    errors.push(`${target}: release source.type must be repo`);
+  }
+  if (!sourcePath) errors.push(`${target}: source.path is required for release source provenance`);
+  if (!sourceRoot) errors.push(`${target}: source.root is required for release source provenance`);
+  if (!sourceRepository) {
+    errors.push(`${target}: source.repository is required for release source provenance`);
+  }
+  if (!sourceRef) {
+    errors.push(`${target}: source.ref is required for release source provenance`);
+  } else if (!/^[0-9a-f]{40}$/.test(sourceRef)) {
+    errors.push(`${target}: source.ref must be a full 40-character Git commit`);
+  }
+  if (!sourcePath || !sourceRoot) return false;
+
+  const packageRoot = join(rootDir, sourcePath);
+  const checkoutRoot = join(rootDir, sourceRoot);
+  if (!(await directoryExists(packageRoot))) {
+    errors.push(`${target}: source.path does not exist`);
+  }
+  if (!(await directoryExists(checkoutRoot))) {
+    errors.push(`${target}: source.root is not the Git checkout root (not a Git checkout)`);
+    return false;
+  }
+  if (!(await fileExists(join(packageRoot, "go.mod")))) {
+    errors.push(`${target}: release source root package requires go.mod`);
+  }
+  if (!(await fileExists(join(packageRoot, "main.go")))) {
+    errors.push(`${target}: release source root package requires main.go`);
+  }
+
+  const topLevel = runGit(checkoutRoot, ["rev-parse", "--show-toplevel"]);
+  if (!topLevel.ok) {
+    errors.push(`${target}: source.root is not the Git checkout root (not a Git checkout)`);
+    return false;
+  }
+  if (canonicalPath(topLevel.stdout) !== canonicalPath(checkoutRoot)) {
+    errors.push(`${target}: source.root is not the Git checkout root`);
+  }
+  if (canonicalPath(packageRoot) !== canonicalPath(checkoutRoot)) {
+    errors.push(`${target}: source.path must equal source.root for the authenticated root package`);
+  }
+
+  const head = runGit(checkoutRoot, ["rev-parse", "HEAD"]);
+  if (!head.ok) {
+    errors.push(`${target}: unable to resolve release source HEAD`);
+  } else {
+    evidence.sourceHead = head.stdout.toLowerCase();
+    if (sourceRef && evidence.sourceHead !== sourceRef) {
+      errors.push(`${target}: release source HEAD does not match source.ref`);
+    }
+  }
+
+  const origin = runGit(checkoutRoot, ["remote", "get-url", "origin"]);
+  if (!origin.ok) {
+    errors.push(`${target}: release source origin does not match source.repository`);
+  } else {
+    evidence.sourceRemote = sanitizeRepository(origin.stdout);
+    if (
+      sourceRepository &&
+      normalizeRepository(origin.stdout) !== normalizeRepository(sourceRepository)
+    ) {
+      errors.push(`${target}: release source origin does not match source.repository`);
+    }
+  }
+
+  const status = runGit(checkoutRoot, ["status", "--porcelain=v1", "--untracked-files=all"]);
+  if (!status.ok) {
+    errors.push(`${target}: unable to inspect release source working tree`);
+  } else if (status.stdout) {
+    errors.push(`${target}: release source working tree is not clean`);
+  } else {
+    evidence.sourceClean = true;
+  }
+
+  return errors.length === initialErrorCount;
 }
 
 async function stageArtifactFromUrl({
@@ -276,6 +393,62 @@ async function directoryExists(path) {
   }
 }
 
+async function fileExists(path) {
+  try {
+    return (await stat(path)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function runGit(cwd, args) {
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  return {
+    ok: !result.error && result.status === 0,
+    stdout: typeof result.stdout === "string" ? result.stdout.trim() : "",
+  };
+}
+
+function canonicalPath(path) {
+  const value = resolve(path).replaceAll("\\", "/");
+  return process.platform === "win32" ? value.toLowerCase() : value;
+}
+
+function normalizeRepository(value) {
+  const repository = stringValue(value);
+  if (!repository) return "";
+  const scpMatch = repository.match(/^git@([^:]+):(.+)$/i);
+  if (scpMatch) {
+    return `${scpMatch[1]}/${scpMatch[2]}`.replace(/\.git$/i, "").replace(/\/$/, "").toLowerCase();
+  }
+  try {
+    const parsed = new URL(repository);
+    return `${parsed.hostname}${parsed.pathname}`
+      .replace(/\.git$/i, "")
+      .replace(/\/$/, "")
+      .toLowerCase();
+  } catch {
+    return repository.replace(/\.git$/i, "").replace(/\/$/, "").toLowerCase();
+  }
+}
+
+function sanitizeRepository(value) {
+  const repository = stringValue(value);
+  if (!repository) return "";
+  try {
+    const parsed = new URL(repository);
+    parsed.username = "";
+    parsed.password = "";
+    return parsed.toString().replace(/\/$/, "").replace(/\.git$/i, "");
+  } catch {
+    return repository.replace(/\.git$/i, "").replace(/\/$/, "");
+  }
+}
+
 async function inspectArtifact(path) {
   try {
     const metadata = await stat(path);
@@ -337,6 +510,7 @@ async function main() {
   const result = await verifySidecarArtifacts(options);
   if (json) {
     console.log(JSON.stringify(result, null, 2));
+    if (!result.ok) process.exitCode = 1;
   } else if (result.ok) {
     console.log(`Sidecar artifact verification passed for ${options.mode ?? "check"} mode.`);
     for (const entry of result.entries) {

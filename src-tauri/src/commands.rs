@@ -51,9 +51,51 @@ pub async fn export_diagnostics_report_to_path(
 
 #[tauri::command]
 pub async fn export_business_file(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
     payload: crate::business_export::BusinessExportPayload,
 ) -> Result<crate::business_export::BusinessExportResponse, String> {
-    crate::business_export::export_business_file_command(payload).await
+    crate::business_export::export_business_file_command(&state, payload).await
+}
+
+#[tauri::command]
+pub async fn begin_business_export_stream(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
+    payload: crate::business_export::BeginBusinessExportStreamPayload,
+) -> Result<crate::business_export::BeginBusinessExportStreamResponse, String> {
+    crate::business_export::begin_business_export_stream(&state, payload)
+}
+
+#[tauri::command]
+pub async fn append_business_export_stream(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
+    session_id: String,
+    chunk: String,
+) -> Result<crate::business_export::AppendBusinessExportStreamResponse, String> {
+    crate::business_export::append_business_export_stream(&state, &session_id, &chunk)
+}
+
+#[tauri::command]
+pub async fn complete_business_export_stream(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
+    session_id: String,
+) -> Result<crate::business_export::BusinessExportResponse, String> {
+    crate::business_export::complete_business_export_stream(&state, &session_id)
+}
+
+#[tauri::command]
+pub async fn commit_business_export_stream(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
+    session_id: String,
+) -> Result<(), String> {
+    crate::business_export::commit_business_export_stream(&state, &session_id)
+}
+
+#[tauri::command]
+pub async fn cancel_business_export_stream(
+    state: State<'_, crate::business_export::BusinessExportStreamState>,
+    session_id: String,
+) -> Result<(), String> {
+    crate::business_export::cancel_business_export_stream(&state, &session_id)
 }
 
 #[tauri::command]

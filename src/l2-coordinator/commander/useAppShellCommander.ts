@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { applyWindowMaterial } from "@l4/system/applyWindowMaterial";
+import { listenBusinessExportCleanupRequired } from "@l4/system/listenBusinessExportCleanupRequired";
 import {
   closeCurrentWindow,
   listenCurrentWindowStateChange,
@@ -15,6 +16,7 @@ import { deriveAppShellView } from "./appShellViewModel";
 import { deriveDeveloperEntryPolicy } from "./developerEntryViewModel";
 import { recordLocalDiagnosticEvent } from "./diagnosticEventBridge";
 import { buildSettingsRoute } from "./settingsNavigation";
+import { createDeferredSubscription } from "./deferredSubscription";
 import { useCoachMarkCommander } from "./useCoachMarkCommander";
 import { useShortcutHelpCommander } from "./useShortcutHelpCommander";
 
@@ -27,6 +29,7 @@ export function useAppShellCommander(title: string) {
   const togglePrivacy = useSettingsStore((state) => state.togglePrivacy);
   const toggleConsole = useDevConsoleStore((state) => state.toggle);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [exportCleanupNotice, setExportCleanupNotice] = useState<string | null>(null);
   const shortcutHelp = useShortcutHelpCommander({
     privacyOn,
     canReturn: Boolean(new URLSearchParams(location.search).get("source")),
@@ -78,6 +81,16 @@ export function useAppShellCommander(title: string) {
     void refreshMaximizedState();
   }, [refreshMaximizedState]);
 
+  useEffect(
+    () =>
+      createDeferredSubscription(() =>
+        listenBusinessExportCleanupRequired((notice) => {
+          setExportCleanupNotice(notice);
+        }),
+      ),
+    [],
+  );
+
   useEffect(() => {
     let disposed = false;
     let cleanup: (() => void) | null = null;
@@ -112,6 +125,7 @@ export function useAppShellCommander(title: string) {
         isMaximized,
         developerConsoleVisible: developerPolicy.visible,
       }),
+      exportCleanupNotice,
       shortcutHelp: shortcutHelp.view,
       coachMark: coachMark.view,
     },

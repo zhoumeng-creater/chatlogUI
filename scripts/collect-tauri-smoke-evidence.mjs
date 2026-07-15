@@ -232,6 +232,7 @@ async function main() {
 
   if (json) {
     console.log(JSON.stringify(result, null, 2));
+    if (!result.ok) process.exitCode = 1;
   } else if (result.ok) {
     if ("artifacts" in result) {
       console.log(`Installer artifact inventory passed: ${result.artifacts.length} artifacts found.`);

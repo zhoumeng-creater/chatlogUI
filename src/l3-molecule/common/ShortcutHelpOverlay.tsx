@@ -85,7 +85,12 @@ export function ShortcutHelpOverlay({ catalog, open, onClose }: ShortcutHelpOver
             <X size={16} aria-hidden="true" />
           </button>
         </div>
-        <div className="shortcut-help-overlay__body">
+        <div
+          className="shortcut-help-overlay__body"
+          role="region"
+          aria-label="帮助内容"
+          tabIndex={0}
+        >
           <section className="shortcut-help-overview" aria-label="页面说明">
             <Typography variant="label" weight={700}>
               页面说明

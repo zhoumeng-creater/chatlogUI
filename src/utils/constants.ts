@@ -4,6 +4,24 @@ export const HEALTH_CHECK_TIMEOUT_MS = 30000;
 export const HEALTH_CHECK_SUCCESS_COUNT = 3;
 export const SHUTDOWN_TIMEOUT_MS = 5000;
 
+// Search wire-contract constants are dependency-neutral so L2 contracts and
+// L4 network atoms share one source without reversing the layer direction.
+export const SEARCH_CATEGORIES = [
+  "text",
+  "image_emoji",
+  "video",
+  "voice",
+  "file",
+  "link_card",
+  "quote_forward",
+  "location",
+  "system_other",
+] as const;
+export const SEARCH_DIRECTORY_SELF_SENDER_ID = "chatlog:sender:self:v1" as const;
+export const HISTORY_CONTEXT_CONTRACT_VERSION = "history.context.v1" as const;
+export const HISTORY_CONTEXT_DEFAULT_LIMIT = 51;
+export const HISTORY_CONTEXT_MAX_LIMIT = 101;
+
 // ========== Sprint 3: AI 语义分析常量 ==========
 
 export const SSE_RECONNECT_MAX_ATTEMPTS = 3;

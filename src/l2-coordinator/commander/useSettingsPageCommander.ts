@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import type { AiPhase } from "@/l2-coordinator/api-docs/semantic";
 import { useAppStore } from "@l2/data-clerk/stores/useAppStore";
 import { useSetupStore } from "@l2/data-clerk/stores/useSetupStore";
+import { useSearchPreferenceStore } from "@l2/data-clerk/stores/useSearchPreferenceStore";
 import { useAiCommander } from "./useAiCommander";
 import { useSettingsCommander } from "./useSettingsCommander";
 import { useUpdateCommander } from "./useUpdateCommander";
@@ -23,6 +24,13 @@ export function useSettingsPageCommander() {
   const settings = useSettingsCommander();
   const update = useUpdateCommander();
   const diagnostics = useDiagnosticsCommander();
+  const rememberRecentSearches = useSearchPreferenceStore(
+    (state) => state.rememberRecentSearches,
+  );
+  const loadSearchPreferences = useSearchPreferenceStore((state) => state.loadFromStorage);
+  const setRememberRecentSearches = useSearchPreferenceStore(
+    (state) => state.setRememberRecentSearches,
+  );
   const sidecarStatus = useAppStore((s) => s.sidecarStatus);
   const setupProfile = useSetupStore((s) => s.profile);
   const httpReady = useSetupStore((s) => s.httpReady);
@@ -51,6 +59,11 @@ export function useSettingsPageCommander() {
     }),
     [dbReady, params],
   );
+
+  useEffect(() => {
+    if (!settings.loaded) return;
+    loadSearchPreferences(settings.settings.privacyOn);
+  }, [loadSearchPreferences, settings.loaded, settings.settings.privacyOn]);
 
   useEffect(() => {
     if (!settings.loaded) return;
@@ -126,6 +139,8 @@ export function useSettingsPageCommander() {
     checkForUpdates,
     updateStatusText,
     diagnostics,
+    rememberRecentSearches,
+    setRememberRecentSearches,
   };
 }
 

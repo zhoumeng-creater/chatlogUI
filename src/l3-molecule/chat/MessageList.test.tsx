@@ -9,6 +9,11 @@ describe("MessageList", () => {
     expect(messageListSource).not.toContain("加载更早消息</Button>");
   });
 
+  it("lets an explicit latest action supersede an in-flight older-history load", () => {
+    expect(messageListSource).toContain("if (activeChat) onLoadHistory(activeChat)");
+    expect(messageListSource).not.toContain("activeChat && !messagesLoading");
+  });
+
   it("renders copy and selection results as a visible status, not only an aria announcer", () => {
     expect(messageListSource).toContain("message-list__status-toast");
     expect(messageListSource).toContain('role="status"');

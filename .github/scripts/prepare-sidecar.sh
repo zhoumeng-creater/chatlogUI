@@ -66,30 +66,80 @@ esac
 
 binary_rel="${out_dir}/${binary_name}"
 binary_path="${repo_root}/${binary_rel}"
-source_dir="${SIDECAR_SOURCE_DIR:-}"
-if [[ -z "$source_dir" ]]; then
-  if [[ -d "cmd/chatlog" ]]; then
-    source_dir="$repo_root"
-  elif [[ -d "output/sidecar-source/chatlog_alpha/cmd/chatlog" ]]; then
-    source_dir="$repo_root/output/sidecar-source/chatlog_alpha"
-  fi
-elif [[ "$source_dir" != /* && "$source_dir" != [A-Za-z]:* ]]; then
-  source_dir="$repo_root/$source_dir"
-fi
+requested_source_dir="${SIDECAR_SOURCE_DIR:-}"
+source_dir=""
 
 if [[ "$mode" == "release" ]]; then
-  "$node_bin" scripts/verify-sidecar-artifacts.mjs --target "$target" --mode "$mode" --stage-dir "$out_dir"
+  set +e
+  verification_json="$("$node_bin" scripts/verify-sidecar-artifacts.mjs --target "$target" --mode "$mode" --stage-dir "$out_dir" --json)"
+  verification_status=$?
+  set -e
+  printf '%s\n' "$verification_json"
+  if [[ "$verification_status" -ne 0 ]]; then
+    exit "$verification_status"
+  fi
+  verified_source_kind="$(printf '%s' "$verification_json" | "$node_bin" -e '
+    let input = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => { input += chunk; });
+    process.stdin.on("end", () => {
+      const result = JSON.parse(input);
+      process.stdout.write(result.entries?.[0]?.sourceKind ?? "");
+    });
+  ')"
+  verified_source_path="$(printf '%s' "$verification_json" | "$node_bin" -e '
+    let input = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => { input += chunk; });
+    process.stdin.on("end", () => {
+      const result = JSON.parse(input);
+      process.stdout.write(result.entries?.[0]?.sourcePath ?? "");
+    });
+  ')"
+  if [[ "$verified_source_kind" == "source" ]]; then
+    source_dir="$repo_root/$verified_source_path"
+    approved_source_dir="$(cd "$source_dir" && pwd -P)"
+    if [[ -n "$requested_source_dir" ]]; then
+      if [[ "$requested_source_dir" != /* && "$requested_source_dir" != [A-Za-z]:* ]]; then
+        requested_source_dir="$repo_root/$requested_source_dir"
+      fi
+      requested_source_dir="$(cd "$requested_source_dir" && pwd -P)"
+      if [[ "$requested_source_dir" != "$approved_source_dir" ]]; then
+        echo "::error::SIDECAR_SOURCE_DIR does not match the verified release source"
+        exit 1
+      fi
+    fi
+    source_dir="$approved_source_dir"
+  elif [[ "$verified_source_kind" == "artifact" || "$verified_source_kind" == "artifact-url" ]]; then
+    if [[ -n "$requested_source_dir" ]]; then
+      echo "::error::SIDECAR_SOURCE_DIR is not allowed when release provenance selects an artifact"
+      exit 1
+    fi
+  else
+    echo "::error::Release verifier did not select an authenticated source or artifact"
+    exit 1
+  fi
 else
+  source_dir="$requested_source_dir"
+  if [[ -z "$source_dir" ]]; then
+    if [[ -f "go.mod" && -f "main.go" ]]; then
+      source_dir="$repo_root"
+    elif [[ -f "output/sidecar-source/chatlog_alpha/go.mod" && -f "output/sidecar-source/chatlog_alpha/main.go" ]]; then
+      source_dir="$repo_root/output/sidecar-source/chatlog_alpha"
+    fi
+  elif [[ "$source_dir" != /* && "$source_dir" != [A-Za-z]:* ]]; then
+    source_dir="$repo_root/$source_dir"
+  fi
   "$node_bin" scripts/verify-sidecar-artifacts.mjs --target "$target" --mode "$mode"
 fi
 
-if [[ -n "$source_dir" && -d "$source_dir/cmd/chatlog" ]]; then
-  echo "Building sidecar target=${target} mode=${mode} source=${source_dir}/cmd/chatlog destination=${binary_rel}"
-  (cd "$source_dir" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=1 "$go_bin" build -trimpath -ldflags="-s -w" -o "$binary_path" ./cmd/chatlog)
+if [[ -n "$source_dir" && -f "$source_dir/go.mod" && -f "$source_dir/main.go" ]]; then
+  echo "Building sidecar target=${target} mode=${mode} source=${source_dir} package=. destination=${binary_rel}"
+  (cd "$source_dir" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=1 "$go_bin" build -trimpath -ldflags="-s -w" -o "$binary_path" .)
 elif [[ -s "$binary_path" ]]; then
   echo "Using existing sidecar target=${target} mode=${mode} destination=${binary_rel}"
 elif [[ "$mode" == "check" ]]; then
-  echo "::warning::cmd/chatlog is missing and ${binary_rel} was not found; creating CI-only check-mode placeholder"
+  echo "::warning::The chatlog_alpha root package is missing and ${binary_rel} was not found; creating CI-only check-mode placeholder"
   printf 'CI placeholder for %s\n' "$target" > "$binary_path"
 else
   echo "::error::Missing approved sidecar source or checksum-verified artifact for ${target}; refusing release packaging"

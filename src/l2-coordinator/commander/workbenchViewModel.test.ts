@@ -109,6 +109,7 @@ describe("workbenchViewModel", () => {
   it("moves the workbench gate copy and status decision into the L2 view model", () => {
     expect(
       deriveWorkbenchShellView({
+        activeWorkspace: "workbench",
         profile: null,
         httpReady: false,
         dbReady: false,
@@ -130,6 +131,7 @@ describe("workbenchViewModel", () => {
 
     expect(
       deriveWorkbenchShellView({
+        activeWorkspace: "workbench",
         profile: profileSummary({ mode: "managed", source: "manual-advanced" }),
         httpReady: true,
         dbReady: false,
@@ -148,6 +150,7 @@ describe("workbenchViewModel", () => {
 
     expect(
       deriveWorkbenchShellView({
+        activeWorkspace: "workbench",
         profile: profileSummary({ mode: "external", source: "external-service" }),
         httpReady: false,
         dbReady: false,
@@ -160,6 +163,7 @@ describe("workbenchViewModel", () => {
 
     expect(
       deriveWorkbenchShellView({
+        activeWorkspace: "workbench",
         profile: profileSummary({ mode: "managed", source: "manual-advanced" }),
         httpReady: false,
         dbReady: false,
@@ -171,9 +175,57 @@ describe("workbenchViewModel", () => {
     });
   });
 
+  it("keeps only the search workspace mounted while service or database readiness is missing", () => {
+    for (const readiness of [
+      { httpReady: false, dbReady: false },
+      { httpReady: true, dbReady: false },
+      { httpReady: false, dbReady: true },
+    ]) {
+      expect(
+        deriveWorkbenchShellView({
+          activeWorkspace: "search",
+          profile: null,
+          ...readiness,
+          devSmokeReady: false,
+        }),
+      ).toMatchObject({
+        renderWorkbench: false,
+        renderWorkspaceContent: true,
+        effectiveHttpReady: readiness.httpReady,
+        effectiveDbReady: readiness.dbReady,
+      });
+
+      expect(
+        deriveWorkbenchShellView({
+          activeWorkspace: "analytics",
+          profile: null,
+          ...readiness,
+          devSmokeReady: false,
+        }),
+      ).toMatchObject({
+        renderWorkbench: false,
+        renderWorkspaceContent: false,
+      });
+    }
+
+    expect(
+      deriveWorkbenchShellView({
+        activeWorkspace: "search",
+        profile: null,
+        httpReady: true,
+        dbReady: true,
+        devSmokeReady: false,
+      }),
+    ).toMatchObject({
+      renderWorkbench: true,
+      renderWorkspaceContent: true,
+    });
+  });
+
   it("provides a development-only smoke override so browser UI checks can enter the workbench without mutating stores in L1", () => {
     expect(
       deriveWorkbenchShellView({
+        activeWorkspace: "workbench",
         profile: null,
         httpReady: false,
         dbReady: false,

@@ -41,7 +41,7 @@ const knownNativeTitleUsage = new Set([
 
 const highImpactDisabledReasonFiles = [
   "src/l3-molecule/media/MediaLibrary.tsx",
-  "src/l3-molecule/search/SearchScopeMenu.tsx",
+  "src/l3-molecule/search/GlobalSearch.tsx",
   "src/l3-molecule/developer/DbSearchPanel.tsx",
   "src/l3-molecule/semantic/QAInput.tsx",
   "src/l3-molecule/semantic/SemanticIndexPreview.tsx",
@@ -255,6 +255,16 @@ describe("UI governance", () => {
     expect(forbiddenWindowImports).toEqual([]);
   });
 
+  it("keeps search sibling focus coordination out of L3 global DOM queries", async () => {
+    const searchResults = await readFile(
+      "src/l3-molecule/search/SearchResultsPane.tsx",
+      "utf8",
+    );
+
+    expect(searchResults).not.toContain("document.querySelector");
+    expect(searchResults).toContain("onRequestKeywordFocus");
+  });
+
   it("keeps high-impact disabled-control reason debt explicitly tracked", async () => {
     const untrackedDebt = [];
 
@@ -339,7 +349,7 @@ describe("UI governance", () => {
   it("keeps high-signal status updates on the shared privacy-safe announcer", async () => {
     const statusAnnouncer = await readFile("src/l3-molecule/common/StatusAnnouncer.tsx", "utf8");
     const adoptionFiles = [
-      "src/l3-molecule/search/SearchStatusAnnouncer.tsx",
+      "src/l3-molecule/search/SearchResultsPane.tsx",
       "src/l3-molecule/export/BusinessExportDialog.tsx",
       "src/l3-molecule/semantic/QAPanel.tsx",
       "src/l3-molecule/media/MediaLibrary.tsx",
@@ -444,12 +454,12 @@ describe("UI governance", () => {
   it("keeps search results on the primary search page with full-height ownership", async () => {
     const searchView = await readFile("src/l1-entry/pages/SearchView.tsx", "utf8");
     const workbenchView = await readFile("src/l1-entry/pages/WorkbenchView.tsx", "utf8");
-    const layoutCss = await readFile("src/styles/layout.css", "utf8");
+    const searchCss = await readFile("src/styles/search.css", "utf8");
     const workbenchContentCss = await readFile("src/styles/workbench-content.css", "utf8");
 
     expect(searchView).toContain("search-workspace__results");
     expect(workbenchView).not.toContain("<SearchResults");
-    expect(layoutCss).toContain(".search-workspace__results");
+    expect(searchCss).toContain(".search-workspace__results");
     expect(workbenchContentCss).toContain(".search-workspace__results .search-result-pane");
     expect(workbenchContentCss).toContain("max-height: none");
   });
@@ -526,14 +536,26 @@ describe("UI governance", () => {
     }
   });
 
+  it("keeps generated Playwright evidence outside Vite's reload boundary", async () => {
+    const viteConfig = await readFile("vite.config.ts", "utf8");
+
+    expect(viteConfig).toContain('"**/output/**"');
+    expect(viteConfig).toContain('"**/test-results/**"');
+    expect(viteConfig).toContain('"**/playwright-report/**"');
+  });
+
   it("keeps Task 15 performance budgets wired as local verification gates", async () => {
     const packageJson = JSON.parse(await readFile("package.json", "utf8"));
     const budgetScript = await readFile("scripts/check-performance-budgets.mjs", "utf8");
     const runtimeBudgetScript = await readFile("scripts/check-runtime-performance-budgets.mjs", "utf8");
+    const runtimeCaptureSpec = await readFile("e2e/specs/runtime-performance.spec.ts", "utf8");
     const graphWrapper = await readFile("scripts/check-graph-performance-budget.mjs", "utf8");
 
     expect(packageJson.scripts["perf:budget"]).toBe("node scripts/check-performance-budgets.mjs && node scripts/check-runtime-performance-budgets.mjs");
     expect(packageJson.scripts["perf:runtime"]).toBe("node scripts/check-runtime-performance-budgets.mjs");
+    expect(packageJson.scripts["perf:runtime:capture"]).toBe(
+      "node scripts/run-playwright-e2e.mjs e2e/specs/runtime-performance.spec.ts && node scripts/check-runtime-performance-budgets.mjs output/playwright/runtime-performance-metrics.json",
+    );
     expect(budgetScript).toContain("checkPerformanceBudgets");
     expect(budgetScript).toContain("main app JS");
     expect(budgetScript).toContain("AI/semantic lazy chunk");
@@ -541,6 +563,10 @@ describe("UI governance", () => {
     expect(runtimeBudgetScript).toContain("search first result visible");
     expect(runtimeBudgetScript).toContain("large message list initial render");
     expect(runtimeBudgetScript).toContain("graph canvas first visible frame");
+    expect(runtimeCaptureSpec).toContain("searchFirstResultVisibleMs");
+    expect(runtimeCaptureSpec).toContain("largeMessageListInitialRenderMs");
+    expect(runtimeCaptureSpec).toContain("graphCanvasFirstVisibleFrameMs");
+    expect(runtimeCaptureSpec).toContain("LARGE_MESSAGE_COUNT = 1_000");
     expect(graphWrapper).toContain("runPerformanceBudgetCli");
     expect(graphWrapper).toContain('only: ["graph3d"]');
   });

@@ -1,18 +1,13 @@
 import { Bell, FileText, Image, MessageSquare, RefreshCw, Star, Users } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Button,
   DisabledReason,
   Input,
   SegmentedControl,
+  SpringModal,
   Spinner,
   Typography,
-  focusInitialOverlayTarget,
-  getOverlayDialogProps,
-  restoreFocusTarget,
-  shouldCloseOverlayOnKey,
-  trapOverlayFocus,
-  type FocusTarget,
 } from "@l4/ui";
 import type { MediaActionModel } from "@l2/commander/mediaActionModel";
 import type { MediaFilterChip } from "@l2/commander/mediaFilterModel";
@@ -780,56 +775,32 @@ function MediaOpenPrompt({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const restoreTargetRef = useRef<FocusTarget | null>(null);
-
-  useEffect(() => {
-    if (!prompt) return undefined;
-    restoreTargetRef.current = document.activeElement as FocusTarget | null;
-    focusInitialOverlayTarget(dialogRef.current);
-
-    return () => {
-      restoreFocusTarget(restoreTargetRef.current);
-      restoreTargetRef.current = null;
-    };
-  }, [prompt]);
-
   if (!prompt) return null;
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (trapOverlayFocus(dialogRef.current, document.activeElement, event)) return;
-    if (!shouldCloseOverlayOnKey(event.key, { dismissible: true })) return;
-    event.preventDefault();
-    onCancel();
-  };
-
   return (
-    <div
-      {...getOverlayDialogProps({ titleId: MEDIA_OPEN_PROMPT_TITLE_ID })}
-      ref={dialogRef}
-      className="media-open-prompt"
-      onKeyDown={handleKeyDown}
-    >
-      <div className="media-open-prompt__copy">
-        <Typography id={MEDIA_OPEN_PROMPT_TITLE_ID} variant="label" weight={700}>
-          {prompt.title}
-        </Typography>
-        <Typography variant="caption" color="var(--text-secondary)">
-          {prompt.message}
-        </Typography>
-        <Typography variant="caption" color="var(--text-muted)">
-          {prompt.redactedUrlLabel}
-        </Typography>
+    <SpringModal titleId={MEDIA_OPEN_PROMPT_TITLE_ID} ariaLabel={prompt.title} onClose={onCancel}>
+      <div className="media-open-prompt">
+        <div className="media-open-prompt__copy">
+          <Typography id={MEDIA_OPEN_PROMPT_TITLE_ID} variant="label" weight={700}>
+            {prompt.title}
+          </Typography>
+          <Typography variant="caption" color="var(--text-secondary)">
+            {prompt.message}
+          </Typography>
+          <Typography variant="caption" color="var(--text-muted)">
+            {prompt.redactedUrlLabel}
+          </Typography>
+        </div>
+        <div className="media-open-prompt__actions">
+          <Button variant="secondary" size="md" onClick={onCancel}>
+            {prompt.cancelLabel}
+          </Button>
+          <Button variant="primary" size="md" onClick={onConfirm}>
+            {prompt.confirmLabel}
+          </Button>
+        </div>
       </div>
-      <div className="media-open-prompt__actions">
-        <Button variant="secondary" size="md" onClick={onCancel}>
-          {prompt.cancelLabel}
-        </Button>
-        <Button variant="primary" size="md" onClick={onConfirm}>
-          {prompt.confirmLabel}
-        </Button>
-      </div>
-    </div>
+    </SpringModal>
   );
 }
 

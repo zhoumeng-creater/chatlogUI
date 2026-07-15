@@ -56,30 +56,26 @@ async function installTask14LongContentFixture(page: Page) {
     main.querySelector(".task14-long-content-fixture")?.remove();
 
     const section = document.createElement("section");
-    section.className = "task14-long-content-fixture workspace-scope-controller";
+    section.className = "task14-long-content-fixture search-condition-bar";
     section.setAttribute("role", "region");
     section.setAttribute("aria-label", "Task 14 长内容响应式样例");
     section.setAttribute("data-text-scale-fixture", "true");
     section.innerHTML = `
-      <div class="workspace-scope-controller__summary">
-        <div class="workspace-scope-controller__copy">
-          <div class="workspace-scope-controller__chips" aria-label="长内容样例">
-            <span class="workspace-scope-controller__chip" data-testid="task14-long-group" data-task14-control="group">
-              <span>群聊：超长中文群聊名称用于验证紧凑响应式不会溢出或遮挡主要操作</span>
-            </span>
-            <span class="workspace-scope-controller__chip" data-testid="task14-long-url" data-task14-control="url">
-              <span>https://example.invalid/task-14/responsive/very-long-english-url-without-natural-breaks/emoji-😀/code-snippet-const-value-equals-chatlogUI</span>
-            </span>
-          </div>
-          <p class="search-result-row__content" data-testid="task14-long-copy" data-task14-control="copy">
-            emoji 😀 · code-snippet const syntheticValue = "超长中文消息与 URL 混排"; · https://example.invalid/task-14/responsive/long-copy
-          </p>
-        </div>
-        <div class="workspace-scope-controller__actions">
-          <button type="button" class="ui-button ui-button--secondary ui-button--md" data-testid="task14-long-action" data-task14-control="action">
-            检查焦点
-          </button>
-        </div>
+      <div class="search-condition-bar__primary" aria-label="长内容搜索条件样例">
+        <button type="button" class="search-condition-bar__trigger" data-testid="task14-long-group" data-task14-control="group">
+          群聊：超长中文群聊名称用于验证紧凑响应式不会溢出或遮挡主要操作
+        </button>
+        <button type="button" class="search-condition-bar__trigger" data-testid="task14-long-url" data-task14-control="url">
+          https://example.invalid/task-14/responsive/very-long-english-url-without-natural-breaks/emoji-😀/code-snippet-const-value-equals-chatlogUI
+        </button>
+      </div>
+      <div class="search-condition-bar__status">
+        <p class="search-result-row__content" data-testid="task14-long-copy" data-task14-control="copy">
+          emoji 😀 · code-snippet const syntheticValue = "超长中文消息与 URL 混排"; · https://example.invalid/task-14/responsive/long-copy
+        </p>
+        <button type="button" class="ui-button ui-button--secondary ui-button--md" data-testid="task14-long-action" data-task14-control="action">
+          检查焦点
+        </button>
       </div>
     `;
 
@@ -191,11 +187,11 @@ test.describe("accessibility and keyboard gate", () => {
     await setDesktop(page);
     await openSyntheticWorkbench(page);
 
-    const helpButton = page.getByRole("button", { name: "快捷键帮助" });
+    const helpButton = page.getByRole("button", { name: "页面帮助" });
     await helpButton.focus();
     await page.keyboard.press("Enter");
 
-    const dialog = page.getByRole("dialog", { name: "会话阅读快捷键" });
+    const dialog = page.getByRole("dialog", { name: "会话阅读帮助" });
     await expect(dialog).toBeVisible();
     await expect.poll(() =>
       dialog.evaluate((element) => element.contains(document.activeElement)),
@@ -243,21 +239,21 @@ test.describe("accessibility and keyboard gate", () => {
     await expect.poll(() => hasPageHorizontalOverflow(page)).toBe(false);
   });
 
-  test("keeps unified scope menu keyboard reachable and axe-clean", async ({ page }) => {
+  test("keeps the search condition scope menu keyboard reachable and axe-clean", async ({ page }) => {
     await setNarrow(page);
-    await page.goto("/search?scope=currentChat&chat=session_synthetic_001&source=search&focus=1001&codex-smoke=workbench-ready");
+    await page.goto("/search?codex-smoke=workbench-ready");
 
-    const controller = page.getByRole("region", { name: "搜索范围", exact: true });
-    const trigger = controller.getByRole("button", { name: "打开范围设置" });
+    const conditions = page.getByRole("region", { name: "搜索条件", exact: true });
+    const trigger = conditions.getByRole("button", { name: "全部会话", exact: true });
     await expect(trigger).toBeVisible();
     await trigger.focus();
     await page.keyboard.press("Enter");
 
-    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeVisible();
+    await expect(conditions.getByRole("menu", { name: "搜索范围" })).toBeVisible();
     await expectNoCriticalA11yViolations(page);
 
     await page.keyboard.press("Escape");
-    await expect(controller.getByRole("dialog", { name: "搜索范围设置" })).toBeHidden();
+    await expect(conditions.getByRole("menu", { name: "搜索范围" })).toHaveCount(0);
     await expect(trigger).toBeFocused();
   });
 
