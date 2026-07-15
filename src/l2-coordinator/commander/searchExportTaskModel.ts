@@ -3,6 +3,7 @@ import type {
   SearchHit,
   SearchSnapshotPage,
 } from "@/l2-coordinator/api-docs/search";
+import { createSearchHitIdentity } from "./searchHitIdentity";
 import { BUSINESS_EXPORT_FORMATS, type BusinessExportFormat } from "./businessExportModel";
 import type { SearchAppliedReturnSnapshot } from "./searchReturnSnapshot";
 import type {
@@ -20,12 +21,15 @@ export type SearchExportTaskStatus =
   | "idle"
   | "running"
   | "finalizing"
+  | "commit_pending"
   | "completed"
   | "error"
   | "cancelled";
 export type SearchExportFailureCode =
   | "request_failed"
   | "write_failed"
+  | "commit_confirmation_interrupted"
+  | "cleanup_failed"
   | "invalid_page"
   | "stale_revision"
   | "snapshot_expired";
@@ -434,13 +438,32 @@ export function completeSearchExportTask(
   attemptId: string,
 ): SearchExportTask {
   if (
-    task.status !== "finalizing" ||
+    (task.status !== "finalizing" && task.status !== "commit_pending") ||
     task.attemptId !== attemptId ||
     task.processedCount !== task.totalCount
   ) {
     throw new SearchExportTaskError("invalid_state");
   }
   return { ...task, status: "completed", attemptId: null, error: null };
+}
+
+export function interruptSearchExportCommitConfirmation(
+  task: SearchExportTask,
+  attemptId: string,
+): SearchExportTask {
+  if (task.status !== "finalizing" || task.attemptId !== attemptId) {
+    throw new SearchExportTaskError("invalid_state");
+  }
+  return {
+    ...task,
+    status: "commit_pending",
+    error: {
+      code: "commit_confirmation_interrupted",
+      message: publicFailureMessage("commit_confirmation_interrupted"),
+      retryable: true,
+      checkpointSafe: false,
+    },
+  };
 }
 
 export function failSearchExportAttempt(
@@ -467,6 +490,20 @@ export function failSearchExportAttempt(
   };
 }
 
+export function failSearchExportCleanup(task: SearchExportTask): SearchExportTask {
+  return {
+    ...task,
+    status: "error",
+    attemptId: null,
+    error: {
+      code: "cleanup_failed",
+      message: publicFailureMessage("cleanup_failed"),
+      retryable: false,
+      checkpointSafe: false,
+    },
+  };
+}
+
 export function retrySearchExportTask(task: SearchExportTask, attemptId: string): SearchExportTask {
   if (task.status !== "error" || !task.error) {
     throw new SearchExportTaskError("invalid_state");
@@ -488,7 +525,10 @@ export function cancelSearchExportTask(
   task: SearchExportTask,
   attemptId: string,
 ): SearchExportTask {
-  if (task.status !== "running" || task.attemptId !== attemptId) return task;
+  if (
+    (task.status !== "running" && task.status !== "finalizing")
+    || task.attemptId !== attemptId
+  ) return task;
   return { ...task, status: "cancelled", attemptId: null, error: null };
 }
 
@@ -556,7 +596,7 @@ function countCoveredIndexes(ranges: readonly SearchLoadedRange[]): number {
 }
 
 function createSearchExportMessageIdentity(hit: SearchHit): string {
-  return `${hit.conversationId.length}:${hit.conversationId}${hit.messageId}`;
+  return createSearchHitIdentity(hit);
 }
 
 function cloneApplied(applied: SearchAppliedReturnSnapshot): SearchAppliedReturnSnapshot {
@@ -598,6 +638,10 @@ function publicFailureMessage(code: SearchExportFailureCode): string {
       return "导出请求失败，请重试。";
     case "write_failed":
       return "导出文件写入失败，请重试。";
+    case "commit_confirmation_interrupted":
+      return "文件已写入，但提交确认中断。请重试确认保存结果。";
+    case "cleanup_failed":
+      return "导出文件清理失败，请关闭占用文件后再次关闭。";
     case "invalid_page":
       return "导出数据不连续，已停止以避免生成错误文件。";
     case "stale_revision":

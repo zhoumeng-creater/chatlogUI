@@ -3,7 +3,10 @@ import type {
   SearchConversationDirectoryPage,
   SearchSenderDirectoryPage,
 } from "@l2/api-docs/search";
-import { createSearchDirectoryCoordinator } from "./useSearchDirectoryCommander";
+import {
+  createSearchDirectoryCoordinator,
+  shouldDisposeSearchDirectoryCoordinator,
+} from "./useSearchDirectoryCommander";
 
 describe("createSearchDirectoryCoordinator", () => {
   const fetchConversation = vi.fn();
@@ -14,6 +17,24 @@ describe("createSearchDirectoryCoordinator", () => {
     fetchConversation.mockReset();
     fetchSender.mockReset();
     sequence = 0;
+  });
+
+  it("does not permanently dispose the coordinator during the StrictMode effect probe", () => {
+    expect(shouldDisposeSearchDirectoryCoordinator({
+      cleanupGeneration: 1,
+      currentGeneration: 2,
+      sameCoordinator: true,
+    })).toBe(false);
+    expect(shouldDisposeSearchDirectoryCoordinator({
+      cleanupGeneration: 2,
+      currentGeneration: 2,
+      sameCoordinator: true,
+    })).toBe(true);
+    expect(shouldDisposeSearchDirectoryCoordinator({
+      cleanupGeneration: 1,
+      currentGeneration: 2,
+      sameCoordinator: false,
+    })).toBe(true);
   });
 
   it("keeps query edits local until explicit search and sends private facts only in POST bodies", async () => {

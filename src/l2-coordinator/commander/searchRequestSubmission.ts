@@ -35,7 +35,8 @@ export function prepareSearchSubmission(input: {
   const canonical = validation.value;
   assertCapabilities(input.capabilities, canonical);
 
-  const dates = toInclusiveEpochRange(canonical.dateRange);
+  const timeZone = resolvedTimeZone();
+  const dates = toInclusiveEpochRange(canonical.dateRange, timeZone ?? undefined);
   const request: SearchV2Request = {
     keyword: canonical.keyword,
     ...scopeRequest(canonical.scope),
@@ -45,7 +46,7 @@ export function prepareSearchSubmission(input: {
     limit: 50,
   };
   const dateContext: SearchDateContext = {
-    timeZone: resolvedTimeZone(),
+    timeZone,
     utcOffsetMinutes: -new Date(input.startedAt).getTimezoneOffset(),
     ...dates,
   };

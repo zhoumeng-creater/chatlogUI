@@ -3,12 +3,13 @@ import type {
   SearchHit,
   SearchMatchSegment,
 } from "@/l2-coordinator/api-docs/search";
+import { createSearchHitIdentity, type SearchHitIdentity } from "./searchHitIdentity";
 
 export type SearchPresentationSortMode = "baseline" | "newest" | "oldest";
 export type SearchPresentationGroupingMode = "none" | "conversation" | "date";
 
 export interface SearchPresentationRow {
-  id: string;
+  id: SearchHitIdentity;
   hit: SearchHit;
   conversationLabel: string;
   senderLabel: string;
@@ -30,6 +31,13 @@ export interface SearchResultPresentation {
   groups: SearchPresentationGroup[];
 }
 
+export interface SearchPresentationOrderOptions {
+  sortMode: SearchPresentationSortMode;
+  groupingMode: SearchPresentationGroupingMode;
+  locale?: string;
+  timeZone?: string;
+}
+
 export function buildSearchResultPresentation(
   hits: SearchHit[],
   options: {
@@ -37,16 +45,19 @@ export function buildSearchResultPresentation(
     groupingMode: SearchPresentationGroupingMode;
     locale?: string;
     timeZone?: string;
+    privacyOn?: boolean;
   },
 ): SearchResultPresentation {
-  const ordered = orderHits(hits, options.sortMode);
+  const ordered = buildSearchPresentationSourceOrder(hits, options).map((index) =>
+    cloneHit(hits[index]),
+  );
   const locale = options.locale ?? "zh-CN";
   const timeFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
     ...(options.timeZone ? { timeZone: options.timeZone } : {}),
   });
-  const rows = ordered.map((hit) => toPresentationRow(hit, timeFormatter));
+  const rows = ordered.map((hit) => toPresentationRow(hit, timeFormatter, options.privacyOn ?? false));
   return {
     sortMode: options.sortMode,
     groupingMode: options.groupingMode,
@@ -54,25 +65,60 @@ export function buildSearchResultPresentation(
   };
 }
 
-function orderHits(hits: SearchHit[], sortMode: SearchPresentationSortMode): SearchHit[] {
-  return hits.map(cloneHit).sort((left, right) => {
-    if (sortMode === "baseline") return left.sourceIndex - right.sourceIndex;
-    const timeDelta = left.timestamp - right.timestamp;
-    if (timeDelta !== 0) return sortMode === "oldest" ? timeDelta : -timeDelta;
-    return left.sourceIndex - right.sourceIndex;
+export function buildSearchPresentationSourceOrder(
+  hits: readonly SearchHit[],
+  options: SearchPresentationOrderOptions,
+): number[] {
+  const positions = Array.from({ length: hits.length }, (_, index) => index).sort(
+    (leftIndex, rightIndex) => {
+      const left = hits[leftIndex];
+      const right = hits[rightIndex];
+      if (options.sortMode === "baseline") return left.sourceIndex - right.sourceIndex;
+      const timeDelta = left.timestamp - right.timestamp;
+      if (timeDelta !== 0) return options.sortMode === "oldest" ? timeDelta : -timeDelta;
+      return left.sourceIndex - right.sourceIndex;
+    },
+  );
+  if (options.groupingMode === "none") return positions;
+
+  const locale = options.locale ?? "zh-CN";
+  const dateFormatter = new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    ...(options.timeZone ? { timeZone: options.timeZone } : {}),
   });
+  const groups = new Map<string, number[]>();
+  for (const position of positions) {
+    const hit = hits[position];
+    const key =
+      options.groupingMode === "conversation"
+        ? `conversation:${hit.conversationId}`
+        : `date:${dateKey(new Date(hit.timestamp * 1000), dateFormatter)}`;
+    const group = groups.get(key);
+    if (group) group.push(position);
+    else groups.set(key, [position]);
+  }
+  return [...groups.values()].flat();
 }
 
-function toPresentationRow(hit: SearchHit, formatter: Intl.DateTimeFormat): SearchPresentationRow {
+function toPresentationRow(
+  hit: SearchHit,
+  formatter: Intl.DateTimeFormat,
+  privacyOn: boolean,
+): SearchPresentationRow {
   return {
-    id: hit.messageId,
+    id: createSearchHitIdentity(hit),
     hit,
-    conversationLabel: hit.conversationName || hit.conversationId,
-    senderLabel: hit.senderName || hit.senderId || "未知发送者",
+    conversationLabel: privacyOn ? "已隐藏会话" : hit.conversationName || hit.conversationId,
+    senderLabel: privacyOn ? "已隐藏发送者" : hit.senderName || hit.senderId || "未知发送者",
     categoryLabel: categoryLabels[hit.category],
     matchFieldLabel: matchFieldLabels[hit.matchField] ?? "可见内容",
     timeLabel: formatTimestamp(hit.timestamp, formatter),
-    snippetSegments: hit.matchSegments.map((segment) => ({ ...segment })),
+    snippetSegments: hit.matchSegments.map((segment) => ({
+      ...segment,
+      text: privacyOn ? "••••" : segment.text,
+    })),
   };
 }
 

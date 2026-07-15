@@ -398,6 +398,8 @@ describe("MediaLibrary", () => {
 
     expect(html).toContain('role="dialog"');
     expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('class="spring-modal__backdrop"');
+    expect(html).toContain('class="spring-modal__panel"');
     expect(html).toContain('aria-labelledby="media-open-prompt-title"');
     expect(html).toContain('id="media-open-prompt-title"');
     expect(html).toContain('tabindex="-1"');

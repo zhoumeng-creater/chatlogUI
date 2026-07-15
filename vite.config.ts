@@ -29,7 +29,12 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      ignored: ["**/src-tauri/**"],
+      ignored: [
+        "**/src-tauri/**",
+        "**/output/**",
+        "**/test-results/**",
+        "**/playwright-report/**",
+      ],
     },
   },
   build: {

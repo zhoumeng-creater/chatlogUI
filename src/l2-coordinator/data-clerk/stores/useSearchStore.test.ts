@@ -9,6 +9,7 @@ import {
   type SearchDraft,
 } from "@/l2-coordinator/commander/searchDraftModel";
 import { createSearchReturnSnapshot } from "@/l2-coordinator/commander/searchReturnSnapshot";
+import { createSearchHitIdentity } from "@/l2-coordinator/commander/searchHitIdentity";
 import {
   useSearchStore,
   type PendingSearchRequest,
@@ -20,6 +21,61 @@ beforeEach(() => {
 });
 
 describe("useSearchStore explicit request state", () => {
+  it("does not expose the removed legacy search facade alongside canonical state", () => {
+    const state = useSearchStore.getState();
+    const removedKeys = [
+      "query",
+      "activeFilter",
+      "scope",
+      "advancedFilters",
+      "activeResultId",
+      "activeRequest",
+      "results",
+      "status",
+      "loading",
+      "error",
+      "setQuery",
+      "setFilter",
+      "setScope",
+      "setAdvancedFilters",
+      "setSearchSortMode",
+      "setSearchGroupMode",
+      "setActiveResultId",
+      "setActiveRequest",
+      "clearActiveRequest",
+      "settleActiveRequest",
+      "setResults",
+      "setLoading",
+      "setError",
+      "setInvalid",
+      "setCancelled",
+      "clear",
+    ];
+
+    expect(removedKeys.filter((key) => key in state)).toEqual([]);
+  });
+
+  it("advances search intent only when a new request or explicit reset can invalidate work", () => {
+    const initialGeneration = useSearchStore.getState().searchIntentGeneration;
+    const first = pendingRequest("request-generation-a", draft("needle"));
+
+    useSearchStore.getState().beginPending(first);
+    expect(useSearchStore.getState().searchIntentGeneration).toBe(initialGeneration + 1);
+    useSearchStore
+      .getState()
+      .commitPending(first.requestId, page("snapshot-generation-a"), 2, "manual");
+    expect(useSearchStore.getState().searchIntentGeneration).toBe(initialGeneration + 1);
+
+    const replacement = pendingRequest("request-generation-b", draft("replacement"));
+    useSearchStore.getState().beginPending(replacement);
+    expect(useSearchStore.getState().searchIntentGeneration).toBe(initialGeneration + 2);
+    useSearchStore.getState().cancelPending(replacement.requestId);
+    expect(useSearchStore.getState().searchIntentGeneration).toBe(initialGeneration + 2);
+
+    useSearchStore.getState().reset();
+    expect(useSearchStore.getState().searchIntentGeneration).toBe(initialGeneration + 3);
+  });
+
   it("edits only the draft until an explicit pending request begins", () => {
     useSearchStore.getState().setDraft({ ...createDefaultSearchDraft(), keyword: "draft only" });
 
@@ -96,6 +152,31 @@ describe("useSearchStore explicit request state", () => {
     expect(useSearchStore.getState().replacementRequest).toEqual({ status: "cancelled" });
   });
 
+  it("retains retry candidates only for failures that are safe to repeat unchanged", () => {
+    const retryable = ["timeout", "service_unavailable", "database_unavailable", "request_failed"] as const;
+    for (const errorCode of retryable) {
+      useSearchStore.getState().reset();
+      useSearchStore.getState().beginPending(pendingRequest(`retry-${errorCode}`, draft("needle"), "initial"));
+      useSearchStore.getState().failPending(`retry-${errorCode}`, errorCode);
+      expect(useSearchStore.getState().retryCandidate?.draft.keyword).toBe("needle");
+    }
+
+    const nonRetryable = [
+      "invalid_request",
+      "permission_denied",
+      "identity_conflict",
+      "stale_revision",
+      "snapshot_expired",
+      "capability_unavailable",
+    ] as const;
+    for (const errorCode of nonRetryable) {
+      useSearchStore.getState().reset();
+      useSearchStore.getState().beginPending(pendingRequest(`stop-${errorCode}`, draft("needle"), "initial"));
+      useSearchStore.getState().failPending(`stop-${errorCode}`, errorCode);
+      expect(useSearchStore.getState().retryCandidate).toBeNull();
+    }
+  });
+
   it("keeps directional errors local and refuses to mix a stale revision", () => {
     establishApplied("needle", "snapshot-1");
     useSearchStore.getState().setWindowOperation({ kind: "forward" }, { status: "loading" });
@@ -115,6 +196,40 @@ describe("useSearchStore explicit request state", () => {
       useSearchStore.getState().applyWindowPage(page("snapshot-1", "revision-1"), "forward"),
     ).toThrowError(expect.objectContaining({ code: "stale_revision" }));
     expect(useSearchStore.getState().resultWindow?.retainedHits).toHaveLength(1);
+  });
+
+  it("keeps an exact failed page attempt and clears it for cancellation or a new query", () => {
+    establishApplied("needle", "snapshot-1");
+    const exactAttempt = {
+      attemptedCursor: "opaque-page-3",
+      targetPageStart: 100,
+    } as const;
+
+    useSearchStore.getState().setWindowOperation(
+      { kind: "page" },
+      { status: "loading", ...exactAttempt },
+    );
+    useSearchStore.getState().setWindowOperation(
+      { kind: "page" },
+      { status: "error", errorCode: "request_failed", ...exactAttempt },
+    );
+    expect(useSearchStore.getState().resultWindow?.operations.page).toEqual({
+      status: "error",
+      errorCode: "request_failed",
+      ...exactAttempt,
+    });
+
+    useSearchStore.getState().setWindowOperation({ kind: "page" }, { status: "idle" });
+    expect(useSearchStore.getState().resultWindow?.operations.page).toEqual({ status: "idle" });
+
+    useSearchStore.getState().setWindowOperation(
+      { kind: "page" },
+      { status: "error", errorCode: "request_failed", ...exactAttempt },
+    );
+    useSearchStore
+      .getState()
+      .beginPending(pendingRequest("replacement", draft("new query"), "replacement"));
+    expect(useSearchStore.getState().resultWindow?.operations.page).toEqual({ status: "idle" });
   });
 
   it("ends the applied task without erasing reusable filters or local preferences", () => {
@@ -160,7 +275,11 @@ describe("useSearchStore explicit request state", () => {
       ...useSearchStore.getState().resultWindow!,
       activeSourceIndex: 0,
       loadedRanges: [{ start: 0, end: 1 }],
-      scrollAnchors: { manual: "manual-row", infinite: null, paged: "paged-row" },
+      scrollAnchors: {
+        manual: { resultId: "manual-row", offsetFromViewportTop: -12 },
+        infinite: null,
+        paged: { resultId: "paged-row", offsetFromViewportTop: 18.5 },
+      },
     };
     const snapshot = createSearchReturnSnapshot({
       draft: currentDraft,
@@ -168,7 +287,7 @@ describe("useSearchStore explicit request state", () => {
       resultWindow,
       stale: true,
       activeSourceIndex: 0,
-      scrollAnchor: "paged-row",
+      scrollAnchor: { resultId: "paged-row", offsetFromViewportTop: 18.5 },
       sortMode: "oldest",
       groupingMode: "conversation",
       capturedAt: 20,
@@ -192,30 +311,38 @@ describe("useSearchStore explicit request state", () => {
         browseMode: "paged",
         loadedRanges: [{ start: 0, end: 1 }],
         activeSourceIndex: 0,
-        restoreScrollAnchor: "paged-row",
+        restoreScrollAnchor: { resultId: "paged-row", offsetFromViewportTop: 18.5 },
       },
       stale: true,
-      query: "private current query",
-      scope: "current",
-      activeResultId: "message-1",
-      navigationByMessageId: {},
+      navigationByResultId: {},
+      restoredFromNavigation: true,
     });
+    expect(useSearchStore.getState().consumeRestoredNavigation()).toBe(true);
+    expect(useSearchStore.getState().restoredFromNavigation).toBe(false);
+    expect(useSearchStore.getState().consumeRestoredNavigation()).toBe(false);
     fetchSpy.mockRestore();
   });
 
   it("keeps navigation failures local to one result row and clears only that row on retry", () => {
-    useSearchStore.getState().beginResultNavigation("message-1", 0);
-    useSearchStore.getState().failResultNavigation("message-1", "无法精确定位这条消息。", true);
-    useSearchStore.getState().beginResultNavigation("message-2", 1);
+    const firstResultId = "search-hit-first";
+    const secondResultId = "search-hit-second";
+    useSearchStore.getState().beginResultNavigation(firstResultId, 0);
+    useSearchStore.getState().failResultNavigation(firstResultId, "无法精确定位这条消息。", true);
+    useSearchStore.getState().beginResultNavigation(secondResultId, 1);
 
-    expect(useSearchStore.getState().navigationByMessageId).toEqual({
-      "message-1": {
+    const navigationByResultId = (
+      useSearchStore.getState() as unknown as {
+        navigationByResultId: Record<string, { status: string; sourceIndex: number }>;
+      }
+    ).navigationByResultId;
+    expect(navigationByResultId).toEqual({
+      [firstResultId]: {
         status: "error",
         sourceIndex: 0,
         message: "无法精确定位这条消息。",
         nearbyFallbackAvailable: true,
       },
-      "message-2": {
+      [secondResultId]: {
         status: "loading",
         sourceIndex: 1,
         message: null,
@@ -223,14 +350,96 @@ describe("useSearchStore explicit request state", () => {
       },
     });
 
-    useSearchStore.getState().beginResultNavigation("message-1", 0);
-    expect(useSearchStore.getState().navigationByMessageId["message-1"]).toEqual({
+    useSearchStore.getState().beginResultNavigation(firstResultId, 0);
+    const retriedNavigation = (
+      useSearchStore.getState() as unknown as {
+        navigationByResultId: Record<string, { status: string; sourceIndex: number }>;
+      }
+    ).navigationByResultId;
+    expect(retriedNavigation[firstResultId]).toEqual({
       status: "loading",
       sourceIndex: 0,
       message: null,
       nearbyFallbackAvailable: false,
     });
-    expect(useSearchStore.getState().navigationByMessageId["message-2"]?.status).toBe("loading");
+    expect(retriedNavigation[secondResultId]?.status).toBe("loading");
+    expect("navigationByMessageId" in useSearchStore.getState()).toBe(false);
+  });
+
+  it("owns browse mode, active source, and one-shot scroll restoration in the canonical window", () => {
+    const currentDraft = draft("browse");
+    useSearchStore.getState().setDraft(currentDraft);
+    useSearchStore.getState().beginPending(pendingRequest("browse", currentDraft));
+    useSearchStore.getState().commitPending("browse", page("snapshot-browse"), 10, "manual");
+
+    expect(useSearchStore.getState().setResultActiveSourceIndex(0)).toBe(true);
+    const manualAnchor = { resultId: "manual-row", offsetFromViewportTop: -8.25 };
+    expect(useSearchStore.getState().switchResultBrowseMode("paged", manualAnchor)).toBe(true);
+    expect(useSearchStore.getState().resultWindow).toMatchObject({
+      browseMode: "paged",
+      activeSourceIndex: 0,
+      scrollAnchors: { manual: manualAnchor },
+    });
+    expect(useSearchStore.getState().resultWindow?.scrollAnchors.manual).not.toBe(manualAnchor);
+
+    const pagedAnchor = { resultId: "paged-row", offsetFromViewportTop: 32 };
+    expect(useSearchStore.getState().rememberResultPageReadingPosition(pagedAnchor)).toBe(true);
+    expect(useSearchStore.getState().resultWindow?.pageReadingPositions["0"]).toEqual({
+      activeSourceIndex: 0,
+      scrollAnchor: pagedAnchor,
+    });
+    expect(
+      useSearchStore.getState().resultWindow?.pageReadingPositions["0"]?.scrollAnchor,
+    ).not.toBe(pagedAnchor);
+    expect(useSearchStore.getState().rememberResultScrollAnchor("paged", pagedAnchor)).toBe(true);
+    expect(useSearchStore.getState().switchResultBrowseMode("manual", pagedAnchor)).toBe(true);
+    expect(useSearchStore.getState().consumeResultRestoreScrollAnchor()).toEqual(manualAnchor);
+    expect(useSearchStore.getState().consumeResultRestoreScrollAnchor()).toBeNull();
+  });
+
+  it("restores a refreshed active hit by composite identity and announces disappearance", () => {
+    establishApplied("first", "snapshot-first");
+    const identity = createSearchHitIdentity(hit());
+    const refresh = {
+      ...pendingRequest("refresh", draft("first"), "refresh"),
+      restoreActiveHitIdentity: identity,
+    };
+    useSearchStore.getState().beginPending(refresh);
+    const moved = {
+      ...page("snapshot-refreshed"),
+      totalCount: 2,
+      count: 2,
+      messages: [
+        { ...hit(), messageId: "newer-message", seq: 2, sourceIndex: 0 },
+        { ...hit(), sourceIndex: 1 },
+      ],
+    };
+    expect(
+      useSearchStore.getState().commitPending(refresh.requestId, moved, 20, "manual"),
+    ).toBe(true);
+    expect(useSearchStore.getState().resultWindow?.activeSourceIndex).toBe(1);
+    expect(useSearchStore.getState().refreshActiveNotice).toBe("已恢复刷新前定位的结果。");
+
+    const missing = {
+      ...pendingRequest("refresh-missing", draft("first"), "refresh"),
+      restoreActiveHitIdentity: identity,
+    };
+    useSearchStore.getState().beginPending(missing);
+    expect(
+      useSearchStore
+        .getState()
+        .commitPending(
+          missing.requestId,
+          {
+            ...page("snapshot-without-active"),
+            messages: [{ ...hit(), messageId: "replacement-message", seq: 3 }],
+          },
+          30,
+          "manual",
+        ),
+    ).toBe(true);
+    expect(useSearchStore.getState().resultWindow?.activeSourceIndex).toBe(0);
+    expect(useSearchStore.getState().refreshActiveNotice).toContain("原先定位的结果已不存在");
   });
 });
 

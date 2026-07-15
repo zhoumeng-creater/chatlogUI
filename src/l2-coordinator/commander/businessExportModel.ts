@@ -1371,13 +1371,39 @@ function serializeByFormat(format: BusinessExportFormat, serializers: Record<Bus
 
 function toCsv(rows: Array<Array<string | number | boolean>>): string {
   return rows
-    .map((row) => row.map((cell) => escapeCsvCell(String(cell))).join(","))
+    .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
     .join("\n");
 }
 
-function escapeCsvCell(value: string): string {
-  if (!/[",\n\r]/.test(value)) return value;
-  return `"${value.replace(/"/g, '""')}"`;
+function escapeCsvCell(value: string | number | boolean): string {
+  const serialized = String(value);
+  const spreadsheetSafe = typeof value === "string" && isSpreadsheetFormulaCandidate(value)
+    ? `'${serialized}`
+    : serialized;
+  if (!/[",\n\r]/.test(spreadsheetSafe)) return spreadsheetSafe;
+  return `"${spreadsheetSafe.replace(/"/g, '""')}"`;
+}
+
+function isSpreadsheetFormulaCandidate(value: string): boolean {
+  const firstCode = value.charCodeAt(0);
+  if (firstCode === 0x09 || firstCode === 0x0d) return true;
+
+  let index = 0;
+  while (index < value.length) {
+    const character = value[index];
+    const code = value.charCodeAt(index);
+    const ignorablePrefix =
+      code <= 0x20
+      || code === 0x7f
+      || code === 0x85
+      || code === 0xa0
+      || code === 0xfeff
+      || character.trim() === "";
+    if (!ignorablePrefix) break;
+    index += 1;
+  }
+  const candidate = value[index];
+  return candidate !== undefined && "=+-@".includes(candidate);
 }
 
 function escapeMarkdownCell(value: string): string {

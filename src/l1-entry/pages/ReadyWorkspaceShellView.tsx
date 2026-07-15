@@ -25,7 +25,7 @@ export function ReadyWorkspaceShellView({
   children,
 }: ReadyWorkspaceShellViewProps) {
   const navigate = useNavigate();
-  const shell = useWorkbenchShellCommander();
+  const shell = useWorkbenchShellCommander(activeWorkspace);
   const appShell = useAppShellCommander(workspaceTitle);
   const devConsole = useDevConsoleCommander();
   const updateNotification = useUpdateNotificationCommander();
@@ -47,7 +47,7 @@ export function ReadyWorkspaceShellView({
     setLastPrimaryRoute(activeWorkspace);
   }, [activeWorkspace, setLastPrimaryRoute]);
 
-  if (!shell.view.renderWorkbench) {
+  if (!shell.view.renderWorkspaceContent) {
     return (
       <AppLayout shell={appShell.view} actions={appShell.actions}>
         <div className="page-column">

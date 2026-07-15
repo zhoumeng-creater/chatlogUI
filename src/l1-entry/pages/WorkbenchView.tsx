@@ -9,6 +9,7 @@ import { WorkspaceCommandBar } from "@l3/workspace/WorkspaceCommandBar";
 import { ConversationInlineSearch } from "@l3/workspace/ConversationInlineSearch";
 import { ConversationDateJumpDialog } from "@l3/workspace/ConversationDateJumpDialog";
 import { Button, Typography } from "@l4/ui";
+import { classNames } from "@/utils/classNames";
 
 function getSearchAnchorStatusText(status: string): string {
   if (status === "loading") return "正在定位搜索命中";
@@ -85,6 +86,7 @@ export function WorkbenchView() {
       messages={workbench.chat.messages}
       messagesLoading={workbench.chat.messagesLoading}
       messagesHasMore={workbench.chat.messagesHasMore}
+      messagesHasNewer={workbench.chat.messagesHasNewer}
       messagesStatus={workbench.chat.messagesStatus}
       messagesError={workbench.chat.messagesError}
       readingState={workbench.chatReadingState}
@@ -139,7 +141,10 @@ export function WorkbenchView() {
       conversationList={conversationList}
       toolbar={
         <div
-          className={`workbench-chat-toolbar${workbench.returnContext ? " workbench-chat-toolbar--with-search-return" : ""}`}
+          className={classNames(
+            "workbench-chat-toolbar",
+            workbench.returnContext && "workbench-chat-toolbar--with-search-return",
+          )}
         >
           <div className="workbench-chat-toolbar__title">
             <Typography

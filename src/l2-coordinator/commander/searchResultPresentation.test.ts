@@ -19,11 +19,11 @@ describe("searchResultPresentation", () => {
     expect(presentation.groups).toHaveLength(1);
     expect(presentation.groups[0].rows.map((row) => row.hit.sourceIndex)).toEqual([0, 1, 2]);
     expect(presentation.groups[0].rows[0]).toMatchObject({
-      id: "message-0",
       categoryLabel: "文字",
       matchFieldLabel: "正文",
       snippetSegments: [{ text: "before ", matched: false }, { text: "needle", matched: true }],
     });
+    expect(presentation.groups[0].rows[0].id).toMatch(/^search-hit-[a-f0-9]{32}$/);
     expect(presentation.groups[0].rows[0].snippetSegments).not.toBe(hits[0].matchSegments);
     expect(hits.map((item) => item.sourceIndex)).toEqual([0, 1, 2]);
   });
@@ -66,6 +66,58 @@ describe("searchResultPresentation", () => {
       groupingMode: "none",
     }).groups[0].rows[0];
     expect(row.timeLabel).toBe("未知时间");
+  });
+
+  it("preserves row structure while removing private labels and snippets", () => {
+    const presentation = buildSearchResultPresentation(
+      [
+        hit({
+          conversationName: "PRIVATE conversation",
+          senderName: "PRIVATE sender",
+          snippet: "PRIVATE needle",
+          matchSegments: [
+            { text: "PRIVATE ", matched: false },
+            { text: "needle", matched: true },
+          ],
+        }),
+      ],
+      { sortMode: "baseline", groupingMode: "conversation", privacyOn: true },
+    );
+    const row = presentation.groups[0].rows[0];
+    expect(row.conversationLabel).toBe("已隐藏会话");
+    expect(row.senderLabel).toBe("已隐藏发送者");
+    expect(row.snippetSegments).toHaveLength(2);
+    expect(row.snippetSegments[1].matched).toBe(true);
+    expect(JSON.stringify(row.snippetSegments)).not.toContain("PRIVATE");
+    expect(presentation.groups[0].label).toBe("已隐藏会话");
+  });
+
+  it("assigns opaque distinct row identities when message ids repeat across conversations", () => {
+    const rawMessageId = "PRIVATE-shared-message";
+    const rawConversationA = "PRIVATE-conversation-a";
+    const rows = buildSearchResultPresentation(
+      [
+        hit({
+          messageId: rawMessageId,
+          conversationId: rawConversationA,
+          seq: 41,
+          sourceIndex: 0,
+        }),
+        hit({
+          messageId: rawMessageId,
+          conversationId: "PRIVATE-conversation-b",
+          seq: 41,
+          sourceIndex: 1,
+        }),
+      ],
+      { sortMode: "baseline", groupingMode: "none" },
+    ).groups[0].rows;
+
+    expect(new Set(rows.map((row) => row.id)).size).toBe(2);
+    for (const row of rows) {
+      expect(row.id).not.toContain(rawMessageId);
+      expect(row.id).not.toContain(rawConversationA);
+    }
   });
 });
 

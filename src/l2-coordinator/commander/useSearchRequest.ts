@@ -8,6 +8,7 @@ import {
   useSearchStore,
   type PendingSearchRequest,
   type SearchRequestErrorCode,
+  type SearchRequestErrorField,
 } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
 import { useSearchPreferenceStore } from "@/l2-coordinator/data-clerk/stores/useSearchPreferenceStore";
 import { useSettingsStore } from "@/l2-coordinator/data-clerk/stores/useSettingsStore";
@@ -23,7 +24,18 @@ import {
   prepareSearchSubmission,
   SearchSubmissionError,
 } from "./searchRequestSubmission";
-import { SearchWindowError, type SearchLoadedRange } from "./searchResultWindowModel";
+import {
+  assertSearchContinuationPage,
+  SearchWindowError,
+  getSearchGapCursor,
+  getVisibleSearchHits,
+  resolveSearchContinuationAttempt,
+  resolveSearchPageAttempt,
+  type SearchLoadedRange,
+  type SearchPageAttempt,
+  type SearchWindowOperationStatus,
+} from "./searchResultWindowModel";
+import { createSearchHitIdentity } from "./searchHitIdentity";
 
 export interface SearchRequestDependencies {
   fetchCapabilities: (signal: AbortSignal) => Promise<SearchCapabilities>;
@@ -41,17 +53,22 @@ export interface SearchRequestCoordinator {
   refresh: () => Promise<boolean>;
   load: (
     target: "forward" | "backward" | "page" | "gap",
-    options?: { cursor?: string; gap?: SearchLoadedRange },
+    options?: { cursor?: string; targetPageStart?: number; gap?: SearchLoadedRange },
   ) => Promise<boolean>;
   cancelPending: () => void;
   cancelWindowOperation: (
     target: "forward" | "backward" | "page" | "gap",
     gap?: SearchLoadedRange,
   ) => void;
+  cancelAllWindowOperations: () => void;
   dispose: () => void;
 }
 
 type ClassifiedSearchError = SearchRequestErrorCode | "cancelled";
+
+export type ClassifiedSearchProblem =
+  | { code: SearchRequestErrorCode; field?: SearchRequestErrorField }
+  | { code: "cancelled" };
 
 export function createSearchRequestCoordinator(
   dependencies: SearchRequestDependencies,
@@ -82,6 +99,7 @@ export function createSearchRequestCoordinator(
     const previous = pendingController;
     previous?.controller.abort();
     if (previous) useSearchStore.getState().cancelPending(previous.requestId);
+    cancelAllWindowOperations();
 
     const controller = new AbortController();
     pendingController = { requestId: pending.requestId, controller };
@@ -107,15 +125,17 @@ export function createSearchRequestCoordinator(
       return committed;
     } catch (error) {
       if (disposed) return false;
-      const classified = classifySearchRequestError(error);
-      if (classified === "cancelled") {
+      const problem = classifySearchRequestProblem(error);
+      if (problem.code === "cancelled") {
         useSearchStore.getState().cancelPending(pending.requestId);
       } else {
-        const failed = useSearchStore.getState().failPending(pending.requestId, classified);
+        const failed = useSearchStore
+          .getState()
+          .failPending(pending.requestId, problem.code, problem.field);
         if (
           failed &&
           pending.kind === "refresh" &&
-          (classified === "stale_revision" || classified === "snapshot_expired")
+          (problem.code === "stale_revision" || problem.code === "snapshot_expired")
         ) {
           useSearchStore.getState().markSnapshotStale();
         }
@@ -195,6 +215,11 @@ export function createSearchRequestCoordinator(
       return false;
     }
     const request = { ...applied.request };
+    const activeHit = state.resultWindow
+      ? getVisibleSearchHits(state.resultWindow).find(
+          (hit) => hit.sourceIndex === state.resultWindow?.activeSourceIndex,
+        )
+      : null;
     delete request.cursor;
     delete request.snapshotId;
     delete request.dataRevision;
@@ -205,6 +230,7 @@ export function createSearchRequestCoordinator(
       request: cloneRequest(request),
       dateContext: { ...applied.dateContext },
       startedAt: dependencies.now(),
+      restoreActiveHitIdentity: activeHit ? createSearchHitIdentity(activeHit) : null,
     });
   };
 
@@ -214,16 +240,23 @@ export function createSearchRequestCoordinator(
     const applied = state.applied;
     if (!window || !applied || state.stale) return false;
     if (target === "gap" && !options.gap) return false;
+    const pageAttempt = target === "page"
+      ? resolveSearchPageAttempt(window, options.cursor ?? "", options.targetPageStart ?? Number.NaN)
+      : null;
+    if (target === "page" && !pageAttempt) return false;
     const operation =
       target === "gap"
         ? { kind: "gap" as const, range: options.gap! }
         : ({ kind: target } as const);
+    const withPageAttempt = (
+      status: SearchWindowOperationStatus,
+    ): SearchWindowOperationStatus => attachPageAttempt(status, pageAttempt);
     const readinessError = readinessFailure(state.readiness);
     if (readinessError) {
-      state.setWindowOperation(operation, {
+      state.setWindowOperation(operation, withPageAttempt({
         status: "error",
         errorCode: readinessError,
-      });
+      }));
       return false;
     }
     const capabilities = state.capabilities.status === "ready" ? state.capabilities.value : null;
@@ -231,10 +264,10 @@ export function createSearchRequestCoordinator(
       if (!capabilities) throw new SearchSubmissionError("capability_unavailable");
       assertSearchSubmissionCapabilities(applied.draft, capabilities);
     } catch (error) {
-      state.setWindowOperation(operation, {
+      state.setWindowOperation(operation, withPageAttempt({
         status: "error",
         errorCode: classifySubmissionError(error),
-      });
+      }));
       return false;
     }
     const cursor =
@@ -243,8 +276,12 @@ export function createSearchRequestCoordinator(
         ? window.nextCursor
         : target === "backward"
           ? window.previousCursor
-          : "");
+          : target === "gap"
+            ? getSearchGapCursor(window, options.gap!) ?? ""
+            : "");
     if (!cursor) return false;
+    const continuationAttempt = resolveSearchContinuationAttempt(window, cursor);
+    if (!continuationAttempt) return false;
 
     const key = operationKey(target, options.gap);
     const previous = windowControllers.get(key);
@@ -253,7 +290,7 @@ export function createSearchRequestCoordinator(
     operationSequence += 1;
     const token = operationSequence;
     windowControllers.set(key, { token, controller, operation });
-    state.setWindowOperation(operation, { status: "loading" });
+    state.setWindowOperation(operation, withPageAttempt({ status: "loading" }));
 
     try {
       const page = await dependencies.fetchPage(
@@ -271,11 +308,15 @@ export function createSearchRequestCoordinator(
       if (
         disposed ||
         active?.token !== token ||
-        current.stale ||
         current.resultWindow?.snapshotId !== window.snapshotId
       ) {
         return false;
       }
+      if (current.stale) {
+        current.setWindowOperation(operation, { status: "idle" });
+        return false;
+      }
+      assertSearchContinuationPage(window, continuationAttempt, page);
       current.applyWindowPage(page, target);
       useSearchStore.getState().setWindowOperation(operation, { status: "idle" });
       return true;
@@ -295,12 +336,13 @@ export function createSearchRequestCoordinator(
         return false;
       }
       if (classified === "stale_revision" || classified === "snapshot_expired") {
+        cancelAllWindowOperations();
         useSearchStore.getState().markSnapshotStale();
       }
-      useSearchStore.getState().setWindowOperation(operation, {
+      useSearchStore.getState().setWindowOperation(operation, withPageAttempt({
         status: "error",
         errorCode: classified,
-      });
+      }));
       return false;
     } finally {
       if (windowControllers.get(key)?.token === token) windowControllers.delete(key);
@@ -352,17 +394,32 @@ export function createSearchRequestCoordinator(
     useSearchStore.getState().setWindowOperation(active.operation, { status: "idle" });
   };
 
-  const dispose = (): void => {
-    if (disposed) return;
-    disposed = true;
-    capabilityController?.abort();
-    capabilityController = null;
-    cancelPending();
-    for (const active of windowControllers.values()) {
+  const cancelAllWindowOperations = (): void => {
+    const activeOperations = [...windowControllers.values()];
+    windowControllers.clear();
+    for (const active of activeOperations) {
       active.controller.abort();
       useSearchStore.getState().setWindowOperation(active.operation, { status: "idle" });
     }
-    windowControllers.clear();
+  };
+
+  const dispose = (): void => {
+    if (disposed) return;
+    disposed = true;
+    if (capabilityController) {
+      capabilityController.abort();
+      const capabilities = useSearchStore.getState().capabilities;
+      if (capabilities.status === "loading") {
+        useSearchStore.getState().setCapabilitiesState(
+          capabilities.value
+            ? { status: "ready", value: capabilities.value }
+            : { status: "idle", value: null },
+        );
+      }
+    }
+    capabilityController = null;
+    cancelPending();
+    cancelAllWindowOperations();
   };
 
   return {
@@ -373,7 +430,20 @@ export function createSearchRequestCoordinator(
     load,
     cancelPending,
     cancelWindowOperation,
+    cancelAllWindowOperations,
     dispose,
+  };
+}
+
+function attachPageAttempt(
+  status: SearchWindowOperationStatus,
+  attempt: SearchPageAttempt | null,
+): SearchWindowOperationStatus {
+  if (!attempt || status.status === "idle") return status;
+  return {
+    ...status,
+    attemptedCursor: attempt.attemptedCursor,
+    targetPageStart: attempt.targetPageStart,
   };
 }
 
@@ -381,6 +451,20 @@ export interface SearchRequestCoordinatorLifecycle {
   facade: SearchRequestCoordinator;
   activate: (dependencies: SearchRequestDependencies) => SearchRequestCoordinator;
   deactivate: (coordinator: SearchRequestCoordinator) => void;
+}
+
+export function shouldProbeSearchCapabilities({
+  restoredFromNavigation,
+  capabilitiesStatus,
+}: {
+  restoredFromNavigation: boolean;
+  capabilitiesStatus: ReturnType<typeof useSearchStore.getState>["capabilities"]["status"];
+}): boolean {
+  return (
+    !restoredFromNavigation &&
+    capabilitiesStatus !== "ready" &&
+    capabilitiesStatus !== "loading"
+  );
 }
 
 export function createSearchRequestCoordinatorLifecycle(): SearchRequestCoordinatorLifecycle {
@@ -393,6 +477,7 @@ export function createSearchRequestCoordinatorLifecycle(): SearchRequestCoordina
     load: (target, options) => current?.load(target, options) ?? Promise.resolve(false),
     cancelPending: () => current?.cancelPending(),
     cancelWindowOperation: (target, gap) => current?.cancelWindowOperation(target, gap),
+    cancelAllWindowOperations: () => current?.cancelAllWindowOperations(),
     dispose: () => {
       const coordinator = current;
       current = null;
@@ -424,7 +509,15 @@ export function useSearchRequest(
   useEffect(() => {
     const lifecycle = lifecycleRef.current!;
     const coordinator = lifecycle.activate(dependencies);
-    void coordinator.probeCapabilities();
+    const state = useSearchStore.getState();
+    if (
+      shouldProbeSearchCapabilities({
+        restoredFromNavigation: state.restoredFromNavigation,
+        capabilitiesStatus: state.capabilities.status,
+      })
+    ) {
+      void coordinator.probeCapabilities();
+    }
     return () => lifecycle.deactivate(coordinator);
   }, [dependencies]);
   return lifecycleRef.current.facade;
@@ -433,7 +526,11 @@ export function useSearchRequest(
 export function classifySearchRequestError(error: unknown): ClassifiedSearchError {
   if (error instanceof SearchSubmissionError) return error.code;
   if (error instanceof SearchWindowError) {
-    return error.code === "stale_revision" ? "stale_revision" : "request_failed";
+    if (error.code === "stale_revision" || error.code === "snapshot_mismatch") {
+      return "stale_revision";
+    }
+    if (error.code === "identity_conflict") return "identity_conflict";
+    return "request_failed";
   }
   if (error instanceof SearchProtocolError) {
     return error.code === "invalid_search_request" ? "invalid_request" : "request_failed";
@@ -445,10 +542,17 @@ export function classifySearchRequestError(error: unknown): ClassifiedSearchErro
     return "request_failed";
   }
   const code = safeResponseCode(error.body);
+  if (
+    code === "search_snapshot_invalid" ||
+    code === "invalid_snapshot" ||
+    code === "invalid_cursor"
+  ) {
+    return "stale_revision";
+  }
   if (code === "search_snapshot_stale" || code === "search_revision_changed")
     return "stale_revision";
   if (code === "search_snapshot_expired") return "snapshot_expired";
-  if (code === "search_identity_conflict") return "request_failed";
+  if (code === "search_identity_conflict") return "identity_conflict";
   if (
     code === "database_unavailable" ||
     code === "database_not_ready" ||
@@ -466,11 +570,32 @@ export function classifySearchRequestError(error: unknown): ClassifiedSearchErro
     return "service_unavailable";
   if (code === "request_too_large") return "invalid_request";
   if (code === "request_timeout") return "timeout";
+  if (error.status === 401 || error.status === 403) return "permission_denied";
   if (error.status === 409) return "stale_revision";
   if (error.status === 410) return "snapshot_expired";
   if (error.status === 400 || error.status === 422) return "invalid_request";
   if (error.status === 503) return "service_unavailable";
   return "request_failed";
+}
+
+export function classifySearchRequestProblem(error: unknown): ClassifiedSearchProblem {
+  const classified = classifySearchRequestError(error);
+  if (classified === "cancelled") return { code: "cancelled" };
+  if (!(error instanceof ChatlogHttpError)) return { code: classified };
+
+  const field = searchValidationField(safeResponseCode(error.body));
+  return field ? { code: classified, field } : { code: classified };
+}
+
+function searchValidationField(code: string | null): SearchRequestErrorField | undefined {
+  if (code === "keyword_required" || code === "keyword_too_long" || code === "too_many_terms") {
+    return "keyword";
+  }
+  if (code === "invalid_chat" || code === "too_many_chats") return "scope";
+  if (code === "invalid_category" || code === "too_many_categories") return "categories";
+  if (code === "invalid_sender" || code === "too_many_senders") return "senders";
+  if (code === "invalid_time_range") return "dateRange";
+  return undefined;
 }
 
 function classifySubmissionError(error: unknown): SearchRequestErrorCode {

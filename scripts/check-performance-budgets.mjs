@@ -26,6 +26,24 @@ export function createPerformanceBudgetDefinitions(env = process.env) {
       gzipBudgetBytes: readBudget(env, "PERF_MAIN_CSS_GZIP_BUDGET_BYTES", 60_000),
     },
     {
+      key: "searchJs",
+      label: "search page lazy JS",
+      required: true,
+      pattern: /^SearchView[-.].*\.js$/i,
+      // Baseline 2026-07-15: SearchView JS raw 144.70 kB / gzip 43.00 kB.
+      rawBudgetBytes: readBudget(env, "PERF_SEARCH_JS_RAW_BUDGET_BYTES", 180_000),
+      gzipBudgetBytes: readBudget(env, "PERF_SEARCH_JS_GZIP_BUDGET_BYTES", 55_000),
+    },
+    {
+      key: "searchCss",
+      label: "search page lazy CSS",
+      required: true,
+      pattern: /^SearchView[-.].*\.css$/i,
+      // Baseline 2026-07-15: SearchView CSS raw 45.69 kB / gzip 5.82 kB.
+      rawBudgetBytes: readBudget(env, "PERF_SEARCH_CSS_RAW_BUDGET_BYTES", 60_000),
+      gzipBudgetBytes: readBudget(env, "PERF_SEARCH_CSS_GZIP_BUDGET_BYTES", 8_000),
+    },
+    {
       key: "graph3d",
       label: "graph 3D vendor chunk",
       required: true,

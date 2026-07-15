@@ -2,12 +2,6 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_SYNTHETIC_RUNTIME_METRICS = Object.freeze({
-  searchFirstResultVisibleMs: 420,
-  largeMessageListInitialRenderMs: 760,
-  graphCanvasFirstVisibleFrameMs: 1100,
-});
-
 export function createRuntimePerformanceBudgetDefinitions(env = process.env) {
   return [
     {
@@ -29,7 +23,11 @@ export function createRuntimePerformanceBudgetDefinitions(env = process.env) {
 }
 
 export async function loadRuntimePerformanceMetrics(filePath) {
-  if (!filePath) return { ...DEFAULT_SYNTHETIC_RUNTIME_METRICS };
+  if (!filePath) {
+    throw new Error(
+      "Measured runtime metrics are required; pass a JSON file or set RUNTIME_PERF_METRICS_FILE.",
+    );
+  }
 
   const text = await readFile(filePath, "utf8");
   const parsed = JSON.parse(text);
@@ -40,7 +38,7 @@ export async function loadRuntimePerformanceMetrics(filePath) {
 }
 
 export function checkRuntimePerformanceBudgets({
-  metrics = DEFAULT_SYNTHETIC_RUNTIME_METRICS,
+  metrics = {},
   definitions = createRuntimePerformanceBudgetDefinitions(),
 } = {}) {
   const entries = [];

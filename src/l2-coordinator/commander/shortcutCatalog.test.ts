@@ -4,6 +4,7 @@ import {
   getShortcutContextId,
   shouldHandleShortcutHelpKey,
 } from "./shortcutCatalog";
+import { deriveSearchShortcutFacts } from "./useShortcutHelpCommander";
 
 describe("shortcutCatalog", () => {
   it("builds a privacy-safe search catalog with only relevant shortcut groups", () => {
@@ -66,6 +67,19 @@ describe("shortcutCatalog", () => {
       enabled: false,
       disabledReason: "此快捷键尚未在当前页面启用。",
     });
+  });
+
+  it("derives search shortcut availability from the canonical result window", () => {
+    expect(
+      deriveSearchShortcutFacts({
+        browseMode: "manual",
+        retainedHits: [{}],
+        currentPageHits: [],
+        hasPrevious: false,
+        hasNext: true,
+      }),
+    ).toEqual({ hasResults: true, canLoadMore: true });
+    expect(deriveSearchShortcutFacts(null)).toEqual({ hasResults: false, canLoadMore: false });
   });
 
   it("does not advertise global or module shortcuts without handlers", () => {

@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   useChatStore,
   type ChatMessage,
@@ -86,6 +86,13 @@ export function useChatCommander() {
     activeHistoryRequestRef.current = null;
     request?.controller.abort();
   }, []);
+
+  useEffect(
+    () => () => {
+      cancelActiveHistoryRequest();
+    },
+    [cancelActiveHistoryRequest],
+  );
 
   const startHistoryRequest = useCallback(() => {
     cancelActiveHistoryRequest();
@@ -367,16 +374,19 @@ export function useChatCommander() {
       options: AnchoredChatNavigationOptions = {},
     ): Promise<AnchoredChatNavigationResult> => {
       const request = startHistoryRequest();
-      useChatStore.getState().ensureNavigationConversation({
-        id: target.conversationId,
-        username: target.chat,
-        displayName: target.conversationLabel || target.chat,
-        isGroup: target.isGroup ?? target.chat.endsWith("@chatroom"),
-      });
-      useChatStore.getState().selectConversation(target.conversationId);
-      useChatStore.getState().setAnchorLoading(target.anchor, target.returnToSearch);
-      useChatStore.getState().setMessagesLoading(true);
       const exactSearchIntent = target.anchor.source === "search" && !options.allowNearbyFallback;
+      const activateAnchoredConversation = () => {
+        useChatStore.getState().ensureNavigationConversation({
+          id: target.conversationId,
+          username: target.chat,
+          displayName: target.conversationLabel || target.chat,
+          isGroup: target.isGroup ?? target.chat.endsWith("@chatroom"),
+        });
+        useChatStore.getState().selectConversation(target.conversationId);
+        useChatStore.getState().setAnchorLoading(target.anchor, target.returnToSearch);
+        useChatStore.getState().setMessagesLoading(true);
+      };
+      if (!exactSearchIntent) activateAnchoredConversation();
 
       try {
         const loaded = await executeAnchorLoad<LegacyAnchorLoad>({
@@ -445,6 +455,7 @@ export function useChatCommander() {
 
         if (loaded.kind === "exact") {
           const context = toChatHistoryContext(loaded.page, target.isGroup ?? false);
+          if (exactSearchIntent) activateAnchoredConversation();
           useChatStore
             .getState()
             .setMessages(
@@ -453,32 +464,39 @@ export function useChatCommander() {
               context.offset,
               context.hasMore,
               "anchor",
+              context.hasNewer,
             );
           useChatStore.getState().setAnchorHit(context.anchorMessageId);
           return { ok: true, matchKind: "exact", messageId: context.anchorMessageId };
         }
 
         const { page: result, hit, nearby } = loaded.page;
-        useChatStore
-          .getState()
-          .setMessages(
-            result.messages,
-            result.totalCount,
-            result.offset,
-            hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
-            "anchor",
-          );
+        const commitLegacyPage = () => {
+          if (exactSearchIntent) activateAnchoredConversation();
+          useChatStore
+            .getState()
+            .setMessages(
+              result.messages,
+              result.totalCount,
+              result.offset,
+              hasOlderHistory(result, CHAT_HISTORY_ORDERING_CONTRACT),
+              "anchor",
+            );
+        };
+        if (!exactSearchIntent) commitLegacyPage();
         if (hit) {
+          if (exactSearchIntent) commitLegacyPage();
           useChatStore.getState().setAnchorHit(hit.id);
           return { ok: true, matchKind: "exact", messageId: hit.id };
         }
 
         if (nearby) {
+          if (exactSearchIntent) commitLegacyPage();
           useChatStore.getState().setAnchorNearby(nearby.id);
           return { ok: true, matchKind: "nearby", messageId: nearby.id };
         }
 
-        useChatStore.getState().setAnchorMissing();
+        if (!exactSearchIntent) useChatStore.getState().setAnchorMissing();
         return {
           ok: false,
           reason: "missing",
@@ -499,14 +517,6 @@ export function useChatCommander() {
         }
         if (exactSearchIntent) {
           const failure = classifyExactHistoryContextError(error, target);
-          useChatStore.getState().setMessages([], 0, 0, false, "anchor");
-          if (failure.reason === "cancelled") {
-            useChatStore.getState().setAnchorCancelled();
-          } else if (failure.reason === "missing") {
-            useChatStore.getState().setAnchorMissing();
-          } else {
-            useChatStore.getState().setAnchorError(failure.message);
-          }
           return { ok: false, ...failure };
         }
         if (isCancelledHistoryError(error)) {
@@ -544,6 +554,7 @@ export function useChatCommander() {
     loadHistory,
     loadMoreHistory,
     loadHistoryAtDate,
+    cancelActiveHistoryRequest,
     selectAndLoad,
     selectAndLoadAtAnchor,
   };

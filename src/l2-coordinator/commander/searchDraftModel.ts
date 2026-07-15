@@ -6,6 +6,7 @@ import {
   validateSearchDateRange,
   type SearchDateRange,
 } from "./searchDateRange";
+import { unicodeDefaultCaseFold } from "./unicodeCaseFold";
 
 export type SearchScope =
   | { kind: "all" }
@@ -52,6 +53,14 @@ export interface SearchDraftValidation {
 }
 
 export type SearchDraftDirtySource = "keyword" | "scope" | "categories" | "senders" | "dates";
+export type SearchDraftConditionSource = "scope" | "categories" | "senders" | "dates";
+export type SearchDraftDirectoryKind = "conversation" | "sender";
+export type SearchConditionDraftIntent =
+  | { type: "choose-all-conversations" }
+  | { type: "choose-current-conversation"; conversationId: string }
+  | { type: "clear-message-categories" }
+  | { type: "toggle-message-category"; category: SearchCategory }
+  | { type: "change-date-range"; value: SearchDateRange };
 
 export function createDefaultSearchDraft(): SearchDraft {
   return {
@@ -63,13 +72,62 @@ export function createDefaultSearchDraft(): SearchDraft {
   };
 }
 
+export function clearSearchDraftCondition(
+  draft: SearchDraft,
+  source: SearchDraftConditionSource,
+): SearchDraft {
+  if (source === "scope") return replaceSearchDraftScope(draft, { kind: "all" });
+  if (source === "categories") return { ...draft, categories: [] };
+  if (source === "senders") return { ...draft, senderIds: [] };
+  return { ...draft, dateRange: {} };
+}
+
+export function replaceSearchDraftScope(
+  draft: SearchDraft,
+  scope: SearchScope,
+): SearchDraft {
+  if (scopeKey(draft.scope) === scopeKey(scope)) return draft;
+  return { ...draft, scope, senderIds: [] };
+}
+
+export function toggleSearchDraftDirectorySelection(
+  draft: SearchDraft,
+  kind: SearchDraftDirectoryKind,
+  optionId: string,
+): SearchDraft {
+  const id = optionId.trim();
+  if (!id) return draft;
+  if (kind === "sender") {
+    return {
+      ...draft,
+      senderIds: toggleStableId(draft.senderIds, id),
+    };
+  }
+
+  const current = getSearchDraftDirectorySelectionIds(draft, kind);
+  const chatIds = toggleStableId(current, id);
+  return replaceSearchDraftScope(
+    draft,
+    chatIds.length > 0 ? { kind: "selected", chatIds } : { kind: "all" },
+  );
+}
+
+export function getSearchDraftDirectorySelectionIds(
+  draft: SearchDraft,
+  kind: SearchDraftDirectoryKind,
+): string[] {
+  if (kind === "sender") return uniqueStableIds(draft.senderIds);
+  if (draft.scope.kind === "selected") return uniqueStableIds(draft.scope.chatIds);
+  return [];
+}
+
 export function normalizeSearchKeyword(keyword: string): NormalizedSearchKeyword {
   const displayKeyword = keyword.normalize("NFKC").trim().replace(/\s+/gu, " ");
   const seen = new Set<string>();
   const uniqueDisplayTerms: string[] = [];
   const canonicalTerms: string[] = [];
   for (const term of displayKeyword ? displayKeyword.split(" ") : []) {
-    const canonical = unicodeCaseFold(term);
+    const canonical = unicodeDefaultCaseFold(term);
     if (seen.has(canonical)) continue;
     seen.add(canonical);
     uniqueDisplayTerms.push(term);
@@ -99,7 +157,7 @@ export function validateSearchDraft(draft: SearchDraft): SearchDraftValidation {
   const scope = canonicalizeScope(draft.scope);
   if (!scope) {
     errors.scope = draft.scope.kind === "current"
-      ? "当前会话不可用，请重新选择搜索范围"
+      ? "无法确定当前会话，请选择会话或切换到全部会话"
       : "请至少选择一个会话";
   }
   const categories = canonicalCategories(draft.categories);
@@ -189,10 +247,13 @@ function setKey(values: readonly string[]): string {
   return [...new Set(values)].sort().join("\u0000");
 }
 
-function unicodeCaseFold(value: string): string {
-  // upper→lower covers multi-code-point folds such as ß→ss and final sigma→σ
-  // in the desktop ICU runtime. The backend remains the authoritative fold.
-  return value.toUpperCase().toLowerCase();
+function toggleStableId(values: readonly string[], id: string): string[] {
+  const unique = uniqueStableIds(values);
+  return unique.includes(id) ? unique.filter((value) => value !== id) : [...unique, id];
+}
+
+function uniqueStableIds(values: readonly string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 interface SegmenterLike {

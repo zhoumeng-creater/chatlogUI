@@ -5,13 +5,19 @@ import type {
   SearchV2Request,
 } from "@/l2-coordinator/api-docs/search";
 import {
+  BUSINESS_EXPORT_FORMATS,
   createSearchExportStreamEncoder,
   getBusinessExportExtension,
+  type BusinessExportFormat,
   type BusinessExportExtension,
   type SearchExportStreamEncoder,
   type SearchExportStreamRow,
 } from "./businessExportModel";
+import { fetchSearchV2 } from "@/l4-atom/network/fetchSearch";
+import { beginBusinessExportStream } from "@/l4-atom/system/exportBusinessFile";
+import { useSettingsStore } from "@/l2-coordinator/data-clerk/stores/useSettingsStore";
 import {
+  SEARCH_EXPORT_CONFIRM_THRESHOLD,
   SearchExportTaskError,
   abandonSearchExportTask,
   beginSearchExportFinalization,
@@ -23,6 +29,8 @@ import {
   createSearchExportDialogSelection,
   createSearchExportDialogSnapshot,
   failSearchExportAttempt,
+  failSearchExportCleanup,
+  interruptSearchExportCommitConfirmation,
   retrySearchExportTask,
   startSearchExportAttempt,
   validateAllSearchExportPage,
@@ -35,9 +43,11 @@ import {
   type SearchExportTask,
 } from "./searchExportTaskModel";
 import type { SearchLoadedRange, SearchResultWindow } from "./searchResultWindowModel";
+import { buildSearchPresentationSourceOrder } from "./searchResultPresentation";
 import { classifySearchRequestError } from "./useSearchRequest";
 
 export const SEARCH_EXPORT_MAX_SINK_CHUNK_BYTES = 900 * 1024;
+export const SEARCH_EXPORT_FINALIZATION_TIMEOUT_MS = 30_000;
 
 export interface SearchExportStreamRequest {
   fileName: string;
@@ -55,6 +65,7 @@ export interface SearchExportStreamCompletedSummary {
 export interface SearchExportChunkStream {
   append: (chunk: string) => Promise<void>;
   complete: () => Promise<SearchExportStreamCompletedSummary>;
+  commit: () => Promise<void>;
   cancel: () => Promise<void>;
 }
 
@@ -65,8 +76,11 @@ export type SearchExportStreamOpenResult =
 export interface SearchExportCoordinatorDependencies {
   fetchPage: (request: SearchV2Request, signal: AbortSignal) => Promise<SearchSnapshotPage>;
   beginStream: (request: SearchExportStreamRequest) => Promise<SearchExportStreamOpenResult>;
+  getPrivacyOn: () => boolean;
+  subscribePrivacyOn: (listener: (privacyOn: boolean) => void) => () => void;
   now: () => number;
   createId: (kind: "task" | "attempt") => string;
+  finalizationTimeoutMs?: number;
 }
 
 export interface SearchExportCoordinatorState {
@@ -74,6 +88,7 @@ export interface SearchExportCoordinatorState {
   dialog: Readonly<SearchExportDialogSnapshot> | null;
   selection: SearchExportDialogSelection | null;
   task: SearchExportTask | null;
+  commitInFlight: boolean;
   confirmationRequired: boolean;
   result: SearchExportStreamCompletedSummary | null;
 }
@@ -82,6 +97,7 @@ export interface SearchExportCoordinator {
   getState: () => SearchExportCoordinatorState;
   subscribe: (listener: () => void) => () => void;
   openDialog: (input: Parameters<typeof createSearchExportDialogSnapshot>[0]) => boolean;
+  setFormat: (format: BusinessExportFormat) => boolean;
   selectScope: (scope: SearchExportScope) => boolean;
   setUnredactedConfirmed: (confirmed: boolean) => boolean;
   confirm: (options: { thresholdConfirmed: boolean }) => Promise<boolean>;
@@ -91,7 +107,9 @@ export interface SearchExportCoordinator {
 }
 
 export type SearchExportCommanderView = SearchExportCoordinatorState &
-  Omit<SearchExportCoordinator, "getState" | "subscribe">;
+  Omit<SearchExportCoordinator, "getState" | "subscribe"> & {
+    confirmThreshold: number;
+  };
 
 export function createSearchExportCoordinator(
   dependencies: SearchExportCoordinatorDependencies,
@@ -102,12 +120,16 @@ export function createSearchExportCoordinator(
   let stream: SearchExportChunkStream | null = null;
   let encoder: SearchExportStreamEncoder | null = null;
   let partialSource: SearchExportPartialChunkSource | null = null;
+  let unsubscribePrivacyOn: (() => void) | null = null;
   let seenMessageIdentities = new Set<string>();
   let seenCursors = new Set<string>();
   const identityGuard: SearchExportIdentityGuard = {
     hasMessageIdentity: (identity) => seenMessageIdentities.has(identity),
     hasCursor: (cursor) => seenCursors.has(cursor),
   };
+  const finalizationTimeoutMs = Number.isFinite(dependencies.finalizationTimeoutMs)
+    ? Math.max(1, Math.floor(dependencies.finalizationTimeoutMs!))
+    : SEARCH_EXPORT_FINALIZATION_TIMEOUT_MS;
 
   const resetIdentityGuards = (): void => {
     seenMessageIdentities = new Set<string>();
@@ -137,28 +159,126 @@ export function createSearchExportCoordinator(
     state.isOpen &&
     state.dialog !== null &&
     state.selection !== null &&
-    state.task?.status !== "running" &&
-    state.task?.status !== "finalizing" &&
-    state.task?.status !== "error";
+    (state.task === null || state.task.status === "idle" || state.task.status === "cancelled");
 
   const cancelStream = async (): Promise<void> => {
     const current = stream;
-    stream = null;
-    encoder = null;
     if (!current) return;
-    try {
-      await current.cancel();
-    } catch {
-      // The native cancel operation is best-effort and idempotent. Never surface a path.
+    await current.cancel();
+    if (stream === current) {
+      stream = null;
+      encoder = null;
     }
+  };
+
+  const publishCleanupFailure = (task: SearchExportTask | null): void => {
+    if (!task) return;
+    publish({
+      ...state,
+      isOpen: true,
+      task: failSearchExportCleanup(task),
+      confirmationRequired: false,
+      result: null,
+    });
+  };
+
+  const cancelDetachedStream = async (detached: SearchExportChunkStream): Promise<boolean> => {
+    try {
+      await detached.cancel();
+      return true;
+    } catch {
+      stream = detached;
+      encoder = null;
+      publishCleanupFailure(state.task);
+      return false;
+    }
+  };
+
+  const currentPrivacyOn = (): boolean => {
+    try {
+      return dependencies.getPrivacyOn();
+    } catch {
+      return true;
+    }
+  };
+
+  const stopPrivacyWatch = (): void => {
+    const unsubscribe = unsubscribePrivacyOn;
+    unsubscribePrivacyOn = null;
+    unsubscribe?.();
+  };
+
+  const latchPrivacyOn = async (): Promise<boolean> => {
+    const dialog = state.dialog;
+    if (!dialog) return false;
+    const task = state.task;
+    const unredactedTask = Boolean(task?.selection.unredactedConfirmed);
+    const irreversible = Boolean(task && (state.commitInFlight || task.status === "commit_pending"));
+    const cancelUnredactedTask = Boolean(
+      unredactedTask &&
+        task &&
+        task.status !== "completed" &&
+        task.status !== "cancelled" &&
+        task.status !== "commit_pending" &&
+        !state.commitInFlight,
+    );
+    const alreadyLatched =
+      dialog.privacyOn &&
+      !state.selection?.unredactedConfirmed &&
+      (irreversible || !task?.selection.unredactedConfirmed);
+    if (alreadyLatched) return false;
+
+    const nextDialog = latchSearchExportDialogPrivacy(dialog);
+    const nextSelection = state.selection
+      ? { ...state.selection, unredactedConfirmed: false }
+      : null;
+    const nextTask = task
+      ? revokeSearchExportTaskPrivacy(task, nextDialog, cancelUnredactedTask, irreversible)
+      : null;
+    if (cancelUnredactedTask) {
+      activeController?.abort();
+      activeController = null;
+      encoder = null;
+      resetIdentityGuards();
+    }
+    publish({
+      ...state,
+      dialog: nextDialog,
+      selection: nextSelection,
+      task: nextTask,
+      confirmationRequired: false,
+    });
+    if (cancelUnredactedTask && stream) {
+      try {
+        await cancelStream();
+      } catch {
+        publishCleanupFailure(state.task);
+      }
+    }
+    return cancelUnredactedTask;
+  };
+
+  const cancelUnredactedForCurrentPrivacy = async (): Promise<boolean> => {
+    if (!currentPrivacyOn() || !state.task?.selection.unredactedConfirmed) return false;
+    await latchPrivacyOn();
+    return true;
+  };
+
+  const startPrivacyWatch = (): void => {
+    stopPrivacyWatch();
+    unsubscribePrivacyOn = dependencies.subscribePrivacyOn((privacyOn) => {
+      if (privacyOn) void latchPrivacyOn();
+    });
   };
 
   const appendEncoded = async (attemptId: string, content: string): Promise<boolean> => {
     const current = stream;
     if (!current) throw new Error("Search export stream is unavailable");
     for (const chunk of splitUtf8Chunks(content, SEARCH_EXPORT_MAX_SINK_CHUNK_BYTES)) {
+      if (await cancelUnredactedForCurrentPrivacy()) return false;
       if (!isActiveAttempt(attemptId)) return false;
       await current.append(chunk);
+      if (await cancelUnredactedForCurrentPrivacy()) return false;
       if (!isActiveAttempt(attemptId)) return false;
     }
     return true;
@@ -171,7 +291,13 @@ export function createSearchExportCoordinator(
   ): Promise<boolean> => {
     if (checkpointSafe ? !isActiveAttempt(attemptId) : !isCurrentAttempt(attemptId)) return false;
     if (!checkpointSafe) {
-      await cancelStream();
+      try {
+        await cancelStream();
+      } catch {
+        publishCleanupFailure(state.task);
+        activeController = null;
+        return false;
+      }
       resetIdentityGuards();
     }
     if (!isCurrentAttempt(attemptId)) return false;
@@ -186,6 +312,7 @@ export function createSearchExportCoordinator(
     if (stream && encoder) return "ready";
     const task = state.task;
     if (!task || !isActiveAttempt(attemptId)) return "late";
+    if (await cancelUnredactedForCurrentPrivacy()) return "late";
     const extension = getBusinessExportExtension(task.dialog.format);
     const opened = await dependencies.beginStream({
       fileName: `chatlog-search-${dependencies.now()}.${extension}`,
@@ -197,11 +324,14 @@ export function createSearchExportCoordinator(
     });
     if (!isActiveAttempt(attemptId)) {
       if (opened.status === "opened") {
-        try {
-          await opened.stream.cancel();
-        } catch {
-          // Late native handles must still be abandoned without exposing details.
-        }
+        await cancelDetachedStream(opened.stream);
+      }
+      return "late";
+    }
+    if (currentPrivacyOn() && task.selection.unredactedConfirmed) {
+      await latchPrivacyOn();
+      if (opened.status === "opened") {
+        await cancelDetachedStream(opened.stream);
       }
       return "late";
     }
@@ -218,6 +348,7 @@ export function createSearchExportCoordinator(
         task: cancelled,
         confirmationRequired: false,
       });
+      stopPrivacyWatch();
       return "cancelled";
     }
     stream = opened.stream;
@@ -295,15 +426,43 @@ export function createSearchExportCoordinator(
     const currentStream = stream;
     if (!currentStream || !encoder || !isActiveAttempt(attemptId)) return false;
     try {
+      if (await cancelUnredactedForCurrentPrivacy()) return false;
       if (!(await appendEncoded(attemptId, encoder.finish()))) return false;
       if (!isActiveAttempt(attemptId)) return false;
       updateTask(beginSearchExportFinalization(state.task!, attemptId));
       activeController = null;
       encoder = null;
       resetIdentityGuards();
-      const result = await currentStream.complete();
+      if (await cancelUnredactedForCurrentPrivacy()) return false;
+      const result = await completeWithTimeout(currentStream, finalizationTimeoutMs);
+      if (await cancelUnredactedForCurrentPrivacy()) return false;
       if (!isCurrentAttempt(attemptId) || state.task?.status !== "finalizing") return false;
-      const completed = completeSearchExportTask(state.task!, attemptId);
+      const taskAtCommit = state.task;
+      publish({ ...state, commitInFlight: true });
+      try {
+        await currentStream.commit();
+      } catch {
+        const taskAfterCommit =
+          isCurrentAttempt(attemptId) && state.task?.status === "finalizing"
+            ? state.task
+            : taskAtCommit;
+        const interrupted = interruptSearchExportCommitConfirmation(taskAfterCommit, attemptId);
+        partialSource = null;
+        publish({
+          ...state,
+          isOpen: true,
+          task: interrupted,
+          commitInFlight: false,
+          confirmationRequired: false,
+          result,
+        });
+        return false;
+      }
+      const taskAfterCommit =
+        isCurrentAttempt(attemptId) && state.task?.status === "finalizing"
+          ? state.task
+          : taskAtCommit;
+      const completed = completeSearchExportTask(taskAfterCommit, attemptId);
       stream = null;
       encoder = null;
       partialSource = null;
@@ -313,11 +472,14 @@ export function createSearchExportCoordinator(
         dialog: null,
         selection: null,
         task: completed,
+        commitInFlight: false,
         confirmationRequired: false,
         result,
       });
+      stopPrivacyWatch();
       return true;
     } catch {
+      if (state.commitInFlight) publish({ ...state, commitInFlight: false });
       return failAttempt(attemptId, "write_failed", false);
     }
   };
@@ -335,12 +497,14 @@ export function createSearchExportCoordinator(
   };
 
   const confirm: SearchExportCoordinator["confirm"] = async ({ thresholdConfirmed }) => {
+    if (currentPrivacyOn()) await latchPrivacyOn();
     if (
       !state.isOpen ||
       !state.dialog ||
       !state.selection ||
       state.task?.status === "running" ||
       state.task?.status === "finalizing" ||
+      state.task?.status === "commit_pending" ||
       state.task?.status === "error"
     ) {
       return false;
@@ -366,7 +530,43 @@ export function createSearchExportCoordinator(
   };
 
   const retry: SearchExportCoordinator["retry"] = async () => {
+    if (currentPrivacyOn()) await latchPrivacyOn();
     const task = state.task;
+    if (task?.status === "commit_pending") {
+      const currentStream = stream;
+      const result = state.result;
+      const attemptId = task.attemptId;
+      if (state.commitInFlight || !currentStream || !result || !attemptId) return false;
+      publish({ ...state, commitInFlight: true });
+      try {
+        await currentStream.commit();
+      } catch {
+        publish({ ...state, commitInFlight: false });
+        return false;
+      }
+      const taskAfterCommit =
+        state.task?.status === "commit_pending" && state.task.attemptId === attemptId
+          ? state.task
+          : task;
+      const completed = completeSearchExportTask(taskAfterCommit, attemptId);
+      stream = null;
+      encoder = null;
+      partialSource = null;
+      activeController = null;
+      resetIdentityGuards();
+      publish({
+        ...state,
+        isOpen: false,
+        dialog: null,
+        selection: null,
+        task: completed,
+        commitInFlight: false,
+        confirmationRequired: false,
+        result,
+      });
+      stopPrivacyWatch();
+      return true;
+    }
     if (!task || task.status !== "error" || !task.error?.retryable) return false;
     if (task.error.checkpointSafe && (!stream || !encoder)) return false;
     const checkpointSafe = task.error.checkpointSafe;
@@ -385,16 +585,24 @@ export function createSearchExportCoordinator(
   };
 
   const cancel: SearchExportCoordinator["cancel"] = async () => {
+    if (state.commitInFlight || state.task?.status === "commit_pending") return;
     const task = state.task;
-    if (!task || task.status === "finalizing") return;
+    if (!task) return;
     const attemptId = task.attemptId;
     activeController?.abort();
     activeController = null;
+    partialSource = null;
+    resetIdentityGuards();
+    try {
+      await cancelStream();
+    } catch {
+      publishCleanupFailure(task);
+      stopPrivacyWatch();
+      return;
+    }
     let cancelled = task;
     if (task.status === "error") cancelled = abandonSearchExportTask(task);
     else if (attemptId) cancelled = cancelSearchExportTask(task, attemptId);
-    partialSource = null;
-    resetIdentityGuards();
     publish({
       ...state,
       isOpen: false,
@@ -403,17 +611,30 @@ export function createSearchExportCoordinator(
       task: cancelled,
       confirmationRequired: false,
     });
-    await cancelStream();
+    stopPrivacyWatch();
   };
 
   const close: SearchExportCoordinator["close"] = async () => {
-    if (state.task?.status === "finalizing") return;
+    if (
+      state.commitInFlight ||
+      state.task?.status === "finalizing" ||
+      state.task?.status === "commit_pending"
+    ) {
+      return;
+    }
     activeController?.abort();
     activeController = null;
-    await cancelStream();
+    try {
+      await cancelStream();
+    } catch {
+      publishCleanupFailure(state.task);
+      stopPrivacyWatch();
+      return;
+    }
     partialSource = null;
     resetIdentityGuards();
     publish(initialState());
+    stopPrivacyWatch();
   };
 
   return {
@@ -424,7 +645,10 @@ export function createSearchExportCoordinator(
     },
     openDialog: (input) => {
       if (state.task?.status === "running" || stream) return false;
-      const dialog = createSearchExportDialogSnapshot(input);
+      const dialog = createSearchExportDialogSnapshot({
+        ...input,
+        privacyOn: input.privacyOn || currentPrivacyOn(),
+      });
       partialSource = createPartialChunkSource(
         input.resultWindow,
         input.sortMode,
@@ -438,8 +662,19 @@ export function createSearchExportCoordinator(
         dialog,
         selection: createSearchExportDialogSelection(dialog),
         task: null,
+        commitInFlight: false,
         confirmationRequired: false,
         result: null,
+      });
+      startPrivacyWatch();
+      if (currentPrivacyOn() && !dialog.privacyOn) void latchPrivacyOn();
+      return true;
+    },
+    setFormat: (format) => {
+      if (!canEditSelection() || !BUSINESS_EXPORT_FORMATS.includes(format)) return false;
+      publish({
+        ...state,
+        dialog: Object.freeze({ ...state.dialog!, format }),
       });
       return true;
     },
@@ -468,8 +703,28 @@ export function createSearchExportCoordinator(
   };
 }
 
+async function completeWithTimeout(
+  stream: SearchExportChunkStream,
+  timeoutMs: number,
+): Promise<SearchExportStreamCompletedSummary> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      stream.complete(),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error("Search export finalization timed out")),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
+  }
+}
+
 export function useSearchExportCommander(
-  dependencies: SearchExportCoordinatorDependencies,
+  dependencies: SearchExportCoordinatorDependencies = defaultSearchExportDependencies,
 ): SearchExportCommanderView {
   const coordinator = useMemo(() => createSearchExportCoordinator(dependencies), [dependencies]);
   const state = useSyncExternalStore(
@@ -485,13 +740,81 @@ export function useSearchExportCommander(
   );
   return {
     ...state,
+    confirmThreshold: SEARCH_EXPORT_CONFIRM_THRESHOLD,
     openDialog: coordinator.openDialog,
+    setFormat: coordinator.setFormat,
     selectScope: coordinator.selectScope,
     setUnredactedConfirmed: coordinator.setUnredactedConfirmed,
     confirm: coordinator.confirm,
     retry: coordinator.retry,
     cancel: coordinator.cancel,
     close: coordinator.close,
+  };
+}
+
+let runtimeExportId = 0;
+
+const defaultSearchExportDependencies: SearchExportCoordinatorDependencies = {
+  fetchPage: (request, signal) => fetchSearchV2(request, { signal }),
+  beginStream: async (request) => {
+    const opened = await beginBusinessExportStream(request);
+    if (opened.status === "cancelled") return opened;
+    return {
+      status: "opened",
+      stream: {
+        append: async (chunk) => {
+          await opened.stream.append(chunk);
+        },
+        complete: () => opened.stream.complete(),
+        commit: () => opened.stream.commit(),
+        cancel: () => opened.stream.cancel(),
+      },
+    };
+  },
+  getPrivacyOn: () => useSettingsStore.getState().settings.privacyOn,
+  subscribePrivacyOn: (listener) =>
+    useSettingsStore.subscribe((state, previous) => {
+      if (state.settings.privacyOn !== previous.settings.privacyOn) {
+        listener(state.settings.privacyOn);
+      }
+    }),
+  now: () => Date.now(),
+  createId: (kind) => {
+    const uuid = globalThis.crypto?.randomUUID?.();
+    if (uuid) return `${kind}-${uuid}`;
+    runtimeExportId += 1;
+    return `${kind}-${Date.now()}-${runtimeExportId}`;
+  },
+};
+
+function latchSearchExportDialogPrivacy(
+  dialog: Readonly<SearchExportDialogSnapshot>,
+): Readonly<SearchExportDialogSnapshot> {
+  if (dialog.privacyOn && dialog.publicSummary.privacyOn) return dialog;
+  return Object.freeze({
+    ...dialog,
+    privacyOn: true,
+    publicSummary: Object.freeze({ ...dialog.publicSummary, privacyOn: true }),
+  });
+}
+
+function revokeSearchExportTaskPrivacy(
+  task: SearchExportTask,
+  dialog: Readonly<SearchExportDialogSnapshot>,
+  cancel: boolean,
+  preserveFrozenSelection: boolean,
+): SearchExportTask {
+  const selection = preserveFrozenSelection
+    ? task.selection
+    : Object.freeze({ ...task.selection, unredactedConfirmed: false });
+  if (!cancel) return { ...task, dialog, selection };
+  return {
+    ...task,
+    dialog,
+    selection,
+    status: "cancelled",
+    attemptId: null,
+    error: null,
   };
 }
 
@@ -526,17 +849,13 @@ function createPartialChunkSource(
   });
 
   const hitAt = (position: number): SearchHit => {
-    if (sortMode === "baseline") return hits[position];
     if (!orderedIndexes) {
-      orderedIndexes = Array.from({ length: hits.length }, (_, index) => index).sort(
-        (leftIndex, rightIndex) => {
-          const left = hits[leftIndex];
-          const right = hits[rightIndex];
-          const timeDelta = left.timestamp - right.timestamp;
-          if (timeDelta !== 0) return sortMode === "oldest" ? timeDelta : -timeDelta;
-          return left.sourceIndex - right.sourceIndex;
-        },
-      );
+      orderedIndexes = buildSearchPresentationSourceOrder(hits, {
+        sortMode,
+        groupingMode,
+        locale,
+        ...(timeZone ? { timeZone } : {}),
+      });
     }
     return hits[orderedIndexes[position]];
   };
@@ -625,6 +944,7 @@ function initialState(): SearchExportCoordinatorState {
     dialog: null,
     selection: null,
     task: null,
+    commitInFlight: false,
     confirmationRequired: false,
     result: null,
   };

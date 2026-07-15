@@ -1,6 +1,10 @@
-export const HISTORY_CONTEXT_CONTRACT_VERSION = "history.context.v1" as const;
-export const HISTORY_CONTEXT_DEFAULT_LIMIT = 51;
-export const HISTORY_CONTEXT_MAX_LIMIT = 101;
+import { HISTORY_CONTEXT_CONTRACT_VERSION } from "@/utils/constants";
+
+export {
+  HISTORY_CONTEXT_CONTRACT_VERSION,
+  HISTORY_CONTEXT_DEFAULT_LIMIT,
+  HISTORY_CONTEXT_MAX_LIMIT,
+} from "@/utils/constants";
 
 export interface HistoryContextRequest {
   conversationId: string;

@@ -1,27 +1,12 @@
-import type { SearchFilterType } from "@/l2-coordinator/api-docs/search";
+import type { SearchFilterType, SearchHit } from "@/l2-coordinator/api-docs/search";
 import type {
   ChatMessageAnchor,
   ChatReturnToSearch,
   Conversation,
 } from "@/l2-coordinator/data-clerk/stores/useChatStore";
 import type { SearchScope } from "@/l2-coordinator/data-clerk/stores/useSearchStore";
+import { createSearchHitIdentity } from "./searchHitIdentity";
 import type { SearchReturnSnapshot } from "./searchReturnSnapshot";
-
-export interface SearchHitMessage {
-  id?: string;
-  messageId?: string;
-  seq?: number;
-  sourceIndex?: number;
-  localId?: number;
-  timestamp: number;
-  time?: string;
-  content?: string;
-  sender?: string;
-  isGroup?: boolean;
-  username?: string;
-  chat?: string;
-  conversationId?: string;
-}
 
 export interface SearchQuerySnapshot {
   query: string;
@@ -56,7 +41,7 @@ export type SearchHitNavigationResult =
     };
 
 interface ResolveSearchHitNavigationInput {
-  message: SearchHitMessage;
+  message: SearchHit;
   conversations: Conversation[];
   returnRoute: string;
   dataRevision?: string;
@@ -69,12 +54,8 @@ function normalizeIdentifier(value: string | null | undefined): string {
   return value?.trim() ?? "";
 }
 
-function resolveTargetChat(message: SearchHitMessage): string {
-  return (
-    normalizeIdentifier(message.conversationId) ||
-    normalizeIdentifier(message.username) ||
-    normalizeIdentifier(message.chat)
-  );
+function resolveTargetChat(message: SearchHit): string {
+  return normalizeIdentifier(message.conversationId);
 }
 
 function findConversation(conversations: Conversation[], targetChat: string): Conversation | null {
@@ -103,11 +84,10 @@ export function resolveSearchHitNavigation({
     };
   }
 
-  const messageId = normalizeIdentifier(message.messageId) || normalizeIdentifier(message.id);
+  const messageId = normalizeIdentifier(message.messageId);
   const seq =
     Number.isSafeInteger(message.seq) && (message.seq ?? 0) > 0 ? (message.seq ?? null) : null;
-  const localId =
-    seq === null && Number.isSafeInteger(message.localId) ? (message.localId ?? null) : null;
+  const localId = null;
   if (!messageId && seq === null && localId === null) {
     return {
       ok: false,
@@ -117,14 +97,15 @@ export function resolveSearchHitNavigation({
   }
 
   const conversation = findConversation(conversations, chat);
-  const activeResultId = messageId || `${chat}:${seq ?? localId}`;
+  const activeResultId = createSearchHitIdentity(message);
 
   return {
     ok: true,
     conversationId: conversation?.id ?? chat,
     chat,
-    conversationLabel: conversation?.displayName || normalizeIdentifier(message.chat) || chat,
-    isGroup: conversation?.isGroup ?? (Boolean(message.isGroup) || chat.endsWith("@chatroom")),
+    conversationLabel:
+      conversation?.displayName || normalizeIdentifier(message.conversationName) || chat,
+    isGroup: conversation?.isGroup ?? chat.endsWith("@chatroom"),
     requiresConversationLoad: !conversation,
     ...(dataRevision ? { dataRevision } : {}),
     ...(typeof historyContextAvailable === "boolean" ? { historyContextAvailable } : {}),
@@ -135,7 +116,7 @@ export function resolveSearchHitNavigation({
       seq,
       localId,
       timestamp: typeof message.timestamp === "number" ? message.timestamp : null,
-      time: message.time ?? null,
+      time: null,
     },
     returnToSearch: {
       returnRoute,

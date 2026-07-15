@@ -54,7 +54,9 @@ export function SettingsView() {
             settings={commander.settings}
             saveStatus={commander.saveStatus}
             saveMessage={commander.saveMessage}
+            rememberRecentSearches={commander.rememberRecentSearches}
             onChange={commander.updateAndSave}
+            onRememberRecentSearchesChange={commander.setRememberRecentSearches}
           />
         );
       case "about":

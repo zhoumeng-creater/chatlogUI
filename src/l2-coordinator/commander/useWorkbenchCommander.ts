@@ -802,7 +802,7 @@ export function restoreSearchWorkspaceFromChatReturn(context: ChatReturnToSearch
   useSearchStore.getState().restoreReturnSnapshot(snapshot);
   const preferences = useSearchPreferenceStore.getState();
   preferences.setBrowseMode(snapshot.resultWindow.browseMode);
-  preferences.setSortMode(snapshot.sortMode);
+  preferences.setSortMode(snapshot.sortMode === "oldest" ? "oldest" : "newest");
   preferences.setGroupingMode(snapshot.groupingMode);
   return true;
 }

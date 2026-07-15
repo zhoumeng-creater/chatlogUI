@@ -1,3 +1,5 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type {
   SearchCapabilities,
@@ -12,14 +14,34 @@ import {
   type SearchResultWindow,
 } from "./searchResultWindowModel";
 import { SEARCH_EXPORT_CONFIRM_THRESHOLD, SearchExportTaskError } from "./searchExportTaskModel";
+import { SearchExportDialog } from "@/l3-molecule/search/SearchExportDialog";
 import {
   SEARCH_EXPORT_MAX_SINK_CHUNK_BYTES,
   createSearchExportCoordinator,
   type SearchExportChunkStream,
+  type SearchExportCommanderView,
+  type SearchExportCoordinator,
   type SearchExportCoordinatorDependencies,
 } from "./useSearchExportCommander";
 
 describe("createSearchExportCoordinator", () => {
+  it("changes the frozen dialog output format before an attempt starts", async () => {
+    const stream = createStream();
+    const deps = dependencies({
+      beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+    });
+    const coordinator = createSearchExportCoordinator(deps);
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+
+    expect(coordinator.setFormat("csv")).toBe(true);
+    expect(coordinator.getState().dialog?.format).toBe("csv");
+    coordinator.selectScope("partial");
+    await expect(coordinator.confirm({ thresholdConfirmed: false })).resolves.toBe(true);
+    expect(deps.beginStream).toHaveBeenCalledWith(
+      expect.objectContaining({ extension: "csv" }),
+    );
+  });
+
   it("streams the frozen partial presentation without fetching or including gaps", async () => {
     const stream = createStream();
     const deps = dependencies({
@@ -82,9 +104,62 @@ describe("createSearchExportCoordinator", () => {
       totalCount: 3,
     });
     expect(stream.complete).toHaveBeenCalledTimes(1);
+    expect(stream.commit).toHaveBeenCalledTimes(1);
     expect(stream.cancel).not.toHaveBeenCalled();
     expect(coordinator.getState().isOpen).toBe(false);
   });
+
+  it.each(["markdown", "csv", "json"] as const)(
+    "keeps partial %s rows in the exact frozen grouped UI order",
+    async (format) => {
+      const stream = createStream();
+      const deps = dependencies({
+        beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+      });
+      const groupedPage = page(0, 3, 3);
+      groupedPage.messages = [
+        {
+          ...hit(0),
+          conversationId: "conversation-a",
+          conversationName: "Alpha",
+          timestamp: 1_700_000_100,
+        },
+        {
+          ...hit(1),
+          conversationId: "conversation-b",
+          conversationName: "Beta",
+          timestamp: 1_700_000_300,
+        },
+        {
+          ...hit(2),
+          conversationId: "conversation-a",
+          conversationName: "Alpha",
+          timestamp: 1_700_000_200,
+        },
+      ];
+      const coordinator = createSearchExportCoordinator(deps);
+      coordinator.openDialog(
+        dialogInput(createSearchResultWindow(groupedPage, "manual"), {
+          sortMode: "baseline",
+          groupingMode: "conversation",
+          format,
+        }),
+      );
+      coordinator.selectScope("partial");
+      coordinator.setUnredactedConfirmed(true);
+
+      await expect(coordinator.confirm({ thresholdConfirmed: false })).resolves.toBe(true);
+
+      const output = stream.chunks.join("");
+      expect(readExportedSourceIndexes(format, output)).toEqual([0, 2, 1]);
+      if (format === "markdown") {
+        expect([...output.matchAll(/^## (Alpha|Beta)$/gm)].map((match) => match[1])).toEqual([
+          "Alpha",
+          "Beta",
+        ]);
+      }
+    },
+  );
 
   it("keeps privacy-off exports redacted until the dialog selection explicitly confirms raw content", async () => {
     const stream = createStream();
@@ -102,6 +177,127 @@ describe("createSearchExportCoordinator", () => {
     );
     expect(stream.chunks.join("")).toContain("已隐藏消息内容");
     expect(stream.chunks.join("")).not.toContain("needle-0");
+  });
+
+  it("latches privacy on for an open dialog and never restores revoked raw permission", async () => {
+    const stream = createStream();
+    const deps = dependencies({
+      beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+    });
+    const coordinator = createSearchExportCoordinator(deps);
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    coordinator.selectScope("partial");
+    expect(coordinator.setUnredactedConfirmed(true)).toBe(true);
+
+    deps.setPrivacyOn(true);
+
+    await vi.waitFor(() => {
+      expect(coordinator.getState().dialog?.privacyOn).toBe(true);
+      expect(coordinator.getState().selection?.unredactedConfirmed).toBe(false);
+    });
+    deps.setPrivacyOn(false);
+    expect(coordinator.getState().dialog?.privacyOn).toBe(true);
+    expect(coordinator.getState().selection?.unredactedConfirmed).toBe(false);
+    expect(coordinator.setUnredactedConfirmed(true)).toBe(false);
+
+    await expect(coordinator.confirm({ thresholdConfirmed: false })).resolves.toBe(true);
+    expect(deps.beginStream).toHaveBeenCalledWith(
+      expect.objectContaining({ redactionPolicy: "redacted" }),
+    );
+    expect(stream.chunks.join("")).toContain("已隐藏消息内容");
+    expect(stream.chunks.join("")).not.toContain("needle-0");
+  });
+
+  it("rechecks current privacy at confirmation even before a subscription notification", async () => {
+    const stream = createStream();
+    const deps = dependencies({
+      beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+    });
+    const coordinator = createSearchExportCoordinator(deps);
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    coordinator.selectScope("partial");
+    expect(coordinator.setUnredactedConfirmed(true)).toBe(true);
+
+    deps.setPrivacyOn(true, false);
+    await expect(coordinator.confirm({ thresholdConfirmed: false })).resolves.toBe(true);
+
+    expect(deps.beginStream).toHaveBeenCalledWith(
+      expect.objectContaining({ redactionPolicy: "redacted" }),
+    );
+    expect(stream.chunks.join("")).not.toContain("needle-0");
+  });
+
+  it("cancels an unredacted temporary stream when privacy turns on during a write", async () => {
+    const write = deferred<void>();
+    const stream = createStream();
+    vi.mocked(stream.append).mockImplementationOnce(async () => write.promise);
+    const deps = dependencies({
+      beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+    });
+    const coordinator = createSearchExportCoordinator(deps);
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    coordinator.selectScope("partial");
+    coordinator.setUnredactedConfirmed(true);
+
+    const running = coordinator.confirm({ thresholdConfirmed: false });
+    await vi.waitFor(() => expect(stream.append).toHaveBeenCalledTimes(1));
+    deps.setPrivacyOn(true);
+    try {
+      await vi.waitFor(() => {
+        expect(stream.cancel).toHaveBeenCalledTimes(1);
+        expect(coordinator.getState()).toMatchObject({
+          dialog: { privacyOn: true },
+          selection: { unredactedConfirmed: false },
+          task: { status: "cancelled", selection: { unredactedConfirmed: false } },
+        });
+      });
+    } finally {
+      write.resolve();
+      await running;
+    }
+
+    await expect(running).resolves.toBe(false);
+    expect(stream.complete).not.toHaveBeenCalled();
+    expect(coordinator.getState().result).toBeNull();
+  });
+
+  it("cancels an unredacted stream if privacy turns on while native completion is pending", async () => {
+    const completed = deferred<{
+      fileName: string;
+      extension: "json";
+      bytesWritten: number;
+      locationSummary: string;
+    }>();
+    const stream = createStream({ complete: vi.fn(async () => completed.promise) });
+    const deps = dependencies({
+      beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+    });
+    const coordinator = createSearchExportCoordinator(deps);
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    coordinator.selectScope("partial");
+    coordinator.setUnredactedConfirmed(true);
+
+    const running = coordinator.confirm({ thresholdConfirmed: false });
+    await vi.waitFor(() => expect(coordinator.getState().task?.status).toBe("finalizing"));
+    deps.setPrivacyOn(true);
+    try {
+      await vi.waitFor(() => {
+        expect(stream.cancel).toHaveBeenCalledTimes(1);
+        expect(coordinator.getState().task?.status).toBe("cancelled");
+      });
+    } finally {
+      completed.resolve({
+        fileName: "chatlog-search.json",
+        extension: "json",
+        bytesWritten: 1,
+        locationSummary: "已保存到所选位置",
+      });
+      await running;
+    }
+
+    await expect(running).resolves.toBe(false);
+    expect(coordinator.getState().result).toBeNull();
+    expect(stream.commit).not.toHaveBeenCalled();
   });
 
   it("marks an allowed stale partial export with its frozen revision facts", async () => {
@@ -342,6 +538,161 @@ describe("createSearchExportCoordinator", () => {
     expect(paused.getState()).toMatchObject({ isOpen: false, dialog: null, task: null });
   });
 
+  it("keeps an already committed stream recoverable across two lost commit acknowledgements", async () => {
+    const privateCanary = "C:\\Users\\Synthetic\\PRIVATE-committed.json";
+    let nativeCommitted = false;
+    let acknowledgementAttempt = 0;
+    const stream = createStream({
+      commit: vi.fn(async () => {
+        nativeCommitted = true;
+        acknowledgementAttempt += 1;
+        if (acknowledgementAttempt <= 2) throw new Error(privateCanary);
+      }),
+    });
+    const deps = dependencies({
+      beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+      fetchPage: vi.fn(async () => page(0, 1, 1)),
+    });
+    const coordinator = createSearchExportCoordinator(deps);
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    coordinator.selectScope("partial");
+    coordinator.setUnredactedConfirmed(true);
+
+    await expect(coordinator.confirm({ thresholdConfirmed: false })).resolves.toBe(false);
+
+    expect(nativeCommitted).toBe(true);
+    expect(stream.complete).toHaveBeenCalledTimes(1);
+    expect(stream.commit).toHaveBeenCalledTimes(1);
+    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(coordinator.getState()).toMatchObject({
+      isOpen: true,
+      commitInFlight: false,
+      result: { fileName: "chatlog-search.json" },
+      task: {
+        status: "commit_pending",
+        error: {
+          code: "commit_confirmation_interrupted",
+          retryable: true,
+          checkpointSafe: false,
+        },
+      },
+    });
+    expect(JSON.stringify(coordinator.getState())).not.toMatch(/PRIVATE-committed|cleanup_failed/i);
+
+    deps.setPrivacyOn(true);
+    await vi.waitFor(() => {
+      expect(coordinator.getState()).toMatchObject({
+        dialog: { privacyOn: true },
+        selection: { unredactedConfirmed: false },
+        task: {
+          status: "commit_pending",
+          dialog: { privacyOn: true },
+          selection: { unredactedConfirmed: true },
+        },
+      });
+    });
+    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(JSON.stringify(coordinator.getState())).not.toContain(privateCanary);
+
+    await coordinator.cancel();
+    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(coordinator.getState().task?.status).toBe("commit_pending");
+
+    await expect(coordinator.retry()).resolves.toBe(false);
+    expect(stream.commit).toHaveBeenCalledTimes(2);
+    expect(stream.complete).toHaveBeenCalledTimes(1);
+    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(coordinator.getState()).toMatchObject({
+      isOpen: true,
+      commitInFlight: false,
+      result: { fileName: "chatlog-search.json" },
+      task: {
+        status: "commit_pending",
+        selection: { unredactedConfirmed: true },
+        error: { code: "commit_confirmation_interrupted", retryable: true },
+      },
+    });
+
+    await expect(coordinator.retry()).resolves.toBe(true);
+    expect(deps.beginStream).toHaveBeenCalledTimes(1);
+    expect(stream.complete).toHaveBeenCalledTimes(1);
+    expect(stream.commit).toHaveBeenCalledTimes(3);
+    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(coordinator.getState()).toMatchObject({
+      isOpen: false,
+      commitInFlight: false,
+      result: { fileName: "chatlog-search.json" },
+      task: {
+        status: "completed",
+        selection: { unredactedConfirmed: true },
+        error: null,
+      },
+    });
+  });
+
+  it("retries only native commit when the published commit itself initially fails", async () => {
+    const privateCanary = "C:\\Users\\Synthetic\\PRIVATE-published.json";
+    const stream = createStream({
+      commit: vi
+        .fn<() => Promise<void>>()
+        .mockRejectedValueOnce(new Error(privateCanary))
+        .mockResolvedValueOnce(undefined),
+    });
+    const deps = dependencies({
+      beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+      fetchPage: vi.fn(async () => page(0, 1, 1)),
+    });
+    const coordinator = createSearchExportCoordinator(deps);
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+
+    await expect(coordinator.confirm({ thresholdConfirmed: true })).resolves.toBe(false);
+    expect(coordinator.getState()).toMatchObject({
+      isOpen: true,
+      result: { fileName: "chatlog-search.json" },
+      task: {
+        status: "commit_pending",
+        error: { code: "commit_confirmation_interrupted", retryable: true },
+      },
+    });
+    expect(stream.cancel).not.toHaveBeenCalled();
+
+    await expect(coordinator.retry()).resolves.toBe(true);
+    expect(deps.beginStream).toHaveBeenCalledTimes(1);
+    expect(stream.complete).toHaveBeenCalledTimes(1);
+    expect(stream.commit).toHaveBeenCalledTimes(2);
+    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(coordinator.getState().task?.status).toBe("completed");
+    expect(JSON.stringify(coordinator.getState())).not.toMatch(/PRIVATE-published|cleanup_failed/i);
+  });
+
+  it("refuses close while commit confirmation is recoverable and retains the published stream", async () => {
+    const stream = createStream({
+      commit: vi
+        .fn<() => Promise<void>>()
+        .mockRejectedValueOnce(new Error("C:\\Users\\Synthetic\\PRIVATE-unknown-commit.json"))
+        .mockResolvedValueOnce(undefined),
+    });
+    const coordinator = createSearchExportCoordinator(
+      dependencies({
+        beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+      }),
+    );
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    await coordinator.confirm({ thresholdConfirmed: true });
+
+    await coordinator.close();
+
+    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(coordinator.getState()).toMatchObject({
+      isOpen: true,
+      task: { status: "commit_pending" },
+      result: { fileName: "chatlog-search.json" },
+    });
+    await expect(coordinator.retry()).resolves.toBe(true);
+    expect(stream.commit).toHaveBeenCalledTimes(2);
+    expect(stream.cancel).not.toHaveBeenCalled();
+  });
+
   it("abandons a paused safe checkpoint when cancel is requested", async () => {
     const stream = createStream();
     const coordinator = createSearchExportCoordinator(
@@ -368,7 +719,7 @@ describe("createSearchExportCoordinator", () => {
     await expect(coordinator.retry()).resolves.toBe(false);
   });
 
-  it("makes native complete atomic and ignores cancel during finalization", async () => {
+  it("keeps native finalization recoverable when the user cancels", async () => {
     const completed = deferred<{
       fileName: string;
       extension: "json";
@@ -387,8 +738,8 @@ describe("createSearchExportCoordinator", () => {
     await vi.waitFor(() => expect(coordinator.getState().task?.status).toBe("finalizing"));
 
     await coordinator.cancel();
-    expect(coordinator.getState().task?.status).toBe("finalizing");
-    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(coordinator.getState().task?.status).toBe("cancelled");
+    expect(stream.cancel).toHaveBeenCalledTimes(1);
 
     completed.resolve({
       fileName: "chatlog-search.json",
@@ -396,12 +747,219 @@ describe("createSearchExportCoordinator", () => {
       bytesWritten: 1,
       locationSummary: "已保存到所选位置",
     });
-    await expect(running).resolves.toBe(true);
+    await expect(running).resolves.toBe(false);
     expect(coordinator.getState()).toMatchObject({
       isOpen: false,
       dialog: null,
-      task: { status: "completed" },
+      task: { status: "cancelled" },
     });
+    expect(stream.commit).not.toHaveBeenCalled();
+  });
+
+  it("ignores cancel intent after native commit starts and completes without cleanup failure", async () => {
+    const commitStarted = deferred<void>();
+    const commitAcknowledged = deferred<void>();
+    const stream = createStream({
+      commit: vi.fn(async () => {
+        commitStarted.resolve();
+        await commitAcknowledged.promise;
+      }),
+    });
+    const coordinator = createSearchExportCoordinator(
+      dependencies({
+        beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+        fetchPage: vi.fn(async () => page(0, 1, 1)),
+      }),
+    );
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    const running = coordinator.confirm({ thresholdConfirmed: true });
+    await commitStarted.promise;
+
+    await coordinator.cancel();
+
+    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(coordinator.getState()).toMatchObject({
+      isOpen: true,
+      task: { status: "finalizing", error: null },
+    });
+
+    commitAcknowledged.resolve();
+    await expect(running).resolves.toBe(true);
+    expect(coordinator.getState()).toMatchObject({
+      isOpen: false,
+      task: { status: "completed", error: null },
+      result: { fileName: "chatlog-search.json" },
+    });
+    expect(stream.cancel).not.toHaveBeenCalled();
+
+    await coordinator.close();
+    expect(coordinator.getState()).toMatchObject({ isOpen: false, task: null, result: null });
+    expect(stream.cancel).not.toHaveBeenCalled();
+  });
+
+  it("latches privacy without cancelling an irreversible native commit", async () => {
+    const privateCanary = "C:\\Users\\Synthetic\\PRIVATE-commit-canary.json";
+    const commitStarted = deferred<void>();
+    const commitAcknowledged = deferred<void>();
+    const cancel = vi.fn(async () => {
+      throw new Error(privateCanary);
+    });
+    const stream = createStream({
+      commit: vi.fn(async () => {
+        commitStarted.resolve();
+        await commitAcknowledged.promise;
+      }),
+      cancel,
+    });
+    const deps = dependencies({
+      beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+      fetchPage: vi.fn(async () => page(0, 1, 1)),
+    });
+    const coordinator = createSearchExportCoordinator(deps);
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    coordinator.selectScope("partial");
+    coordinator.setUnredactedConfirmed(true);
+    const running = coordinator.confirm({ thresholdConfirmed: false });
+    await commitStarted.promise;
+
+    deps.setPrivacyOn(true);
+    await vi.waitFor(() => {
+      expect(coordinator.getState()).toMatchObject({
+        dialog: { privacyOn: true },
+        selection: { unredactedConfirmed: false },
+        task: {
+          status: "finalizing",
+          error: null,
+          dialog: { privacyOn: true },
+          selection: { unredactedConfirmed: true },
+        },
+        commitInFlight: true,
+      });
+    });
+    expect(cancel).not.toHaveBeenCalled();
+    expect(JSON.stringify(coordinator.getState())).not.toContain("cleanup_failed");
+    expect(JSON.stringify(coordinator.getState())).not.toContain(privateCanary);
+
+    const html = renderToStaticMarkup(
+      createElement(SearchExportDialog, { view: commanderView(coordinator) }),
+    );
+    expect(html).toContain("未脱敏导出");
+    expect(html).toContain("隐私模式不会追溯修改当前已写入文件");
+    expect(html).not.toContain("隐私模式已开启，导出内容将保持脱敏");
+
+    commitAcknowledged.resolve();
+    await expect(running).resolves.toBe(true);
+    expect(coordinator.getState()).toMatchObject({
+      isOpen: false,
+      task: {
+        status: "completed",
+        selection: { unredactedConfirmed: true },
+        error: null,
+      },
+      commitInFlight: false,
+      result: { locationSummary: "已保存到所选位置" },
+    });
+    expect(JSON.stringify(coordinator.getState())).not.toContain("cleanup_failed");
+    expect(JSON.stringify(coordinator.getState())).not.toContain(privateCanary);
+
+    await coordinator.close();
+    expect(cancel).not.toHaveBeenCalled();
+    expect(coordinator.getState()).toMatchObject({ isOpen: false, task: null, result: null });
+  });
+
+  it("surfaces native cleanup failure and keeps the stream retriable without leaking details", async () => {
+    const completed = deferred<{
+      fileName: string;
+      extension: "json";
+      bytesWritten: number;
+      locationSummary: string;
+    }>();
+    const cancel = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("C:\\Users\\Synthetic\\PRIVATE-locked.json"))
+      .mockResolvedValueOnce(undefined);
+    const stream = createStream({
+      complete: vi.fn(async () => completed.promise),
+      cancel,
+    });
+    const coordinator = createSearchExportCoordinator(
+      dependencies({
+        beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+        fetchPage: vi.fn(async () => page(0, 1, 1)),
+      }),
+    );
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    const running = coordinator.confirm({ thresholdConfirmed: true });
+    await vi.waitFor(() => expect(coordinator.getState().task?.status).toBe("finalizing"));
+
+    await coordinator.cancel();
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(coordinator.getState()).toMatchObject({
+      isOpen: true,
+      task: {
+        status: "error",
+        error: { code: "cleanup_failed", retryable: false, checkpointSafe: false },
+      },
+    });
+    expect(JSON.stringify(coordinator.getState().task?.error)).not.toMatch(/PRIVATE|Users|locked/i);
+
+    await coordinator.close();
+    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(coordinator.getState()).toMatchObject({ isOpen: false, task: null, result: null });
+
+    completed.resolve({
+      fileName: "chatlog-search.json",
+      extension: "json",
+      bytesWritten: 1,
+      locationSummary: "已保存到所选位置",
+    });
+    await expect(running).resolves.toBe(false);
+    expect(stream.commit).not.toHaveBeenCalled();
+  });
+
+  it("times out a native completion that never settles and leaves retry or close recovery", async () => {
+    const completed = deferred<{
+      fileName: string;
+      extension: "json";
+      bytesWritten: number;
+      locationSummary: string;
+    }>();
+    const stream = createStream({ complete: vi.fn(async () => completed.promise) });
+    const coordinator = createSearchExportCoordinator(
+      dependencies({
+        beginStream: vi.fn(async () => ({ status: "opened" as const, stream })),
+        fetchPage: vi.fn(async () => page(0, 1, 1)),
+        finalizationTimeoutMs: 50,
+      }),
+    );
+    coordinator.openDialog(dialogInput(createSearchResultWindow(page(0, 1, 1), "manual")));
+    const running = coordinator.confirm({ thresholdConfirmed: true });
+    await vi.waitFor(
+      () => expect(coordinator.getState().task?.status).toBe("finalizing"),
+      { interval: 1, timeout: 30 },
+    );
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 70));
+      expect(coordinator.getState()).toMatchObject({
+        isOpen: true,
+        task: {
+          status: "error",
+          error: { code: "write_failed", retryable: true, checkpointSafe: false },
+        },
+      });
+      expect(stream.cancel).toHaveBeenCalledTimes(1);
+      expect(stream.commit).not.toHaveBeenCalled();
+      await expect(running).resolves.toBe(false);
+    } finally {
+      completed.resolve({
+        fileName: "chatlog-search.json",
+        extension: "json",
+        bytesWritten: 1,
+        locationSummary: "已保存到所选位置",
+      });
+    }
   });
 
   it("splits every encoded string below the native one-mebibyte chunk limit", async () => {
@@ -462,6 +1020,21 @@ describe("createSearchExportCoordinator", () => {
   });
 });
 
+function commanderView(coordinator: SearchExportCoordinator): SearchExportCommanderView {
+  return {
+    ...coordinator.getState(),
+    confirmThreshold: SEARCH_EXPORT_CONFIRM_THRESHOLD,
+    openDialog: coordinator.openDialog,
+    setFormat: coordinator.setFormat,
+    selectScope: coordinator.selectScope,
+    setUnredactedConfirmed: coordinator.setUnredactedConfirmed,
+    confirm: coordinator.confirm,
+    retry: coordinator.retry,
+    cancel: coordinator.cancel,
+    close: coordinator.close,
+  };
+}
+
 function dialogInput(
   resultWindow: SearchResultWindow,
   overrides: Partial<{
@@ -492,13 +1065,27 @@ function dependencies(
 ): SearchExportCoordinatorDependencies & {
   fetchPage: ReturnType<typeof vi.fn>;
   beginStream: ReturnType<typeof vi.fn>;
+  setPrivacyOn: (privacyOn: boolean, notify?: boolean) => void;
 } {
   let now = 1_700_000_000_000;
+  let privacyOn = false;
+  const privacyListeners = new Set<(nextPrivacyOn: boolean) => void>();
   return {
     fetchPage: vi.fn(async () => page(0, 1, 1)),
     beginStream: vi.fn(async () => ({ status: "opened" as const, stream: createStream() })),
     now: vi.fn(() => ++now),
     createId: vi.fn((kind: string) => `${kind}-${++now}`),
+    getPrivacyOn: () => privacyOn,
+    subscribePrivacyOn: (listener: (nextPrivacyOn: boolean) => void) => {
+      privacyListeners.add(listener);
+      return () => privacyListeners.delete(listener);
+    },
+    setPrivacyOn: (nextPrivacyOn: boolean, notify = true) => {
+      privacyOn = nextPrivacyOn;
+      if (notify) {
+        for (const listener of privacyListeners) listener(nextPrivacyOn);
+      }
+    },
     ...overrides,
   } as never;
 }
@@ -516,6 +1103,7 @@ function createStream(overrides: Partial<SearchExportChunkStream> = {}) {
       bytesWritten: chunks.join("").length,
       locationSummary: "已保存到所选位置",
     })),
+    commit: vi.fn(async () => undefined),
     cancel: vi.fn(async () => undefined),
     ...overrides,
   };
@@ -630,4 +1218,22 @@ function deferred<T>() {
     reject = rejectPromise;
   });
   return { promise, resolve, reject };
+}
+
+function readExportedSourceIndexes(
+  format: "markdown" | "csv" | "json",
+  output: string,
+): number[] {
+  if (format === "json") {
+    return (JSON.parse(output) as { messages: Array<{ sourceIndex: number }> }).messages.map(
+      (row) => row.sourceIndex,
+    );
+  }
+  if (format === "csv") {
+    return output
+      .split(/\r?\n/u)
+      .filter((line) => line.startsWith("message,"))
+      .map((line) => Number(line.split(",")[1]));
+  }
+  return [...output.matchAll(/^\| (\d+) \|/gmu)].map((match) => Number(match[1]));
 }

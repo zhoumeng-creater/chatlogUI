@@ -70,7 +70,7 @@ describe("exportBusinessFile", () => {
     });
   });
 
-  it("opens a native chunk stream and exposes append, complete, and idempotent cancel", async () => {
+  it("keeps a completed native stream revocable until it is committed", async () => {
     vi.mocked(save).mockResolvedValue("C:\\Users\\Synthetic\\Desktop\\chatlog-search.md");
     vi.mocked(invoke)
       .mockResolvedValueOnce({
@@ -83,7 +83,8 @@ describe("exportBusinessFile", () => {
         fileName: "chatlog-search.md",
         extension: "md",
         bytesWritten: 12,
-      });
+      })
+      .mockResolvedValueOnce(undefined);
 
     const opened = await beginBusinessExportStream({
       fileName: "chatlog-search.md",
@@ -111,13 +112,166 @@ describe("exportBusinessFile", () => {
     expect(invoke).toHaveBeenNthCalledWith(3, "complete_business_export_stream", {
       sessionId: "export-session-1",
     });
-    expect(invoke).toHaveBeenCalledTimes(3);
+    expect(invoke).toHaveBeenNthCalledWith(4, "cancel_business_export_stream", {
+      sessionId: "export-session-1",
+    });
+    expect(invoke).toHaveBeenCalledTimes(4);
     expect(result).toEqual({
       fileName: "chatlog-search.md",
       extension: "md",
       bytesWritten: 12,
       locationSummary: "chatlog-search.md · 12 B",
     });
+  });
+
+  it("commits a completed stream exactly once and rejects later cancellation", async () => {
+    vi.mocked(save).mockResolvedValue("C:\\Users\\Synthetic\\Desktop\\chatlog-search.md");
+    vi.mocked(invoke)
+      .mockResolvedValueOnce({
+        sessionId: "export-session-committed",
+        fileName: "chatlog-search.md",
+        extension: "md",
+      })
+      .mockResolvedValueOnce({
+        fileName: "chatlog-search.md",
+        extension: "md",
+        bytesWritten: 12,
+      })
+      .mockResolvedValueOnce(undefined);
+
+    const opened = await beginBusinessExportStream({
+      fileName: "chatlog-search.md",
+      extension: "md",
+      redactionPolicy: "redacted",
+    });
+    if (opened.status !== "opened") throw new Error("expected stream");
+    await opened.stream.complete();
+    await opened.stream.commit();
+    await opened.stream.commit();
+    await expect(opened.stream.cancel()).rejects.toThrow("导出已提交，无法取消");
+
+    expect(invoke).toHaveBeenNthCalledWith(3, "commit_business_export_stream", {
+      sessionId: "export-session-committed",
+    });
+    expect(invoke).toHaveBeenCalledTimes(3);
+  });
+
+  it("linearizes commit and cancel so a pending commit cannot be reported as cancelled", async () => {
+    let resolveCommit!: () => void;
+    const pendingCommit = new Promise<void>((resolve) => {
+      resolveCommit = resolve;
+    });
+    vi.mocked(save).mockResolvedValue("C:\\Users\\Synthetic\\Desktop\\chatlog-search.md");
+    vi.mocked(invoke)
+      .mockResolvedValueOnce({
+        sessionId: "export-session-race",
+        fileName: "chatlog-search.md",
+        extension: "md",
+      })
+      .mockResolvedValueOnce({
+        fileName: "chatlog-search.md",
+        extension: "md",
+        bytesWritten: 12,
+      })
+      .mockImplementationOnce(() => pendingCommit);
+
+    const opened = await beginBusinessExportStream({
+      fileName: "chatlog-search.md",
+      extension: "md",
+      redactionPolicy: "redacted",
+    });
+    if (opened.status !== "opened") throw new Error("expected stream");
+    await opened.stream.complete();
+
+    const commit = opened.stream.commit();
+    await expect(opened.stream.cancel()).rejects.toThrow("导出正在提交，无法取消");
+    expect(invoke).toHaveBeenCalledTimes(3);
+
+    resolveCommit();
+    await commit;
+    await expect(opened.stream.cancel()).rejects.toThrow("导出已提交，无法取消");
+    expect(invoke).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps a late native complete acknowledgement cancelled after cancel wins", async () => {
+    let resolveComplete!: (value: {
+      fileName: string;
+      extension: "md";
+      bytesWritten: number;
+    }) => void;
+    const pendingComplete = new Promise<{
+      fileName: string;
+      extension: "md";
+      bytesWritten: number;
+    }>((resolve) => {
+      resolveComplete = resolve;
+    });
+    vi.mocked(save).mockResolvedValue("C:\\Users\\Synthetic\\Desktop\\chatlog-search.md");
+    vi.mocked(invoke)
+      .mockResolvedValueOnce({
+        sessionId: "export-session-late-complete",
+        fileName: "chatlog-search.md",
+        extension: "md",
+      })
+      .mockImplementationOnce(() => pendingComplete)
+      .mockResolvedValueOnce(undefined);
+
+    const opened = await beginBusinessExportStream({
+      fileName: "chatlog-search.md",
+      extension: "md",
+      redactionPolicy: "redacted",
+    });
+    if (opened.status !== "opened") throw new Error("expected stream");
+
+    const completing = opened.stream.complete();
+    await opened.stream.cancel();
+    resolveComplete({
+      fileName: "chatlog-search.md",
+      extension: "md",
+      bytesWritten: 12,
+    });
+
+    await expect(completing).rejects.toThrow("导出已取消");
+    await expect(opened.stream.commit()).rejects.toThrow("导出已取消");
+    expect(vi.mocked(invoke).mock.calls.map(([command]) => command)).toEqual([
+      "begin_business_export_stream",
+      "complete_business_export_stream",
+      "cancel_business_export_stream",
+    ]);
+  });
+
+  it("reconciles an uncertain commit acknowledgement through one idempotent retry", async () => {
+    vi.mocked(save).mockResolvedValue("C:\\Users\\Synthetic\\Desktop\\chatlog-search.md");
+    vi.mocked(invoke)
+      .mockResolvedValueOnce({
+        sessionId: "export-session-commit-ack",
+        fileName: "chatlog-search.md",
+        extension: "md",
+      })
+      .mockResolvedValueOnce({
+        fileName: "chatlog-search.md",
+        extension: "md",
+        bytesWritten: 12,
+      })
+      .mockRejectedValueOnce(new Error("synthetic acknowledgement loss"))
+      .mockResolvedValueOnce(undefined);
+
+    const opened = await beginBusinessExportStream({
+      fileName: "chatlog-search.md",
+      extension: "md",
+      redactionPolicy: "redacted",
+    });
+    if (opened.status !== "opened") throw new Error("expected stream");
+    await opened.stream.complete();
+
+    await expect(opened.stream.commit()).resolves.toBeUndefined();
+    await expect(opened.stream.cancel()).rejects.toThrow("导出已提交");
+    expect(
+      vi.mocked(invoke).mock.calls.filter(([command]) => command === "commit_business_export_stream"),
+    ).toHaveLength(2);
+    expect(
+      vi.mocked(invoke).mock.calls.some(([command]) => command === "cancel_business_export_stream"),
+    ).toBe(false);
   });
 
   it("cancels an opened native stream exactly once", async () => {

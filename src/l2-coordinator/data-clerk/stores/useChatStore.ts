@@ -119,6 +119,7 @@ interface ChatState {
   messages: ChatMessage[];
   messagesLoading: boolean;
   messagesHasMore: boolean;
+  messagesHasNewer: boolean;
   messagesTotalCount: number;
   messagesOffset: number;
   messagesStatus: LoadStatus;
@@ -161,6 +162,7 @@ interface ChatActions {
     offset: number,
     hasMore?: boolean,
     scrollIntent?: TranscriptScrollIntent,
+    hasNewer?: boolean,
   ) => void;
   appendMessages: (messages: ChatMessage[], offset: number, hasMore?: boolean) => void;
   setMessagesLoading: (loading: boolean) => void;
@@ -200,6 +202,7 @@ const initialState: ChatState = {
   messages: [],
   messagesLoading: false,
   messagesHasMore: false,
+  messagesHasNewer: false,
   messagesTotalCount: 0,
   messagesOffset: 0,
   messagesStatus: "idle",
@@ -315,6 +318,7 @@ export const useChatStore = create<ChatStore>((set) => ({
       selectedConversationId: id,
       messages: [],
       messagesHasMore: false,
+      messagesHasNewer: false,
       messagesOffset: 0,
       messagesStatus: "idle",
       messagesError: null,
@@ -324,7 +328,14 @@ export const useChatStore = create<ChatStore>((set) => ({
       ...clearedSelectionState,
       ...clearedAnchorState,
     }),
-  setMessages: (messages, totalCount, offset, hasMore = false, scrollIntent = "latest") =>
+  setMessages: (
+    messages,
+    totalCount,
+    offset,
+    hasMore = false,
+    scrollIntent = "latest",
+    hasNewer = false,
+  ) =>
     set(() => {
       const anchorMessage = scrollIntent === "latest" ? messages[messages.length - 1] : null;
       return {
@@ -332,6 +343,7 @@ export const useChatStore = create<ChatStore>((set) => ({
         messagesTotalCount: totalCount,
         messagesOffset: offset,
         messagesHasMore: hasMore,
+        messagesHasNewer: hasNewer,
         messagesLoading: false,
         messagesStatus: messages.length === 0 ? "empty" : "ready",
         messagesError: null,
@@ -458,6 +470,7 @@ export const useChatStore = create<ChatStore>((set) => ({
       selectedConversationId: null,
       messages: [],
       messagesHasMore: false,
+      messagesHasNewer: false,
       messagesTotalCount: 0,
       messagesOffset: 0,
       messagesStatus: "idle",

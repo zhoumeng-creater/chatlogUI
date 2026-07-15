@@ -15,14 +15,13 @@ import type {
   RawSearchV2Response,
 } from "./chatlogRawTypes";
 import { adaptMediaAttachments } from "./mediaAdapters";
-import {
-  SEARCH_CATEGORIES,
-  SEARCH_DIRECTORY_SELF_SENDER_ID,
-  type SearchCapabilities,
-  type SearchCategory,
-  type SearchHit,
-  type SearchMatchSegment,
-  type SearchSnapshotPage,
+import { SEARCH_CATEGORIES, SEARCH_DIRECTORY_SELF_SENDER_ID } from "@/utils/constants";
+import type {
+  SearchCapabilities,
+  SearchCategory,
+  SearchHit,
+  SearchMatchSegment,
+  SearchSnapshotPage,
 } from "@/l2-coordinator/api-docs/search";
 
 export function displayName(

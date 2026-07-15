@@ -371,6 +371,8 @@ describe("searchExportTaskModel", () => {
 
     const duplicateIdentity = page(2, 1, 3);
     duplicateIdentity.messages[0].messageId = "message-0";
+    duplicateIdentity.messages[0].conversationId = first.records[0].conversationId;
+    duplicateIdentity.messages[0].seq = first.records[0].seq;
     expect(() =>
       validateAllSearchExportPage(task, "attempt-1", "next-2", duplicateIdentity, tracker),
     ).toThrowError(expect.objectContaining({ code: "invalid_page" }));
@@ -384,6 +386,22 @@ describe("searchExportTaskModel", () => {
         "attempt-1",
         "next-2",
         sameLocalIdInAnotherConversation,
+        tracker,
+      ).kind,
+    ).toBe("accepted");
+
+    const sameMessageInSameConversationAtAnotherSequence = page(2, 1, 3);
+    sameMessageInSameConversationAtAnotherSequence.messages[0].messageId = "message-0";
+    sameMessageInSameConversationAtAnotherSequence.messages[0].conversationId =
+      first.records[0].conversationId;
+    sameMessageInSameConversationAtAnotherSequence.messages[0].seq =
+      first.records[0].seq + 1;
+    expect(
+      validateAllSearchExportPage(
+        task,
+        "attempt-1",
+        "next-2",
+        sameMessageInSameConversationAtAnotherSequence,
         tracker,
       ).kind,
     ).toBe("accepted");
@@ -463,7 +481,7 @@ describe("searchExportTaskModel", () => {
     );
   });
 
-  it("makes native finalization non-cancellable and can abandon a paused checkpoint", () => {
+  it("keeps native finalization cancellable and can abandon a paused checkpoint", () => {
     let task = runningAllTask(1);
     const accepted = validateAllSearchExportPage(
       task,
@@ -476,7 +494,7 @@ describe("searchExportTaskModel", () => {
     task = commitAllSearchExportPage(task, accepted);
     task = beginSearchExportFinalization(task, "attempt-1");
     expect(task.status).toBe("finalizing");
-    expect(cancelSearchExportTask(task, "attempt-1")).toBe(task);
+    expect(cancelSearchExportTask(task, "attempt-1").status).toBe("cancelled");
     expect(completeSearchExportTask(task, "attempt-1").status).toBe("completed");
 
     const paused = failSearchExportAttempt(runningAllTask(1), "attempt-1", "request_failed", {

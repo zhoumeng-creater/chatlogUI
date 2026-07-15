@@ -124,7 +124,6 @@ describe("chat history anchor helpers", () => {
       anchor,
       limit: 50,
       windowSeconds: 300,
-      maxMessages: 1_000,
       fetchPage: async (request) => {
         offsets.push(request.offset ?? 0);
         return {
@@ -138,6 +137,34 @@ describe("chat history anchor helpers", () => {
     expect(offsets).toEqual([0, 50]);
     expect(result.hit).toBe(exact);
     expect(result.page.messages).toEqual([exact]);
+  });
+
+  it("does not report a false miss when an exact sequence is beyond one thousand same-second rows", async () => {
+    const offsets: number[] = [];
+    const exact = message({ id: "deep-exact", seq: anchor.seq ?? 0, localId: 9_999 });
+
+    const result = await findExactAnchorPage({
+      anchor,
+      limit: 50,
+      windowSeconds: 300,
+      fetchPage: async (request) => {
+        const offset = request.offset ?? 0;
+        offsets.push(offset);
+        return {
+          messages:
+            offset === 1_050
+              ? [exact]
+              : Array.from({ length: 50 }, (_, index) =>
+                  message({ id: `same-second-${offset + index}`, seq: 10_000 + offset + index }),
+                ),
+          totalCount: 1_051,
+          offset,
+        };
+      },
+    });
+
+    expect(offsets[offsets.length - 1]).toBe(1_050);
+    expect(result.hit).toBe(exact);
   });
 
   it("falls back to adapted message id when stable numeric identities are unavailable", () => {

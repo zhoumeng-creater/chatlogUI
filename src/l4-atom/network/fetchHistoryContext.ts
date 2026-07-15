@@ -2,11 +2,13 @@ import {
   HISTORY_CONTEXT_CONTRACT_VERSION,
   HISTORY_CONTEXT_DEFAULT_LIMIT,
   HISTORY_CONTEXT_MAX_LIMIT,
-  type HistoryContextMessage,
-  type HistoryContextPage,
-  type HistoryContextRequest,
+  SEARCH_DIRECTORY_SELF_SENDER_ID,
+} from "@/utils/constants";
+import type {
+  HistoryContextMessage,
+  HistoryContextPage,
+  HistoryContextRequest,
 } from "@/l2-coordinator/api-docs/historyContext";
-import { SEARCH_DIRECTORY_SELF_SENDER_ID } from "@/l2-coordinator/api-docs/search";
 import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {
   ChatlogHttpError,

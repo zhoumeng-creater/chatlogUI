@@ -74,6 +74,26 @@ describe("useChatStore history pagination state", () => {
     });
   });
 
+  it("preserves an anchored window's newer-context fact until a real latest page succeeds", () => {
+    const anchoredPage = [message(1), message(2)];
+
+    useChatStore.getState().setMessages(anchoredPage, 100, 0, true, "anchor", true);
+    expect(useChatStore.getState()).toMatchObject({
+      messagesHasNewer: true,
+      scrollIntent: "anchor",
+    });
+
+    useChatStore.getState().setMessagesLoading(true);
+    useChatStore.getState().setMessagesError("最新消息加载失败");
+    expect(useChatStore.getState().messagesHasNewer).toBe(true);
+
+    useChatStore.getState().setMessages([message(99), message(100)], 100, 0, true, "latest");
+    expect(useChatStore.getState()).toMatchObject({
+      messagesHasNewer: false,
+      scrollIntent: "latest",
+    });
+  });
+
   it("tracks unread availability separately from conversation data", () => {
     useChatStore.getState().setConversations(
       [

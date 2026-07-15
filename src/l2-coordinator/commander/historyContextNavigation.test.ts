@@ -167,6 +167,7 @@ describe("historyContextNavigation", () => {
       totalCount: 3,
       offset: 0,
       hasMore: true,
+      hasNewer: true,
     });
   });
 

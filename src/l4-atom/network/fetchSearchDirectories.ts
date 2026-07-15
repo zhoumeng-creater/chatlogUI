@@ -1,11 +1,11 @@
-import {
-  SEARCH_DIRECTORY_SELF_SENDER_ID,
-  type SearchConversationDirectoryItem,
-  type SearchConversationDirectoryPage,
-  type SearchConversationDirectoryRequest,
-  type SearchSenderDirectoryItem,
-  type SearchSenderDirectoryPage,
-  type SearchSenderDirectoryRequest,
+import { SEARCH_DIRECTORY_SELF_SENDER_ID } from "@/utils/constants";
+import type {
+  SearchConversationDirectoryItem,
+  SearchConversationDirectoryPage,
+  SearchConversationDirectoryRequest,
+  SearchSenderDirectoryItem,
+  SearchSenderDirectoryPage,
+  SearchSenderDirectoryRequest,
 } from "@/l2-coordinator/api-docs/search";
 import { buildChatlogApiUrl } from "./chatlogEndpoint";
 import {

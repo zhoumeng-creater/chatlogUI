@@ -105,6 +105,7 @@ export function toChatHistoryContext(
   totalCount: number;
   offset: number;
   hasMore: boolean;
+  hasNewer: boolean;
 } {
   const messages = page.messages.map<ChatMessage>((message) => ({
     id: `history-context:${message.seq}`,
@@ -132,6 +133,7 @@ export function toChatHistoryContext(
     totalCount: messages.length,
     offset: 0,
     hasMore: page.hasBefore,
+    hasNewer: page.hasAfter,
   };
 }
 

@@ -143,6 +143,68 @@ describe("businessExportModel", () => {
     );
   });
 
+  it("neutralizes spreadsheet formulas in streamed and materialized CSV cells", () => {
+    const encoder = createSearchExportStreamEncoder({
+      format: "csv",
+      privacyOn: false,
+      requestedUnredacted: true,
+      unredactedConfirmed: true,
+      generatedAt,
+      snapshotId: "snapshot-safe",
+      dataRevision: "revision-safe",
+      revisionState: "current",
+      query: "needle",
+      scopeSummary: "全部会话",
+      filterSummary: [],
+      exportScope: "all",
+      exportedCount: 1,
+      totalCount: 1,
+      ranges: [{ start: 0, end: 1 }],
+      gaps: [],
+      browseMode: "manual",
+      sortMode: "baseline",
+      groupingMode: "none",
+      timeZone: "UTC",
+      utcOffsetMinutes: 0,
+      querySince: null,
+      queryUntil: null,
+    });
+    encoder.start();
+    const streamed = encoder.append([{
+      ...streamRow(0, null),
+      chat: "=1+1",
+      sender: "   @SUM(A1)",
+      content: "\t=HYPERLINK",
+    }]);
+    const materialized = createSearchExportArtifact({
+      format: "csv",
+      privacyOn: false,
+      requestedUnredacted: true,
+      unredactedConfirmed: true,
+      generatedAt,
+      query: "needle",
+      scopeSummary: "全部会话",
+      filterSummary: [],
+      totalCount: 1,
+      loadedCount: 1,
+      messages: [{
+        id: "formula-message",
+        chat: "+cmd",
+        sender: "-2+3",
+        content: "\r@external",
+        timestamp: generatedAt.getTime() / 1000,
+        type: "text",
+      }],
+    }).content;
+
+    expect(streamed).toContain("'=1+1");
+    expect(streamed).toContain("'   @SUM(A1)");
+    expect(streamed).toContain("'\t=HYPERLINK");
+    expect(materialized).toContain("'+cmd");
+    expect(materialized).toContain("'-2+3");
+    expect(materialized).toContain("'\r@external");
+  });
+
   it("emits Markdown group headings only when the frozen presentation group changes", () => {
     const encoder = createSearchExportStreamEncoder({
       format: "markdown",
@@ -364,7 +426,7 @@ describe("businessExportModel", () => {
     expect(stats.content).toContain("trend,2026-01-02,6");
     expect(stats.content).toContain("metadata,control,近 7 天 · 按日 · 全部成员");
     expect(stats.content).toContain("definition,消息总数,当前统计范围内的消息数量。");
-    expect(stats.content).toContain("comparison,消息总数,+100%");
+    expect(stats.content).toContain("comparison,消息总数,'+100%");
     expect(stats.warnings).toContain("趋势按当前返回数据本地汇总。");
     expect(stats.content).toContain("top_sender,已隐藏对象,24");
     expect(stats.content).not.toContain("Synthetic Sender");

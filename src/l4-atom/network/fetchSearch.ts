@@ -11,11 +11,8 @@ import {
   adaptSearchResponse,
   adaptSearchV2Response,
 } from "./chatlogAdapters";
-import {
-  SEARCH_CATEGORIES,
-  type SearchCapabilities,
-  type SearchV2Request,
-} from "@/l2-coordinator/api-docs/search";
+import { SEARCH_CATEGORIES } from "@/utils/constants";
+import type { SearchCapabilities, SearchV2Request } from "@/l2-coordinator/api-docs/search";
 
 export interface FetchSearchOptions {
   keyword: string;

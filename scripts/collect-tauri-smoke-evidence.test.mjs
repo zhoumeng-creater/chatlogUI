@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -9,6 +11,8 @@ import {
   scanForbiddenSmokeText,
   scanSmokeFile,
 } from "./collect-tauri-smoke-evidence.mjs";
+
+const cliPath = fileURLToPath(new URL("./collect-tauri-smoke-evidence.mjs", import.meta.url));
 
 async function withTempWorkspace(run) {
   const rootDir = await mkdtemp(join(tmpdir(), "chatlogui-smoke-evidence-"));
@@ -72,6 +76,21 @@ describe("Step 11 Tauri smoke evidence helper", () => {
       expect(result.ok).toBe(false);
       expect(result.errors).toContain("bundle: no Windows MSI or NSIS installer artifacts found");
       expect(result.artifacts).toEqual([]);
+    });
+  });
+
+  it("returns a failing process status when JSON output reports missing installer evidence", async () => {
+    await withTempWorkspace(async (rootDir) => {
+      await mkdir(join(rootDir, "bundle"), { recursive: true });
+
+      const result = spawnSync(
+        process.execPath,
+        [cliPath, "--bundle-root", "bundle", "--json"],
+        { cwd: rootDir, encoding: "utf8" },
+      );
+
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, artifacts: [] });
     });
   });
 

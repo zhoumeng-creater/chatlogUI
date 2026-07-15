@@ -1,4 +1,13 @@
 import type { HistoryMessage } from "./history";
+import {
+  SEARCH_CATEGORIES,
+  SEARCH_DIRECTORY_SELF_SENDER_ID,
+} from "@/utils/constants";
+
+export {
+  SEARCH_CATEGORIES,
+  SEARCH_DIRECTORY_SELF_SENDER_ID,
+} from "@/utils/constants";
 
 /** @deprecated Legacy-only five-way filter used by the pre-search.v2 UI. */
 export type SearchFilterType = "all" | "text" | "image" | "video" | "file";
@@ -33,21 +42,7 @@ export interface SearchQueryParams {
   msgType?: number;
 }
 
-export const SEARCH_CATEGORIES = [
-  "text",
-  "image_emoji",
-  "video",
-  "voice",
-  "file",
-  "link_card",
-  "quote_forward",
-  "location",
-  "system_other",
-] as const;
-
 export type SearchCategory = (typeof SEARCH_CATEGORIES)[number];
-
-export const SEARCH_DIRECTORY_SELF_SENDER_ID = "chatlog:sender:self:v1" as const;
 
 export type SearchDirectoryScope = "all" | "current" | "selected";
 
@@ -132,7 +127,9 @@ export interface SearchMatchSegment {
 }
 
 export interface SearchHit {
+  /** Stable inside its conversation only; never use this field as a global result key. */
   messageId: string;
+  /** Together with conversationId and messageId, distinguishes repeated local message IDs. */
   seq: number;
   sourceIndex: number;
   conversationId: string;

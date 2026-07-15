@@ -2,17 +2,19 @@ import { create } from "zustand";
 import {
   addSearchHistoryEntry,
   clearSearchHistory,
+  createSearchHistoryStorageValue,
+  decodeSearchHistoryStorage,
   removeSearchHistoryEntry,
-  sanitizeSearchHistory,
   visibleSearchHistory,
   type SearchHistoryEntry,
+  type SearchHistoryStorageValue,
 } from "@l2/commander/searchHistoryPreference";
 
 export const SEARCH_HISTORY_STORAGE_KEY = "chatlogui.search.recentQueries";
 export const SEARCH_VIEW_PREFERENCES_STORAGE_KEY = "chatlogui.search.viewPreferences";
 
 export type SearchBrowseMode = "manual" | "infinite" | "paged";
-export type SearchSortMode = "baseline" | "oldest" | "newest";
+export type SearchSortMode = "oldest" | "newest";
 export type SearchGroupingMode = "none" | "conversation" | "date";
 
 interface SearchViewPreferences {
@@ -22,6 +24,7 @@ interface SearchViewPreferences {
 }
 
 interface SearchPreferenceState extends SearchViewPreferences {
+  rememberRecentSearches: boolean;
   recentEntries: SearchHistoryEntry[];
   recentQueries: string[];
   loaded: boolean;
@@ -29,6 +32,7 @@ interface SearchPreferenceState extends SearchViewPreferences {
   recordSuccessfulQuery: (query: string, succeededAt: number, privacyOn: boolean) => void;
   deleteRecentQuery: (query: string, now?: number) => void;
   clearRecentQueries: () => void;
+  setRememberRecentSearches: (enabled: boolean) => void;
   setBrowseMode: (mode: SearchBrowseMode) => void;
   setSortMode: (mode: SearchSortMode) => void;
   setGroupingMode: (mode: SearchGroupingMode) => void;
@@ -37,45 +41,41 @@ interface SearchPreferenceState extends SearchViewPreferences {
 
 const defaultViewPreferences: SearchViewPreferences = {
   browseMode: "manual",
-  sortMode: "baseline",
+  sortMode: "newest",
   groupingMode: "none",
 };
 
 export const useSearchPreferenceStore = create<SearchPreferenceState>((set, get) => ({
   ...defaultViewPreferences,
+  rememberRecentSearches: true,
   recentEntries: [],
   recentQueries: [],
   loaded: false,
 
   loadFromStorage: (privacyOn, now = Date.now()) => {
     const viewPreferences = readViewPreferences();
-    if (privacyOn) {
-      set({
-        ...viewPreferences,
-        recentEntries: [],
-        recentQueries: [],
-        loaded: true,
-      });
-      return;
-    }
-    const recentEntries = readHistory(now);
+    const history = readHistoryStorage(now);
+    const recentEntries = history.entries;
     set({
       ...viewPreferences,
+      rememberRecentSearches: history.rememberRecentSearches,
       recentEntries,
-      recentQueries: visibleSearchHistory(recentEntries, false, now),
+      recentQueries: history.rememberRecentSearches
+        ? visibleSearchHistory(recentEntries, privacyOn, now)
+        : [],
       loaded: true,
     });
   },
 
   recordSuccessfulQuery: (query, succeededAt, privacyOn) => {
-    if (privacyOn) return;
+    if (privacyOn || !get().rememberRecentSearches) return;
     const recentEntries = addSearchHistoryEntry(get().recentEntries, query, succeededAt, false);
     set({
       recentEntries,
       recentQueries: visibleSearchHistory(recentEntries, false, succeededAt),
       loaded: true,
     });
-    persistHistory(recentEntries);
+    persistHistory(recentEntries, true, succeededAt);
   },
 
   deleteRecentQuery: (query, now = Date.now()) => {
@@ -85,13 +85,24 @@ export const useSearchPreferenceStore = create<SearchPreferenceState>((set, get)
       recentQueries: visibleSearchHistory(recentEntries, false, now),
       loaded: true,
     });
-    persistHistory(recentEntries);
+    persistHistory(recentEntries, get().rememberRecentSearches, now);
   },
 
   clearRecentQueries: () => {
     const recentEntries = clearSearchHistory();
     set({ recentEntries, recentQueries: [], loaded: true });
-    persistHistory(recentEntries);
+    persistHistory(recentEntries, get().rememberRecentSearches);
+  },
+
+  setRememberRecentSearches: (enabled) => {
+    const recentEntries = enabled ? get().recentEntries : clearSearchHistory();
+    set({
+      rememberRecentSearches: enabled,
+      recentEntries,
+      recentQueries: enabled ? get().recentQueries : [],
+      loaded: true,
+    });
+    persistHistory(recentEntries, enabled);
   },
 
   setBrowseMode: (browseMode) => {
@@ -111,28 +122,38 @@ export const useSearchPreferenceStore = create<SearchPreferenceState>((set, get)
 
   reset: () => set({
     ...defaultViewPreferences,
+    rememberRecentSearches: true,
     recentEntries: [],
     recentQueries: [],
     loaded: false,
   }),
 }));
 
-function readHistory(now: number): SearchHistoryEntry[] {
+function readHistoryStorage(now: number): SearchHistoryStorageValue {
+  const fallback = createSearchHistoryStorageValue(true, [], now);
   try {
     const raw = localStorage.getItem(SEARCH_HISTORY_STORAGE_KEY);
-    return sanitizeSearchHistory(raw ? JSON.parse(raw) : [], now);
+    if (raw === null) return fallback;
+    const decoded = decodeSearchHistoryStorage(JSON.parse(raw), now);
+    if (decoded.requiresWriteback) persistHistoryValue(decoded.value);
+    return decoded.value;
   } catch {
-    return [];
+    persistHistoryValue(fallback);
+    return fallback;
   }
 }
 
-function persistHistory(recentEntries: SearchHistoryEntry[]): void {
+function persistHistory(
+  recentEntries: SearchHistoryEntry[],
+  rememberRecentSearches: boolean,
+  now: number = Date.now(),
+): void {
+  persistHistoryValue(createSearchHistoryStorageValue(rememberRecentSearches, recentEntries, now));
+}
+
+function persistHistoryValue(value: SearchHistoryStorageValue): void {
   try {
-    if (recentEntries.length === 0) {
-      localStorage.removeItem(SEARCH_HISTORY_STORAGE_KEY);
-      return;
-    }
-    localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(recentEntries));
+    localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(value));
   } catch {
     // Best-effort local preference; search remains usable if storage is full.
   }
@@ -153,7 +174,7 @@ function sanitizeViewPreferences(value: unknown): SearchViewPreferences {
     browseMode: isOneOf(value.browseMode, ["manual", "infinite", "paged"])
       ? value.browseMode
       : defaultViewPreferences.browseMode,
-    sortMode: isOneOf(value.sortMode, ["baseline", "oldest", "newest"])
+    sortMode: isOneOf(value.sortMode, ["oldest", "newest"])
       ? value.sortMode
       : defaultViewPreferences.sortMode,
     groupingMode: isOneOf(value.groupingMode, ["none", "conversation", "date"])

@@ -34,6 +34,8 @@ export interface TranscriptPositionModel {
   controls: TranscriptControlView[];
 }
 
+export type TranscriptControlAction = "load-latest" | "scroll-latest" | "scroll-anchor" | "none";
+
 const ANCHOR_LABELS: Record<ChatAnchorSource, { source: string; returnLabel: string }> = {
   search: { source: "来自搜索结果", returnLabel: "回到命中" },
   media: { source: "来自媒体", returnLabel: "回到媒体" },
@@ -46,6 +48,7 @@ export function deriveTranscriptPositionModel({
   rows,
   visibleIndexes,
   messagesHasMore,
+  messagesHasNewer,
   nearLatest,
   activeAnchor,
   anchorStatus,
@@ -53,6 +56,7 @@ export function deriveTranscriptPositionModel({
   rows: TranscriptPositionRow[];
   visibleIndexes: number[];
   messagesHasMore: boolean;
+  messagesHasNewer: boolean;
   nearLatest: boolean;
   activeAnchor: ChatMessageAnchor | null;
   anchorStatus: ChatAnchorStatus;
@@ -69,14 +73,17 @@ export function deriveTranscriptPositionModel({
     stickyDateLabel,
     positionText: visibleMessage ? `当前查看：${visibleMessage.time} 附近` : null,
     topTerminalText: !messagesHasMore && firstVisibleIndex <= 1 && rows.length > 0 ? "已到最早消息" : null,
-    bottomTerminalText: nearLatest && lastVisibleIndex >= rows.length - 1 ? "已到最新消息" : null,
+    bottomTerminalText:
+      nearLatest && !messagesHasNewer && lastVisibleIndex >= rows.length - 1
+        ? "已到最新消息"
+        : null,
     anchorLabel: anchorCopy?.source ?? null,
     controls: [
       {
         id: "latest",
         label: "回到最新",
-        disabled: nearLatest,
-        disabledReason: nearLatest ? "已经在最新消息附近。" : null,
+        disabled: nearLatest && !messagesHasNewer,
+        disabledReason: nearLatest && !messagesHasNewer ? "已经在最新消息附近。" : null,
       },
       {
         id: "bottom",
@@ -104,6 +111,16 @@ export function deriveTranscriptPositionModel({
       },
     ],
   };
+}
+
+export function resolveTranscriptControlAction(
+  id: TranscriptControlId,
+  messagesHasNewer: boolean,
+): TranscriptControlAction {
+  if (id === "latest") return messagesHasNewer ? "load-latest" : "scroll-latest";
+  if (id === "bottom") return "scroll-latest";
+  if (id === "return-anchor") return "scroll-anchor";
+  return "none";
 }
 
 function findVisibleMessage(

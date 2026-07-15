@@ -1,63 +1,47 @@
 import { describe, expect, it } from "vitest";
-import type { SearchSnapshotPage } from "@/l2-coordinator/api-docs/search";
-import { createSearchResultWindow } from "./searchResultWindowModel";
-import { compatibilityGlobalError, toCompatibilityResults } from "./useSearchCommander";
+import { createDefaultSearchDraft, type SearchDraft } from "./searchDraftModel";
+import * as searchCommanderModule from "./useSearchCommander";
 
-describe("search commander compatibility facade", () => {
-  it("preserves canonical conversation and message identities separately from labels", () => {
-    const results = toCompatibilityResults(createSearchResultWindow(page(), "manual"));
+const { shouldSynchronizeScopedChat } = searchCommanderModule;
 
-    expect(results?.messages[0]).toMatchObject({
-      id: "opaque-message",
-      messageId: "opaque-message",
-      conversationId: "wxid-canonical",
-      username: "wxid-canonical",
-      chat: "Readable conversation",
-      localId: 42,
-    });
-  });
-
-  it("never exposes a replacement failure as a global error over a stable snapshot", () => {
-    const window = createSearchResultWindow(page(), "manual");
-    expect(
-      compatibilityGlobalError(window, { status: "error", errorCode: "request_failed" }),
-    ).toBeNull();
-    expect(compatibilityGlobalError(null, { status: "error", errorCode: "request_failed" })).toBe(
-      "搜索请求失败，请手动重试",
+describe("search commander canonical scope synchronization", () => {
+  it("does not overwrite a restored current scope before route restoration is consumed", () => {
+    expect(shouldSynchronizeScopedChat(true, "current", "restored-chat", null)).toBe(false);
+    expect(shouldSynchronizeScopedChat(false, "current", "restored-chat", null)).toBe(true);
+    expect(shouldSynchronizeScopedChat(false, "all", null, "route-chat")).toBe(false);
+    expect(shouldSynchronizeScopedChat(false, "current", "route-chat", "route-chat")).toBe(
+      false,
     );
   });
-});
 
-function page(): SearchSnapshotPage {
-  return {
-    snapshotId: "snapshot",
-    dataRevision: "revision",
-    exactTotal: true,
-    completeScope: true,
-    totalCount: 1,
-    count: 1,
-    windowStart: 0,
-    previousCursor: "",
-    nextCursor: "",
-    hasPrevious: false,
-    hasNext: false,
-    messages: [
-      {
-        messageId: "opaque-message",
-        seq: 42,
-        sourceIndex: 0,
-        conversationId: "wxid-canonical",
-        conversationName: "Readable conversation",
-        senderId: "sender-id",
-        senderName: "Readable sender",
-        timestamp: 1_700_000_000,
-        type: 1,
-        subType: 0,
-        category: "text",
-        matchField: "content",
-        snippet: "needle",
-        matchSegments: [{ text: "needle", matched: true }],
-      },
-    ],
-  };
-}
+  it("invalidates scoped senders only when all/current route scope materially changes", () => {
+    const applyRouteScope = (
+      searchCommanderModule as unknown as {
+        applySearchRouteScopeDraft?: (
+          draft: SearchDraft,
+          scope: "all" | "current",
+          scopedChat?: string | null,
+        ) => SearchDraft;
+      }
+    ).applySearchRouteScopeDraft;
+    expect(applyRouteScope).toBeTypeOf("function");
+
+    const allDraft: SearchDraft = {
+      ...createDefaultSearchDraft(),
+      senderIds: ["sender-a"],
+    };
+    expect(applyRouteScope?.(allDraft, "all", null).senderIds).toEqual(["sender-a"]);
+    expect(applyRouteScope?.(allDraft, "current", " chat-a ")).toMatchObject({
+      scope: { kind: "current", chatId: "chat-a" },
+      senderIds: [],
+    });
+
+    const currentDraft: SearchDraft = {
+      ...allDraft,
+      scope: { kind: "current", chatId: "chat-a" },
+    };
+    expect(applyRouteScope?.(currentDraft, "current", "chat-a").senderIds).toEqual(["sender-a"]);
+    expect(applyRouteScope?.(currentDraft, "current", "chat-b").senderIds).toEqual([]);
+    expect(applyRouteScope?.(currentDraft, "all", null).senderIds).toEqual([]);
+  });
+});

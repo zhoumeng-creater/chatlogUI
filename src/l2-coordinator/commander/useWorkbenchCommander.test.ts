@@ -55,7 +55,7 @@ describe("useWorkbenchCommander", () => {
       resultWindow: createSearchResultWindow(page(), "infinite"),
       stale: false,
       activeSourceIndex: 0,
-      scrollAnchor: "message-return",
+      scrollAnchor: { resultId: "message-return", offsetFromViewportTop: -22 },
       sortMode: "oldest",
       groupingMode: "date",
       capturedAt: 20,
@@ -86,9 +86,8 @@ describe("useWorkbenchCommander", () => {
       resultWindow: {
         snapshotId: "snapshot-return",
         browseMode: "infinite",
-        restoreScrollAnchor: "message-return",
+        restoreScrollAnchor: { resultId: "message-return", offsetFromViewportTop: -22 },
       },
-      scope: "current",
     });
     expect(useSearchPreferenceStore.getState()).toMatchObject({
       browseMode: "infinite",

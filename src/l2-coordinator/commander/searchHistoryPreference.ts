@@ -1,4 +1,7 @@
+import { normalizeSearchKeyword } from "./searchDraftModel";
+
 const MAX_SEARCH_HISTORY_TERMS = 5;
+export const SEARCH_HISTORY_STORAGE_VERSION = 1 as const;
 export const SEARCH_HISTORY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface SearchHistoryEntry {
@@ -6,6 +9,17 @@ export interface SearchHistoryEntry {
   displayQuery: string;
   succeededAt: number;
   expiresAt: number;
+}
+
+export interface SearchHistoryStorageValue {
+  version: typeof SEARCH_HISTORY_STORAGE_VERSION;
+  rememberRecentSearches: boolean;
+  entries: SearchHistoryEntry[];
+}
+
+export interface DecodedSearchHistoryStorage {
+  value: SearchHistoryStorageValue;
+  requiresWriteback: boolean;
 }
 
 export function addSearchHistoryEntry(
@@ -16,7 +30,7 @@ export function addSearchHistoryEntry(
 ): SearchHistoryEntry[] {
   if (privacyOn) return existingEntries;
   const displayQuery = normalizeDisplayQuery(query);
-  if (!displayQuery || !Number.isFinite(succeededAt)) {
+  if (!isValidHistoryQuery(displayQuery) || !Number.isFinite(succeededAt)) {
     return sanitizeSearchHistory(existingEntries, succeededAt);
   }
   const normalizedQuery = normalizeHistoryKey(displayQuery);
@@ -42,6 +56,55 @@ export function removeSearchHistoryEntry(
 
 export function clearSearchHistory(): SearchHistoryEntry[] {
   return [];
+}
+
+export function createSearchHistoryStorageValue(
+  rememberRecentSearches: boolean,
+  entries: unknown[],
+  now: number = Date.now(),
+): SearchHistoryStorageValue {
+  return {
+    version: SEARCH_HISTORY_STORAGE_VERSION,
+    rememberRecentSearches,
+    entries: rememberRecentSearches ? sanitizeSearchHistory(entries, now) : [],
+  };
+}
+
+export function decodeSearchHistoryStorage(
+  value: unknown,
+  now: number = Date.now(),
+): DecodedSearchHistoryStorage {
+  if (Array.isArray(value)) {
+    const migrated = value.map((item) => migrateLegacyEntry(item, now));
+    return {
+      value: createSearchHistoryStorageValue(
+        true,
+        migrated.filter((item) => item !== null),
+        now,
+      ),
+      requiresWriteback: true,
+    };
+  }
+
+  if (isRecord(value) && value.version === SEARCH_HISTORY_STORAGE_VERSION) {
+    const rememberRecentSearches = typeof value.rememberRecentSearches === "boolean"
+      ? value.rememberRecentSearches
+      : true;
+    const decoded = createSearchHistoryStorageValue(
+      rememberRecentSearches,
+      Array.isArray(value.entries) ? value.entries : [],
+      now,
+    );
+    return {
+      value: decoded,
+      requiresWriteback: !storageValuesEqual(value, decoded),
+    };
+  }
+
+  return {
+    value: createSearchHistoryStorageValue(true, [], now),
+    requiresWriteback: value !== null && value !== undefined,
+  };
 }
 
 export function sanitizeSearchHistory(value: unknown, now: number = Date.now()): SearchHistoryEntry[] {
@@ -72,25 +135,28 @@ export function visibleSearchHistory(
   return sanitizeSearchHistory(entries, now).map((entry) => entry.displayQuery);
 }
 
+function migrateLegacyEntry(value: unknown, now: number): unknown {
+  if (typeof value !== "string") return value;
+  const displayQuery = normalizeDisplayQuery(value);
+  if (!Number.isFinite(now) || !isValidHistoryQuery(displayQuery)) return null;
+  return {
+    normalizedQuery: normalizeHistoryKey(displayQuery),
+    displayQuery,
+    succeededAt: now,
+    expiresAt: now + SEARCH_HISTORY_TTL_MS,
+  } satisfies SearchHistoryEntry;
+}
+
 function sanitizeEntry(value: unknown, now: number): SearchHistoryEntry | null {
-  if (typeof value === "string") {
-    const displayQuery = normalizeDisplayQuery(value);
-    if (!displayQuery) return null;
-    return {
-      normalizedQuery: normalizeHistoryKey(displayQuery),
-      displayQuery,
-      succeededAt: now,
-      expiresAt: now + SEARCH_HISTORY_TTL_MS,
-    };
-  }
   if (!isRecord(value) || typeof value.displayQuery !== "string") return null;
   const displayQuery = normalizeDisplayQuery(value.displayQuery);
   const succeededAt = value.succeededAt;
   const storedExpiresAt = value.expiresAt;
   if (
-    !displayQuery ||
+    !isValidHistoryQuery(displayQuery) ||
     typeof succeededAt !== "number" ||
     !Number.isFinite(succeededAt) ||
+    succeededAt < 0 ||
     succeededAt > now ||
     typeof storedExpiresAt !== "number" ||
     !Number.isFinite(storedExpiresAt)
@@ -108,11 +174,28 @@ function sanitizeEntry(value: unknown, now: number): SearchHistoryEntry | null {
 }
 
 function normalizeDisplayQuery(query: string): string {
-  return query.normalize("NFKC").trim().replace(/\s+/gu, " ");
+  return normalizeSearchKeyword(query).displayKeyword;
+}
+
+function isValidHistoryQuery(query: string): boolean {
+  const normalized = normalizeSearchKeyword(query);
+  return Boolean(
+    normalized.displayKeyword &&
+    normalized.graphemeCount <= 200 &&
+    normalized.termCount <= 20
+  );
 }
 
 function normalizeHistoryKey(query: string): string {
-  return query.toUpperCase().toLowerCase();
+  return normalizeSearchKeyword(query).canonicalTerms.join("\u0000");
+}
+
+function storageValuesEqual(left: unknown, right: SearchHistoryStorageValue): boolean {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

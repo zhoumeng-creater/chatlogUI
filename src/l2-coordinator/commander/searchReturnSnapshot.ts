@@ -6,6 +6,7 @@ import type {
   SearchPresentationSortMode,
 } from "./searchResultPresentation";
 import type { SearchResultWindow } from "./searchResultWindowModel";
+import { cloneSearchScrollAnchor, type SearchScrollAnchor } from "./searchScrollAnchor";
 
 export interface SearchAppliedReturnSnapshot {
   draft: SearchDraft;
@@ -21,7 +22,7 @@ export interface SearchReturnSnapshot {
   resultWindow: SearchResultWindow;
   stale: boolean;
   activeSourceIndex: number | null;
-  scrollAnchor: string | null;
+  scrollAnchor: SearchScrollAnchor | null;
   sortMode: SearchPresentationSortMode;
   groupingMode: SearchPresentationGroupingMode;
   capturedAt: number;
@@ -52,7 +53,7 @@ function cloneSnapshot(snapshot: Readonly<SearchReturnSnapshot>): SearchReturnSn
     resultWindow: cloneWindow(snapshot.resultWindow),
     stale: snapshot.stale,
     activeSourceIndex: snapshot.activeSourceIndex,
-    scrollAnchor: snapshot.scrollAnchor,
+    scrollAnchor: cloneSearchScrollAnchor(snapshot.scrollAnchor),
     sortMode: snapshot.sortMode,
     groupingMode: snapshot.groupingMode,
     capturedAt: snapshot.capturedAt,
@@ -91,17 +92,41 @@ function cloneWindow(window: SearchResultWindow): SearchResultWindow {
     currentPageHits: cloneHits(window.currentPageHits),
     loadedRanges: window.loadedRanges.map((range) => ({ ...range })),
     gaps: window.gaps.map((range) => ({ ...range })),
-    scrollAnchors: { ...window.scrollAnchors },
+    pageCursors: { ...window.pageCursors },
+    pageReadingPositions: Object.fromEntries(
+      Object.entries(window.pageReadingPositions).map(([pageStart, position]) => [
+        pageStart,
+        {
+          activeSourceIndex: position.activeSourceIndex,
+          scrollAnchor: cloneSearchScrollAnchor(position.scrollAnchor),
+        },
+      ]),
+    ),
+    scrollAnchors: {
+      manual: cloneSearchScrollAnchor(window.scrollAnchors.manual),
+      infinite: cloneSearchScrollAnchor(window.scrollAnchors.infinite),
+      paged: cloneSearchScrollAnchor(window.scrollAnchors.paged),
+    },
+    restoreScrollAnchor: cloneSearchScrollAnchor(window.restoreScrollAnchor),
     operations: {
-      initial: { ...window.operations.initial },
-      forward: { ...window.operations.forward },
-      backward: { ...window.operations.backward },
-      page: { ...window.operations.page },
+      initial: stableOperation(window.operations.initial),
+      forward: stableOperation(window.operations.forward),
+      backward: stableOperation(window.operations.backward),
+      page: stableOperation(window.operations.page),
       gaps: Object.fromEntries(
-        Object.entries(window.operations.gaps).map(([key, value]) => [key, { ...value }]),
+        Object.entries(window.operations.gaps).map(([key, value]) => [
+          key,
+          stableOperation(value),
+        ]),
       ),
     },
   };
+}
+
+function stableOperation(
+  operation: SearchResultWindow["operations"]["forward"],
+): SearchResultWindow["operations"]["forward"] {
+  return operation.status === "loading" ? { status: "idle" } : { ...operation };
 }
 
 function cloneHits(hits: SearchResultWindow["retainedHits"]): SearchResultWindow["retainedHits"] {

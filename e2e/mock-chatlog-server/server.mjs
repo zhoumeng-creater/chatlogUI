@@ -121,7 +121,12 @@ async function handleRequest(routeMap, request, response) {
     return;
   }
 
-  writeJson(response, 200, route.value);
+  const value = route.id === "search-v2.query"
+    ? await searchV2ValueForRequest(route, request)
+    : route.id === "history-context.query"
+      ? await historyContextValueForRequest(routeMap, route, request)
+      : route.value;
+  writeJson(response, 200, value);
 }
 
 function setCorsHeaders(response) {
@@ -148,6 +153,157 @@ async function semanticQAValueForRequest(routeMap, route, request) {
         ? "empty"
         : "completed";
   return routeMap.routes.find((item) => item.id === `semantic-qa.${state}`)?.value ?? route.value;
+}
+
+async function searchV2ValueForRequest(route, request) {
+  const body = await readJsonBody(request);
+  const fixture = route.value ?? {};
+  const normalizedKeyword = typeof body.keyword === "string"
+    ? body.keyword.normalize("NFKC").trim().toLocaleLowerCase()
+    : "";
+  const emptyKeywords = Array.isArray(fixture.empty_keywords) ? fixture.empty_keywords : [];
+  const forceEmpty = emptyKeywords.some((keyword) =>
+    normalizedKeyword.includes(String(keyword).toLocaleLowerCase()),
+  );
+  const categories = stringSet(body.categories);
+  const conversations = stringSet(body.chats);
+  const senders = stringSet(body.sender_ids);
+  const since = Number.isSafeInteger(body.since) ? body.since : null;
+  const until = Number.isSafeInteger(body.until) ? body.until : null;
+  const allHits = forceEmpty
+    ? []
+    : (Array.isArray(fixture.hits) ? fixture.hits : []).filter((hit) =>
+        (!categories || categories.has(hit.category)) &&
+        (!conversations || conversations.has(hit.conversation_id)) &&
+        (!senders || senders.has(hit.sender_id)) &&
+        (since === null || hit.timestamp >= since) &&
+        (until === null || hit.timestamp <= until),
+      );
+  const indexedHits = allHits.map((hit, sourceIndex) => ({
+    ...hit,
+    source_index: sourceIndex,
+  }));
+  const configuredFirstPageCount = positiveSafeInteger(fixture.first_page_count) ?? 4;
+  const requestedLimit = positiveSafeInteger(body.limit) ?? 50;
+  const pageSize = Math.min(configuredFirstPageCount, requestedLimit);
+  const start = body.cursor === fixture.forward_cursor ? pageSize : 0;
+  const end = Math.min(indexedHits.length, start + pageSize);
+  const messages = indexedHits.slice(start, end);
+  const hasPrevious = start > 0;
+  const hasNext = end < indexedHits.length;
+
+  return {
+    snapshot_id: fixture.snapshot_id,
+    data_revision: fixture.data_revision,
+    exact_total: true,
+    complete_scope: true,
+    total_count: indexedHits.length,
+    count: messages.length,
+    window_start: start,
+    previous_cursor: hasPrevious ? fixture.backward_cursor : "",
+    next_cursor: hasNext ? fixture.forward_cursor : "",
+    has_previous: hasPrevious,
+    has_next: hasNext,
+    messages,
+  };
+}
+
+async function historyContextValueForRequest(routeMap, route, request) {
+  const body = await readJsonBody(request);
+  const fixture = route.value ?? {};
+  const searchFixture = routeMap.routes.find((item) => item.id === "search-v2.query")?.value ?? {};
+  const hits = Array.isArray(searchFixture.hits) ? searchFixture.hits : [];
+  const conversationId = typeof body.conversation_id === "string" && body.conversation_id
+    ? body.conversation_id
+    : "session_synthetic_001";
+  const anchorSeq = positiveSafeInteger(body.seq) ?? 1101;
+  const anchorHit = hits.find((hit) =>
+    hit.conversation_id === conversationId && hit.seq === anchorSeq,
+  );
+  const conversationName = anchorHit?.conversation_name ??
+    (conversationId.endsWith("@chatroom") ? "Synthetic Chatroom" : "Synthetic Session Alpha");
+  const anchorTimestamp = Number.isSafeInteger(anchorHit?.timestamp)
+    ? anchorHit.timestamp
+    : 1767254400;
+  const anchorSenderId = typeof anchorHit?.sender_id === "string"
+    ? anchorHit.sender_id
+    : "contact_synthetic_001";
+  const anchorSenderName = typeof anchorHit?.sender_name === "string"
+    ? anchorHit.sender_name
+    : "Synthetic Contact Alpha";
+  const anchorIsSelf = anchorSenderId === "chatlog:sender:self:v1";
+  const limit = positiveSafeInteger(body.limit) ??
+    positiveSafeInteger(fixture.default_limit) ??
+    51;
+  const dataRevision = typeof body.data_revision === "string" && body.data_revision
+    ? body.data_revision
+    : fixture.data_revision;
+
+  const messages = [
+    {
+      seq: anchorSeq - 1,
+      timestamp: Math.max(0, anchorTimestamp - 60),
+      conversation_id: conversationId,
+      conversation_name: conversationName,
+      sender_id: "contact_synthetic_001",
+      sender_name: "Synthetic Contact Alpha",
+      is_self: false,
+      type: 1,
+      sub_type: 0,
+      content: "Synthetic context message before the selected search hit",
+    },
+    {
+      seq: anchorSeq,
+      timestamp: anchorTimestamp,
+      conversation_id: conversationId,
+      conversation_name: conversationName,
+      sender_id: anchorSenderId,
+      sender_name: anchorSenderName,
+      is_self: anchorIsSelf,
+      type: Number.isSafeInteger(anchorHit?.type) ? anchorHit.type : 1,
+      sub_type: Number.isSafeInteger(anchorHit?.sub_type) ? anchorHit.sub_type : 0,
+      content: typeof anchorHit?.snippet === "string"
+        ? anchorHit.snippet
+        : "Synthetic selected search hit",
+    },
+    {
+      seq: anchorSeq + 1,
+      timestamp: anchorTimestamp + 60,
+      conversation_id: conversationId,
+      conversation_name: conversationName,
+      sender_id: "chatlog:sender:self:v1",
+      sender_name: "Synthetic Self",
+      is_self: true,
+      type: 1,
+      sub_type: 0,
+      content: "Synthetic context message after the selected search hit",
+    },
+  ];
+
+  return {
+    contract_version: fixture.contract_version,
+    data_revision: dataRevision,
+    exact: true,
+    complete: true,
+    conversation_id: conversationId,
+    anchor_seq: anchorSeq,
+    anchor_index: 1,
+    limit,
+    count: messages.length,
+    has_before: true,
+    has_after: true,
+    messages,
+  };
+}
+
+function stringSet(value) {
+  return Array.isArray(value) && value.length > 0
+    ? new Set(value.filter((item) => typeof item === "string"))
+    : null;
+}
+
+function positiveSafeInteger(value) {
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
 async function readJsonBody(request) {

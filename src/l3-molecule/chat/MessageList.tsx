@@ -14,10 +14,11 @@ import type {
 } from "@l2/data-clerk/stores/useChatStore";
 import type { ApiErrorModel } from "@/l2-coordinator/diplomat/errorTranslator";
 import type { ChatReadingState } from "@/l2-coordinator/commander/chatReadingState";
-import type {
-  TranscriptControlId,
-  TranscriptPositionModel,
-  TranscriptPositionRow,
+import {
+  resolveTranscriptControlAction,
+  type TranscriptControlId,
+  type TranscriptPositionModel,
+  type TranscriptPositionRow,
 } from "@/l2-coordinator/commander/transcriptPositionModel";
 import type {
   MessageActionId,
@@ -41,6 +42,7 @@ interface MessageListProps {
   messages: ChatMessage[];
   messagesLoading: boolean;
   messagesHasMore: boolean;
+  messagesHasNewer: boolean;
   messagesStatus: LoadStatus;
   messagesError: string | ApiErrorModel | null;
   readingState: ChatReadingState;
@@ -71,6 +73,7 @@ interface MessageListProps {
     rows: TranscriptPositionRow[];
     visibleIndexes: number[];
     messagesHasMore: boolean;
+    messagesHasNewer: boolean;
     nearLatest: boolean;
     activeAnchor: ChatMessageAnchor | null;
     anchorStatus: ChatAnchorStatus;
@@ -88,6 +91,7 @@ export function MessageList({
   messages,
   messagesLoading,
   messagesHasMore,
+  messagesHasNewer,
   messagesStatus,
   messagesError,
   readingState,
@@ -154,6 +158,7 @@ export function MessageList({
     rows: transcriptPositionRows,
     visibleIndexes: virtualItems.map((item) => item.index),
     messagesHasMore,
+    messagesHasNewer,
     nearLatest,
     activeAnchor,
     anchorStatus,
@@ -161,6 +166,7 @@ export function MessageList({
     activeAnchor,
     anchorStatus,
     messagesHasMore,
+    messagesHasNewer,
     nearLatest,
     onDeriveTranscriptPosition,
     transcriptPositionRows,
@@ -237,11 +243,16 @@ export function MessageList({
   };
 
   const handleTranscriptControlAction = (id: TranscriptControlId) => {
-    if (id === "latest" || id === "bottom") {
+    const action = resolveTranscriptControlAction(id, messagesHasNewer);
+    if (action === "load-latest") {
+      if (activeChat) onLoadHistory(activeChat);
+      return;
+    }
+    if (action === "scroll-latest") {
       scrollToLatest();
       return;
     }
-    if (id === "return-anchor") {
+    if (action === "scroll-anchor") {
       scrollToAnchor();
     }
   };
@@ -328,7 +339,11 @@ export function MessageList({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => activeChat && onLoadMoreHistory(activeChat)}
+            onClick={() => {
+              if (!activeChat) return;
+              if (messagesHasNewer) onLoadHistory(activeChat);
+              else onLoadMoreHistory(activeChat);
+            }}
           >
             {readingState.primaryAction ?? "重试"}
           </Button>

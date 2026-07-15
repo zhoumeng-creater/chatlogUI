@@ -56,29 +56,32 @@ export function buildNearbyAnchorHistoryRequest(
   return request;
 }
 
-export async function findExactAnchorPage<TPage extends { messages: ChatMessage[] }>({
+export async function findExactAnchorPage<
+  TPage extends { messages: ChatMessage[]; totalCount: number },
+>({
   anchor,
   limit,
   windowSeconds,
-  maxMessages,
   fetchPage,
 }: {
   anchor: ChatMessageAnchor;
   limit: number;
   windowSeconds: number;
-  maxMessages: number;
   fetchPage: (request: FetchHistoryOptions) => Promise<TPage>;
 }): Promise<{ page: TPage; hit: ChatMessage | null }> {
   const safeLimit = Math.max(1, Math.trunc(limit));
-  const safeMaxMessages = Math.max(safeLimit, Math.trunc(maxMessages));
   const base = buildAnchorHistoryRequest(anchor, { limit: safeLimit, windowSeconds });
   let offset = 0;
   let page = await fetchPage({ ...base, offset });
 
-  while (offset < safeMaxMessages) {
+  while (page.messages.length > 0) {
     const hit = findAnchoredMessage(page.messages, anchor);
     if (hit) return { page, hit };
-    if (page.messages.length < safeLimit || offset + safeLimit >= safeMaxMessages) {
+    const exhaustedByCount =
+      Number.isSafeInteger(page.totalCount) &&
+      page.totalCount >= 0 &&
+      offset + page.messages.length >= page.totalCount;
+    if (page.messages.length < safeLimit || exhaustedByCount) {
       return { page, hit: null };
     }
     offset += safeLimit;

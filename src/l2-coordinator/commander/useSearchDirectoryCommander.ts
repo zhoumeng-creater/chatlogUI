@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type {
   SearchConversationDirectoryPage,
   SearchConversationDirectoryRequest,
@@ -246,10 +246,40 @@ export function useSearchDirectoryCommander(
     coordinator.getState,
     coordinator.getState,
   );
+  const activeCoordinatorRef = useRef(coordinator);
+  const effectGenerationRef = useRef(0);
+  activeCoordinatorRef.current = coordinator;
 
-  useEffect(() => () => coordinator.dispose(), [coordinator]);
+  useEffect(() => {
+    const cleanupGeneration = ++effectGenerationRef.current;
+    const generationRef = effectGenerationRef;
+    const coordinatorRef = activeCoordinatorRef;
+    return () => {
+      queueMicrotask(() => {
+        if (shouldDisposeSearchDirectoryCoordinator({
+          cleanupGeneration,
+          currentGeneration: generationRef.current,
+          sameCoordinator: coordinatorRef.current === coordinator,
+        })) {
+          coordinator.dispose();
+        }
+      });
+    };
+  }, [coordinator]);
 
   return useMemo(() => ({ ...state, coordinator }), [coordinator, state]);
+}
+
+export function shouldDisposeSearchDirectoryCoordinator({
+  cleanupGeneration,
+  currentGeneration,
+  sameCoordinator,
+}: {
+  cleanupGeneration: number;
+  currentGeneration: number;
+  sameCoordinator: boolean;
+}): boolean {
+  return !sameCoordinator || cleanupGeneration === currentGeneration;
 }
 
 function freezeSenderContext(context: SearchSenderDirectoryContext): SearchSenderDirectoryContext {
