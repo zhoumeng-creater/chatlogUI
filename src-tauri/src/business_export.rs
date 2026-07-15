@@ -2510,7 +2510,14 @@ mod tests {
         );
         if commit_result.is_ok() {
             assert_eq!(std::fs::read_to_string(&path).unwrap(), "private export");
-            assert!(cancel_result.unwrap_err().contains("已提交"));
+            let cancel_error = cancel_result.unwrap_err();
+            assert!(
+                cancel_error.contains("已提交") || cancel_error.contains("正在安全处理"),
+                "commit-winning cancellation returned an unexpected error: {cancel_error}"
+            );
+            let terminal_error = cancel_business_export_stream(&state, &opened.session_id)
+                .expect_err("a completed commit must remain non-cancellable");
+            assert!(terminal_error.contains("已提交"));
             let _ = std::fs::remove_file(path);
         } else {
             assert!(!path.exists());
